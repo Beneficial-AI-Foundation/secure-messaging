@@ -11,57 +11,36 @@ import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 
 **Setting.** Let
 
-- `sample : ProbComp τ` be a randomized computation returning a parameter
-  `a : τ`, and let `S := support sample` be the set of values it returns
-  with positive probability;
-- `impl : τ → QueryImpl spec (OptionT (StateT σ ProbComp))` be a family of
-  randomized stateful oracle implementations indexed by `a : τ`, with query
-  interface `spec` and state space `σ`.
+- `sample : ProbComp τ` be a randomized computation returning a parameter `a : τ`;
+- `impl : τ → QueryImpl spec (OptionT (StateT σ ProbComp))` be a family of randomized stateful
+  oracle implementations indexed by `a : τ`, with query interface `spec` and state space `σ`.
 
-For an adaptive adversary `oa : OracleComp spec Bool` and initial state
-`s : σ`, let `Run(I, oa, s) := optionRun I oa s` run `oa` with oracle implementation `I` from
-`s`. It returns the adversary's output bit, or `false` if an oracle returns `none`.
+For an adaptive adversary `oa : OracleComp spec Bool` and initial state `s : σ`, write
+`Run(I, oa, s) := optionRun I oa s` for the run of `oa` from `s` with oracle implementation `I`.
+It returns the adversary's output bit, or `false` if an oracle returns `none`.
 
 **Two experiments.** Define
 
 ```text
-G_once(oa, s):
+G_once(oa, s):                                    -- one parameter for the whole run
   a ← sample
   return Run(impl a, oa, s)
 
-G_each(oa, s):
+G_each(oa, s):                                    -- a fresh parameter at every query
   return Run(sampleEachQuery sample impl, oa, s)
 ```
 
-Here `sampleEachQuery sample impl` answers each query `t` by drawing a fresh
-independent `a ← sample` and running `impl a t` from the current state.
+**Main theorem** (`optionRun_sample_once_eq_sampleEachQuery`). If every run uses the parameter
+in at most one query, then `Pr[G_once(oa, s) = true] = Pr[G_each(oa, s) = true]`.
 
-**Main theorem** (`optionRun_sample_once_eq_sampleEachQuery`).
-Fix arbitrary state predicates `Inv, used : σ → Prop`
-and a test `hit : spec.Domain → σ → Bool`, with the following roles:
+**Stopped executions** (`stoppedRun_sample_once_eq`). Under the same condition, the equality
+also holds for runs stopped by a state test `stop` (returning `false` at the first query whose
+successor state satisfies `stop`), with `G_each` replaced by any oracle `target` that answers each
+query like `impl a` for a fresh `a ← sample`:
 
-- `Inv` is the state invariant;
-- `used s` marks states after which every query has the same joint distribution of response and
-  next state under `impl a` for all `a ∈ S`;
-- `hit t s = true` marks a query `t` in state `s` whose joint distribution of response and next
-  state under `impl a` may vary with `a ∈ S`.
-
-Assume that for every query `t`, state `s` satisfying `Inv s`, and parameters
-`a, a' ∈ S`:
-
-1. Every `(some r, s')` in the support of `((impl a t).run).run s` satisfies `Inv s'`.
-2. If `used s`, every such `s'` also satisfies `used s'`.
-3. If `hit t s = false`, running `impl a t` and `impl a' t` from `s` gives
-   the same joint distribution of response and next state.
-4. If `used s`, then `hit t s = false`.
-5. If `hit t s = true`, every such `s'` satisfies `used s'`.
-
-By 2, 4, and 5, a query with `hit t s = true` occurs only in a state without `used` and leads to
-states with `used`, so every execution from an `Inv` state contains at most one such query.
-
-Then, for every adaptive adversary `oa : OracleComp spec Bool` and
-initial state `s` satisfying `Inv s`,
-`Pr[G_once(oa, s) = true] = Pr[G_each(oa, s) = true]`.
+```text
+Pr[a ← sample; stoppedRun (impl a) stop oa s = true] = Pr[stoppedRun target stop oa s = true]
+```
 -/
 
 open OracleSpec ENNReal
@@ -150,18 +129,22 @@ private theorem optionRun_sampleEachQuery_eq_of_used
       · rw [map_bind]
         exact prEvent_bind_const _ _
 
-/-- For every Boolean adversary `oa` and state `s` with `Inv s`, drawing
-`a ← sample` once and running `optionRun (impl a) oa s` returns `true` with
-the same probability as `optionRun (sampleEachQuery sample impl) oa s`,
-provided that for all `a, a' ∈ support sample`, queries `t`, and states `u`
-with `Inv u`:
+/-- One-use sampling: if every run uses the parameter in at most one query, drawing it once or at
+every query gives the same acceptance probability.
 
-- every `(some r, u')` in the support of `((impl a t).run).run u` satisfies
-  `Inv u'`, and also `used u'` if `used u`;
-- if `hit t u = false`, then `((impl a t).run).run u =ᵈ ((impl a' t).run).run u`;
-- if `used u`, then `hit t u = false`;
-- if `hit t u = true`, then every `(some r, u')` in the support of
-  `((impl a t).run).run u` satisfies `used u'`. -/
+Let `Inv : σ → Prop` be a state invariant,
+`used : σ → Prop` mark states in which the parameter has been used, and
+`hit : spec.Domain → σ → Bool` mark queries that may use it. Assume that for all
+`a, a' ∈ support sample`, queries `t`, and states `u` with `Inv u`:
+
+- every `(some r, u')` in the support of `((impl a t).run).run u` satisfies `Inv u'` (`hpres`),
+  and also `used u'` if `used u` (`hused`);
+- if `hit t u = false`, then `((impl a t).run).run u =ᵈ ((impl a' t).run).run u` (`hindep`);
+- if `used u`, then `hit t u = false` (`hnohit`);
+- if `hit t u = true`, every `(some r, u')` in that support satisfies `used u'` (`hfirst`).
+
+Then for every `oa` and `s` with `Inv s`, `Pr[a ← sample; optionRun (impl a) oa s = true] =
+Pr[optionRun (sampleEachQuery sample impl) oa s = true]`. -/
 theorem optionRun_sample_once_eq_sampleEachQuery
     (sample : ProbComp τ) (impl : τ → QueryImpl spec (OptionT (StateT σ ProbComp)))
     (Inv used : σ → Prop) (hit : spec.Domain → σ → Bool)
@@ -242,5 +225,76 @@ theorem optionRun_sample_once_eq_sampleEachQuery
           hpres hused (fun t s hi hu => hindep t s hi (hnohit t s hi hu))
           (cont answer) a ha z.2 (hpres a ha t s hs z hz hc)
           (hfirst a ha t s hs hh z hz hc)
+
+/-- One-use sampling for stopped runs: if every run uses the parameter in at most one query, then
+drawing it once and running `impl a` accepts with the same probability as running `target`, which
+answers each query like `impl a` for a fresh `a ← sample`. Runs are stopped by `stop`: they return
+`false` at the first query whose successor state satisfies `stop`.
+
+Let `Inv : σ → Prop` be a state invariant, `used : σ → Prop` mark states in which the parameter
+has been used, and `hit : spec.Domain → σ → Bool` mark queries that may use it. Assume that for
+all `a, a' ∈ support sample`, queries `t`, and states `u` with `Inv u`:
+
+- every `(r, u')` in the support of `(impl a t).run u` with `stop u' = false` satisfies `Inv u'`
+  (`hpres`), and also `used u'` if `used u` (`hused`);
+- if `hit t u = false`, then `(impl a t).run u =ᵈ (impl a' t).run u` (`hindep`);
+- if `used u`, then `hit t u = false` (`hnohit`);
+- if `hit t u = true`, every such `(r, u')` satisfies `used u'` (`hfirst`);
+- `(a ← sample; (impl a t).run u) =ᵈ (target t).run u` (`havg`).
+
+Then for every `oa` and `s` with `Inv s`,
+`Pr[a ← sample; stoppedRun (impl a) stop oa s = true] = Pr[stoppedRun target stop oa s = true]`. -/
+theorem stoppedRun_sample_once_eq
+    (sample : ProbComp τ) (impl : τ → QueryImpl spec (StateT σ ProbComp))
+    (target : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool)
+    (Inv used : σ → Prop) (hit : spec.Domain → σ → Bool)
+    (hpres : ∀ a ∈ support sample, ∀ t s, Inv s →
+      ∀ z ∈ support ((impl a t).run s), stop z.2 = false → Inv z.2)
+    (hused : ∀ a ∈ support sample, ∀ t s, Inv s → used s →
+      ∀ z ∈ support ((impl a t).run s), stop z.2 = false → used z.2)
+    (hindep : ∀ t s, Inv s → hit t s = false →
+      ∀ a ∈ support sample, ∀ a' ∈ support sample,
+      (impl a t).run s =ᵈ (impl a' t).run s)
+    (hnohit : ∀ t s, Inv s → used s → hit t s = false)
+    (hfirst : ∀ a ∈ support sample, ∀ t s, Inv s → hit t s = true →
+      ∀ z ∈ support ((impl a t).run s), stop z.2 = false → used z.2)
+    (havg : ∀ t s, Inv s →
+      (do let a ← sample; (impl a t).run s) =ᵈ (target t).run s)
+    (oa : OracleComp spec Bool) (s : σ) (hs : Inv s) :
+    Pr{let x ← (do let a ← sample; stoppedRun (impl a) stop oa s)}[x = true] =
+      Pr{let x ← stoppedRun target stop oa s}[x = true] := by
+  rw [map_bind]
+  have hpres' : ∀ a ∈ support sample, ∀ t s, Inv s →
+      ∀ z ∈ support (((stopOnState (impl a) stop t).run).run s), z.1.isSome → Inv z.2 := by
+    intro a ha t s hs z hz hsome
+    obtain ⟨y, hy, hstop, hzy⟩ := exists_of_mem_support_stopOnState _ stop t s z hz hsome
+    exact hzy ▸ hpres a ha t s hs y hy hstop
+  unfold stoppedRun
+  rw [optionRun_sample_once_eq_sampleEachQuery sample (fun a => stopOnState (impl a) stop)
+    Inv used hit hpres'
+    (fun a ha t s hs hu z hz hsome => by
+      obtain ⟨y, hy, hstop, hzy⟩ := exists_of_mem_support_stopOnState _ stop t s z hz hsome
+      exact hzy ▸ hused a ha t s hs hu y hy hstop)
+    (fun t s hs hh a ha a' ha' => by
+      rw [stopOnState_run_eq_map, stopOnState_run_eq_map]
+      exact (hindep t s hs hh a ha a' ha').map _)
+    hnohit
+    (fun a ha t s hs hh z hz hsome => by
+      obtain ⟨y, hy, hstop, hzy⟩ := exists_of_mem_support_stopOnState _ stop t s z hz hsome
+      exact hzy ▸ hfirst a ha t s hs hh y hy hstop) oa s hs]
+  refine (prEvent_optionRun_eq_of_state_map _ (stopOnState target stop) id Inv ?_ ?_
+    oa s hs).symm
+  · intro t s hs z hz hsome
+    rw [sampleEachQuery_run] at hz
+    obtain ⟨a, ha, hz⟩ := (mem_support_bind_iff _ _ _).mp hz
+    exact hpres' a ha t s hs z hz hsome
+  · intro t s hs
+    rw [Prod.map_id, id_map, sampleEachQuery_run]
+    have h : (do let a ← sample; ((stopOnState (impl a) stop t).run).run s) =
+        (fun y => (if stop y.2 then none else some y.1, y.2)) <$>
+          (do let a ← sample; (impl a t).run s) := by
+      simp only [stopOnState_run_eq_map, map_bind]
+    rw [h, stopOnState_run_eq_map]
+    exact ((havg t s hs).map _).symm
 
 end OracleComp

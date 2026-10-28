@@ -3,10 +3,12 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import VCVio.EvalDist.Monad.Basic
-import VCVio.EvalDist.Monad.Map
-import VCVio.OracleComp.Constructions.SampleableType
-import VCVio.OracleComp.Constructions.SampleableType.Measure
+module
+
+public import VCVio.EvalDist.Monad.Basic
+public import VCVio.EvalDist.Monad.Map
+public import VCVio.OracleComp.Constructions.SampleableType
+public import VCVio.OracleComp.Constructions.SampleableType.Measure
 
 /-!
 # `EvalDist` point-probability transport
@@ -31,6 +33,8 @@ evaluation distribution.
   `uniformSample` draws over `ProbComp`.
 -/
 
+@[expose] public section
+
 open scoped ENNReal
 
 namespace ToVCVio
@@ -38,6 +42,21 @@ namespace ToVCVio
 universe v
 
 variable {α : Type} {m : Type → Type v} [Monad m] [LawfulMonad m]
+
+omit [LawfulMonad m] in
+/-- Equal computations are equal in distribution. Stated for `exact` with a goal whose sides
+agree with those of `h` only up to definitional unfolding. -/
+lemma evalDistEq_of_eq [EvalDistSemantics m] {β : Type} {mx my : m β} (h : mx = my) :
+    mx =ᵈ my :=
+  h ▸ EvalDistEq.rfl
+
+/-- `mx >>= my =ᵈ mz` if `my x = mz` for every `x ∈ support mx`. -/
+lemma _root_.OracleComp.EvalDistEq.bind_const_of_support {ι : Type} {spec : OracleSpec ι}
+    [OracleSpec.AnswerMeasure spec]
+    {β : Type} (mx : OracleComp spec α) {my : α → OracleComp spec β} {mz : OracleComp spec β}
+    (h : ∀ x ∈ support mx, my x = mz) : mx >>= my =ᵈ mz :=
+  (OracleComp.EvalDistEq.bind_congr_of_support mx fun x hx => by rw [h x hx]).trans
+    (OracleComp.EvalDistEq.bind_const mx mz)
 
 /-- A final `(! ·)` map turns `true`-output probability into `false`-output
 probability, so the absolute two-branch gap is unchanged by negating both

@@ -69,6 +69,7 @@ private lemma reachableInv_after_sendB_same
   · exact hInv.futureKeypair
   · exact hInv.futureOff
   · exact hInv.futureOn
+  · exact hInv.zeroOn
   · exact hInv.keyA
   · exact hInv.keyB
   · exact hInv.msgA
@@ -190,6 +191,7 @@ private lemma reachableInv_after_sendB_newOff
     simpa [T', hne] using hInv.futureOff t hlt
   · intro t hlt
     simpa [hTOn t] using hInv.futureOn t hlt
+  · simpa [hTOn 0] using hInv.zeroOn
   · intro t; simpa [hTKey t] using hInv.keyA t
   · intro t; simpa [hTKey t] using hInv.keyB t
   · intro n entry hn
@@ -372,6 +374,8 @@ private lemma reachableInv_after_sendB_newOn
   · intro t hlt
     have hne : t ≠ s.stB.t := Nat.ne_of_gt hlt
     simpa [T', hne] using hInv.futureOn t hlt
+  · have hne : (0 : ℕ) ≠ s.stB.t := hInv.epochPosB.ne
+    simpa [T', hne] using hInv.zeroOn
   · intro t
     by_cases ht0 : t = 0
     · simp [ht0, hInv.keyA]
@@ -545,43 +549,27 @@ lemma oracleSendB_preserves_reachableInv
         by_contra hn
         simpa [hoffnone] using (T s.stB.t).on_off
           (Option.isSome_iff_ne_none.mpr hn)
-      cases hack : !s.stB.ack.ctRec
-      case true =>
-        have hackFalse : s.stB.ack.ctRec = false := by
-          cases h : s.stB.ack.ctRec <;> simp [h] at hack ⊢
-        have hout' : ∃ st ct0,
-            (st, ct0) ∈ support onoff.encapsOff ∧
-            let msg : Message Sym :=
-              (some (ecCt0.encode ct0 1), s.stB.ack, s.stB.t, some 0)
-            some (none, msg, s.stB.t - 1,
-              { s.stB with stCt := some st, ct0 := some ct0, ich := 1 }) = out := by
-          simpa [scheme, sendB, hct0, hackFalse] using hout
-        obtain ⟨st, ct0, hmem, rfl⟩ := hout'
-        simp only [SCKAScheme.sendBUpdate, hknown, Bool.and_true]
-        let old := T s.stB.t
-        let tr' := old.setOff st ct0 hmem honnone
-        let T' := Function.update T s.stB.t tr'
-        apply reachableInv_after_sendB_newOff kem onoff ecEk ecCt0 hCt0Pos ecCt1
-          s T hInv st ct0 hmem hct0 honnone 1
-          (some (ecCt0.encode ct0 1), s.stB.ack, s.stB.t, some 0)
-        change s.stB.t - 1 = s.stB.t - 1 ∧ ∃ st' ct0' i,
-          (T' s.stB.t).off = some (st', ct0') ∧
-            ecCt0.encode ct0 1 = ecCt0.encode ct0' i
-        exact ⟨rfl, st, ct0, 1,
-          by simp [T', tr', EpochTranscript.setOff], rfl⟩
-      case false =>
-        have hackTrue : s.stB.ack.ctRec = true := by
-          cases h : s.stB.ack.ctRec <;> simp [h] at hack ⊢
-        have htEq : s.stA.t = s.stB.t := by
-          have hnlt : ¬ s.stB.t < s.stA.t := by
-            intro hlt
-            have hcomplete := hInv.pastComplete s.stB.t hInv.epochPosB hlt
-            simp [EpochTranscript.key, honnone] at hcomplete
-          exact Nat.le_antisymm (Nat.le_of_not_gt hnlt) hInv.epochs.1
-        have hctASome := hInv.ct0Ack.2.2.1 hackTrue htEq.symm
-        obtain ⟨ct0A, hct0A⟩ := Option.isSome_iff_exists.mp hctASome
-        obtain ⟨stA, hoffA⟩ := hInv.decodedCt0 ct0A hct0A
-        simp [htEq, hoffnone] at hoffA
+      have hackFalse := hInv.ctRecB_eq_false_of_ct0_eq_none hct0
+      have hout' : ∃ st ct0,
+          (st, ct0) ∈ support onoff.encapsOff ∧
+          let msg : Message Sym :=
+            (some (ecCt0.encode ct0 1), s.stB.ack, s.stB.t, some 0)
+          some (none, msg, s.stB.t - 1,
+            { s.stB with stCt := some st, ct0 := some ct0, ich := 1 }) = out := by
+        simpa [scheme, sendB, hct0, hackFalse] using hout
+      obtain ⟨st, ct0, hmem, rfl⟩ := hout'
+      simp only [SCKAScheme.sendBUpdate, hknown, Bool.and_true]
+      let old := T s.stB.t
+      let tr' := old.setOff st ct0 hmem honnone
+      let T' := Function.update T s.stB.t tr'
+      apply reachableInv_after_sendB_newOff kem onoff ecEk ecCt0 hCt0Pos ecCt1
+        s T hInv st ct0 hmem hct0 honnone 1
+        (some (ecCt0.encode ct0 1), s.stB.ack, s.stB.t, some 0)
+      change s.stB.t - 1 = s.stB.t - 1 ∧ ∃ st' ct0' i,
+        (T' s.stB.t).off = some (st', ct0') ∧
+          ecCt0.encode ct0 1 = ecCt0.encode ct0' i
+      exact ⟨rfl, st, ct0, 1,
+        by simp [T', tr', EpochTranscript.setOff], rfl⟩
 
 end SendB
 

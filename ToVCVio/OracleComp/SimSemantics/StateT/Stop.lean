@@ -175,6 +175,42 @@ def stopOnState (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool
     let (answer, next) ← (impl t).run s
     pure (if stop next then none else some answer, next)
 
+/-- A possible result `(a, s')` of `impl t` from `s` with `stop s' = false` gives the possible
+result `(some a, s')` of `stopOnState impl stop t` from `s`. -/
+theorem mem_support_stopOnState_of_mem
+    (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool) (t : spec.Domain) (s : σ)
+    (z : spec.Range t × σ) (hz : z ∈ support ((impl t).run s)) (hstop : stop z.2 = false) :
+    (some z.1, z.2) ∈ support (((stopOnState impl stop t).run).run s) := by
+  change (some z.1, z.2) ∈ support (do
+    let y ← (impl t).run s
+    pure (if stop y.2 then none else some y.1, y.2))
+  exact (mem_support_bind_iff _ _ _).mpr ⟨z, hz, by simp [hstop]⟩
+
+/-- Converse of `mem_support_stopOnState_of_mem`: a possible result `z` of
+`stopOnState impl stop t` with `z.1 ≠ none` has `z.2 = y.2` for some
+`y ∈ support ((impl t).run s)` with `stop y.2 = false`. -/
+theorem exists_of_mem_support_stopOnState
+    (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool) (t : spec.Domain) (s : σ)
+    (z : Option (spec.Range t) × σ) (hz : z ∈ support (((stopOnState impl stop t).run).run s))
+    (hsome : z.1.isSome) :
+    ∃ y ∈ support ((impl t).run s), stop y.2 = false ∧ z.2 = y.2 := by
+  change z ∈ support (do
+    let y ← (impl t).run s
+    pure (if stop y.2 then none else some y.1, y.2)) at hz
+  obtain ⟨y, hy, hz⟩ := (mem_support_bind_iff _ _ _).mp hz
+  obtain rfl := (mem_support_pure_iff _ _).mp hz
+  cases hstop : stop y.2
+  · exact ⟨y, hy, hstop, rfl⟩
+  · simp [hstop] at hsome
+
+/-- `stopOnState impl stop t` runs `impl t` and answers `none` if `stop` holds on the successor. -/
+theorem stopOnState_run_eq_map
+    (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool) (t : spec.Domain) (s : σ) :
+    ((stopOnState impl stop t).run).run s =
+      (fun y => (if stop y.2 then none else some y.1, y.2)) <$> (impl t).run s := by
+  rw [map_eq_bind_pure_comp]
+  rfl
+
 /-- For every query `t` and state `s`, if `stop s' = false` for every `(a, s')` in the support
 of `(impl t).run s`, then the response and next state under `stopOnState impl stop t` are
 equal in distribution to `(impl t).run s` with each response wrapped in `some`. -/
@@ -254,7 +290,7 @@ theorem stoppedRun_query_bind (impl : QueryImpl spec (StateT σ ProbComp)) (stop
   intro z
   cases stop z.2 <;> rfl
 
-/-- Let `impl` preserve an invariant `Inv : σ → Prop`, and assume
+/-- Assume that `impl` preserves an invariant `Inv : σ → Prop` and that
 `stop u = false` for every state `u` satisfying `Inv u`. Then, for every
 Boolean computation `oa` and initial state `s` satisfying `Inv s`,
 `stoppedRun impl stop oa s` and `(simulateQ impl oa).run' s` return `true`
