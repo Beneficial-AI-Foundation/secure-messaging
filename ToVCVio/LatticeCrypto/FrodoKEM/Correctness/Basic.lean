@@ -328,11 +328,6 @@ theorem SampleMatrix_bounds (table : ErrorTable) (rows cols : ℕ)
   dsimp only [SampleMatrix, bitsToMatrixWith, Matrix.of_apply]
   exact Sample_bounds table _
 
-/-- `splitBits` inverts concatenation. -/
-theorem splitBits_append {a b : ℕ} (x : Bits a) (y : Bits b) :
-    splitBits (x ++ y) = (x, y) := by
-  apply Prod.ext <;> apply Vector.ext <;> intro i hi <;> simp [splitBits]
-
 /-- Reversing the bits within each octet twice recovers the original bit string. -/
 theorem reverseOctets_reverseOctets {n : ℕ}
     (v : Bits n) (hn : n % 8 = 0) :
