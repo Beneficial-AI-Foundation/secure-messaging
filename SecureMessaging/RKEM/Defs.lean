@@ -302,7 +302,8 @@ the peer, the challenger's own updated decapsulation key, and the challenge key;
 guess bit. Matches the adversary input `A(ekP, ek̂P, ek̂P', ctP, dk̂P, Kb)` of Def. 5.4. -/
 -- ANCHOR: FSINDCPAAdversary
 abbrev FSINDCPAAdversary (Par EK DK CT K : Type) : Type :=
-  Par → EK → EK → EK → CT → DK → K → ProbComp Bool
+  (par : Par) → (ekP ekPHat ekPeerHat : EK) → (ctPeer : CT) → (dkPHat : DK) → (kb : K) →
+    ProbComp Bool
 -- ANCHOR_END: FSINDCPAAdversary
 
 /-- **Definition 5.4** (FS-IND-CPA experiment, party `A`).
@@ -388,7 +389,8 @@ ciphertext sent to the peer, and the challenge key; outputs a guess bit. Matches
 input `A(ekP, ek̂P, ek̂P', ctP, Kb)` of the IND-CPA special case of Def. 5.4. -/
 -- ANCHOR: INDCPAAdversary
 abbrev INDCPAAdversary (Par EK CT K : Type) : Type :=
-  Par → EK → EK → EK → CT → K → ProbComp Bool
+  (par : Par) → (ekP ekPHat ekPeerHat : EK) → (ctPeer : CT) → (kb : K) →
+    ProbComp Bool
 -- ANCHOR_END: INDCPAAdversary
 
 /-- `Adv^{IND-CPA-A}`: the FS-IND-CPA advantage `fsIndCpaAdvantageA` of `adversary`, run as an

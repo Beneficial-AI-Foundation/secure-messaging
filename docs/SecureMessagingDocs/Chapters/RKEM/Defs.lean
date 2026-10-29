@@ -462,15 +462,17 @@ b'\sample\adv(\ekA,\ekh{A},\ekh{B},\ct_\B,K_b)\pcomment{\dkh{A}\text{ withheld}}
 
 The IND-CPA experiment is the FS-IND-CPA experiment run against an adversary that ignores $`\dkh{P}`.
 
-::::leanCompare "Adversary" (left := "FS-IND-CPA") (right := "IND-CPA")
+::::leanCompare "Adversary, which differs only by the $`\\dkh{P}` argument, $`\\texttt{dkPHat : DK}`" (left := "FS-IND-CPA") (right := "IND-CPA")
 ```anchor FSINDCPAAdversary (project := ".") (module := SecureMessaging.RKEM.Defs)
 abbrev FSINDCPAAdversary (Par EK DK CT K : Type) : Type :=
-  Par → EK → EK → EK → CT → DK → K → ProbComp Bool
+  (par : Par) → (ekP ekPHat ekPeerHat : EK) → (ctPeer : CT) → (dkPHat : DK) → (kb : K) →
+    ProbComp Bool
 ```
 
 ```anchor INDCPAAdversary (project := ".") (module := SecureMessaging.RKEM.Defs)
 abbrev INDCPAAdversary (Par EK CT K : Type) : Type :=
-  Par → EK → EK → EK → CT → K → ProbComp Bool
+  (par : Par) → (ekP ekPHat ekPeerHat : EK) → (ctPeer : CT) → (kb : K) →
+    ProbComp Bool
 ```
 ::::
 :::::::
