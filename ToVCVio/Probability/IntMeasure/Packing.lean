@@ -17,60 +17,12 @@ open scoped BigOperators
 
 namespace ToVCVio.Packing
 
-private theorem packDigits_lt {R n : Nat} {f : Nat → Nat}
-    (h : ∀ i < n, f i < R) :
-    ∑ i ∈ Finset.range n, f i * R ^ i < R ^ n := by
-  induction n with
-  | zero => simp
-  | succ n ih =>
-      have hfn : f n < R := h n n.lt_succ_self
-      have ihh := ih fun i hi => h i (hi.trans n.lt_succ_self)
-      calc
-        ∑ i ∈ Finset.range (n + 1), f i * R ^ i =
-            (∑ i ∈ Finset.range n, f i * R ^ i) + f n * R ^ n :=
-          Finset.sum_range_succ _ n
-        _ < R ^ n + f n * R ^ n := by omega
-        _ = (1 + f n) * R ^ n := by ring
-        _ ≤ R * R ^ n := Nat.mul_le_mul_right _ (by omega)
-        _ = R ^ (n + 1) := by ring
-
-private theorem packDigits_digit {R n : Nat} {f : Nat → Nat}
-    (h : ∀ i < n, f i < R) {t : Nat} (ht : t < n) :
-    (∑ i ∈ Finset.range n, f i * R ^ i) / R ^ t % R = f t := by
-  have hR : 0 < R := (Nat.zero_le _).trans_lt (h t ht)
-  have hsplit := Finset.sum_range_add (fun i => f i * R ^ i) t (n - t)
-  rw [show t + (n - t) = n from by omega] at hsplit
-  obtain ⟨s, hs⟩ : ∃ s, n - t = s + 1 := ⟨n - t - 1, by omega⟩
-  rw [hs, Finset.sum_range_succ'] at hsplit
-  have htail : ∀ j : Nat, f (t + (j + 1)) * R ^ (t + (j + 1)) =
-      R ^ t * (R * (f (t + (j + 1)) * R ^ j)) := by
-    intro j
-    rw [pow_add, pow_succ]
-    ring
-  rw [Finset.sum_congr rfl fun j _ => htail j, ← Finset.mul_sum,
-    show t + 0 = t from rfl] at hsplit
-  have hsum_inner :
-      ∑ i ∈ Finset.range s, R * (f (t + (i + 1)) * R ^ i) =
-        R * ∑ j ∈ Finset.range s, f (t + (j + 1)) * R ^ j :=
-    (Finset.mul_sum _ _ _).symm
-  rw [hsum_inner] at hsplit
-  have hform :
-      ∑ i ∈ Finset.range n, f i * R ^ i =
-        (∑ i ∈ Finset.range t, f i * R ^ i) +
-          R ^ t * (f t + R * ∑ j ∈ Finset.range s, f (t + (j + 1)) * R ^ j) := by
-    rw [hsplit]
-    ring
-  have hlow : ∑ i ∈ Finset.range t, f i * R ^ i < R ^ t :=
-    packDigits_lt fun i hi => h i (hi.trans ht)
-  rw [hform, Nat.add_mul_div_left _ _ (pow_pos hR t), Nat.div_eq_of_lt hlow,
-    zero_add, Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt (h t ht)]
-
 private theorem testBit_pack_at {b n : Nat} {f : Nat → Nat}
     (hf : ∀ i < n, f i < 2 ^ b)
     {i r : Nat} (hi : i < n) (hr : r < b) :
     Nat.testBit (∑ q ∈ Finset.range n, f q * (2 ^ b) ^ q) (b * i + r) =
       Nat.testBit (f i) r := by
-  have hdigit := packDigits_digit hf hi
+  have hdigit := Radix.sum_mul_pow_div_pow_mod hf hi
   rw [show (2 ^ b) ^ i = 2 ^ (b * i) by rw [pow_mul]] at hdigit
   have hbit := congrArg (fun x : Nat => Nat.testBit x r) hdigit
   simpa only [Nat.testBit_mod_two_pow, hr, decide_true,
@@ -81,7 +33,7 @@ private theorem testBit_pack_outside {b n : Nat} {f : Nat → Nat}
     Nat.testBit (∑ q ∈ Finset.range n, f q * (2 ^ b) ^ q) j = false := by
   have hpack :
       ∑ q ∈ Finset.range n, f q * (2 ^ b) ^ q < 2 ^ (b * n) := by
-    simpa only [pow_mul] using packDigits_lt hf
+    simpa only [pow_mul] using Radix.sum_mul_pow_lt hf
   have hpow : 2 ^ (b * n) ≤ 2 ^ j := Nat.pow_le_pow_right (by omega) hj
   exact Nat.testBit_lt_two_pow (hpack.trans_le hpow)
 
@@ -178,18 +130,6 @@ theorem foldl_range_mul_add_one_eq_pack (R n : Nat) :
       ∑ i ∈ Finset.range n, R ^ i := by
   simpa using foldl_range_mul_add_eq_reversePack R (fun _ => 1) n
 
-private theorem finset_sum_modEq
-    {M : Nat} {iota : Type*} {s : Finset iota} {f g : iota → Nat}
-    (h : ∀ i ∈ s, f i ≡ g i [MOD M]) :
-    (∑ i ∈ s, f i) ≡ ∑ i ∈ s, g i [MOD M] := by
-  classical
-  induction s using Finset.cons_induction with
-  | empty => rfl
-  | cons a s ha ih =>
-      rw [Finset.sum_cons, Finset.sum_cons]
-      exact (h a (Finset.mem_cons_self a s)).add
-        (ih fun i hi => h i (Finset.mem_cons_of_mem hi))
-
 private theorem pack_mod_pred_eq_sum
     {R n : Nat} {f : Nat → Nat} (hR : 2 ≤ R)
     (hsum : ∑ i ∈ Finset.range n, f i < R - 1) :
@@ -205,7 +145,7 @@ private theorem pack_mod_pred_eq_sum
   have hcong :
       (∑ i ∈ Finset.range n, f i * R ^ i) ≡
         ∑ i ∈ Finset.range n, f i [MOD R - 1] :=
-    finset_sum_modEq fun i _ => hterm i
+    Radix.sum_modEq fun i _ => hterm i
   calc
     (∑ i ∈ Finset.range n, f i * R ^ i) % (R - 1) =
         (∑ i ∈ Finset.range n, f i) % (R - 1) := hcong
