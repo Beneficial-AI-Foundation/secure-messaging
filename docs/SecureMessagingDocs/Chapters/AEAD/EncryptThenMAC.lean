@@ -49,26 +49,26 @@ Encrypt-then-MAC.
 :::::::definition "aead_etm_det_se" (parent := "aead_encrypt_then_mac") (lean := "DetSEAlg, DetSEAlg.Correct, DetSEAlg.LengthRegular")
 Adapted from {Informal.citet Ros26}[], Definitions 2.5.1 (syntax) and 2.5.2 (correctness).
 There, the key is uniform on the key space, $`\mathsf{Enc}` may be randomized, and
-$`\mathsf{Dec}` always returns a message. Here, $`\mathsf{SE.KeyGen}` samples the key,
-$`\mathsf{SE.Enc}` is deterministic, and $`\mathsf{SE.Dec}` can return $`\bot`. Length
+$`\mathsf{Dec}` always returns a message. Here, $`\KeyGen` samples the key,
+$`\Enc` is deterministic, and $`\Dec` can return $`\bot`. Length
 regularity is from {Informal.citet NRS14}[], Section 2.
 
 A deterministic symmetric encryption scheme $`\mathsf{SE}` is a tuple of algorithms
-$`(\mathsf{SE.KeyGen}, \mathsf{SE.Enc}, \mathsf{SE.Dec})` with key space $`\mathcal K`,
+$`(\KeyGen, \Enc, \Dec)` with key space $`\mathcal K`,
 message space $`\mathcal M` and ciphertext space $`\mathcal C`, where
 
-- $`\mathsf{SE.KeyGen}` samples a key $`K \in \mathcal K`,
-- $`\mathsf{SE.Enc}` takes a key $`K` and a message $`m`, and produces a ciphertext
-  $`c \gets \mathsf{SE.Enc}(K, m)`,
-- $`\mathsf{SE.Dec}` takes a key $`K` and a ciphertext $`c`, and produces a message
-  $`m \gets \mathsf{SE.Dec}(K, c)`, or $`\bot`.
+- $`\KeyGen` samples a key $`K \in \mathcal K`,
+- $`\Enc` takes a key $`K` and a message $`m`, and produces a ciphertext
+  $`c \gets \Enc(K, m)`,
+- $`\Dec` takes a key $`K` and a ciphertext $`c`, and produces a message
+  $`m \gets \Dec(K, c)`, or $`\bot`.
 
-$`\mathsf{SE.Enc}` and $`\mathsf{SE.Dec}` are deterministic. Each ciphertext $`c` has a
+$`\Enc` and $`\Dec` are deterministic. Each ciphertext $`c` has a
 length $`|c|`, and the ciphertexts of each length form a finite nonempty set, so that the
 security game can sample from it uniformly. $`\mathsf{SE}` is correct if
-$`\mathsf{SE.Dec}(K, \mathsf{SE.Enc}(K, m)) = m` for all keys $`K` and messages $`m`. Let
+$`\Dec(K, \Enc(K, m)) = m` for all keys $`K` and messages $`m`. Let
 $`|m|` denote a fixed length function on messages ($`\mathit{lenM}` in Lean). $`\mathsf{SE}`
-is length-regular if $`|m| = |m'|` implies $`|\mathsf{SE.Enc}(K, m)| = |\mathsf{SE.Enc}(K', m')|`
+is length-regular if $`|m| = |m'|` implies $`|\Enc(K, m)| = |\Enc(K', m')|`
 for all keys $`K, K'`.
 
 :::leanPillCaption "deterministic symmetric encryption scheme"
@@ -108,9 +108,9 @@ def LengthRegular [LenSampleable C] (lenM : M → ℕ) (se : DetSEAlg K M C) : P
 :::::::definition "aead_etm_det_se_ots" (parent := "aead_encrypt_then_mac") (lean := "DetSEAlg.oracleEncrypt, DetSEAlg.securityExpFixedBit, DetSEAlg.distAdvantage") (uses := "aead_etm_det_se")
 Generalizes {Informal.citet Ros26}[], Definition 5.3.2 (computational one-time secrecy). There,
 the key is uniform on the key space, and the random ciphertext is uniform on $`\mathcal C`.
-Here, the key comes from $`\mathsf{SE.KeyGen}`, and the random ciphertext is uniform among the
+Here, the key comes from $`\KeyGen`, and the random ciphertext is uniform among the
 ciphertexts of the same length as the real one, as in the $`\$` oracle of
-{Informal.citet NRS14}[], Figure 4. With a uniform $`\mathsf{SE.KeyGen}` and ciphertexts of one
+{Informal.citet NRS14}[], Figure 4. With a uniform $`\KeyGen` and ciphertexts of one
 length, the two games are the same. With several lengths, the game of Ros26 is undefined if
 $`\mathcal C` is infinite, and no padded cipher satisfies it if $`\mathcal C` is finite. The game
 here reveals the ciphertext length, so it hides the message only for length-regular schemes.
@@ -127,11 +127,11 @@ same length. The adversary can call $`\Oenc` any number of times.
 ::::::gameGrid
 :::::gameCell "\\Oenc(m)" (kind := "compact")
 $`\begin{array}{l}
-K \gets \mathsf{SE.KeyGen}; \\
+K \gets \KeyGen; \\
 \pif\;b = 0\;\pthen \\
-\quad c \gets \mathsf{SE.Enc}(K, m); \\
+\quad c \gets \Enc(K, m); \\
 \pelse \\
-\quad c \sample \{c' \in \mathcal C : |c'| = |\mathsf{SE.Enc}(K, m)|\}; \\
+\quad c \sample \{c' \in \mathcal C : |c'| = |\Enc(K, m)|\}; \\
 \Return c
 \end{array}`
 
@@ -187,9 +187,9 @@ Let $`n \ge 1`. The one-time pad $`\mathsf{OTP}_n` ({Informal.citet Ros26}[],
 Construction 1.2.1) is the deterministic symmetric encryption scheme with
 $`\mathcal K = \mathcal M = \mathcal C = \{0,1\}^n`, where
 
-- $`\mathsf{SE.KeyGen}` samples $`K \sample \{0,1\}^n`,
-- $`\mathsf{SE.Enc}(K, m) = K \oplus m`,
-- $`\mathsf{SE.Dec}(K, c) = K \oplus c`.
+- $`\KeyGen` samples $`K \sample \{0,1\}^n`,
+- $`\Enc(K, m) = K \oplus m`,
+- $`\Dec(K, c) = K \oplus c`.
 
 $`\mathsf{OTP}_n` is correct, and $`\mathsf{Adv}^{\textsf{ots}}_{\mathsf{OTP}_n}(\adv) = 0`
 for every adversary $`\adv`. This is adapted from {Informal.citet Ros26}[], Claim 1.2.3
@@ -203,9 +203,9 @@ Adapted from {Informal.citet Ros26}[], Construction 8.5.3 (CBC mode) with PKCS#7
 (Example 8.6.3). There, $`\mathsf{Enc}` samples $`C_0` at random and sends it as the first
 block of the ciphertext, and $`\mathsf{Dec}` reads $`C_0` from the
 ciphertext. libsignal derives the AES key and the IV from a fresh per-message key, so in the
-scheme below the IV is part of the key. In both $`\mathsf{SE.Enc}` and $`\mathsf{SE.Dec}`,
-the line $`C_0 \gets \mathit{iv}` replaces this: $`\mathsf{SE.Enc}` does not sample or send
-$`C_0`, and $`\mathsf{SE.Dec}` does not read it from the ciphertext.
+scheme below the IV is part of the key. In both $`\Enc` and $`\Dec` below,
+the line $`C_0 \gets \mathit{iv}` replaces this: $`\Enc` does not sample or send
+$`C_0`, and $`\Dec` does not read it from the ciphertext.
 
 Let $`\mathsf{AES}_k` be AES-256 under the key $`k \in \{0,1\}^{256}`, a permutation of
 $`\{0,1\}^{128}`, and let $`\mathsf{Pad}` be PKCS#7 padding to a multiple of 16 bytes.
@@ -216,10 +216,10 @@ AES-CBC is the deterministic symmetric encryption scheme with
 - $`\mathcal C = \bigcup_{\ell \ge 1} \{0,1\}^{128 \ell}`, where the length of a ciphertext is
   its number of bits,
 
-where $`\mathsf{SE.KeyGen}` samples $`(k, \mathit{iv}) \sample \mathcal K`, and
+where $`\KeyGen` samples $`(k, \mathit{iv}) \sample \mathcal K`, and
 
 $$`\begin{array}{l}
-\underline{\mathsf{SE.Enc}((k, \mathit{iv}), m)} \\
+\underline{\Enc((k, \mathit{iv}), m)} \\
 M_1 \concat \cdots \concat M_\ell \gets \mathsf{Pad}(m); \\
 C_0 \gets \mathit{iv}; \\
 \mathsf{for}\; i = 1, \ldots, \ell \\
@@ -228,7 +228,7 @@ C_0 \gets \mathit{iv}; \\
 \end{array}
 \qquad\qquad
 \begin{array}{l}
-\underline{\mathsf{SE.Dec}((k, \mathit{iv}), c)} \\
+\underline{\Dec((k, \mathit{iv}), c)} \\
 C_1 \concat \cdots \concat C_\ell \gets c; \\
 C_0 \gets \mathit{iv}; \\
 \mathsf{for}\; i = 1, \ldots, \ell \\
@@ -268,8 +268,8 @@ not prove these bounds and does not instantiate AES-CBC in Lean.
 Adapted from {Informal.citet Ros26}[], Construction 9.5.1, where the tag covers only the
 ciphertext. In the construction we formalize, the tag also covers the associated data.
 
-Let $`\mathsf{SE}` be a deterministic symmetric encryption scheme with key space
-$`\mathcal K_e` and ciphertext space $`\mathcal C_e`, and let $`F` be a
+Let $`\mathsf{SE} = (\KeyGen_e, \Enc_e, \Dec_e)` be a deterministic symmetric encryption
+scheme with key space $`\mathcal K_e` and ciphertext space $`\mathcal C_e`, and let $`F` be a
 {bpref "prf"}[PRF] with key space $`\mathcal K_m`, domain
 $`\mathcal{AD} \times \mathcal C_e` and range $`\mathcal T`. Then
 $`\mathsf{EtM}[\mathsf{SE}, F]` is the {bpref "aead"}[AEAD scheme] with key space
@@ -282,7 +282,7 @@ security game compares $`(c, t)` with a uniformly random ciphertext of the same 
 ::::::gameGrid
 :::::gameCell "\\mathsf{KeyGen}()" (kind := "compact-third")
 $`\begin{array}{l}
-K_e \gets \mathsf{SE.KeyGen}; \\
+K_e \gets \KeyGen_e; \\
 K_m \gets F.\mathsf{keygen}; \\
 \Return (K_e, K_m)
 \end{array}`
@@ -290,7 +290,7 @@ K_m \gets F.\mathsf{keygen}; \\
 
 :::::gameCell "\\Enc((K_e, K_m), a, m)" (kind := "compact-third")
 $`\begin{array}{l}
-c \gets \mathsf{SE.Enc}(K_e, m); \\
+c \gets \Enc_e(K_e, m); \\
 t \gets F(K_m, (a, c)); \\
 \Return (c, t)
 \end{array}`
@@ -300,7 +300,7 @@ t \gets F(K_m, (a, c)); \\
 $`\begin{array}{l}
 \pif\;t \neq F(K_m, (a, c))\;\pthen \\
 \quad\Return \bot; \\
-\Return \mathsf{SE.Dec}(K_e, c)
+\Return \Dec_e(K_e, c)
 \end{array}`
 :::::
 
@@ -331,7 +331,7 @@ def etmAEAD (se : DetSEAlg K_e M C_e)
 :::
 
 ::::theorem "aead_etm_correctness" (parent := "aead_encrypt_then_mac") (lean := "EtM.etmAEAD_correct") (tags := "gh-25") (uses := "aead_etm_spec, aead_etm_det_se, aead_correctness")
-Correctness in the sense of {Informal.citet ACD19}[], Definition 1.
+Correctness in the sense of the {bpref "aead_correctness"}[AEAD correctness definition].
 
 Let $`\mathsf{SE}` be a correct deterministic symmetric encryption scheme and $`F` a PRF.
 Then $`\mathsf{EtM}[\mathsf{SE}, F]` is correct.

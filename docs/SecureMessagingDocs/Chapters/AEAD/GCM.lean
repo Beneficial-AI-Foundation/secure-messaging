@@ -324,8 +324,8 @@ The scheme covers a part of what {Informal.citet NIST_GCM}[] allows:
 :::
 
 ::::theorem "aead_gcm_correctness" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_correct") (tags := "gh-22") (uses := "aead_gcm_spec, aead_correctness, prp")
-Correctness in the sense of {Informal.citet ACD19}[], Definition 1, for GCM as specified in
-{Informal.citet NIST_GCM}[], Section 7.
+Correctness in the sense of the {bpref "aead_correctness"}[AEAD correctness definition], for
+GCM as specified in {Informal.citet NIST_GCM}[], Section 7.
 
 Let $`P` be a PRP scheme on 128-bit blocks, $`\mathit{IV}` a 96-bit IV and $`L` a
 supported message length. Then $`\mathsf{GCM}[P, \mathit{IV}, L]` is correct.
