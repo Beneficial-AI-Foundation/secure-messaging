@@ -159,8 +159,8 @@ theorem traceChallengeAt_congr (m m' : ℕ → Mode) (e : ℕ) (x : P.EpochKey)
     traceChallengeAt P m e (some x) = traceChallengeAt P m' e (some x) := by
   funext t s
   by_cases ht : t = e
-  · simp only [traceChallengeAt, if_pos ht]
-  · simp only [traceChallengeAt, if_neg ht, h t ht]
+  · simp only [traceChallengeAt, ite_eq_left ht]
+  · simp only [traceChallengeAt, ite_eq_right ht, h t ht]
 
 variable [DecidableEq P.Sym]
 

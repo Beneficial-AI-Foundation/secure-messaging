@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
+import ToVCVio.EvalDist.BoolDist
 import SecureMessaging.SCKA.Security
 import SecureMessaging.SCKA.MLKEMBraid.Security.Risk
 import SecureMessaging.SCKA.MLKEMBraid.Security.Hybrids
@@ -90,10 +91,9 @@ theorem securityGame_equiv_native
     [SampleableType P.EpochKey] [DecidableEq P.EpochKey] [DecidableEq P.Sym]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (A : Adversary P irl) :
-    𝒟[SCKAScheme.ExposurePolicy.securityExp (scheme P hMac irl) A
-        (exposure P irl) (exposure P irl)] =
-      𝒟[SCKAScheme.securityExp (scheme P hMac irl) A
-        (nativeExposure P irl) (nativeExposure P irl)] ∧
+    SCKAScheme.ExposurePolicy.securityExp (scheme P hMac irl) A
+        (exposure P irl) (exposure P irl) =ᵈ SCKAScheme.securityExp (scheme P hMac irl) A
+        (nativeExposure P irl) (nativeExposure P irl) ∧
     SCKAScheme.ExposurePolicy.sckaGuessAdvantage (scheme P hMac irl) A
         (exposure P irl) (exposure P irl) =
       SCKAScheme.sckaGuessAdvantage (scheme P hMac irl) A
@@ -108,26 +108,6 @@ theorem securityGame_equiv_native
   · rw [hexp]
   · simp only [SCKAScheme.ExposurePolicy.sckaGuessAdvantage,
       SCKAScheme.sckaGuessAdvantage, hexp]
-
-section Final
-
-variable [SampleableType P.EpochKey] [DecidableEq P.EpochKey] [DecidableEq P.Sym]
-  (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
-
-/-- The sampled-bit experiment accepts as often as the hidden-bit game over the two fixed-bit
-games. -/
-theorem securityExp_eq (A : Adversary P irl) :
-    Pr[= true | SCKAScheme.ExposurePolicy.securityExp (scheme P hMac irl) A (exposure P irl)
-        (exposure P irl)] =
-      Pr[= true | do
-        let b ← ($ᵗ Bool)
-        let z ← if b then fixed P hMac irl A true else fixed P hMac irl A false
-        pure (b == z)] := by
-  rw [evalDist_ext_iff.mp (securityGame_equiv_native P hMac irl A).1 true,
-    SCKAScheme.securityExp_probOutput_eq_branch,
-    ← fixed_eq_native P hMac irl A true, ← fixed_eq_native P hMac irl A false]
-
-end Final
 
 /-- **`security_le`**: the explicit-policy guessing advantage of a no-authentication Braid
 adversary making at most `qS` sends is at most half the sum, over the epochs `1, …, qS`, of the
@@ -145,15 +125,15 @@ theorem security_le (P : Parameters ProbComp)
     SCKAScheme.ExposurePolicy.sckaGuessAdvantage (scheme P hMac irl) A
       (exposure P irl) (exposure P irl) ≤
       (∑ i ∈ Finset.range qS,
-        (P.kem.IND_CPA_Advantage ProbCompRuntime.probComp
-            (kemReduction P hMac irl A (i + 1)) +
-          (kdfExp P (i + 1) (kdfReduction P hMac irl A (i + 1)) true).boolDistAdvantage
-            (kdfExp P (i + 1) (kdfReduction P hMac irl A (i + 1)) false))) / 2 +
+        ((P.kem.IND_CPA_Advantage ProbCompRuntime.probComp
+            (kemReduction P hMac irl A (i + 1))).toReal +
+          (𝒟[kdfExp P (i + 1) (kdfReduction P hMac irl A (i + 1)) true].boolDist
+              𝒟[kdfExp P (i + 1) (kdfReduction P hMac irl A (i + 1)) false]).toReal)) / 2 +
       (qS : ℝ) * (P.kem.correctnessError ProbCompRuntime.probComp).toReal := by
   have hcE : P.kem.correctnessError ProbCompRuntime.probComp ≠ ⊤ :=
     ENNReal.sub_ne_top ENNReal.one_ne_top
-  have hbad : ∀ b : Bool, (fixed P hMac irl A b).boolDistAdvantage
-      (Prod.fst <$> run P hMac irl true (fun _ => if b then .uniform else .real) A) ≤
+  have hbad : ∀ b : Bool, (𝒟[fixed P hMac irl A b].boolDist
+      𝒟[Prod.fst <$> run P hMac irl true (fun _ => if b then .uniform else .real) A]).toReal ≤
         (qS : ℝ) * (P.kem.correctnessError ProbCompRuntime.probComp).toReal := by
     intro b
     refine (fixed_repaired_gap_le P hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct A
@@ -163,43 +143,47 @@ theorem security_le (P : Parameters ProbComp)
     rwa [ENNReal.toReal_mul, ENNReal.toReal_natCast] at h
   have hend := hybrid_endpoints P hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct A qS
     hqS
-  have h0 := evalDist_ext_iff.mp hend.1 true
-  have hq := evalDist_ext_iff.mp hend.2 true
-  have hstep : ∀ i, |(Pr[= true | hybrid P hMac irl A (i + 1)]).toReal -
-      (Pr[= true | hybrid P hMac irl A i]).toReal| ≤
-      P.kem.IND_CPA_Advantage ProbCompRuntime.probComp (kemReduction P hMac irl A (i + 1)) +
-        (kdfExp P (i + 1) (kdfReduction P hMac irl A (i + 1)) true).boolDistAdvantage
-          (kdfExp P (i + 1) (kdfReduction P hMac irl A (i + 1)) false) := by
+  have h0 := hend.1.prEvent_eq (fun x => x = true)
+  have hq := hend.2.prEvent_eq (fun x => x = true)
+  have hstep : ∀ i, |(Pr{let x ← hybrid P hMac irl A (i + 1)}[x = true]).toReal -
+      (Pr{let x ← hybrid P hMac irl A i}[x = true]).toReal| ≤
+      (P.kem.IND_CPA_Advantage ProbCompRuntime.probComp
+          (kemReduction P hMac irl A (i + 1))).toReal +
+        (𝒟[kdfExp P (i + 1) (kdfReduction P hMac irl A (i + 1)) true].boolDist
+            𝒟[kdfExp P (i + 1) (kdfReduction P hMac irl A (i + 1)) false]).toReal := by
     intro i
     have hk := kem_gap_eq P hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct A (i + 1)
       (Nat.succ_pos i)
     rw [Nat.add_sub_cancel] at hk
-    rw [← hk, ← kdf_gap_eq P hMac irl A (i + 1) (Nat.succ_pos i), abs_sub_comm]
-    exact ProbComp.boolDistAdvantage_triangle _ _ _
-  have hs := Finset.sum_range_sub (fun i => (Pr[= true | hybrid P hMac irl A i]).toReal) qS
-  have htel : |(Pr[= true | hybrid P hMac irl A qS]).toReal -
-      (Pr[= true | hybrid P hMac irl A 0]).toReal| ≤
+    rw [← hk, ← kdf_gap_eq P hMac irl A (i + 1) (Nat.succ_pos i), abs_sub_comm,
+      ToVCVio.toReal_boolDist_evalDist, ToVCVio.toReal_boolDist_evalDist]
+    exact abs_sub_le _ _ _
+  have hs := Finset.sum_range_sub (fun i => (Pr{let x ← hybrid P hMac irl A i}[x = true]).toReal) qS
+  have htel : |(Pr{let x ← hybrid P hMac irl A qS}[x = true]).toReal -
+      (Pr{let x ← hybrid P hMac irl A 0}[x = true]).toReal| ≤
       ∑ i ∈ Finset.range qS,
-        (P.kem.IND_CPA_Advantage ProbCompRuntime.probComp (kemReduction P hMac irl A (i + 1)) +
-          (kdfExp P (i + 1) (kdfReduction P hMac irl A (i + 1)) true).boolDistAdvantage
-            (kdfExp P (i + 1) (kdfReduction P hMac irl A (i + 1)) false)) := by
+        ((P.kem.IND_CPA_Advantage ProbCompRuntime.probComp
+            (kemReduction P hMac irl A (i + 1))).toReal +
+          (𝒟[kdfExp P (i + 1) (kdfReduction P hMac irl A (i + 1)) true].boolDist
+              𝒟[kdfExp P (i + 1) (kdfReduction P hMac irl A (i + 1)) false]).toReal) := by
     rw [← hs]
     exact (Finset.abs_sum_le_sum_abs _ _).trans (Finset.sum_le_sum fun i _ => hstep i)
   have h1 := hbad true
   have h2 := hbad false
-  unfold ProbComp.boolDistAdvantage at h1 h2
+  rw [ToVCVio.toReal_boolDist_evalDist] at h1 h2
   rw [← hq] at h1
   rw [← h0] at h2
-  rw [(securityGame_equiv_native P hMac irl A).2]
-  unfold SCKAScheme.sckaGuessAdvantage
-  rw [SCKAScheme.securityExp_toReal_sub_half,
-    ← fixed_eq_native P hMac irl A true, ← fixed_eq_native P hMac irl A false, abs_div,
-    abs_two]
-  have ha := abs_sub_le (Pr[= true | fixed P hMac irl A true]).toReal
-    (Pr[= true | hybrid P hMac irl A qS]).toReal (Pr[= true | fixed P hMac irl A false]).toReal
-  have hb := abs_sub_le (Pr[= true | hybrid P hMac irl A qS]).toReal
-    (Pr[= true | hybrid P hMac irl A 0]).toReal (Pr[= true | fixed P hMac irl A false]).toReal
-  rw [abs_sub_comm (Pr[= true | hybrid P hMac irl A 0]).toReal] at hb
+  rw [(securityGame_equiv_native P hMac irl A).2,
+    SCKAScheme.sckaGuessAdvantage_eq_sckaDistAdvantage_div_two]
+  unfold SCKAScheme.sckaDistAdvantage
+  rw [← fixed_eq_native P hMac irl A true, ← fixed_eq_native P hMac irl A false]
+  have ha := abs_sub_le (Pr{let x ← fixed P hMac irl A true}[x = true]).toReal
+    (Pr{let x ← hybrid P hMac irl A qS}[x = true]).toReal (Pr{let x ← fixed P hMac irl A false}[x =
+        true]).toReal
+  have hb := abs_sub_le (Pr{let x ← hybrid P hMac irl A qS}[x = true]).toReal
+    (Pr{let x ← hybrid P hMac irl A 0}[x = true]).toReal (Pr{let x ← fixed P hMac irl A false}[x =
+        true]).toReal
+  rw [abs_sub_comm (Pr{let x ← hybrid P hMac irl A 0}[x = true]).toReal] at hb
   linarith
 
 /-- The bound of `security_le` for the historical delta game, encoded by `deltaExposure`. -/
@@ -215,10 +199,10 @@ theorem security_le_delta (P : Parameters ProbComp)
     SCKAScheme.ExposurePolicy.sckaGuessAdvantage (scheme P hMac irl) A
       (deltaExposure P irl) (deltaExposure P irl) ≤
       (∑ i ∈ Finset.range qS,
-        (P.kem.IND_CPA_Advantage ProbCompRuntime.probComp
-            (kemReduction P hMac irl A (i + 1)) +
-          (kdfExp P (i + 1) (kdfReduction P hMac irl A (i + 1)) true).boolDistAdvantage
-            (kdfExp P (i + 1) (kdfReduction P hMac irl A (i + 1)) false))) / 2 +
+        ((P.kem.IND_CPA_Advantage ProbCompRuntime.probComp
+            (kemReduction P hMac irl A (i + 1))).toReal +
+          (𝒟[kdfExp P (i + 1) (kdfReduction P hMac irl A (i + 1)) true].boolDist
+              𝒟[kdfExp P (i + 1) (kdfReduction P hMac irl A (i + 1)) false]).toReal)) / 2 +
       (qS : ℝ) * (P.kem.correctnessError ProbCompRuntime.probComp).toReal := by
   rw [← (securityGame_equiv_delta P hMac irl A).2]
   exact security_le P hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct A qS hqS

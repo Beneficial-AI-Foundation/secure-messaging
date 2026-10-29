@@ -5,6 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import ToVCVio.CryptoFoundations.KeyEncapMech
+import VCVio.OracleComp.EvalDist.Sum
 
 /-!
 # KEM — Correctness Error After Fixing the Key Pair
@@ -20,7 +21,7 @@ A protocol proof uses the two results at different times. When a key pair is dra
 `correctnessError` (`correctnessError_eq_avg_keypair`). When it later encapsulates to `pk`,
 the proof removes `φ(pk, sk)` from the potential and records a failure if decapsulation with
 `sk` disagrees, which happens with probability exactly `φ(pk, sk)`
-(`keypairFailure_eq_probEvent`). The removed term covers that probability, so encapsulation adds
+(`keypairFailure_eq_prEvent`). The removed term covers that probability, so encapsulation adds
 nothing to the error bound.
 -/
 
@@ -39,45 +40,42 @@ def keypairCorrectExp (pk : PK) (sk : SK) : ProbComp Bool := do
 
 /-- `φ(pk, sk)`: the correctness error after fixing the key pair. -/
 noncomputable def keypairFailure (pk : PK) (sk : SK) : ℝ≥0∞ :=
-  Pr[= false | keypairCorrectExp kem hDet pk sk]
+  Pr{let x ← keypairCorrectExp kem hDet pk sk}[x = false]
 
 /-- `φ(pk, sk)` is at most `1`. -/
 theorem keypairFailure_le_one (pk : PK) (sk : SK) :
     keypairFailure kem hDet pk sk ≤ 1 :=
-  probOutput_le_one
+  (prEvent_le_one _)
 
 /-- The KEM's correctness experiment, with decapsulation replaced by its deterministic
 function, is key generation followed by `keypairCorrectExp`. -/
 theorem correctExp_eq_bind_keypairCorrectExp :
-    kem.CorrectExp = (do
+    kem.correctnessExperiment = (do
       let (pk, sk) ← kem.keygen
       keypairCorrectExp kem hDet pk sk) := by
-  unfold KEMScheme.CorrectExp keypairCorrectExp
+  unfold KEMScheme.correctnessExperiment keypairCorrectExp
   simp only [hDet.decaps_eq, pure_bind]
 
 /-- The KEM's correctness error is the average of `keypairFailure` over generated key pairs. -/
 theorem correctnessError_eq_avg_keypair :
     kem.correctnessError ProbCompRuntime.probComp =
-      ∑' kp : PK × SK, Pr[= kp | kem.keygen] * keypairFailure kem hDet kp.1 kp.2 := by
-  rw [correctnessError_probComp_eq_probOutput_false,
-    correctExp_eq_bind_keypairCorrectExp kem hDet, probOutput_bind_eq_tsum]
+      ∑' kp : PK × SK, Pr{let x ← kem.keygen}[x = kp] * keypairFailure kem hDet kp.1 kp.2 := by
+  rw [correctnessError_probComp_eq_prEvent_false,
+    correctExp_eq_bind_keypairCorrectExp kem hDet, OracleComp.prEvent_bind_eq_tsum]
   rfl
 
 /-- `φ(pk, sk)`, i.e. `keypairFailure kem hDet pk sk`, is the probability that encapsulating to
 `pk` yields a pair `(c, k)` with `decapsDet sk c ≠ some k`. -/
-theorem keypairFailure_eq_probEvent (pk : PK) (sk : SK) :
+theorem keypairFailure_eq_prEvent (pk : PK) (sk : SK) :
     keypairFailure kem hDet pk sk =
-      Pr[fun ck : C × K => hDet.decapsDet sk ck.1 ≠ some ck.2 | kem.encaps pk] := by
+      Pr{let ck ← kem.encaps pk}[hDet.decapsDet sk ck.1 ≠ some ck.2] := by
   have hmap : keypairCorrectExp kem hDet pk sk =
       (fun ck : C × K => decide (hDet.decapsDet sk ck.1 = some ck.2)) <$> kem.encaps pk := by
     unfold keypairCorrectExp
     rw [map_eq_bind_pure_comp]
     rfl
   unfold keypairFailure
-  rw [hmap, ← probEvent_eq_eq_probOutput, probEvent_map]
-  apply probEvent_congr'
-  · intro ck _
-    simp [Function.comp]
-  · rfl
+  rw [hmap, prEvent_map]
+  exact prEvent_congr _ _ _ fun ck => by simp only [decide_eq_false_iff_not, ne_eq]
 
 end KEMScheme

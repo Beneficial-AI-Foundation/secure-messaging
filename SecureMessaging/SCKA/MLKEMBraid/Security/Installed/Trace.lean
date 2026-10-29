@@ -116,7 +116,8 @@ theorem traceSendAt_keygen_records {s : TraceState P} {party leaking : Bool} {e 
       TraceState P}
     (hz : z ∈ support ((traceSendAt P hMac irl e (some x) none party leaking).run s)) :
     (z.2.transcript e).keypair ≠ none := by
-  rw [traceSendAt_keygen_run hMac irl leaking hst x none, if_neg hc, mem_support_pure_iff] at hz
+  rw [traceSendAt_keygen_run hMac irl leaking hst x none, ite_eq_right hc,
+    mem_support_pure_iff] at hz
   rw [hz]
   simp [keygenState]
 
@@ -130,7 +131,8 @@ theorem traceSendAt_encaps1_records {s : TraceState P} {party leaking : Bool} {e
       TraceState P}
     (hz : z ∈ support ((traceSendAt P hMac irl e kp (some c) party leaking).run s)) :
     (z.2.transcript e).encaps1 ≠ none := by
-  rw [traceSendAt_encaps1_run hMac irl leaking hst kp c, if_neg hc, mem_support_pure_iff] at hz
+  rw [traceSendAt_encaps1_run hMac irl leaking hst kp c, ite_eq_right hc,
+    mem_support_pure_iff] at hz
   rw [hz]
   simp [encaps1State]
 
@@ -151,10 +153,10 @@ theorem traceSendAt_traceInv (e : ℕ) (kp : Option (P.PK × P.SK))
   · rcases installedSample_some hMac hI with ⟨a, x, rfl, hst⟩ | ⟨a, hdr, dec, c, rfl, hst⟩
     · rw [traceSendAt_keygen_run hMac irl leaking hst x ec] at hz
       by_cases hc : (leaking && decide ({e} ∩ s.game.challenged ≠ ∅)) = true
-      · rw [if_pos hc, mem_support_pure_iff] at hz
+      · rw [ite_eq_left hc, mem_support_pure_iff] at hz
         rw [hz]
         exact hs
-      · rw [if_neg hc, mem_support_pure_iff] at hz
+      · rw [ite_eq_right hc, mem_support_pure_iff] at hz
         rw [hz]
         obtain ⟨rand, hrand⟩ : ∃ rand, (x, rand) ∈ support irl.keygenRleak := by
           have hx := hkp x rfl
@@ -165,15 +167,15 @@ theorem traceSendAt_traceInv (e : ℕ) (kp : Option (P.PK × P.SK))
             SendRand.keygen rand), keygenState hMac s party leaking e a x) ∈
             support ((traceSend P hMac irl party leaking).run s) := by
           rw [traceSend_keygen_run hMac irl leaking hst, support_map]
-          exact ⟨(x, rand), hrand, by simp only [if_neg hc]⟩
+          exact ⟨(x, rand), hrand, by simp only [ite_eq_right hc]⟩
         have hinv := traceSend_traceInv hMac irl party leaking true s hs hlazy
         exact hinv
     · rw [traceSendAt_encaps1_run hMac irl leaking hst kp c] at hz
       by_cases hc : (leaking && decide ({e} ∩ s.game.challenged ≠ ∅)) = true
-      · rw [if_pos hc, mem_support_pure_iff] at hz
+      · rw [ite_eq_left hc, mem_support_pure_iff] at hz
         rw [hz]
         exact hs
-      · rw [if_neg hc, mem_support_pure_iff] at hz
+      · rw [ite_eq_right hc, mem_support_pure_iff] at hz
         rw [hz]
         obtain ⟨rand, hrand⟩ : ∃ rand, (c, rand) ∈ support (irl.encaps1Rleak hdr) := by
           have hc' := hec c a hdr dec rfl hst
@@ -184,7 +186,7 @@ theorem traceSendAt_traceInv (e : ℕ) (kp : Option (P.PK × P.SK))
             SendRand.encaps1 rand), encaps1State hMac s party leaking e a hdr dec c) ∈
             support ((traceSend P hMac irl party leaking).run s) := by
           rw [traceSend_encaps1_run hMac irl leaking hst, support_map]
-          exact ⟨(c, rand), hrand, by simp only [if_neg hc]⟩
+          exact ⟨(c, rand), hrand, by simp only [ite_eq_right hc]⟩
         have hinv := traceSend_traceInv hMac irl party leaking true s hs hlazy
         exact hinv
 
@@ -223,16 +225,16 @@ theorem traceSendAt_transcriptStep (e : ℕ) (kp : Option (P.PK × P.SK))
   · rcases installedSample_some hMac hI with ⟨a, x, rfl, hst⟩ | ⟨a, hdr, dec, c, rfl, hst⟩
     · rw [traceSendAt_keygen_run hMac irl leaking hst x ec] at hz
       by_cases hc : (leaking && decide ({e} ∩ s.game.challenged ≠ ∅)) = true
-      · rw [if_pos hc, mem_support_pure_iff] at hz
+      · rw [ite_eq_left hc, mem_support_pure_iff] at hz
         exact Or.inl (by rw [hz])
-      · rw [if_neg hc, mem_support_pure_iff] at hz
+      · rw [ite_eq_right hc, mem_support_pure_iff] at hz
         rw [hz]
         exact Or.inr (Or.inl ⟨e, x, rfl, fun _ x0 h => Option.some.inj h⟩)
     · rw [traceSendAt_encaps1_run hMac irl leaking hst kp c] at hz
       by_cases hc : (leaking && decide ({e} ∩ s.game.challenged ≠ ∅)) = true
-      · rw [if_pos hc, mem_support_pure_iff] at hz
+      · rw [ite_eq_left hc, mem_support_pure_iff] at hz
         exact Or.inl (by rw [hz])
-      · rw [if_neg hc, mem_support_pure_iff] at hz
+      · rw [ite_eq_right hc, mem_support_pure_iff] at hz
         rw [hz]
         exact Or.inr (Or.inr ⟨e, c, rfl, fun _ c0 h => Option.some.inj h⟩)
 

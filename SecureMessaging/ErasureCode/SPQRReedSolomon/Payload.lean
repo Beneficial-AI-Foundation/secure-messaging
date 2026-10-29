@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.ErasureCode.SPQRReedSolomon.Construction
-import Mathlib.Data.FinEnum
-import Mathlib.Logic.Equiv.Fin.Basic
+module
+
+public import SecureMessaging.ErasureCode.SPQRReedSolomon.Construction
+public import Mathlib.Data.FinEnum
+public import Mathlib.Logic.Equiv.Fin.Basic
 
 /-!
 # Byte blocks over the abstract SPQR field
@@ -15,9 +17,12 @@ Pairs are little-endian indices in the existing field enumeration. This reversib
 representation does not identify that enumeration with SPQR's runtime `u16` representation.
 -/
 
+@[expose] public section
+
 namespace ErasureCode.SPQRReedSolomon
 
-private noncomputable def bytePairEquiv : (UInt8 × UInt8) ≃ GF16 :=
+/-- Little-endian pairs of bytes as elements of the field. -/
+noncomputable def bytePairEquiv : (UInt8 × UInt8) ≃ GF16 :=
   (Equiv.prodComm UInt8 UInt8).trans
     (((FinEnum.equiv : UInt8 ≃ Fin 256).prodCongr
       (FinEnum.equiv : UInt8 ≃ Fin 256)).trans

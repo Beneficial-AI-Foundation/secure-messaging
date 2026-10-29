@@ -4,10 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
+import ToVCVio.EvalDist.BoolDist
 import SecureMessaging.SCKA.MLKEMBraid.Security.Invariant
 import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
 import VCVio.OracleComp.SimSemantics.StateT.StateProjection
-import ToVCVio.OracleComp.SimSemantics.StateT.PreservesInv
+import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
 
 /-!
@@ -210,11 +211,11 @@ theorem traceReceive_preservesInv
     exact ⟨h1, fun hg _ => h2 ▸ hg⟩
   · change w.2.exposed ∩ w.2.challenged = ∅
     cases party
-    · rw [if_neg Bool.false_ne_true] at hw
+    · rw [ite_eq_right Bool.false_ne_true] at hw
       obtain ⟨h1, h2, -, -⟩ := SCKAScheme.oracleRecvB_flags _ hw
       rw [h1, h2]
       exact hs.2
-    · rw [if_pos rfl] at hw
+    · rw [ite_eq_left rfl] at hw
       obtain ⟨h1, h2, -, -⟩ := SCKAScheme.oracleRecvA_flags _ hw
       rw [h1, h2]
       exact hs.2
@@ -399,9 +400,9 @@ private theorem traceChallenge_map [SampleableType P.K] [SampleableType P.EpochK
   change Prod.map id TraceState.game <$> traceChallenge P _ e s = _
   simp only [traceChallenge, SCKAScheme.oracleChall, StateT.run_bind, StateT.run_get, pure_bind]
   by_cases hex : e ∈ s.game.exposed ∨ e ∈ s.game.challenged
-  · rw [if_pos hex, if_pos hex]
+  · rw [ite_eq_left hex, ite_eq_left hex]
     simp [StateT.run_pure]
-  · rw [if_neg hex, if_neg hex]
+  · rw [ite_eq_right hex, ite_eq_right hex]
     cases hA : s.game.keyA e with
     | some k =>
         have hk : lookupKey s.game e = some k := by simp [lookupKey, hA]
@@ -431,8 +432,10 @@ private theorem traceImpl_real_map [SampleableType P.K] [SampleableType P.EpochK
       (fun _ s => map_game_liftGame _ s)
       (fun t s => tracePlain_map hMac irl true t s))
       (fun t s => tracePlain_map hMac irl false t s))
-      (fun n s => by rw [traceReceive_run, map_game_liftGame, if_pos rfl]; rfl))
-      (fun n s => by rw [traceReceive_run, map_game_liftGame, if_neg Bool.false_ne_true]; rfl))
+      (fun n s => by rw [traceReceive_run, map_game_liftGame, ite_eq_left rfl]; rfl))
+      (fun n s => by
+        rw [traceReceive_run, map_game_liftGame, ite_eq_right Bool.false_ne_true]
+        rfl))
       (fun t s => traceLeakA_map hMac irl t s))
       (fun t s => traceLeakB_map hMac irl t s))
       (fun e s => traceChallenge_map b e s))
@@ -524,18 +527,18 @@ theorem fixed_repaired_gap_le (P : Parameters ProbComp)
     (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
     (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct)
     (A : Adversary P irl) (b : Bool) :
-    (fixed P hMac irl A b).boolDistAdvantage
-        (Prod.fst <$> run P hMac irl true (fun _ => if b then .uniform else .real) A) ≤
-      (Pr[fun z => z.2.bad = true |
-        run P hMac irl false (fun _ => if b then .uniform else .real) A]).toReal := by
+    (𝒟[fixed P hMac irl A b].boolDist
+        𝒟[Prod.fst <$> run P hMac irl true (fun _ => if b then .uniform else .real) A]).toReal ≤
+      (Pr{let z ← run P hMac irl false (fun _ => if b then .uniform else .real) A}[z.2.bad =
+          true]).toReal := by
   have hfixed : fixed P hMac irl A b =
       Prod.fst <$> run P hMac irl false (fun _ => if b then .uniform else .real) A := by
     unfold fixed
     rw [StateT.run'_eq, ← run_erase P hMac irl A b, Functor.map_map]
     rfl
-  unfold ProbComp.boolDistAdvantage
-  rw [hfixed, probOutput_fst_map_eq_probEvent, probOutput_fst_map_eq_probEvent]
-  exact abs_probEvent_simulateQ_run_sub_le_bad_of_inv
+  rw [ToVCVio.toReal_boolDist_evalDist, hfixed]
+  simp only [Functor.map_map]
+  exact abs_prEvent_simulateQ_run_sub_le_bad_of_inv
     (traceImpl P hMac irl false (fun _ => if b then .uniform else .real))
     (traceImpl P hMac irl true (fun _ => if b then .uniform else .real))
     (TraceInv hMac false) (fun s => s.bad = true)

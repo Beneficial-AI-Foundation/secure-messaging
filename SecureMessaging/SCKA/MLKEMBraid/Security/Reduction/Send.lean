@@ -27,22 +27,22 @@ variable (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc) [Decidabl
 theorem sendStep_keygen (e : ℕ) (v : P.EpochKey) (ch : Challenge P) (sk : P.SK)
     (ec : Option (P.inc.St × P.inc.C₁ × P.K)) (party leaking : Bool) (s : TraceState P)
     {a : Unit} (hst : s.game.stateAt party = .keysUnsampled e a) :
-    𝒟[(simSend P hMac irl e ch party leaking).run (simOf e v s)] =
-      𝒟[Prod.map id (simOf e v) <$>
-        (traceSendAt P hMac irl e (some (ch.pk, sk)) ec party leaking).run s] := by
+    (simSend P hMac irl e ch party leaking).run (simOf e v s) =ᵈ Prod.map id (simOf e v) <$>
+        (traceSendAt P hMac irl e (some (ch.pk, sk)) ec party leaking).run s := by
   rw [traceSendAt_keygen_run hMac irl leaking hst (ch.pk, sk) ec]
   have hS : (simOf e v s).game.stateAt party = .inl (.keysUnsampled e a) := by
     rw [simOf_game, simGameOf_stateAt, hst]
     rfl
-  change 𝒟[simSend P hMac irl e ch party leaking (simOf e v s)] = _
+  refine ToVCVio.evalDistEq_of_eq ?_
+  change simSend P hMac irl e ch party leaking (simOf e v s) = _
   simp only [simSend, hS, targetSend, ↓reduceIte]
   by_cases hc : (leaking && decide ({e} ∩ s.game.challenged ≠ ∅)) = true
   · have hc' : (leaking && decide ({e} ∩ (simOf e v s).game.challenged ≠ ∅)) = true := hc
-    rw [if_pos hc', if_pos hc, map_pure]
+    rw [ite_eq_left hc', ite_eq_left hc, map_pure]
     rfl
   · have hc' : ¬ (leaking && decide ({e} ∩ (simOf e v s).game.challenged ≠ ∅)) = true := hc
-    rw [if_neg hc', if_neg hc, map_pure]
-    congr 2
+    rw [ite_eq_right hc', ite_eq_right hc, map_pure]
+    congr 1
     simp only [Prod.map, id, simOf, simGameOf_sendUpdate, keygenState, keygenStep_eq,
       eraseAt_update_self, relabelKey, Option.map_none, maskState, ↓reduceIte, simGameOf_exposed]
 
@@ -51,22 +51,22 @@ theorem sendStep_encaps1 (e : ℕ) (v : P.EpochKey) (ch : Challenge P) (hv : P.k
     (kp : Option (P.PK × P.SK)) (es : P.inc.St) (k : P.K) (party leaking : Bool)
     (s : TraceState P) {a : Unit} {hdr : P.inc.PKheader} {dec : DecoderState P.inc.PKvector P.Sym}
     (hst : s.game.stateAt party = .headerReceived e a hdr dec) :
-    𝒟[(simSend P hMac irl e ch party leaking).run (simOf e v s)] =
-      𝒟[Prod.map id (simOf e v) <$>
-        (traceSendAt P hMac irl e kp (some (es, ch.ct1, k)) party leaking).run s] := by
+    (simSend P hMac irl e ch party leaking).run (simOf e v s) =ᵈ Prod.map id (simOf e v) <$>
+        (traceSendAt P hMac irl e kp (some (es, ch.ct1, k)) party leaking).run s := by
   rw [traceSendAt_encaps1_run hMac irl leaking hst kp (es, ch.ct1, k)]
   have hS : (simOf e v s).game.stateAt party = .inl (.headerReceived e a hdr dec) := by
     rw [simOf_game, simGameOf_stateAt, hst]
     rfl
-  change 𝒟[simSend P hMac irl e ch party leaking (simOf e v s)] = _
+  refine ToVCVio.evalDistEq_of_eq ?_
+  change simSend P hMac irl e ch party leaking (simOf e v s) = _
   simp only [simSend, hS, targetSend, ↓reduceIte, hv]
   by_cases hc : (leaking && decide ({e} ∩ s.game.challenged ≠ ∅)) = true
   · have hc' : (leaking && decide ({e} ∩ (simOf e v s).game.challenged ≠ ∅)) = true := hc
-    rw [if_pos hc', if_pos hc, map_pure]
+    rw [ite_eq_left hc', ite_eq_left hc, map_pure]
     rfl
   · have hc' : ¬ (leaking && decide ({e} ∩ (simOf e v s).game.challenged ≠ ∅)) = true := hc
-    rw [if_neg hc', if_neg hc, map_pure]
-    congr 2
+    rw [ite_eq_right hc', ite_eq_right hc, map_pure]
+    congr 1
     simp only [Prod.map, id, simOf, simGameOf_sendUpdate, encaps1State, encaps1Step_eq,
       eraseAt_update_self, relabelKey, Option.map_some, maskState, ↓reduceIte, simGameOf_exposed]
 
@@ -75,8 +75,8 @@ theorem sendStep_ghost (e : ℕ) (v : P.EpochKey) (ch : Challenge P) (kp : Optio
     (ec : Option (P.inc.St × P.inc.C₁ × P.K)) (party leaking : Bool) (s : TraceState P)
     (hm : maskState e (s.game.stateAt party) = .inl (s.game.stateAt party))
     (hT : targetSend P hMac e ch (P.kdfOK ch.key e) (s.game.stateAt party) = none) :
-    𝒟[(simSend P hMac irl e ch party leaking).run (simOf e v s)] =
-      𝒟[Prod.map id (simOf e v) <$> (traceSendAt P hMac irl e kp ec party leaking).run s] := by
+    (simSend P hMac irl e ch party leaking).run (simOf e v s) =ᵈ
+        Prod.map id (simOf e v) <$> (traceSendAt P hMac irl e kp ec party leaking).run s := by
   have h1 : ∀ a, s.game.stateAt party ≠ .keysUnsampled e a := fun a h => by
     rw [h] at hT
     simp [targetSend] at hT
@@ -92,7 +92,7 @@ theorem sendStep_ghost (e : ℕ) (v : P.EpochKey) (ch : Challenge P) (kp : Optio
   have hS : (simGameOf e v s.game).stateAt party = .inl (s.game.stateAt party) := by
     rw [simGameOf_stateAt, hm]
   rw [hTr]
-  change 𝒟[simSend P hMac irl e ch party leaking (simOf e v s)] = _
+  change simSend P hMac irl e ch party leaking (simOf e v s) =ᵈ _
   simp only [simSend, simOf_game, hS, hT, simOf_transcript,
     ghostSample_eq hMac irl e s party h1 h2, traceSend, Functor.map_map]
   apply evalDist_map_congr_support
@@ -113,10 +113,9 @@ theorem sendStep_ghost (e : ℕ) (v : P.EpochKey) (ch : Challenge P) (kp : Optio
 /-- Every send agrees, with the challenge key pair and first-stage sample installed. -/
 theorem sendStep (e : ℕ) (v : P.EpochKey) (ch : Challenge P) (hv : P.kdfOK ch.key e = v)
     (sk : P.SK) (es : P.inc.St) (k : P.K) (party leaking : Bool) (s : TraceState P) :
-    𝒟[(simSend P hMac irl e ch party leaking).run (simOf e v s)] =
-      𝒟[Prod.map id (simOf e v) <$>
+    (simSend P hMac irl e ch party leaking).run (simOf e v s) =ᵈ Prod.map id (simOf e v) <$>
         (traceSendAt P hMac irl e (some (ch.pk, sk)) (some (es, ch.ct1, k)) party leaking).run
-          s] := by
+          s := by
   rcases hm : maskState e (s.game.stateAt party) with st' | m
   · obtain rfl := maskState_eq_inl hm
     cases hT : targetSend P hMac e ch (P.kdfOK ch.key e) (s.game.stateAt party) with

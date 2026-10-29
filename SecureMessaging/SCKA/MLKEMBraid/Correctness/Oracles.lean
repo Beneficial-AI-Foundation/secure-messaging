@@ -99,7 +99,7 @@ theorem epoch_stateAt_sendSuccessor (s : GameState P AuthState) (party who : Boo
     ((sendSuccessor s party r).stateAt who).epoch = (s.stateAt who).epoch := by
   by_cases hwho : who = party
   · subst who; simpa only [stateAt_sendSuccessor, ↓reduceIte] using h
-  · simp only [stateAt_sendSuccessor, if_neg hwho]
+  · simp only [stateAt_sendSuccessor, ite_eq_right hwho]
 
 /-- A send that keeps the sender's completed epoch keeps every party's completed epoch. -/
 theorem completedEpoch_stateAt_sendSuccessor (s : GameState P AuthState) (party who : Bool)
@@ -109,7 +109,7 @@ theorem completedEpoch_stateAt_sendSuccessor (s : GameState P AuthState) (party 
       (s.stateAt who).completedEpoch := by
   by_cases hwho : who = party
   · subst who; simpa only [stateAt_sendSuccessor, ↓reduceIte] using h
-  · simp only [stateAt_sendSuccessor, if_neg hwho]
+  · simp only [stateAt_sendSuccessor, ite_eq_right hwho]
 
 /-- Sending records a new key only in the sender's key table. -/
 @[simp] theorem keysAt_sendSuccessor (s : GameState P AuthState) (party who : Bool)

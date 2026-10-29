@@ -9,6 +9,8 @@ import SecureMessaging.KEM.IncrementalKEM.Defs
 import SecureMessaging.KEM.IncrementalKEM.FromMLKEM
 import SecureMessaging.KEM.MLKEM.Correctness.EasyCryptBoundary
 
+/-! # Blueprint chapter: Incremental KEM -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false
@@ -163,9 +165,8 @@ theorem incrementalCorrectExp_failure_le_mlkem768_easycrypt {failprob hsadv prfa
     (hhs : EasyCryptMLKEM768.smoothingAdvantage ≤ hsadv)
     (hkg : EasyCryptMLKEM768.keygenPRFAdvantage ≤ prfadv)
     (henc : EasyCryptMLKEM768.encapsPRFAdvantage ≤ prfadv) :
-    Pr[= false | ProbCompRuntime.probComp.evalDist
-        (mlkemIncremental .MLKEM768 Concrete.concreteNTTRingOps
-          Concrete.mlkem768Primitives).CorrectExp]
+    Pr{let x ← (mlkemIncremental .MLKEM768 Concrete.concreteNTTRingOps
+          Concrete.mlkem768Primitives).CorrectExp}[x = false]
       ≤ failprob + hsadv + 2 * prfadv
 ```
 ::::

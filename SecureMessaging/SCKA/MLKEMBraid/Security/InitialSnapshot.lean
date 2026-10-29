@@ -239,8 +239,8 @@ private theorem trace_bound (P : Parameters ProbComp) {AuthState : Type}
   dsimp only
   split_ifs with ha hb hb
   all_goals simp only [pure_bind, Nat.add_assoc, Nat.zero_add, Nat.add_zero]
-  all_goals first | refine isQueryBoundP_bind hca' (fun _ _ => ?_) | skip
-  all_goals first | refine isQueryBoundP_bind hcb' (fun _ _ => ?_) | skip
+  all_goals try refine isQueryBoundP_bind hca' (fun _ _ => ?_)
+  all_goals try refine isQueryBoundP_bind hcb' (fun _ _ => ?_)
   all_goals
     refine isQueryBoundP_bind (n := P.ecpHdr.ec.nchunk * (sa + rb)) ?_ (fun _ _ => ?_)
     · simpa only [List.length_range] using for_bound _ (sa + rb)
@@ -441,7 +441,7 @@ private theorem header_tail (P : Parameters ProbComp) {AuthState : Type}
       have hb' : s.stB = .noHeaderReceived 1 a ⟨P.ecpHdr,
           P.ecpHdr.payloadChunks (P.inc.toHeader pk, auth.macHeader a 1 (P.inc.toHeader pk))
             ((Finset.range i).image P.ecpHdr.counterIndex)⟩ := by
-        simpa only [if_neg (by omega : ¬ P.ecpHdr.ec.nchunk ≤ i)] using hb
+        simpa only [ite_eq_right (by omega : ¬ P.ecpHdr.ec.nchunk ≤ i)] using hb
       let payload := (P.inc.toHeader pk, auth.macHeader a 1 (P.inc.toHeader pk))
       let msg : Message P.Sym := ⟨1, .hdr, some (P.ecpHdr.encode payload i)⟩
       let stA := State.keysSampled 1 a sk (P.inc.toVector pk) ⟨P.ecpHdr, payload, i + 1⟩
@@ -641,12 +641,13 @@ private theorem trial_basics (P : Parameters ProbComp) {AuthState : Type}
     (irl : P.kem.IncrementalRandLeak P.inc) (snapshots : Finset Bool)
     (vulnA vulnB : SCKAScheme.VulnerableEpochs (State P AuthState)
       (SendRand irl.KeygenRand irl.Encaps1Rand)) :
-    (∀ b : Bool, Pr[⊥ | decision P auth <$>
-      primitiveTrial P auth irl snapshots vulnA vulnB b] = 0) ∧
-    Pr[= true | decision P auth <$> primitiveTrial P auth irl snapshots vulnA vulnB false] = 0 := by
+    (∀ b : Bool, prFail (decision P auth <$>
+      primitiveTrial P auth irl snapshots vulnA vulnB b) = 0) ∧
+    Pr{let x ← decision P auth <$> primitiveTrial P auth irl snapshots vulnA vulnB false}[x = true]
+        = 0 := by
   constructor
   · intro b
-    exact probFailure_of_liftM_PMF _
+    exact prFail_eq_zero _
   · have hreal : ∀ v ∈ support (primitiveTrial P auth irl snapshots vulnA vulnB false),
         decision P auth v = false := by
       intro v hv
@@ -660,10 +661,12 @@ private theorem trial_basics (P : Parameters ProbComp) {AuthState : Type}
         obtain ⟨candidate, hc, rfl⟩ := hv
         subst candidate
         simp [decision, auth.verifyCiphertext_correct]
-    rw [probOutput_eq_zero_iff]
-    simp only [support_map, Set.mem_image]
-    rintro ⟨v, hv, hdec⟩
+    rw [prEvent_eq_zero_iff]
+    intro x hx hxt
+    simp only [support_map, Set.mem_image] at hx
+    obtain ⟨v, hv, hdec⟩ := hx
     rw [hreal v hv] at hdec
+    subst hxt
     cases hdec
 
 /-- The first native ciphertext export and delivery, including the public decoder prefix.
@@ -787,7 +790,7 @@ private theorem ct1_joint_tail (P : Parameters ProbComp) {AuthState : Type}
       have ha' : s.stA = .headerSent 1 a0 sk
           ⟨P.ecpCt1, P.ecpCt1.payloadChunks c1 ((Finset.range i).image P.ecpCt1.counterIndex)⟩
           (EncoderState.init P.ecpEk vec) := by
-        simpa only [if_neg (by omega : ¬ P.ecpCt1.ec.nchunk ≤ i)] using ha
+        simpa only [ite_eq_right (by omega : ¬ P.ecpCt1.ec.nchunk ≤ i)] using ha
       let msg : Message P.Sym := ⟨1, .ct1, some (P.ecpCt1.encode c1 i)⟩
       let stB := State.ct1Sampled 1 a1 hdr es c1 ⟨P.ecpCt1, c1, i + 1⟩
         (DecoderState.empty P.ecpEk)

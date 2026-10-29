@@ -57,15 +57,15 @@ theorem mlkemBraidBounded_noAuth_security_le
         (MLKEMBraid.NoAuth.exposure P irl)
         (MLKEMBraid.NoAuth.exposure P irl) ≤
         (∑ i ∈ Finset.range qS,
-          ((MLKEM.mlkemScheme p ring prims).IND_CPA_Advantage
+          (((MLKEM.mlkemScheme p ring prims).IND_CPA_Advantage
               ProbCompRuntime.probComp
               (MLKEM.Bounded.liftAdversary p ring prims
-                (MLKEMBraid.NoAuth.kemReduction P (Eq.refl Unit) irl A (i + 1))) +
-            (MLKEMBraid.NoAuth.kdfExp P (i + 1)
+                (MLKEMBraid.NoAuth.kemReduction P (Eq.refl Unit) irl A (i + 1)))).toReal +
+            (𝒟[MLKEMBraid.NoAuth.kdfExp P (i + 1)
               (MLKEMBraid.NoAuth.kdfReduction P (Eq.refl Unit) irl A
-                (i + 1)) true).boolDistAdvantage
-              (MLKEMBraid.NoAuth.kdfExp P (i + 1)
-                (MLKEMBraid.NoAuth.kdfReduction P (Eq.refl Unit) irl A (i + 1)) false))) / 2 +
+                (i + 1)) true].boolDist 𝒟[MLKEMBraid.NoAuth.kdfExp P (i + 1)
+                (MLKEMBraid.NoAuth.kdfReduction P (Eq.refl Unit) irl A (i + 1)) false]).toReal)) /
+          2 +
         (qS : ℝ) *
           ((MLKEM.mlkemScheme p ring prims).correctnessError
             ProbCompRuntime.probComp).toReal := by
@@ -89,8 +89,8 @@ theorem mlkemBraidBounded_noAuth_security_le
     apply Finset.sum_le_sum
     intro i hi
     apply add_le_add
-    · exact le_of_eq (MLKEM.Bounded.indCPAAdvantage_lift p ring prims
-        (NoAuth.kemReduction P (Eq.refl Unit) irl A (i + 1))).symm
+    · exact le_of_eq (congrArg ENNReal.toReal (MLKEM.Bounded.indCPAAdvantage_lift p ring prims
+        (NoAuth.kemReduction P (Eq.refl Unit) irl A (i + 1)))).symm
     · exact le_rfl
   · exact le_of_eq (congrArg (fun x => (qS : ℝ) * x.toReal)
       (MLKEM.Bounded.correctnessError_eq p ring prims))

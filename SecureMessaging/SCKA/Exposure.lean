@@ -158,7 +158,7 @@ noncomputable def sckaGuessAdvantage [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (adversary : SCKAAdversary StA StB I Rho Rand)
     (exposureA : ExposurePolicy StA Rand) (exposureB : ExposurePolicy StB Rand) : ℝ :=
-  |(Pr[= true | securityExp scka adversary exposureA exposureB]).toReal - 1 / 2|
+  |(Pr{let x ← securityExp scka adversary exposureA exposureB}[x = true]).toReal - 1 / 2|
 -- ANCHOR_END: sckaGuessAdvantage
 
 end ExposurePolicy

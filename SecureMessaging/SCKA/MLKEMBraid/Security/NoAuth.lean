@@ -71,7 +71,7 @@ theorem sendExposure_eq_delta
     (irl : P.kem.IncrementalRandLeak P.inc)
     (st : State P Unit)
     (out : SendResult P Unit × SendRand irl.KeygenRand irl.Encaps1Rand)
-    (hout : out ∈ _root_.support
+    (hout : out ∈ support
       (MLKEMBraid.sendRleak P irl (auth P hMac) st)) :
     (exposure P irl).send st out.1.state out.2 =
       vuln out.1.state \ vuln st := by

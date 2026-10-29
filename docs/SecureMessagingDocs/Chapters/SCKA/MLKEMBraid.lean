@@ -11,6 +11,8 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness
 import SecureMessaging.SCKA.MLKEMBraid.Security.Bounded
 import SecureMessaging.SCKA.MLKEMBraid.Security.Native
 
+/-! # Blueprint chapter: ML-KEM Braid -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false
@@ -324,8 +326,7 @@ theorem correctness_error_le
     (hCt2Correct : P.ecpCt2.ec.Correct)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message P.Sym))
     (q : ℕ) (hq : SCKAScheme.SendQueryBound adv q) :
-    1 - Pr[= true |
-      SCKAScheme.correctnessExp (scheme P auth irl sampleInitKey) adv] ≤
+    1 - Pr{let x ← SCKAScheme.correctnessExp (scheme P auth irl sampleInitKey) adv}[x = true] ≤
       (q : ℝ≥0∞) * P.kem.correctnessError ProbCompRuntime.probComp
 ```
 ::::

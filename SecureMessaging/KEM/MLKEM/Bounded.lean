@@ -269,8 +269,9 @@ theorem decaps_refines
 
 /-- The honest correctness experiments agree as terms, without a correctness premise. -/
 theorem correctExp_eq :
-    (scheme p ring prims).CorrectExp = (mlkemScheme p ring prims).CorrectExp := by
-  unfold KEMScheme.CorrectExp
+    (scheme p ring prims).correctnessExperiment =
+      (mlkemScheme p ring prims).correctnessExperiment := by
+  unfold KEMScheme.correctnessExperiment
   rw [← keygen_refines p ring prims]
   simp only [bind_map_left, Prod.map]
   apply congrArg (fun f => (scheme p ring prims).keygen >>= f)
@@ -303,17 +304,16 @@ def liftAdversary (A : (scheme p ring prims).IND_CPA_Adversary) :
 
 /-- Generated raw keys and ciphertexts always parse; both fixed-bit experiments agree. -/
 theorem indCPAExp_lift (A : (scheme p ring prims).IND_CPA_Adversary) (b : Bool) :
-    (mlkemScheme p ring prims).IND_CPA_Exp ProbCompRuntime.probComp
+    IND_CPA_Experiment (kem := mlkemScheme p ring prims) ProbCompRuntime.probComp
       (liftAdversary p ring prims A) b =
-        (scheme p ring prims).IND_CPA_Exp ProbCompRuntime.probComp A b := by
+        IND_CPA_Experiment (kem := scheme p ring prims) ProbCompRuntime.probComp A b := by
   have hpk (pk : EncapsulationKey (ParameterSet.params p) (encoding (ParameterSet.params p))) :
       readPK (ParameterSet.params p) (toRawPK (ParameterSet.params p) pk) = some pk :=
     (readPK_eq_some_iff _ _ pk).mpr rfl
   have hc (c : Ciphertext (ParameterSet.params p) (encoding (ParameterSet.params p))) :
       readC (ParameterSet.params p) (toRawC (ParameterSet.params p) c) = some c :=
     (readC_eq_some_iff _ _ c).mpr rfl
-  unfold KEMScheme.IND_CPA_Exp
-  apply congrArg (fun oa : ProbComp Bool => ProbCompRuntime.probComp.evalDist oa)
+  unfold IND_CPA_Experiment
   rw [← keygen_refines p ring prims]
   simp only [bind_map_left, Prod.map]
   apply congrArg (fun f => (scheme p ring prims).keygen >>= f)

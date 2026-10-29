@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
+import ToVCVio.EvalDist.BoolDist
 import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Stopping
 
 /-!
@@ -40,51 +41,52 @@ theorem kdf_gap_eq (P : Parameters ProbComp)
     [DecidableEq P.EpochKey] [DecidableEq P.Sym]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (A : Adversary P irl) (e : ℕ) (he : 0 < e) :
-    (rawHybrid P hMac irl A e).boolDistAdvantage (hybrid P hMac irl A e) =
-      (kdfExp P e (kdfReduction P hMac irl A e) true).boolDistAdvantage
-        (kdfExp P e (kdfReduction P hMac irl A e) false) := by
+    (𝒟[rawHybrid P hMac irl A e].boolDist 𝒟[hybrid P hMac irl A e]).toReal =
+      (𝒟[kdfExp P e (kdfReduction P hMac irl A e) true].boolDist
+          𝒟[kdfExp P e (kdfReduction P hMac irl A e) false]).toReal := by
   obtain ⟨n, rfl⟩ : ∃ n, e = n + 1 := ⟨e - 1, by omega⟩
   have hJH : ∀ t, t ≠ n + 1 →
       (if t < n + 1 then Mode.uniform else if t = n + 1 then Mode.derivedUniform else Mode.real) =
         (if t ≤ n + 1 then Mode.uniform else Mode.real) := by
     intro t ht
     by_cases h : t < n + 1
-    · rw [if_pos h, if_pos (by omega)]
-    · rw [if_neg h, if_neg ht, if_neg (by omega)]
+    · rw [ite_eq_left h, ite_eq_left (by omega)]
+    · rw [ite_eq_right h, ite_eq_right ht, ite_eq_right (by omega)]
   have hJD : ∀ t, t ≠ n + 1 →
       (if t < n + 1 then Mode.uniform else if t = n + 1 then Mode.derivedUniform else Mode.real) =
         (if t < n + 1 then Mode.uniform else Mode.real) := by
     intro t ht
     by_cases h : t < n + 1
-    · rw [if_pos h, if_pos h]
-    · rw [if_neg h, if_neg ht, if_neg h]
+    · rw [ite_eq_left h, ite_eq_left h]
+    · rw [ite_eq_right h, ite_eq_right ht, ite_eq_right h]
   have hHD : ∀ t, t ≠ n + 1 →
       (if t ≤ n + 1 then Mode.uniform else Mode.real) =
         (if t < n + 1 then Mode.uniform else Mode.real) := by
     intro t ht
     by_cases h : t < n + 1
-    · rw [if_pos (by omega), if_pos h]
-    · rw [if_neg (by omega), if_neg h]
+    · rw [ite_eq_left (by omega), ite_eq_left h]
+    · rw [ite_eq_right (by omega), ite_eq_right h]
   have hgap := signedGap_stop hMac irl
     (fun t => if t < n + 1 then .uniform else if t = n + 1 then .derivedUniform else .real)
     (fun t => if t ≤ n + 1 then .uniform else .real) (n + 1) hJH A
-  have hJ : Pr[= true | stoppedRun (traceImpl P hMac irl true
+  have hJ : Pr{let x ← (stoppedRun (traceImpl P hMac irl true
         (fun t => if t < n + 1 then .uniform else if t = n + 1 then .derivedUniform else .real))
-        (targetStop (n + 1)) A (initTrace P hMac)] =
-      Pr[= true | kdfExp P (n + 1) (kdfReduction P hMac irl A (n + 1)) true] := by
+        (targetStop (n + 1)) A (initTrace P hMac))}[x = true] =
+      Pr{let x ← kdfExp P (n + 1) (kdfReduction P hMac irl A (n + 1)) true}[x = true] := by
     rw [← traceImplAt_none hMac irl (n + 1), ← stoppedRun_chalSample hMac irl (n + 1) none none _
       ((fun u => P.kdfOK u (n + 1)) <$> ($ᵗ P.K)) (fun k => by simp [challengeValue])]
-    simp only [kdfExp, kdfReduction, ↓reduceIte, bind_map_left,
+    simp only [kdfExp, kdfReduction, ↓reduceIte, bind_map_left, map_bind,
       traceImplAt_congr hMac irl (n + 1) none none _ _ _ hJD]
-  have hH : Pr[= true | stoppedRun (traceImpl P hMac irl true
+  have hH : Pr{let x ← (stoppedRun (traceImpl P hMac irl true
         (fun t => if t ≤ n + 1 then .uniform else .real))
-        (targetStop (n + 1)) A (initTrace P hMac)] =
-      Pr[= true | kdfExp P (n + 1) (kdfReduction P hMac irl A (n + 1)) false] := by
+        (targetStop (n + 1)) A (initTrace P hMac))}[x = true] =
+      Pr{let x ← kdfExp P (n + 1) (kdfReduction P hMac irl A (n + 1)) false}[x = true] := by
     rw [← traceImplAt_none hMac irl (n + 1), ← stoppedRun_chalSample hMac irl (n + 1) none none _
       ($ᵗ P.EpochKey) (fun k => by simp [challengeValue])]
-    simp only [kdfExp, kdfReduction, Bool.false_eq_true, ↓reduceIte,
+    simp only [kdfExp, kdfReduction, Bool.false_eq_true, ↓reduceIte, map_bind,
       traceImplAt_congr hMac irl (n + 1) none none _ _ _ hHD]
-  unfold ProbComp.boolDistAdvantage rawHybrid hybrid
+  rw [ToVCVio.toReal_boolDist_evalDist, ToVCVio.toReal_boolDist_evalDist]
+  unfold rawHybrid hybrid
   rw [hgap, hJ, hH]
 
 end MLKEMBraid.NoAuth

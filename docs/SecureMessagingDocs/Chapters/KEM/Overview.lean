@@ -8,6 +8,8 @@ import SecureMessagingDocs.Chapters.KEM.FrodoKEM
 import SecureMessagingDocs.Chapters.KEM.OnOffKEM.Overview
 import SecureMessagingDocs.Chapters.KEM.IncrementalKEM.Overview
 
+/-! # Blueprint chapter: Key Encapsulation Mechanism -/
+
 open Verso.Genre
 open Verso.Genre.Manual
 open Informal

@@ -134,7 +134,7 @@ def ckaSecurityFixedBranchWithChallengeKey
 
 /-- Pointwise (per-bit) equality behind
 `ckaSecurityFixedBranch_challenge_key_gap_eq`. -/
-private lemma ckaSecurityFixedBranch_challenge_key_probOutput_true_eq
+private lemma ckaSecurityFixedBranch_challenge_key_prEvent_true_eq
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -142,21 +142,21 @@ private lemma ckaSecurityFixedBranch_challenge_key_probOutput_true_eq
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
     (isRandom : Bool) :
-    Pr[= true | ckaSecurityFixedBranch kem hDet leak adv gp isRandom] =
-      Pr[= true |
-        ckaSecurityFixedBranchWithChallengeKey kem hDet leak adv gp isRandom] := by
+    Pr{let x ← ckaSecurityFixedBranch kem hDet leak adv gp isRandom}[x = true] =
+      Pr{let x ←
+           ckaSecurityFixedBranchWithChallengeKey kem hDet leak adv gp isRandom}[x = true] := by
   unfold ckaSecurityFixedBranch ckaSecurityFixedBranchWithChallengeKey
   by_cases hinit :
       (gp.challengeEpoch == 1 && gp.challengedParty == .A) = true
   · simp only [hinit, ↓reduceIte]
-    exact (probOutput_bind_of_const' kem.keygen fun _ _ => rfl).symm
+    exact ((OracleComp.EvalDistEq.bind_const kem.keygen _).prEvent_eq _).symm
   · have hinitFalse :
         (gp.challengeEpoch == 1 && gp.challengedParty == .A) = false :=
       Bool.eq_false_of_not_eq_true hinit
     simp only [hinitFalse, Bool.false_eq_true, ↓reduceIte]
-    refine probOutput_bind_congr' kem.keygen true ?_
+    refine prEvent_bind_congr kem.keygen _ _ _ _ ?_
     intro pk0_sk0
-    exact (probOutput_bind_of_const' kem.keygen fun _ _ => rfl).symm
+    exact ((OracleComp.EvalDistEq.bind_const kem.keygen _).prEvent_eq _).symm
 
 /-- Game hop: the honest fixed branch and
 `ckaSecurityFixedBranchWithChallengeKey` have the same true-output gap. Per
@@ -170,14 +170,15 @@ lemma ckaSecurityFixedBranch_challenge_key_gap_eq
     (leak : RandLeak kem)
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams) :
-    |(Pr[= true | ckaSecurityFixedBranch kem hDet leak adv gp true]).toReal -
-      (Pr[= true | ckaSecurityFixedBranch kem hDet leak adv gp false]).toReal| =
-    |(Pr[= true |
-        ckaSecurityFixedBranchWithChallengeKey kem hDet leak adv gp true]).toReal -
-      (Pr[= true |
-        ckaSecurityFixedBranchWithChallengeKey kem hDet leak adv gp false]).toReal| := by
-  rw [ckaSecurityFixedBranch_challenge_key_probOutput_true_eq]
-  rw [ckaSecurityFixedBranch_challenge_key_probOutput_true_eq]
+    |(Pr{let x ← ckaSecurityFixedBranch kem hDet leak adv gp true}[x = true]).toReal -
+      (Pr{let x ← ckaSecurityFixedBranch kem hDet leak adv gp false}[x = true]).toReal| =
+    |(Pr{let x ←
+           ckaSecurityFixedBranchWithChallengeKey kem hDet leak adv gp true}[x = true]).toReal -
+      (Pr{let x ←
+            ckaSecurityFixedBranchWithChallengeKey kem hDet leak adv gp false}[x = true]).toReal| :=
+  by
+  rw [ckaSecurityFixedBranch_challenge_key_prEvent_true_eq]
+  rw [ckaSecurityFixedBranch_challenge_key_prEvent_true_eq]
 
 /-- Raw reduction branch with the two initial KEM key-generation draws swapped.
 
@@ -209,7 +210,7 @@ def ckaReductionINDCPABranchRawKeygenSwapped
 
 /-- Pointwise (per-bit) equality behind
 `ckaReductionINDCPABranchRaw_keygen_swapped_gap_eq`. -/
-private lemma ckaReductionINDCPABranchRaw_keygen_swapped_probOutput_true
+private lemma ckaReductionINDCPABranchRaw_keygen_swapped_prEvent_true
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -217,13 +218,12 @@ private lemma ckaReductionINDCPABranchRaw_keygen_swapped_probOutput_true
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
     (b : Bool) :
-    Pr[= true | ckaReductionINDCPABranchRaw kem hDet leak adv gp b] =
-      Pr[= true |
-        ckaReductionINDCPABranchRawKeygenSwapped kem hDet leak adv gp b] := by
+    Pr{let x ← ckaReductionINDCPABranchRaw kem hDet leak adv gp b}[x = true] =
+      Pr{let x ← ckaReductionINDCPABranchRawKeygenSwapped kem hDet leak adv gp b}[x = true] := by
   unfold ckaReductionINDCPABranchRaw
   unfold ckaReductionINDCPABranchRawKeygenSwapped
-  rw [probOutput_bind_bind_swap (mx := kem.keygen) (my := kem.keygen)
-    (f := fun pkStar_skStar pk0_sk0 => do
+  exact (OracleComp.EvalDistEq.bind_bind_swap kem.keygen kem.keygen
+    (fun pkStar_skStar pk0_sk0 => do
       let σ0 :=
         CKAScheme.initGameState
           (if gp.challengeEpoch == 1 && gp.challengedParty == .A then
@@ -236,8 +236,7 @@ private lemma ckaReductionINDCPABranchRaw_keygen_swapped_probOutput_true
       let (cStar, kReal) ← kem.encaps pkStar_skStar.1
       let kRand ← ($ᵗ K)
       finishChallengeStepRaw kem hDet leak gp res σ cStar
-        (if b then kReal else kRand))
-    (z := true)]
+        (if b then kReal else kRand))).prEvent_eq _
 
 /-- Game hop: swapping the two initial key-generation draws of the raw
 reduction branch preserves the true-output gap. The swap is a pure sampling
@@ -249,14 +248,15 @@ lemma ckaReductionINDCPABranchRaw_keygen_swapped_gap_eq
     (leak : RandLeak kem)
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams) :
-    |(Pr[= true | ckaReductionINDCPABranchRaw kem hDet leak adv gp true]).toReal -
-      (Pr[= true | ckaReductionINDCPABranchRaw kem hDet leak adv gp false]).toReal| =
-    |(Pr[= true |
-        ckaReductionINDCPABranchRawKeygenSwapped kem hDet leak adv gp true]).toReal -
-      (Pr[= true |
-        ckaReductionINDCPABranchRawKeygenSwapped kem hDet leak adv gp false]).toReal| := by
-  rw [ckaReductionINDCPABranchRaw_keygen_swapped_probOutput_true]
-  rw [ckaReductionINDCPABranchRaw_keygen_swapped_probOutput_true]
+    |(Pr{let x ← ckaReductionINDCPABranchRaw kem hDet leak adv gp true}[x = true]).toReal -
+      (Pr{let x ← ckaReductionINDCPABranchRaw kem hDet leak adv gp false}[x = true]).toReal| =
+    |(Pr{let x ←
+           ckaReductionINDCPABranchRawKeygenSwapped kem hDet leak adv gp true}[x = true]).toReal -
+      (Pr{let x ←
+          ckaReductionINDCPABranchRawKeygenSwapped kem hDet leak adv gp false}[x = true]).toReal| :=
+  by
+  rw [ckaReductionINDCPABranchRaw_keygen_swapped_prEvent_true]
+  rw [ckaReductionINDCPABranchRaw_keygen_swapped_prEvent_true]
 
 /-- Honest A-send oracle that injects the sampled challenge key pair.
 
@@ -514,8 +514,8 @@ lemma securityImpl_run_counters_mono [SampleableType K] [DecidableEq K]
       uChallA) | uChallB) | uCorrA) | uCorrB) | uRLeakA) | uRLeakB
   · -- O-Unif
     change z ∈ support ((CKAScheme.oracleUnif (State PK SK) K (Message C PK) n).run σ) at hz
-    obtain ⟨x, -, hz'⟩ := Set.mem_iUnion₂.mp hz
-    have hz2 : z = (x, σ) := hz'
+    rw [CKAScheme.oracleUnif, support_unifLiftStateT_run] at hz
+    obtain ⟨x, rfl⟩ := hz
     vcvSupport
   · -- O-Send-A
     cases uSendA
@@ -811,7 +811,7 @@ The per-step equivalence
 through `simulateQ`; counter monotonicity
 (`securityImpl_preservesInv_injectionPassed`) keeps `injectionPassed` true along
 the whole run. -/
-lemma probOutput_simulateQ_securityImplWithChallengeKeyPair_run_eq_of_injectionPassed
+lemma evalDistEq_simulateQ_securityImplWithChallengeKeyPair_run_of_injectionPassed
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -821,18 +821,17 @@ lemma probOutput_simulateQ_securityImplWithChallengeKeyPair_run_eq_of_injectionP
     (pkStar : PK) (skStar : SK)
     (adv : Adversary (kem := kem) leak)
     (s : SecurityState K PK SK C)
-    (hs : injectionPassed gp s)
-    (z : Bool × SecurityState K PK SK C) :
-    Pr[= z | (simulateQ
-        (securityImplWithChallengeKeyPair kem hDet leak gp isRandom pkStar skStar) adv).run s] =
-      Pr[= z | (simulateQ (securityImpl kem hDet leak gp isRandom) adv).run s] :=
-  probOutput_simulateQ_run_eq_of_impl_eq_preservesInv
+    (hs : injectionPassed gp s) :
+    (simulateQ (securityImplWithChallengeKeyPair kem hDet leak gp isRandom pkStar skStar)
+        adv).run s =ᵈ
+      (simulateQ (securityImpl kem hDet leak gp isRandom) adv).run s :=
+  evalDistEq_of_relTriple_eqRel (relTriple_simulateQ_run_eqRel_of_impl_eq_preservesInv
     (securityImplWithChallengeKeyPair kem hDet leak gp isRandom pkStar skStar)
     (securityImpl kem hDet leak gp isRandom)
     (injectionPassed gp) adv
     (securityImplWithChallengeKeyPair_run_eq_securityImpl_of_injectionPassed
       kem hDet leak gp isRandom pkStar skStar)
     (securityImpl_preservesInv_injectionPassed kem hDet leak gp isRandom)
-    s hs z
+    s hs)
 
 end kemCKA

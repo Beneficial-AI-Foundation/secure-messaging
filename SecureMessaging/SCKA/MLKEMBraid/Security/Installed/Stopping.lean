@@ -133,15 +133,15 @@ theorem mem_support_traceChallengeAt [SampleableType P.K] [SampleableType P.Epoc
   change z ∈ support (traceChallengeAt P mode e x t s) at hz
   by_cases hex : t ∈ s.game.exposed ∨ t ∈ s.game.challenged
   · left
-    simp only [traceChallengeAt, if_pos hex, mem_support_pure_iff] at hz
+    simp only [traceChallengeAt, ite_eq_left hex, mem_support_pure_iff] at hz
     rw [hz]
   · cases hk : lookupKey s.game t with
     | none =>
-        simp only [traceChallengeAt, if_neg hex, hk, mem_support_pure_iff] at hz
+        simp only [traceChallengeAt, ite_eq_right hex, hk, mem_support_pure_iff] at hz
         left
         rw [hz]
     | some k =>
-        simp only [traceChallengeAt, if_neg hex, hk, support_map] at hz
+        simp only [traceChallengeAt, ite_eq_right hex, hk, support_map] at hz
         obtain ⟨out, -, rfl⟩ := hz
         exact Or.inr ⟨fun h => hex (Or.inl h), rfl⟩
 
@@ -189,10 +189,10 @@ theorem traceSendAt_flagStep (e : ℕ) (kp : Option (P.PK × P.SK))
     exact traceSend_flagStep hMac irl hz
   · simp only [traceSendAt, hI] at hz
     by_cases hc : (leaking && decide ({e} ∩ s.game.challenged ≠ ∅)) = true
-    · rw [if_pos hc, mem_support_pure_iff] at hz
+    · rw [ite_eq_left hc, mem_support_pure_iff] at hz
       rw [hz]
       exact FlagStep.refl s
-    · rw [if_neg hc, mem_support_pure_iff] at hz
+    · rw [ite_eq_right hc, mem_support_pure_iff] at hz
       rw [hz]
       obtain ⟨-, hC⟩ := sendUpdate_flags s.game party r
       cases leaking
@@ -236,10 +236,10 @@ theorem traceReceive_flagStep (repair party : Bool) :
   obtain ⟨w, hw, rfl⟩ := mem_support_liftGame hz
   change FlagStep s { s with game := w.2 }
   cases party
-  · rw [if_neg Bool.false_ne_true] at hw
+  · rw [ite_eq_right Bool.false_ne_true] at hw
     obtain ⟨h1, h2, -, -⟩ := SCKAScheme.oracleRecvB_flags _ hw
     exact ⟨subset_of_eq h1.symm, subset_of_eq h2.symm, fun _ _ h => h1 ▸ h⟩
-  · rw [if_pos rfl] at hw
+  · rw [ite_eq_left rfl] at hw
     obtain ⟨h1, h2, -, -⟩ := SCKAScheme.oracleRecvA_flags _ hw
     exact ⟨subset_of_eq h1.symm, subset_of_eq h2.symm, fun _ _ h => h1 ▸ h⟩
 
@@ -290,19 +290,19 @@ theorem traceChallenge_eq_or (m m' : ℕ → Mode) (e : ℕ) (hm : ∀ t, t ≠ 
     by_cases hex : t ∈ s.game.exposed ∨ t ∈ s.game.challenged
     · left
       change traceChallenge P m t s = traceChallenge P m' t s
-      simp only [traceChallenge, if_pos hex]
+      simp only [traceChallenge, ite_eq_left hex]
     · cases hk : lookupKey s.game t with
       | none =>
           left
           change traceChallenge P m t s = traceChallenge P m' t s
-          simp only [traceChallenge, if_neg hex, hk]
+          simp only [traceChallenge, ite_eq_right hex, hk]
       | some k =>
           right
           have hc : ∀ mm : ℕ → Mode, ∀ z ∈ support ((traceChallenge P mm t).run s),
               Committed t z.2 := by
             intro mm z hz
             change z ∈ support (traceChallenge P mm t s) at hz
-            simp only [traceChallenge, if_neg hex, hk, support_map] at hz
+            simp only [traceChallenge, ite_eq_right hex, hk, support_map] at hz
             obtain ⟨out, -, rfl⟩ := hz
             exact ⟨Finset.mem_insert_self t _, fun h => hex (Or.inl h)⟩
           exact ⟨hc m, hc m'⟩
@@ -319,7 +319,7 @@ theorem traceChallenge_eq_of_exposed (m m' : ℕ → Mode) (e : ℕ)
   change traceChallenge P m t s = traceChallenge P m' t s
   by_cases ht : t = e
   · subst ht
-    simp only [traceChallenge, if_pos (Or.inl hs)]
+    simp only [traceChallenge, ite_eq_left (Or.inl hs)]
   · simp only [traceChallenge, hm t ht]
 
 variable [DecidableEq P.EpochKey] [DecidableEq P.Sym] (hMac : P.Mac = Unit)
@@ -352,8 +352,8 @@ with the same probability. -/
 theorem probOutput_run_eq_of_exposed (m m' : ℕ → Mode) (e : ℕ)
     (hm : ∀ t, t ≠ e → m t = m' t) (s : TraceState P) (hs : targetStop e s = true)
     (oa : OracleComp (Spec P irl) Bool) :
-    Pr[= true | (simulateQ (traceImpl P hMac irl true m) oa).run' s] =
-      Pr[= true | (simulateQ (traceImpl P hMac irl true m') oa).run' s] := by
+    Pr{let x ← (simulateQ (traceImpl P hMac irl true m) oa).run' s}[x = true] =
+      Pr{let x ← (simulateQ (traceImpl P hMac irl true m') oa).run' s}[x = true] := by
   have hs' : e ∈ s.game.exposed := by simpa [targetStop] using hs
   have h := OracleComp.map_run_simulateQ_eq_of_query_map_eq_inv'
     (traceImpl P hMac irl true m) (traceImpl P hMac irl true m')
@@ -371,12 +371,12 @@ theorem probOutput_run_eq_of_exposed (m m' : ℕ → Mode) (e : ℕ)
 gap of acceptance probabilities as their runs stopped with `false` when `e` becomes exposed. -/
 theorem signedGap_stop (m m' : ℕ → Mode) (e : ℕ) (hm : ∀ t, t ≠ e → m t = m' t)
     (A : Adversary P irl) :
-    (Pr[= true | Prod.fst <$> run P hMac irl true m A]).toReal -
-        (Pr[= true | Prod.fst <$> run P hMac irl true m' A]).toReal =
-      (Pr[= true | stoppedRun (traceImpl P hMac irl true m) (targetStop e) A
-          (initTrace P hMac)]).toReal -
-        (Pr[= true | stoppedRun (traceImpl P hMac irl true m') (targetStop e) A
-          (initTrace P hMac)]).toReal := by
+    (Pr{let x ← Prod.fst <$> run P hMac irl true m A}[x = true]).toReal -
+        (Pr{let x ← Prod.fst <$> run P hMac irl true m' A}[x = true]).toReal =
+      (Pr{let x ← (stoppedRun (traceImpl P hMac irl true m) (targetStop e) A
+          (initTrace P hMac))}[x = true]).toReal -
+        (Pr{let x ← (stoppedRun (traceImpl P hMac irl true m') (targetStop e) A
+          (initTrace P hMac))}[x = true]).toReal := by
   have hC : ∀ mode : ℕ → Mode,
       QueryImpl.PreservesInv (traceImpl P hMac irl true mode) (Committed e) :=
     fun mode t s hs z hz =>
@@ -397,7 +397,7 @@ private theorem stopOnState_run_congr {ι σ : Type} {spec : OracleSpec ι}
     {impl impl' : QueryImpl spec (StateT σ ProbComp)} (stop : σ → Bool) {t : spec.Domain} {s : σ}
     (h : (impl t).run s = (impl' t).run s) :
     ((stopOnState impl stop t).run).run s = ((stopOnState impl' stop t).run).run s := by
-  rw [OracleComp.stopOnState_run, OracleComp.stopOnState_run, h]
+  rw [OracleComp.stopOnState_run_eq_map, OracleComp.stopOnState_run_eq_map, h]
 
 section ChallengeSample
 
@@ -418,15 +418,15 @@ theorem traceChallengeAt_offHit (mode : ℕ → Mode) (e : ℕ) (x : P.EpochKey)
     (traceChallengeAt P mode e (some x) t).run s = (traceChallengeAt P mode e none t).run s := by
   change traceChallengeAt P mode e (some x) t s = traceChallengeAt P mode e none t s
   by_cases hex : t ∈ s.game.exposed ∨ t ∈ s.game.challenged
-  · simp only [traceChallengeAt, if_pos hex]
+  · simp only [traceChallengeAt, ite_eq_left hex]
   · cases hk : lookupKey s.game t with
-    | none => simp only [traceChallengeAt, if_neg hex, hk]
+    | none => simp only [traceChallengeAt, ite_eq_right hex, hk]
     | some k =>
         have hte : t ≠ e := by
           intro hte
           subst hte
           exact h ⟨rfl, fun h' => hex (Or.inl h'), fun h' => hex (Or.inr h'), by simp [hk]⟩
-        simp only [traceChallengeAt, if_neg hex, hk, if_neg hte]
+        simp only [traceChallengeAt, ite_eq_right hex, hk, ite_eq_right hte]
 
 /-- An eligible challenge of `e` answers the installed value, or the mode's value, and commits
 `e`. -/
@@ -440,7 +440,7 @@ theorem traceChallengeAt_hit (mode : ℕ → Mode) (e : ℕ) (x : Option P.Epoch
           | some v => pure v
           | none => challengeValue P (mode e) e k) := by
   change traceChallengeAt P mode e x e s = _
-  cases x <;> simp only [traceChallengeAt, if_neg hex, hk, ↓reduceIte]
+  cases x <;> simp only [traceChallengeAt, ite_eq_right hex, hk, ↓reduceIte]
 
 variable [DecidableEq P.EpochKey] [DecidableEq P.Sym] (hMac : P.Mac = Unit)
   (irl : P.kem.IncrementalRandLeak P.inc)
@@ -461,10 +461,10 @@ private theorem chalSample_step (e : ℕ) (kp : Option (P.PK × P.SK))
     (ec : Option (P.inc.St × P.inc.C₁ × P.K)) (mode : ℕ → Mode) (sample : ProbComp P.EpochKey)
     (hsample : ∀ k, challengeValue P (mode e) e k = sample)
     (q : (Spec P irl).Domain) (s : TraceState P) :
-    𝒟[((stopOnState (traceImplAt P hMac irl e kp ec none mode) (targetStop e) q).run).run s] =
-      𝒟[Prod.map id id <$> ((sampleEachQuery sample fun x =>
+    ((stopOnState (traceImplAt P hMac irl e kp ec none mode) (targetStop e) q).run).run s =ᵈ
+        Prod.map id id <$> ((sampleEachQuery sample fun x =>
         stopOnState (traceImplAt P hMac irl e kp ec (some x) mode) (targetStop e)) q).run.run
-          s] := by
+          s := by
   rw [sampleEachQuery_run, Prod.map_id, id_map]
   by_cases hq : chalHit e q s = true
   · rcases q with ((q | t) | q) | q
@@ -472,11 +472,11 @@ private theorem chalSample_step (e : ℕ) (kp : Option (P.PK × P.SK))
     · obtain ⟨rfl, hexp, hch, hk⟩ := of_decide_eq_true hq
       obtain ⟨k, hk⟩ := Option.isSome_iff_exists.mp hk
       have hex : ¬ (t ∈ s.game.exposed ∨ t ∈ s.game.challenged) := fun h => h.elim hexp hch
-      change 𝒟[((stopOnState (traceChallengeAt P mode t none) (targetStop t) t).run).run s] =
-        𝒟[sample >>= fun x =>
-          ((stopOnState (traceChallengeAt P mode t (some x)) (targetStop t) t).run).run s]
-      simp only [OracleComp.stopOnState_run, traceChallengeAt_hit mode t _ s hex hk, hsample,
-        Functor.map_map, map_pure, bind_pure_comp]
+      change ((stopOnState (traceChallengeAt P mode t none) (targetStop t) t).run).run s =ᵈ
+          sample >>= fun x =>
+          ((stopOnState (traceChallengeAt P mode t (some x)) (targetStop t) t).run).run s
+      simp only [OracleComp.stopOnState_run_eq_map, traceChallengeAt_hit mode t _ s hex hk, hsample,
+        Functor.map_map, map_pure, bind_pure_comp, EvalDistEq.refl]
     · exact absurd hq (by simp [chalHit])
     · exact absurd hq (by simp [chalHit])
   · have hq' : chalHit e q s = false := by simpa using hq
@@ -485,8 +485,7 @@ private theorem chalSample_step (e : ℕ) (kp : Option (P.PK × P.SK))
         ((stopOnState (traceImplAt P hMac irl e kp ec none mode) (targetStop e) q).run).run s :=
       fun x => stopOnState_run_congr _ (traceImplAt_offHit hMac irl e kp ec mode x q s hq')
     simp only [heq]
-    symm
-    exact evalDist_ext fun y => ToVCVio.probOutput_bind_of_const' sample (fun _ _ => rfl)
+    exact (EvalDistEq.bind_const _ _).symm
 
 /-- **Installing the challenge value.** Sampling the challenge value of `e` once before the run
 and installing it is the same as sampling it at the eligible challenge of `e`. -/
@@ -494,9 +493,11 @@ theorem stoppedRun_chalSample (e : ℕ) (kp : Option (P.PK × P.SK))
     (ec : Option (P.inc.St × P.inc.C₁ × P.K)) (mode : ℕ → Mode) (sample : ProbComp P.EpochKey)
     (hsample : ∀ k, challengeValue P (mode e) e k = sample) (A : Adversary P irl)
     (s : TraceState P) :
-    Pr[= true | sample >>= fun x =>
-        stoppedRun (traceImplAt P hMac irl e kp ec (some x) mode) (targetStop e) A s] =
-      Pr[= true | stoppedRun (traceImplAt P hMac irl e kp ec none mode) (targetStop e) A s] := by
+    Pr{let y ← do
+        let x ← sample
+        stoppedRun (traceImplAt P hMac irl e kp ec (some x) mode) (targetStop e) A s}[y = true] =
+      Pr{let x ← stoppedRun (traceImplAt P hMac irl e kp ec none mode) (targetStop e) A s}[x = true]
+          := by
   have hU := optionRun_sample_once_eq_sampleEachQuery sample
     (fun x => stopOnState (traceImplAt P hMac irl e kp ec (some x) mode) (targetStop e))
     (fun _ => True) (fun s => e ∈ s.game.challenged) (chalHit e)
@@ -527,7 +528,7 @@ theorem stoppedRun_chalSample (e : ℕ) (kp : Option (P.PK × P.SK))
       · exact absurd hq (by simp [chalHit])
       · exact absurd hq (by simp [chalHit]))
     A s trivial
-  have hS := probOutput_optionRun_eq_of_state_map
+  have hS := prEvent_optionRun_eq_of_state_map
     (sampleEachQuery sample fun x =>
       stopOnState (traceImplAt P hMac irl e kp ec (some x) mode) (targetStop e))
     (stopOnState (traceImplAt P hMac irl e kp ec none mode) (targetStop e)) id (fun _ => True)

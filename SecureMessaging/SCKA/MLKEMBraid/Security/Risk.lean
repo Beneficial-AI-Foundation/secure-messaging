@@ -7,7 +7,8 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.SCKA.MLKEMBraid.Security.Trace
 import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
 import SecureMessaging.KEM.IncrementalKEM.Correctness
-import ToVCVio.OracleComp.SimSemantics.StateT.ExpectedPayoffBound
+import ToVCVio.ProgramLogic.Unary.WP
+import ToVCVio.OracleComp.SimSemantics.StateT.WPBound
 
 /-!
 # Conditional decapsulation risk and the bad-event bound
@@ -19,10 +20,16 @@ replace that conditional quantity by the fresh-key mean at an adaptive state.
 
 open OracleSpec OracleComp ENNReal
 open ErasureCodePayload.Streaming
+open OracleComp.ProgramLogic
 
 namespace MLKEMBraid.NoAuth
 
 variable {P : Parameters ProbComp}
+
+/-- Adding a constant to every payoff raises the expected payoff by at most that constant. -/
+private theorem wp_add_const_le {α : Type} (oa : ProbComp α) (f : α → ℝ≥0∞) (c : ℝ≥0∞) :
+    wp oa (fun a => f a + c) ≤ wp oa f + c :=
+  le_of_eq (by rw [wp_add, wp_const])
 
 /-- Query-wise expected-score bounds combine over a sum of implementations, charging `ε` exactly
 on the queries selected by `Sum.elim p₁ p₂`. -/
@@ -30,11 +37,11 @@ theorem payoff_add {ι₁ ι₂ : Type} {spec₁ : OracleSpec ι₁} {spec₂ : 
     (Inv : σ → Prop) (score : σ → ℝ≥0∞) (ε : ℝ≥0∞)
     {i₁ : QueryImpl spec₁ (StateT σ ProbComp)} {i₂ : QueryImpl spec₂ (StateT σ ProbComp)}
     (p₁ : ι₁ → Bool) (p₂ : ι₂ → Bool)
-    (h₁ : ∀ t s, Inv s → expectedPayoff ((i₁ t).run s) (fun z => score z.2) ≤
+    (h₁ : ∀ t s, Inv s → wp ((i₁ t).run s) (fun z => score z.2) ≤
       score s + if p₁ t then ε else 0)
-    (h₂ : ∀ t s, Inv s → expectedPayoff ((i₂ t).run s) (fun z => score z.2) ≤
+    (h₂ : ∀ t s, Inv s → wp ((i₂ t).run s) (fun z => score z.2) ≤
       score s + if p₂ t then ε else 0) :
-    ∀ t s, Inv s → expectedPayoff (((i₁ + i₂) t).run s) (fun z => score z.2) ≤
+    ∀ t s, Inv s → wp (((i₁ + i₂) t).run s) (fun z => score z.2) ≤
       score s + if Sum.elim p₁ p₂ t then ε else 0
   | .inl t, s, hs => h₁ t s hs
   | .inr t, s, hs => h₂ t s hs
@@ -92,8 +99,8 @@ theorem pendingPotential_update (T : ℕ → EpochTranscript P) (e : ℕ) (r : E
 /-- A query whose outcomes keep the transcript and bad flag does not raise the expected score. -/
 private theorem payoff_le_of_support {α : Type} (X : ProbComp (α × TraceState P))
     (s : TraceState P) (h : ∀ z ∈ support X, z.2.transcript = s.transcript ∧ z.2.bad = s.bad) :
-    expectedPayoff X (fun z => badScore z.2) ≤ badScore s :=
-  expectedPayoff_le_const_of_support _ _ _ probFailure_eq_zero fun z hz => by
+    wp X (fun z => badScore z.2) ≤ badScore s :=
+  wp_le_const_of_support _ fun z hz => by
     obtain ⟨h1, h2⟩ := h z hz
     simp [badScore, h1, h2]
 
@@ -145,7 +152,7 @@ private theorem obs_sampledSend_steady (s : TraceState P) (party : Bool)
 /-- A trace send raises the expected bad-event score by at most the KEM correctness error. -/
 theorem traceSend_payoff (party leaking : Bool) (s : TraceState P)
     (hs : TraceInv hMac false s) :
-    expectedPayoff ((traceSend P hMac irl party leaking).run s) (fun z => badScore z.2) ≤
+    wp ((traceSend P hMac irl party leaking).run s) (fun z => badScore z.2) ≤
       badScore s + P.kem.correctnessError ProbCompRuntime.probComp := by
   cases hb : s.bad
   · obtain ⟨hR, -⟩ := hs.1 (Or.inr hb)
@@ -157,22 +164,23 @@ theorem traceSend_payoff (party leaking : Bool) (s : TraceState P)
     let H : SendRand irl.KeygenRand irl.Encaps1Rand × (ℕ → EpochTranscript P) × Bool → ℝ≥0∞ :=
       fun o => if R o.1 then pendingPotential s.transcript
         else if o.2.2 then 1 else pendingPotential o.2.1
-    have hpay : expectedPayoff ((traceSend P hMac irl party leaking).run s)
+    have hpay : wp ((traceSend P hMac irl party leaking).run s)
         (fun z => badScore z.2) =
-        expectedPayoff ((fun w => (w.1.2, w.2)) <$> sampledSend P hMac irl s party) H := by
-      change expectedPayoff (traceSend P hMac irl party leaking s) _ = _
+        wp ((fun w => (w.1.2, w.2)) <$> sampledSend P hMac irl s party) H := by
+      change wp (traceSend P hMac irl party leaking s) _ = _
       simp only [traceSend]
-      rw [expectedPayoff_map, expectedPayoff_map]
+      rw [wp_map, wp_map]
       congr 1
       funext w
+      simp only [Function.comp_apply]
       have hx : (leaking && decide ((exposure P irl).send (s.game.stateAt party) w.1.1.state w.1.2 ∩
           s.game.challenged ≠ ∅)) = R w.1.2 := rfl
       rw [hx]
       simp only [H]
       by_cases hc : R w.1.2 = true
-      · rw [if_pos hc, if_pos hc]
+      · rw [ite_eq_left hc, ite_eq_left hc]
         simp [badScore, hb]
-      · rw [if_neg hc, if_neg hc]
+      · rw [ite_eq_right hc, ite_eq_right hc]
         rfl
     rw [hpay]
     cases hst : s.game.stateAt party
@@ -185,12 +193,12 @@ theorem traceSend_payoff (party leaking : Bool) (s : TraceState P)
       have hL := hR.local party
       rw [hst] at hL
       obtain ⟨-, h1, h2⟩ := hL
-      rw [obs_sampledSend_keysUnsampled hMac irl s party hst, expectedPayoff_map]
+      rw [obs_sampledSend_keysUnsampled hMac irl s party hst, wp_map]
       by_cases hRk : (leaking && decide ({e} ∩ s.game.challenged ≠ ∅)) = true
-      · refine le_trans (expectedPayoff_le_const_of_support _ _ _ probFailure_eq_zero
+      · refine le_trans (wp_le_const_of_support _
           fun x _ => le_of_eq ?_) le_self_add
-        simp only [H]
-        rw [hRe x.2, if_pos hRk]
+        simp only [H, Function.comp_apply]
+        rw [hRe x.2, ite_eq_left hRk]
       · have hstep : ∀ x : (P.PK × P.SK) × irl.KeygenRand,
             H (SendRand.keygen x.2,
               Function.update s.transcript e { (s.transcript e) with keypair := some x.1 }, s.bad)
@@ -205,15 +213,15 @@ theorem traceSend_payoff (party leaking : Bool) (s : TraceState P)
             simp [pendingRisk, h2]
           rw [h0, hr, add_zero] at hu
           simp only [H]
-          rw [hRe rand, if_neg hRk, hb, if_neg Bool.false_ne_true, hu, add_comm]
-        have hkg : expectedPayoff irl.keygenRleak (fun x : (P.PK × P.SK) × irl.KeygenRand =>
+          rw [hRe rand, ite_eq_right hRk, hb, ite_eq_right Bool.false_ne_true, hu, add_comm]
+        have hkg : wp irl.keygenRleak (fun x : (P.PK × P.SK) × irl.KeygenRand =>
             P.inc.decapsFailureProb (P.inc.toHeader x.1.1) (P.inc.toVector x.1.1) x.1.2) =
             P.kem.correctnessError ProbCompRuntime.probComp := by
-          rw [← P.inc.expectedPayoff_keygen_decapsFailureProb, ← irl.keygen_fst, bind_pure_comp,
-            expectedPayoff_map]
+          rw [← P.inc.wp_keygen_decapsFailureProb, ← irl.keygen_fst, bind_pure_comp,
+            wp_map]
           try rfl
-        refine le_trans (expectedPayoff_mono _ _ _ fun x => le_of_eq (hstep x)) ?_
-        refine le_trans (expectedPayoff_add_const_le _ _ _) ?_
+        refine le_trans (wp_mono _ fun x => le_of_eq (hstep x)) ?_
+        refine le_trans (wp_add_const_le _ _ _) ?_
         rw [hkg]
         exact le_of_eq (add_comm _ _)
     case headerReceived e a hdr dec =>
@@ -245,28 +253,28 @@ theorem traceSend_payoff (party leaking : Bool) (s : TraceState P)
           have h0 : pendingRisk { (s.transcript e) with encaps1 := some x } = 0 := by
             simp [pendingRisk, hkpT]
           rw [Function.apply_update (fun _ => pendingRisk) s.transcript e _ t, h0]
-      rw [obs_sampledSend_headerReceived hMac irl s party hst, expectedPayoff_map]
+      rw [obs_sampledSend_headerReceived hMac irl s party hst, wp_map]
       by_cases hRk : (leaking && decide ({e} ∩ s.game.challenged ≠ ∅)) = true
-      · refine le_trans (expectedPayoff_le_const_of_support _ _ _ probFailure_eq_zero
+      · refine le_trans (wp_le_const_of_support _
           fun x _ => le_of_eq ?_) le_self_add
-        simp only [H]
-        rw [hRe x.2, if_pos hRk]
-      · have hfp : expectedPayoff (irl.encaps1Rleak (P.inc.toHeader pk))
+        simp only [H, Function.comp_apply]
+        rw [hRe x.2, ite_eq_left hRk]
+      · have hfp : wp (irl.encaps1Rleak (P.inc.toHeader pk))
             (fun x : (P.inc.St × P.inc.C₁ × P.K) × irl.Encaps1Rand =>
               if P.hDet.decapsDet sk (P.inc.splitC.symm (x.1.2.1,
                 P.hEnc2.encaps2Det x.1.1 (P.inc.toHeader pk) (P.inc.toVector pk))) = some x.1.2.2
               then 0 else 1) =
             P.inc.decapsFailureProb (P.inc.toHeader pk) (P.inc.toVector pk) sk := by
-          rw [P.inc.decapsFailureProb_eq_expectedPayoff P.hDet P.hEnc2, ← irl.encaps1_fst,
-            bind_pure_comp, expectedPayoff_map]
+          rw [P.inc.decapsFailureProb_eq_wp P.hDet P.hEnc2, ← irl.encaps1_fst,
+            bind_pure_comp, wp_map]
           try rfl
-        refine le_trans (expectedPayoff_mono _ _
-          (fun x : (P.inc.St × P.inc.C₁ × P.K) × irl.Encaps1Rand =>
+        refine le_trans (wp_mono _ (post' :=
+          fun x : (P.inc.St × P.inc.C₁ × P.K) × irl.Encaps1Rand =>
             (if P.hDet.decapsDet sk (P.inc.splitC.symm (x.1.2.1,
               P.hEnc2.encaps2Det x.1.1 (P.inc.toHeader pk) (P.inc.toVector pk))) = some x.1.2.2
             then 0 else 1) + c) fun x => ?_) ?_
-        · simp only [H]
-          rw [hRe x.2, if_neg hRk, hupd x.1]
+        · simp only [H, Function.comp_apply]
+          rw [hRe x.2, ite_eq_right hRk, hupd x.1]
           simp only [hkpT, hb, Bool.false_or]
           by_cases hfail : P.hDet.decapsDet sk (P.inc.splitC.symm (x.1.2.1,
               P.hEnc2.encaps2Det x.1.1 (P.inc.toHeader pk) (P.inc.toVector pk))) = some x.1.2.2
@@ -274,19 +282,19 @@ theorem traceSend_payoff (party leaking : Bool) (s : TraceState P)
               congrArg (Option.map fun k => P.kdfOK k e) hfail
             have hnot : ¬ (decide (decapsEpochKey (P := P) e pk sk x.1.1 x.1.2.1 ≠
                 some (P.kdfOK x.1.2.2 e)) = true) := fun h => of_decide_eq_true h hk
-            rw [if_neg hnot, if_pos hfail, zero_add]
-          · rw [if_neg hfail]
+            rw [ite_eq_right hnot, ite_eq_left hfail, zero_add]
+          · rw [ite_eq_right hfail]
             split_ifs
             · exact le_self_add
             · exact le_add_self
-        · refine le_trans (expectedPayoff_add_const_le _ _ _) ?_
+        · refine le_trans (wp_add_const_le _ _ _) ?_
           rw [hfp, add_comm _ c, hc]
           exact le_self_add
     all_goals
       have hsteady : (s.game.stateAt party).SendsNoSample := by
         rw [hst]
         trivial
-      refine le_trans (expectedPayoff_le_const_of_support _ _ _ probFailure_eq_zero
+      refine le_trans (wp_le_const_of_support _
         fun o ho => ?_) le_self_add
       rw [support_map] at ho
       obtain ⟨w, hw, rfl⟩ := ho
@@ -294,7 +302,7 @@ theorem traceSend_payoff (party leaking : Bool) (s : TraceState P)
       simp only [H, hw2, hb, Bool.false_eq_true, ↓reduceIte]
       by_cases hc : R w.1.2 = true <;> simp [hc]
   · refine le_trans ?_ le_self_add
-    refine expectedPayoff_le_const_of_support _ _ _ probFailure_eq_zero fun z hz => ?_
+    refine wp_le_const_of_support _ fun z hz => ?_
     simp [badScore, traceSend_bad hMac irl hb hz, hb]
 
 variable [DecidableEq P.Sym] [SampleableType P.K] [SampleableType P.EpochKey]
@@ -303,7 +311,7 @@ variable [DecidableEq P.Sym] [SampleableType P.K] [SampleableType P.EpochKey]
 correctness error for a send, and not at all for any other query. -/
 theorem traceImpl_payoff (mode : ℕ → Mode) :
     ∀ t s, TraceInv hMac false s →
-      expectedPayoff ((traceImpl P hMac irl false mode t).run s) (fun z => badScore z.2) ≤
+      wp ((traceImpl P hMac irl false mode t).run s) (fun z => badScore z.2) ≤
         badScore s + if isSendQuery t = true then
           P.kem.correctnessError ProbCompRuntime.probComp else 0 := by
   intro t s hs
@@ -311,16 +319,16 @@ theorem traceImpl_payoff (mode : ℕ → Mode) :
   have hzero : ∀ {ι : Type} {spec : OracleSpec ι}
       (c : QueryImpl spec (StateT (TraceState P) ProbComp)),
       (∀ t s, ∀ z ∈ support ((c t).run s), z.2.transcript = s.transcript ∧ z.2.bad = s.bad) →
-      ∀ t s, TraceInv hMac false s → expectedPayoff ((c t).run s) (fun z => badScore z.2) ≤
+      ∀ t s, TraceInv hMac false s → wp ((c t).run s) (fun z => badScore z.2) ≤
         badScore s + if (fun _ => false) t then
           P.kem.correctnessError ProbCompRuntime.probComp else 0 := by
     intro ι spec c hc t s _
     simpa using payoff_le_of_support _ s (hc t s)
   have hsend : ∀ {ι : Type} {spec : OracleSpec ι}
       (c : QueryImpl spec (StateT (TraceState P) ProbComp)),
-      (∀ t s, TraceInv hMac false s → expectedPayoff ((c t).run s) (fun z => badScore z.2) ≤
+      (∀ t s, TraceInv hMac false s → wp ((c t).run s) (fun z => badScore z.2) ≤
         badScore s + P.kem.correctnessError ProbCompRuntime.probComp) →
-      ∀ t s, TraceInv hMac false s → expectedPayoff ((c t).run s) (fun z => badScore z.2) ≤
+      ∀ t s, TraceInv hMac false s → wp ((c t).run s) (fun z => badScore z.2) ≤
         badScore s + if (fun _ => true) t then
           P.kem.correctnessError ProbCompRuntime.probComp else 0 := by
     intro ι spec c hc t s hs
@@ -333,12 +341,12 @@ theorem traceImpl_payoff (mode : ℕ → Mode) :
     obtain ⟨w, -, rfl⟩ := mem_support_liftGame hz
     exact ⟨rfl, rfl⟩
   have hplain : ∀ party, ∀ t s, TraceInv hMac false s →
-      expectedPayoff ((tracePlain P hMac irl party t).run s) (fun z => badScore z.2) ≤
+      wp ((tracePlain P hMac irl party t).run s) (fun z => badScore z.2) ≤
         badScore s + P.kem.correctnessError ProbCompRuntime.probComp := by
     intro party t s hs
-    change expectedPayoff (((fun out => out.map fun x => (x.1, x.2.1, x.2.2.1)) <$>
+    change wp (((fun out => out.map fun x => (x.1, x.2.1, x.2.2.1)) <$>
       traceSend P hMac irl party false).run s) _ ≤ _
-    rw [StateT.run_map, expectedPayoff_map]
+    rw [StateT.run_map, wp_map]
     exact traceSend_payoff hMac irl party false s hs
   exact payoff_add _ _ _ _ _ (payoff_add _ _ _ _ _ (payoff_add _ _ _ _ _ (payoff_add _ _ _ _ _
     (payoff_add _ _ _ _ _ (payoff_add _ _ _ _ _ (payoff_add _ _ _ _ _ (payoff_add _ _ _ _ _
@@ -374,10 +382,9 @@ theorem badEvent_le (P : Parameters ProbComp)
     (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
     (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct)
     (A : Adversary P irl) (qS : ℕ) (hqS : SendQueryBound A qS) (b : Bool) :
-    Pr[fun z => z.2.bad = true |
-        run P hMac irl false (fun _ => if b then .uniform else .real) A] ≤
+    Pr{let z ← run P hMac irl false (fun _ => if b then .uniform else .real) A}[z.2.bad = true] ≤
       (qS : ℝ≥0∞) * P.kem.correctnessError ProbCompRuntime.probComp := by
-  have hE := expectedPayoff_simulateQ_run_le
+  have hE := wp_simulateQ_run_le
     (traceImpl P hMac irl false (fun _ => if b then .uniform else .real))
     (TraceInv hMac false) badScore (fun t => isSendQuery t = true)
     (P.kem.correctnessError ProbCompRuntime.probComp)
@@ -389,11 +396,10 @@ theorem badEvent_le (P : Parameters ProbComp)
         transcript := fun _ => { keypair := none, encaps1 := none }
         bad := false } = 0 := by
     simp [badScore, pendingPotential, pendingRisk]
-  calc Pr[fun z => z.2.bad = true |
-        run P hMac irl false (fun _ => if b then .uniform else .real) A]
-      ≤ expectedPayoff (run P hMac irl false (fun _ => if b then .uniform else .real) A)
+  calc Pr{let z ← run P hMac irl false (fun _ => if b then .uniform else .real) A}[z.2.bad = true]
+      ≤ wp (run P hMac irl false (fun _ => if b then .uniform else .real) A)
           (fun z => badScore z.2) :=
-        probEvent_le_expectedPayoff _ _ _ fun z hz => by simp [badScore, hz]
+        prEvent_le_wp _ _ _ fun z hz => by simp [badScore, hz]
     _ ≤ _ := hE
     _ = (qS : ℝ≥0∞) * P.kem.correctnessError ProbCompRuntime.probComp := by
         rw [h0, zero_add]
@@ -407,10 +413,10 @@ theorem security_correctness_error_le (P : Parameters ProbComp)
     (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
     (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct)
     (A : Adversary P irl) (qS : ℕ) (hqS : SendQueryBound A qS) (b : Bool) :
-    Pr[fun z => z.2.game.correct = false |
-        run P hMac irl false (fun _ => if b then .uniform else .real) A] ≤
+    Pr{let z ← run P hMac irl false (fun _ => if b then .uniform else
+        .real) A}[z.2.game.correct = false] ≤
       (qS : ℝ≥0∞) * P.kem.correctnessError ProbCompRuntime.probComp := by
-  refine le_trans (probEvent_mono fun z hz hc => ?_)
+  refine le_trans (prEvent_mono_of_support _ _ _ fun z hz hc => ?_)
     (badEvent_le P hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct A qS hqS b)
   by_contra hb
   have hcor := (real_trace_before_bad P hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct

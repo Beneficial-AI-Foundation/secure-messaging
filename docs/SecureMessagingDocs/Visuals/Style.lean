@@ -297,6 +297,88 @@ def smDocsCss : String := r#"
   text-align: center;
 }
 
+/* Errata boxes (see SecureMessagingDocs.Visuals.GameBoxes, `erratum`): a framed
+   note with an amber accent, a plain-text header (number, title, scope) and a
+   prose body holding math, a pseudocode excerpt, or a correction table. */
+.erratum {
+  margin: 1.25rem 0;
+  border: 1px solid #334155;
+  border-left: 5px solid #b45309;
+  border-radius: 4px;
+  background: #ffffff;
+  overflow: hidden;
+}
+.erratum-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.75rem;
+  padding: 0.5rem 0.85rem;
+  background: #fdf3e3;
+  border-bottom: 1px solid #e7cfa6;
+  color: #1f2937;
+  line-height: 1.3;
+}
+.erratum-number {
+  flex: none;
+  font-size: 0.8em;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #92400e;
+}
+.erratum-title {
+  font-weight: 700;
+}
+.erratum-scope {
+  margin-left: auto;
+  font-size: 0.85em;
+  color: #57606a;
+}
+.erratum-body {
+  padding: 0.75rem 0.95rem;
+}
+.erratum-body > :first-child {
+  margin-top: 0;
+}
+.erratum-body > :last-child {
+  margin-bottom: 0;
+}
+.erratum-body p {
+  margin: 0.55rem 0;
+}
+.erratum-body .bp_math.inline {
+  white-space: normal;
+}
+/* Pseudocode excerpts: left-aligned display math, as in the protocol boxes. */
+.erratum-body .katex-display {
+  margin: 0.7rem 0 0.7rem 1rem;
+  text-align: left;
+}
+.erratum-body .katex-display > .katex {
+  text-align: left;
+  white-space: normal;
+}
+/* Correction tables: light rules, generous column gaps, no wrapping of math. */
+.erratum-body table.tabular {
+  margin: 0.6rem 0 0.8rem;
+  border-collapse: collapse;
+}
+.erratum-body table.tabular th,
+.erratum-body table.tabular td {
+  padding: 0.3rem 1.6rem 0.3rem 0;
+  text-align: left;
+  vertical-align: baseline;
+  border-bottom: 1px solid #e5e7eb;
+}
+.erratum-body table.tabular th {
+  font-weight: 600;
+  border-bottom: 1px solid #334155;
+}
+.erratum-body table.tabular :is(th, td) > p {
+  margin: 0;
+}
+
 /* Informative names shown next to each definition/theorem number.
    Verso's blueprint title row is a 2-column grid (caption + number); we add a
    third column so the name sits inline on the same line, in the heading font. */
@@ -727,12 +809,16 @@ def smDocsJs : String := r#"
         node.parentElement.querySelector(".lean-anchor-head > .lean-pill-btn")
           .setAttribute("aria-expanded", "true");
       }
-      if (node.classList.contains("game-cell-body") &&
-          node.parentElement.classList.contains("game-foldable")) {
-        node.hidden = false;
-        node.parentElement.classList.add("is-open");
-        node.parentElement.querySelector(":scope > .game-cell-header")
-          .setAttribute("aria-expanded", "true");
+      // A folded game cell: open it whether the target is the cell itself (a
+      // tagged cell linked via `cellref`) or something inside its body.
+      if (node.classList.contains("game-foldable")) {
+        var cellBody = node.querySelector(":scope > .game-cell-body");
+        if (cellBody) {
+          cellBody.hidden = false;
+          node.classList.add("is-open");
+          node.querySelector(":scope > .game-cell-header")
+            .setAttribute("aria-expanded", "true");
+        }
       }
     }
     window.requestAnimationFrame(function () {

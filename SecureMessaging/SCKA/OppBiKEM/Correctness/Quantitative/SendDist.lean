@@ -67,7 +67,7 @@ lemma send_eq_advance (role : Role) (kem : KEMScheme ProbComp K PK SK C)
     send role kem ecEk ecCt st =
       kem.keygen >>= fun kp => pure (some (advanceSend role ecEk st kp)) := by
   unfold send sendWith
-  simp only [hek, Option.isNone_none, hgate, and_self, decide_true, Bool.and_self, if_true,
+  simp only [hek, Option.isNone_none, hgate, and_self, decide_true, Bool.and_self, ite_true,
     hfresh, not_false_eq_true, bind_assoc, pure_bind, Option.map_some]
   rfl
 
@@ -84,9 +84,9 @@ lemma send_eq_encaps (role : Role) (kem : KEMScheme ProbComp K PK SK C)
     send role kem ecEk ecCt st =
       kem.encaps pk >>= fun ck => pure (some (encapsSend role ecCt st ck)) := by
   unfold send sendWith
-  simp only [hnot, false_and, decide_false, Bool.and_false, Bool.false_eq_true, if_false,
+  simp only [hnot, false_and, decide_false, Bool.and_false, Bool.false_eq_true, ite_false,
     hacked, not_true_eq_false, not_false_eq_true, hct, Option.isNone_none, hpeerAck,
-    decide_true, Bool.and_self, if_true, hpk, bind_assoc, pure_bind, Option.map_some]
+    decide_true, Bool.and_self, ite_true, hpk, bind_assoc, pure_bind, Option.map_some]
   rfl
 
 /-- A send that emits a key does so at a post-send responder epoch `e` whose acknowledgements

@@ -67,12 +67,12 @@ theorem receive_cases
     · simp only [GameState.stateAt, Bool.false_eq_true, ↓reduceIte] at hRole hencapsulator ht ⊢
       rw [hencapsulator] at hRole
       have hne := of_decide_eq_false hRole.symm
-      rw [if_pos (by omega), if_neg (by omega)]
+      rw [ite_eq_left (by omega), ite_eq_right (by omega)]
       exact ⟨rfl, rfl⟩
     · simp only [GameState.stateAt, ↓reduceIte] at hRole hencapsulator ht ⊢
       rw [hencapsulator] at hRole
       have hne := of_decide_eq_false hRole.symm
-      rw [if_neg (by omega), if_pos (by omega)]
+      rw [ite_eq_right (by omega), ite_eq_left (by omega)]
       exact ⟨rfl, rfl⟩
   obtain ⟨st, hst⟩ : ∃ st, s.stateAt party = st := ⟨_, rfl⟩
   rw [hst] at hLocal hF ⊢
@@ -223,10 +223,10 @@ private theorem recvNoKey (irl : P.kem.IncrementalRandLeak P.inc) [DecidableEq P
         recvUpdate s party tsnd r (msg.epoch - 1)) ∈
         support ((oracleRecv (auth P hMac) irl (pure ()) party n).run s) := by
       cases party
-      · rw [oracleRecv, if_neg Bool.false_ne_true,
+      · rw [oracleRecv, ite_eq_right Bool.false_ne_true,
           oracleRecvB_run_eq_of_ok (auth P hMac) irl (pure ()) hmsg hr]
         simp [recvUpdate]
-      · rw [oracleRecv, if_pos rfl,
+      · rw [oracleRecv, ite_eq_left rfl,
           oracleRecvA_run_eq_of_ok (auth P hMac) irl (pure ()) hmsg hr]
         simp [recvUpdate]
     cases party
@@ -266,9 +266,9 @@ private theorem recvNoKey (irl : P.kem.IncrementalRandLeak P.inc) [DecidableEq P
     rw [keysAt_recvSuccessor, stateAt_recvSuccessor]
     by_cases hwho : who = party
     · subst who
-      rw [if_pos rfl, if_pos rfl, hnone, hcompEq]
+      rw [ite_eq_left rfl, ite_eq_left rfl, hnone, hcompEq]
       exact h.keys party e
-    · rw [if_neg hwho, if_neg hwho]
+    · rw [ite_eq_right hwho, ite_eq_right hwho]
       exact h.keys who e
 
 omit [DecidableEq P.Sym] in
@@ -442,9 +442,9 @@ private theorem completion [DecidableEq P.EpochKey] (h : RepairInv hMac T s) (pa
   have hkeysP : ∀ t, s.keysAt (!party) t = if 0 < t ∧ t ≤ e then
       (T t).encaps1.map (fun (_, _, key) => P.kdfOK key t) else none := by
     intro t; rw [← hcompP]; exact h.keys (!party) t
-  have hnone : s.keysAt party e = none := by rw [hkeysS, if_neg (by omega)]
+  have hnone : s.keysAt party e = none := by rw [hkeysS, ite_eq_right (by omega)]
   have hpeerKey : s.keysAt (!party) e = some (P.kdfOK k e) := by
-    rw [hkeysP, if_pos ⟨he0, le_rfl⟩, hc]; rfl
+    rw [hkeysP, ite_eq_left ⟨he0, le_rfl⟩, hc]; rfl
   have hknown : SCKAScheme.knownPrefix (s.keysAt party) (max (s.tcurAt party) (e - 1)) = true := by
     apply SCKAScheme.knownPrefix_eq_true
     intro t ht hle
@@ -486,17 +486,17 @@ private theorem completion [DecidableEq P.EpochKey] (h : RepairInv hMac T s) (pa
     rw [keysAt_recvSuccessor, stateAt_recvSuccessor]
     by_cases hwho : who = party
     · subst who
-      rw [if_pos rfl, if_pos rfl]
+      rw [ite_eq_left rfl, ite_eq_left rfl]
       simp only [State.completedEpoch, State.epoch, Nat.add_sub_cancel]
       by_cases ht : t = e
       · subst t
-        rw [Function.update_self, if_pos ⟨he0, le_rfl⟩, hc]
+        rw [Function.update_self, ite_eq_left ⟨he0, le_rfl⟩, hc]
         rfl
       · rw [Function.update_of_ne ht, hkeysS]
         by_cases h1 : 0 < t ∧ t ≤ e - 1
-        · rw [if_pos h1, if_pos ⟨h1.1, by omega⟩]
-        · rw [if_neg h1, if_neg (by omega)]
-    · rw [if_neg hwho, if_neg hwho]
+        · rw [ite_eq_left h1, ite_eq_left ⟨h1.1, by omega⟩]
+        · rw [ite_eq_right h1, ite_eq_right (by omega)]
+    · rw [ite_eq_right hwho, ite_eq_right hwho]
       exact h.keys who t
 
 /-- Under the repaired invariant, and decapsulation agreement for the real receive, a recorded
@@ -581,9 +581,10 @@ theorem traceReceive_outcome
         rw [traceReceive_run, liftGame_run]
         cases party
         · have hm' : s.game.msgA n = none := hm
-          rw [if_neg Bool.false_ne_true, SCKAScheme.oracleRecvB_run_eq_of_none _ _ hm', map_pure]
+          rw [ite_eq_right Bool.false_ne_true, SCKAScheme.oracleRecvB_run_eq_of_none _ _ hm',
+            map_pure]
         · have hm' : s.game.msgB n = none := hm
-          rw [if_pos rfl, SCKAScheme.oracleRecvA_run_eq_of_none _ _ hm', map_pure]
+          rw [ite_eq_left rfl, SCKAScheme.oracleRecvA_run_eq_of_none _ _ hm', map_pure]
       refine ⟨by rw [hpure, hpure], fun z hz => ?_⟩
       rw [hpure, mem_support_pure_iff] at hz
       subst hz
@@ -602,12 +603,12 @@ theorem traceReceive_outcome
         rw [traceReceive_run, liftGame_run]
         cases party
         · have hm' : s.game.msgA n = some (msg, tsnd) := hm
-          rw [if_neg Bool.false_ne_true,
+          rw [ite_eq_right Bool.false_ne_true,
             SCKAScheme.oracleRecvB_run_eq_of_accept (recvScheme P hMac irl rep s.transcript)
               s.game hm' hr, map_pure]
           rfl
         · have hm' : s.game.msgB n = some (msg, tsnd) := hm
-          rw [if_pos rfl,
+          rw [ite_eq_left rfl,
             SCKAScheme.oracleRecvA_run_eq_of_accept (recvScheme P hMac irl rep s.transcript)
               s.game hm' hr, map_pure]
           rfl

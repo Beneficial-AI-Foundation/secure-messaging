@@ -68,22 +68,22 @@ theorem mlkemBraidScheme_noAuth_security_le (p : MLKEM.ParameterSet) (ring : MLK
         (NoAuth.exposure (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2)
           (MLKEM.mlkemIncrementalRandLeak p ring prims)) ≤
       (∑ i ∈ Finset.range qS,
-        ((MLKEM.mlkemScheme p ring prims).IND_CPA_Advantage ProbCompRuntime.probComp
+        (((MLKEM.mlkemScheme p ring prims).IND_CPA_Advantage ProbCompRuntime.probComp
             (NoAuth.kemReduction
               (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2)
-              (Eq.refl Unit) (MLKEM.mlkemIncrementalRandLeak p ring prims) A (i + 1)) +
-          (NoAuth.kdfExp (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2)
+              (Eq.refl Unit) (MLKEM.mlkemIncrementalRandLeak p ring prims) A (i + 1))).toReal +
+          (𝒟[NoAuth.kdfExp (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2)
               (i + 1)
               (NoAuth.kdfReduction
                 (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2)
                 (Eq.refl Unit) (MLKEM.mlkemIncrementalRandLeak p ring prims) A (i + 1))
-              true).boolDistAdvantage
-            (NoAuth.kdfExp (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2)
+              true].boolDist 𝒟[NoAuth.kdfExp
+                  (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2)
               (i + 1)
               (NoAuth.kdfReduction
                 (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2)
                 (Eq.refl Unit) (MLKEM.mlkemIncrementalRandLeak p ring prims) A (i + 1))
-              false))) / 2 +
+              false]).toReal)) / 2 +
       (qS : ℝ) * ((MLKEM.mlkemScheme p ring prims).correctnessError
         ProbCompRuntime.probComp).toReal := by
   let : DecidableEq (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2).K :=

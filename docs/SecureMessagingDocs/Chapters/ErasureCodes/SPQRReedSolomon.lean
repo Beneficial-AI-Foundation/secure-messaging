@@ -6,6 +6,8 @@ import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessaging.ErasureCode.SPQRReedSolomon.Construction
 import SecureMessaging.ErasureCode.SPQRReedSolomon.Correctness
 
+/-! # Blueprint chapter: SPQR Erasure Code -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false

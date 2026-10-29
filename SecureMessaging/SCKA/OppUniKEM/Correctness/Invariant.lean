@@ -114,7 +114,7 @@ def EpochTranscript.setKeypair
   keypair := some (pk, sk)
   off := tr.off
   on := tr.on
-  keypair_mem := by simp [hmem]
+  keypair_mem := by rintro _ _ ⟨⟩; exact hmem
   off_mem := tr.off_mem
   on_mem := by simp [hon]
   on_keypair := by simp [hon]
@@ -131,7 +131,7 @@ def EpochTranscript.setOff
   off := some (st, ct0)
   on := tr.on
   keypair_mem := tr.keypair_mem
-  off_mem := by simp [hmem]
+  off_mem := by rintro _ _ ⟨⟩; exact hmem
   on_mem := by simp [hon]
   on_keypair := tr.on_keypair
   on_off := by simp [hon]
@@ -299,6 +299,8 @@ structure TranscriptConsistent
   futureOff : ∀ t, s.stB.t < t → (T t).off = none
   /-- Future epochs (for B) have no online part. -/
   futureOn : ∀ t, s.stB.t < t → (T t).on = none
+  /-- No online encapsulation is recorded at epoch zero. -/
+  zeroOn : (T 0).on = none
   /-- A's key table matches the transcript. -/
   keyA : ∀ t, s.keyA t = if t = 0 then none else if t < s.stA.t then (T t).key else none
   /-- B's key table matches the transcript. -/
@@ -378,6 +380,52 @@ lemma TranscriptConsistent.knownPrefixBThroughCurrent
   rw [hInv.keyB t]
   simpa only [Option.isSome_iff_ne_none] using hInv.pastComplete t hpos hltA
 
+omit [DecidableEq Sym] in
+/-- In a transcript-consistent state, B's key table is empty at epoch zero. -/
+lemma TranscriptConsistent.keyB_zero
+    {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
+    {ecEk : ErasureCodePayload PK Sym}
+    {ecCt0 : ErasureCodePayload onoff.C₀ Sym}
+    {ecCt1 : ErasureCodePayload onoff.C₁ Sym}
+    {T : Transcript kem onoff}
+    {s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)}
+    (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s) : s.keyB 0 = none := by
+  simp [hInv.keyB, EpochTranscript.key, hInv.zeroOn]
+
+omit [DecidableEq Sym] in
+/-- If B holds no offline ciphertext (`s.stB.ct0 = none`), A has not acknowledged one:
+`s.stB.ack.ctRec = false`. -/
+lemma TranscriptConsistent.ctRecB_eq_false_of_ct0_eq_none
+    {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
+    {ecEk : ErasureCodePayload PK Sym}
+    {ecCt0 : ErasureCodePayload onoff.C₀ Sym}
+    {ecCt1 : ErasureCodePayload onoff.C₁ Sym}
+    {T : Transcript kem onoff}
+    {s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)}
+    (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
+    (hct0 : s.stB.ct0 = none) : s.stB.ack.ctRec = false := by
+  cases hack : s.stB.ack.ctRec with
+  | false => rfl
+  | true =>
+    have hstnone : s.stB.stCt = none := by
+      simpa [hct0] using hInv.offBShape
+    have hoffnone : (T s.stB.t).off = none := by
+      simpa [hct0, hstnone] using hInv.offB
+    have honnone : (T s.stB.t).on = none := by
+      by_contra hn
+      simpa [hoffnone] using (T s.stB.t).on_off
+        (Option.isSome_iff_ne_none.mpr hn)
+    have htEq : s.stA.t = s.stB.t := by
+      have hnlt : ¬ s.stB.t < s.stA.t := by
+        intro hlt
+        have hcomplete := hInv.pastComplete s.stB.t hInv.epochPosB hlt
+        simp [EpochTranscript.key, honnone] at hcomplete
+      exact Nat.le_antisymm (Nat.le_of_not_gt hnlt) hInv.epochs.1
+    obtain ⟨ct0A, hct0A⟩ := Option.isSome_iff_exists.mp
+      (hInv.ct0Ack.2.2.1 hack htEq.symm)
+    obtain ⟨stA, hoffA⟩ := hInv.decodedCt0 ct0A hct0A
+    simp [htEq, hoffnone] at hoffA
+
 /-- The preserved game-state invariant: `s` is consistent with some execution
 transcript `T`. -/
 def reachableInv
@@ -388,8 +436,9 @@ def reachableInv
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) : Prop :=
   ∃ T, TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s
 
-/-- The KEM material currently held by A and the key currently recorded for B
-decapsulate consistently. -/
+/-- Whenever A holds a decapsulation key `dk` and an offline ciphertext `ct0` for its current epoch
+`s.stA.t` while B holds an online ciphertext `ct1` and a recorded key `key` for `s.stA.t`,
+decapsulating the reassembled ciphertext `(ct0, ct1)` under `dk` yields `key`. -/
 def CurrentKEMCorrect
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)

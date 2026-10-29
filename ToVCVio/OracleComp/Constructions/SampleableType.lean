@@ -4,73 +4,73 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.OracleComp.Constructions.SampleableType
-import VCVio.EvalDist.Prod
+module
+
+public import VCVio.OracleComp.Constructions.SampleableType
+public import VCVio.OracleComp.Constructions.SampleableType.Measure
+public import VCVio.EvalDist.Prod
+public import VCVio.OracleComp.EvalDist.Sum
 
 /-!
-# Uniform sampling on products, and uniqueness of the uniform law
+# Uniqueness of the uniform law
 
-`uniformSample_prod_eq_bind` unfolds upstream's `SampleableType (α × β)` instance
-into two independent component samples, and `evalDist_eq_uniformSample_of_uniform`
-shows that a computation with full support and pointwise-constant output
-probability is the uniform sample. `probOutput_true_bitGuess_eq_half` says that guessing a
-uniform bit succeeds with probability exactly `1 / 2` when the bit does not affect the
-distribution of the guesser's input.
+`evalDistEq_uniformSample_of_uniform` shows that a computation with pointwise-constant output
+probability is equal in distribution to the uniform sample. `prEvent_true_bitGuess_eq_half`
+says that guessing a uniform bit succeeds with probability exactly `1 / 2` when the bit does
+not affect the distribution of the guesser's input. `bind_uniformSample_evalDistEq_of_bijective`
+reindexes a uniform draw by a bijection before a continuation.
 -/
+
+@[expose] public section
 
 namespace ToVCVio
 
 open OracleComp ENNReal
 
-private lemma selectElem_prod_as_seq (α β : Type) [SampleableType α] [SampleableType β] :
-    (do let a ← ($ᵗ α : ProbComp α); let b ← ($ᵗ β : ProbComp β); pure (a, b) :
-      ProbComp (α × β)) =
-    Prod.mk <$> ($ᵗ α : ProbComp α) <*> ($ᵗ β : ProbComp β) := by
-  simp [seq_eq_bind_map, monad_norm]
-
-/-- Uniform sampling on a product decomposes into independent sampling of each component. -/
-lemma uniformSample_prod_eq_bind (α β : Type) [SampleableType α] [SampleableType β] :
-    ($ᵗ (α × β) : ProbComp (α × β)) = (do
-      let a ← ($ᵗ α : ProbComp α)
-      let b ← ($ᵗ β : ProbComp β)
-      pure (a, b)) := by
-  change Prod.mk <$> ($ᵗ α : ProbComp α) <*> ($ᵗ β : ProbComp β) = _
-  exact (selectElem_prod_as_seq α β).symm
-
-/-- Let `oa : ProbComp β` output every element of `β` (`hsupp`) and give any two elements the
-same probability (`huni : Pr[= x | oa] = Pr[= y | oa]`). Then `oa` has the same distribution
-as the uniform sample: `evalDist oa = evalDist ($ᵗ β)`. -/
-theorem evalDist_eq_uniformSample_of_uniform {β : Type} [SampleableType β]
-    (oa : ProbComp β) (hsupp : ∀ x : β, x ∈ support oa)
-    (huni : ∀ x y : β, Pr[= x | oa] = Pr[= y | oa]) :
-    evalDist oa = evalDist ($ᵗ β) := by
+/-- Let `oa : ProbComp β` give any two elements the same probability
+(`huni : Pr[oa = x] = Pr[oa = y]`). Then `oa` is equal in distribution to the uniform sample
+`$ᵗ β`. -/
+theorem evalDistEq_uniformSample_of_uniform {β : Type} [SampleableType β]
+    (oa : ProbComp β) (huni : ∀ x y : β, Pr{let z ← oa}[z = x] = Pr{let z ← oa}[z = y]) :
+    oa =ᵈ ($ᵗ β) := by
   let : Fintype β := Fintype.ofFinite β
-  refine evalDist_ext fun x => ?_
-  have h2 : Pr[= x | ($ᵗ β)] = (Fintype.card β : ℝ≥0∞)⁻¹ :=
-    probOutput_uniformSample β x
-  let h : SampleableType β := ⟨oa, hsupp, huni⟩
-  have h1 : Pr[= x | oa] = (Fintype.card β : ℝ≥0∞)⁻¹ :=
-    probOutput_uniformSample (hα := h) β x
-  exact h1.trans h2.symm
+  refine evalDistEq_of_forall_prEvent_eq_output fun x => ?_
+  rw [SampleableType.prEvent_uniformSample_eq_singleton]
+  refine ENNReal.eq_inv_of_mul_eq_one_left ?_
+  calc Pr{let z ← oa}[z = x] * (Fintype.card β : ℝ≥0∞)
+      = ∑ y : β, Pr{let z ← oa}[z = y] := by
+        simp only [Finset.sum_congr rfl fun y _ => huni y x, Finset.sum_const,
+          Finset.card_univ, nsmul_eq_mul, mul_comm]
+    _ = 1 := by rw [← tsum_fintype (L := .unconditional β)]; exact tsum_prEvent_eq_one oa
 
 /-- Guessing a uniform bit `b` from a sample of `dist par b` succeeds with probability exactly
-`1 / 2` when `dist par true` and `dist par false` have the same distribution for every `par`.
+`1 / 2` when `dist par true` and `dist par false` are equal in distribution for every `par`.
 This is the shape of an indistinguishability experiment with a setup phase (sampling `par`)
 whose real and ideal distributions coincide, so its guessing advantage is `0`. -/
-lemma probOutput_true_bitGuess_eq_half {Par X : Type} (setup : ProbComp Par)
+lemma prEvent_true_bitGuess_eq_half {Par X : Type} (setup : ProbComp Par)
     (dist : Par → Bool → ProbComp X) (adversary : Par → X → ProbComp Bool)
-    (h : ∀ par, 𝒟[dist par true] = 𝒟[dist par false]) :
-    Pr[= true | do
+    (h : ∀ par, dist par true =ᵈ dist par false) :
+    Pr{let y ← (do
       let b ← $ᵗ Bool
       let par ← setup
       let x ← dist par b
       let b' ← adversary par x
-      return b == b'] = 1 / 2 := by
+      return b == b')}[y = true] = 1 / 2 := by
   have hf : 𝒟[do let par ← setup; let x ← dist par true; adversary par x] =
-      𝒟[do let par ← setup; let x ← dist par false; adversary par x] := by
-    simp only [evalDist_bind, h]
-  have := probOutput_decide_eq_uniformBool_half
+      𝒟[do let par ← setup; let x ← dist par false; adversary par x] :=
+    (EvalDistEq.bind_right setup fun par => (h par).bind_left _).evalDist_eq
+  have := ProbComp.evalDist_decide_eq_uniformBool_half
     (fun b => do let par ← setup; let x ← dist par b; adversary par x) hf
+  rw [prEvent_eq_evalDist_singleton]
   simpa [bind_assoc, Bool.beq_eq_decide_eq] using this
+
+
+/-- Let `f : α → β` be a bijection. Then drawing `x ← $ᵗ α` and continuing with `k (f x)` is
+equal in distribution to drawing `y ← $ᵗ β` and continuing with `k y`. -/
+theorem bind_uniformSample_evalDistEq_of_bijective {α β γ : Type} [SampleableType α]
+    [SampleableType β] {f : α → β} (hf : Function.Bijective f) (k : β → ProbComp γ) :
+    (do let x ← ($ᵗ α : ProbComp α); k (f x)) =ᵈ (do let y ← ($ᵗ β : ProbComp β); k y) := by
+  have h := (SampleableType.map_uniformSample_evalDistEq_of_bijective hf).bind_left k
+  simpa only [map_eq_bind_pure_comp, bind_assoc, pure_bind, Function.comp_apply] using h
 
 end ToVCVio

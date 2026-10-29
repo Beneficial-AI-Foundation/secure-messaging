@@ -220,8 +220,8 @@ end SimView
 to answers dropped because `e` became exposed. -/
 def StepSim (e : ℕ) (v : P.EpochKey) {α : Type} (oS : ProbComp (α × SimState P))
     (oT : ProbComp (α × TraceState P)) : Prop :=
-  𝒟[(fun w => (if simStop e w.2 then none else some w.1, w.2)) <$> oS] =
-    𝒟[(fun w => (if targetStop e w.2 then none else some w.1, simOf e v w.2)) <$> oT]
+  ((fun w => (if simStop e w.2 then none else some w.1, w.2)) <$> oS) =ᵈ
+      (fun w => (if targetStop e w.2 then none else some w.1, simOf e v w.2)) <$> oT
 
 section Step
 
@@ -229,11 +229,12 @@ variable {e : ℕ} {v : P.EpochKey}
 
 /-- Exact agreement gives `StepSim`. -/
 theorem StepSim.of_eq {α : Type} {oS : ProbComp (α × SimState P)}
-    {oT : ProbComp (α × TraceState P)} (h : 𝒟[oS] = 𝒟[Prod.map id (simOf e v) <$> oT]) :
+    {oT : ProbComp (α × TraceState P)} (h : oS =ᵈ Prod.map id (simOf e v) <$> oT) :
     StepSim e v oS oT := by
   unfold StepSim
-  rw [evalDist_map, h, ← evalDist_map, Functor.map_map]
-  rfl
+  refine (h.map _).trans ?_
+  rw [Functor.map_map]
+  exact .rfl
 
 /-- A deterministic step that exposes `e` on both sides gives `StepSim`. -/
 theorem StepSim.pure_stop {α : Type} (a b : α) (s' : TraceState P)
@@ -261,28 +262,29 @@ theorem stopOnState_simOf {ι : Type} {spec : OracleSpec ι}
     (S : QueryImpl spec (StateT (SimState P) ProbComp))
     (G : QueryImpl spec (StateT (TraceState P) ProbComp)) (q : spec.Domain) (s : TraceState P)
     (h : StepSim e v ((S q).run (simOf e v s)) ((G q).run s)) :
-    𝒟[((stopOnState S (simStop e) q).run).run (simOf e v s)] =
-      𝒟[Prod.map id (simOf e v) <$> ((stopOnState G (targetStop e) q).run).run s] := by
-  rw [OracleComp.stopOnState_run, OracleComp.stopOnState_run, Functor.map_map]
+    ((stopOnState S (simStop e) q).run).run (simOf e v s) =ᵈ
+        Prod.map id (simOf e v) <$> ((stopOnState G (targetStop e) q).run).run s := by
+  rw [OracleComp.stopOnState_run_eq_map, OracleComp.stopOnState_run_eq_map, Functor.map_map]
   exact h
 
 /-- Exact agreement survives a map of the answers. -/
 theorem exact_mapAnswer {α β : Type} {oS : ProbComp (α × SimState P)}
     {oT : ProbComp (α × TraceState P)} (f : α → β)
-    (h : 𝒟[oS] = 𝒟[Prod.map id (simOf e v) <$> oT]) :
-    𝒟[(fun w => (f w.1, w.2)) <$> oS] =
-      𝒟[Prod.map id (simOf e v) <$> ((fun w => (f w.1, w.2)) <$> oT)] := by
-  rw [evalDist_map_eq_of_evalDist_eq h, Functor.map_map, Functor.map_map]
-  rfl
+    (h : oS =ᵈ Prod.map id (simOf e v) <$> oT) :
+    ((fun w => (f w.1, w.2)) <$> oS) =ᵈ
+        Prod.map id (simOf e v) <$> ((fun w => (f w.1, w.2)) <$> oT) := by
+  refine (h.map _).trans ?_
+  rw [Functor.map_map, Functor.map_map]
+  exact .rfl
 
 end Step
 
 /-- Maps agreeing on the support give the same distribution. -/
 theorem evalDist_map_congr_support {α β : Type} (X : ProbComp α) (f g : α → β)
-    (h : ∀ x ∈ support X, f x = g x) : 𝒟[f <$> X] = 𝒟[g <$> X] := by
-  congr 1
+    (h : ∀ x ∈ support X, f x = g x) : f <$> X =ᵈ g <$> X := by
   simp only [map_eq_bind_pure_comp]
-  exact bind_congr_of_forall_mem_support X fun x hx => by simp only [Function.comp_apply, h x hx]
+  exact EvalDistEq.bind_congr_of_support X fun x hx => by
+    simp only [Function.comp_apply, h x hx, EvalDistEq.refl]
 
 section Queries
 
@@ -331,7 +333,7 @@ theorem corruptA_step (s : TraceState P) :
           exposed := s.game.exposed ∪ simVuln e (maskState e s.game.stA) } }) := rfl
   rw [hT, oracleCorruptA_run, hS, simVuln_maskState]
   by_cases hc : vuln s.game.stA ∩ s.game.challenged = ∅
-  · rw [if_neg (not_not.mpr hc), if_neg (not_not.mpr hc), map_pure]
+  · rw [ite_eq_right (not_not.mpr hc), ite_eq_right (not_not.mpr hc), map_pure]
     rcases hm : maskState e s.game.stA with st' | m
     · have h := maskState_eq_inl hm
       subst h
@@ -342,7 +344,7 @@ theorem corruptA_step (s : TraceState P) :
       exact StepSim.pure_stop (s' := { s with game :=
         { s.game with exposed := s.game.exposed ∪ vuln s.game.stA } }) _ _
         (by simp [targetStop, he])
-  · rw [if_pos hc, if_pos hc, map_pure]
+  · rw [ite_eq_left hc, ite_eq_left hc, map_pure]
     exact StepSim.of_eq (by rw [map_pure]; rfl)
 
 /-- A corruption of B agrees; a masked state exposes `e`, which stops both runs. -/
@@ -359,7 +361,7 @@ theorem corruptB_step (s : TraceState P) :
           exposed := s.game.exposed ∪ simVuln e (maskState e s.game.stB) } }) := rfl
   rw [hT, oracleCorruptB_run, hS, simVuln_maskState]
   by_cases hc : vuln s.game.stB ∩ s.game.challenged = ∅
-  · rw [if_neg (not_not.mpr hc), if_neg (not_not.mpr hc), map_pure]
+  · rw [ite_eq_right (not_not.mpr hc), ite_eq_right (not_not.mpr hc), map_pure]
     rcases hm : maskState e s.game.stB with st' | m
     · have h := maskState_eq_inl hm
       subst h
@@ -370,7 +372,7 @@ theorem corruptB_step (s : TraceState P) :
       exact StepSim.pure_stop (s' := { s with game :=
         { s.game with exposed := s.game.exposed ∪ vuln s.game.stB } }) _ _
         (by simp [targetStop, he])
-  · rw [if_pos hc, if_pos hc, map_pure]
+  · rw [ite_eq_left hc, ite_eq_left hc, map_pure]
     exact StepSim.of_eq (by rw [map_pure]; rfl)
 
 /-- The available key in the simulator view. -/
@@ -381,7 +383,7 @@ theorem simLookup_simGameOf (e : ℕ) (v : P.EpochKey) (g : MLKEMBraid.GameState
   · subst ht
     cases hA : g.keyA t <;> cases hB : g.keyB t <;>
       simp [simLookup, lookupKey, simGameOf, relabel, hA, hB]
-  · simp only [simLookup, lookupKey, simGameOf, relabel, if_neg ht]
+  · simp only [simLookup, lookupKey, simGameOf, relabel, ite_eq_right ht]
     rfl
 
 /-- The challenge query agrees, given the installed value or the key of `e`. -/
@@ -393,23 +395,23 @@ theorem challenge_step [SampleableType P.K] [SampleableType P.EpochKey]
       ((simChallenge P (fun t => if t < e then .uniform else .real) t).run (simOf e v s))
       ((traceChallengeAt P (fun t => if t < e then .uniform else .real) e xo t).run s) := by
   apply StepSim.of_eq
-  change 𝒟[simChallenge P _ t (simOf e v s)] =
-    𝒟[Prod.map id (simOf e v) <$> traceChallengeAt P _ e xo t s]
+  change simChallenge P _ t (simOf e v s) =ᵈ
+      Prod.map id (simOf e v) <$> traceChallengeAt P _ e xo t s
   simp only [simChallenge, traceChallengeAt, simOf_game, simGameOf_exposed,
     simGameOf_challenged, simLookup_simGameOf]
   by_cases hex : t ∈ s.game.exposed ∨ t ∈ s.game.challenged
-  · rw [if_pos hex, if_pos hex, map_pure]
+  · rw [ite_eq_left hex, ite_eq_left hex, map_pure]
     rfl
-  · rw [if_neg hex, if_neg hex]
+  · rw [ite_eq_right hex, ite_eq_right hex]
     by_cases ht : t = e
     · subst ht
-      rw [if_pos rfl]
+      rw [ite_eq_left rfl]
       cases hk : lookupKey s.game t with
       | none =>
           simp only [Option.map_none, map_pure]
           rfl
       | some kk =>
-          simp only [Option.map_some, lt_irrefl, if_false]
+          simp only [Option.map_some, lt_irrefl, ite_false]
           cases xo with
           | none =>
               obtain rfl := hkey rfl kk hk
@@ -419,7 +421,7 @@ theorem challenge_step [SampleableType P.K] [SampleableType P.EpochKey]
               obtain rfl := hxo x rfl
               simp only [↓reduceIte, challengeValue, map_pure]
               rfl
-    · rw [if_neg ht]
+    · rw [ite_eq_right ht]
       cases hk : lookupKey s.game t with
       | none =>
           simp only [map_pure]
@@ -430,7 +432,7 @@ theorem challenge_step [SampleableType P.K] [SampleableType P.EpochKey]
               simp only [Functor.map_map]
               rfl
           | some x =>
-              simp only [if_neg ht, Functor.map_map]
+              simp only [ite_eq_right ht, Functor.map_map]
               rfl
 
 end Queries
@@ -461,12 +463,12 @@ theorem installedSample_eq_none (e : ℕ) (kp : Option (P.PK × P.SK))
       have ht : t ≠ e := fun h => h1 a (by rw [hst, h])
       rcases kp with _ | ⟨pk, sk⟩
       · rfl
-      · simp only [if_neg ht]
+      · simp only [ite_eq_right ht]
   | headerReceived t a hdr dec =>
       have ht : t ≠ e := fun h => h2 a hdr dec (by rw [hst, h])
       rcases ec with _ | ⟨es, ct1, k⟩
       · rfl
-      · simp only [if_neg ht]
+      · simp only [ite_eq_right ht]
   | _ => rfl
 
 /-- The trace send of a masked state. -/
@@ -491,8 +493,8 @@ theorem traceSend_masked (party leaking : Bool) (s : TraceState P) {e : ℕ} {m 
 theorem sendStep_masked (e : ℕ) (v : P.EpochKey) (ch : Challenge P) (kp : Option (P.PK × P.SK))
     (ec : Option (P.inc.St × P.inc.C₁ × P.K)) (party leaking : Bool) (s : TraceState P)
     {m : Masked P} (hm : maskState e (s.game.stateAt party) = .inr m) :
-    𝒟[(simSend P hMac irl e ch party leaking).run (simOf e v s)] =
-      𝒟[Prod.map id (simOf e v) <$> (traceSendAt P hMac irl e kp ec party leaking).run s] := by
+    (simSend P hMac irl e ch party leaking).run (simOf e v s) =ᵈ
+        Prod.map id (simOf e v) <$> (traceSendAt P hMac irl e kp ec party leaking).run s := by
   obtain ⟨R, hR, hmsg, hep, hkey, hst⟩ := send_masked hMac hm
   have hI : installedSample P hMac e kp ec s party = none :=
     installedSample_eq_none hMac e kp ec s party
@@ -505,9 +507,10 @@ theorem sendStep_masked (e : ℕ) (v : P.EpochKey) (ch : Challenge P) (kp : Opti
   have hS : (simOf e v s).game.stateAt party = .inr m := by
     rw [simOf_game, simGameOf_stateAt, hm]
   rw [hT, traceSend_masked hMac irl party leaking s hm hR, map_pure]
-  change 𝒟[simSend P hMac irl e ch party leaking (simOf e v s)] = _
+  refine ToVCVio.evalDistEq_of_eq ?_
+  change simSend P hMac irl e ch party leaking (simOf e v s) = _
   simp only [simSend, hS]
-  congr 2
+  congr 1
   simp only [Prod.map, id, simOf, simGameOf_sendUpdate, hmsg, hep, hkey, hst, relabelKey,
     Option.map_none]
   cases party <;> rfl

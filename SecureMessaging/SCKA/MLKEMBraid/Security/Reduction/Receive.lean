@@ -542,11 +542,11 @@ theorem traceReceive_accept (party : Bool) (n : ℕ) (s : TraceState P) {msg : M
   rw [traceReceive_run, liftGame_run]
   cases party
   · have hm' : s.game.msgA n = some (msg, tsnd) := hm
-    rw [if_neg Bool.false_ne_true, SCKAScheme.oracleRecvB_run_eq_of_accept
+    rw [ite_eq_right Bool.false_ne_true, SCKAScheme.oracleRecvB_run_eq_of_accept
       (recvScheme P hMac irl true s.transcript) s.game hm' hr, map_pure]
     rfl
   · have hm' : s.game.msgB n = some (msg, tsnd) := hm
-    rw [if_pos rfl, SCKAScheme.oracleRecvA_run_eq_of_accept
+    rw [ite_eq_left rfl, SCKAScheme.oracleRecvA_run_eq_of_accept
       (recvScheme P hMac irl true s.transcript) s.game hm' hr, map_pure]
     rfl
 
@@ -557,9 +557,9 @@ theorem traceReceive_missing (party : Bool) (n : ℕ) (s : TraceState P)
   rw [traceReceive_run, liftGame_run]
   cases party
   · have hm' : s.game.msgA n = none := hm
-    rw [if_neg Bool.false_ne_true, SCKAScheme.oracleRecvB_run_eq_of_none _ _ hm', map_pure]
+    rw [ite_eq_right Bool.false_ne_true, SCKAScheme.oracleRecvB_run_eq_of_none _ _ hm', map_pure]
   · have hm' : s.game.msgB n = none := hm
-    rw [if_pos rfl, SCKAScheme.oracleRecvA_run_eq_of_none _ _ hm', map_pure]
+    rw [ite_eq_left rfl, SCKAScheme.oracleRecvA_run_eq_of_none _ _ hm', map_pure]
 
 /-- A receive query agrees under the repaired invariant. -/
 theorem recvStep (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
@@ -575,7 +575,8 @@ theorem recvStep (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Co
   have hmsg : (if party then (simOf e v s).game.msgB else (simOf e v s).game.msgA) n =
       s.game.messagesAt (!party) n := by
     cases party <;> rfl
-  change 𝒟[simReceive P hMac e ch party n (simOf e v s)] = _
+  refine ToVCVio.evalDistEq_of_eq ?_
+  change simReceive P hMac e ch party n (simOf e v s) = _
   simp only [simReceive, hmsg]
   cases hm : s.game.messagesAt (!party) n with
   | none =>
@@ -590,7 +591,7 @@ theorem recvStep (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Co
       have hS := simRecv_eq hMac ch hv (h.local party) hc2 htrue hloc'
       rw [traceReceive_accept hMac irl party n s hm htrue, map_pure]
       simp only [simOf_transcript, simOf_game, simGameOf_stateAt, hS]
-      congr 2
+      congr 1
       simp only [Prod.map, id, relabelKey_map_fst, simOf, simGameOf_recvUpdate]
 
 end ReceiveStep

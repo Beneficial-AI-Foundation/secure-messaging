@@ -153,11 +153,11 @@ lemma currentFailurePotential_le_one [DecidableEq K]
   classical
   unfold currentFailurePotential
   by_cases ht : s.stA.t = s.stB.t
-  · rw [if_pos ht]
+  · rw [ite_eq_left ht]
     by_cases hon : s.stB.ct1.isSome
-    · rw [if_pos hon]
+    · rw [ite_eq_left hon]
       exact bot_le
-    · rw [if_neg hon]
+    · rw [ite_eq_right hon]
       cases hkp : Option.map₂ Prod.mk s.stA.ekA s.stA.dkA with
       | none =>
           cases hoff : Option.map₂ Prod.mk s.stB.stCt s.stB.ct0 with
@@ -175,7 +175,7 @@ lemma currentFailurePotential_le_one [DecidableEq K]
           | some off =>
               change failureAfterBoth kem onoff kp.1 kp.2 off.1 off.2 ≤ 1
               exact failureAfterBoth_le_one kem onoff kp.1 kp.2 off.1 off.2
-  · rw [if_neg ht]
+  · rw [ite_eq_right ht]
     cases hkp : Option.map₂ Prod.mk s.stA.ekA s.stA.dkA with
     | none =>
         change (0 : ℝ≥0∞) ≤ 1
@@ -219,8 +219,8 @@ lemma currentFailurePotential_recvB_advance [DecidableEq K]
   have hne : s.stA.t ≠ s.stB.t := by omega
   have heq' : s'.stA.t = s'.stB.t := by omega
   unfold currentFailurePotential
-  rw [if_neg hne, if_pos heq', hek, hdk, hst, hct0, hct1]
-  simp only [Option.isSome_none, Bool.false_eq_true, if_false]
+  rw [ite_eq_right hne, ite_eq_left heq', hek, hdk, hst, hct0, hct1]
+  simp only [Option.isSome_none, Bool.false_eq_true, ite_false]
   cases s.stA.ekA <;> cases s.stA.dkA <;> rfl
 
 /-- Advancing A after online encapsulation preserves the zero failure potential. -/
@@ -237,7 +237,7 @@ lemma currentFailurePotential_recvA_advance [DecidableEq K]
   have hne' : s'.stA.t ≠ s'.stB.t := by omega
   have hon' : s'.stB.ct1.isSome := by simpa [hct1] using hon
   unfold currentFailurePotential
-  rw [hst, hct0, if_pos hon', if_pos hepoch, if_pos hon, if_neg hne', hek, hdk]
+  rw [hst, hct0, ite_eq_left hon', ite_eq_left hepoch, ite_eq_left hon, ite_eq_right hne', hek, hdk]
   rfl
 
 end Reduction.Internal

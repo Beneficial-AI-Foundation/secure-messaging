@@ -7,6 +7,7 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.SCKA.MLKEMBraid.Security.Games
 import SecureMessaging.SCKA.MLKEMBraid.Correctness.SendPayload
 import SecureMessaging.SCKA.Correctness
+import SecureMessaging.SCKA.Security
 
 /-!
 # Joint sampling and elementary trace transitions
@@ -278,9 +279,9 @@ theorem mem_support_traceSend {party leaking : Bool} {s : TraceState P}
   by_cases hc : (leaking && decide ((exposure P irl).send (s.game.stateAt party) w.1.1.state
       w.1.2 ∩ s.game.challenged ≠ ∅)) = true
   · left
-    rw [if_pos hc]
+    rw [ite_eq_left hc]
   · right
-    refine ⟨w, hw, fun hl => ?_, by rw [if_neg hc]⟩
+    refine ⟨w, hw, fun hl => ?_, by rw [ite_eq_right hc]⟩
     subst hl
     simpa using hc
 
@@ -337,7 +338,7 @@ theorem traceSend_disjoint {party leaking : Bool} {s : TraceState P}
   rw [hch]
   cases leaking
   · simpa using hs
-  · simp only [if_true]
+  · simp only [ite_true]
     rw [Finset.union_inter_distrib_right, Finset.union_eq_empty]
     exact ⟨hs, hE rfl⟩
 

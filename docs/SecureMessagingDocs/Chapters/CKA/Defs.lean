@@ -5,6 +5,8 @@ import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessaging.CKA.Defs
 
+/-! # Blueprint chapter: CKA Definitions -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false
@@ -562,7 +564,7 @@ def securityExp [SampleableType I] [DecidableEq I] (cka : CKAScheme ProbComp IK 
 :::definition "cka_advantage" (lean := "CKAScheme.ckaGuessAdvantage") (uses := "cka_security")
 $`\todo`
 
-$$`\Adv{\textsf{guess}}(\adv, gp)
+$$`\Adv{\textsf{guess}}{\textsf{CKA}}(\adv, gp)
   \;=\; \Bigl|\, \Pr\bigl[\,\Exp{\textsf{sec}}{\textsf{CKA}}(\adv,gp) = 1\,\bigr] - \tfrac12 \,\Bigr|
   \;=\; \Bigl|\, \Pr[\,b' = b\,] - \tfrac12 \,\Bigr|`
 
@@ -570,6 +572,6 @@ $$`\Adv{\textsf{guess}}(\adv, gp)
 noncomputable def ckaGuessAdvantage [SampleableType I] [DecidableEq I]
     (cka : CKAScheme ProbComp IK St I Rho Rand) (adversary : CKAAdversary St Rho I Rand)
     (gp : GameParams) : ℝ :=
-  |(Pr[= true | securityExp cka adversary gp]).toReal - 1 / 2|
+  |(Pr{let x ← securityExp cka adversary gp}[x = true]).toReal - 1 / 2|
 ```
 :::

@@ -131,10 +131,10 @@ theorem security_run_eq_delta
     [SampleableType P.EpochKey] [DecidableEq P.EpochKey] [DecidableEq P.Sym]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (b : Bool) (A : Adversary P irl) (s : MLKEMBraid.GameState P Unit) :
-    𝒟[(simulateQ (SCKAScheme.ExposurePolicy.sckaSecurityImpl b
-      (exposure P irl) (exposure P irl) (scheme P hMac irl)) A).run s] =
-      𝒟[(simulateQ (SCKAScheme.ExposurePolicy.sckaSecurityImpl b
-        (deltaExposure P irl) (deltaExposure P irl) (scheme P hMac irl)) A).run s] := by
+    (simulateQ (SCKAScheme.ExposurePolicy.sckaSecurityImpl b
+      (exposure P irl) (exposure P irl) (scheme P hMac irl)) A).run s =ᵈ
+          (simulateQ (SCKAScheme.ExposurePolicy.sckaSecurityImpl b
+        (deltaExposure P irl) (deltaExposure P irl) (scheme P hMac irl)) A).run s := by
   rw [securityImpl_eq_delta P hMac irl b]
 
 /-- Sampled-bit experiment and guessing advantage fidelity to the frozen baseline game. -/
@@ -143,10 +143,10 @@ theorem securityGame_equiv_delta
     [SampleableType P.EpochKey] [DecidableEq P.EpochKey] [DecidableEq P.Sym]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (A : Adversary P irl) :
-    𝒟[SCKAScheme.ExposurePolicy.securityExp (scheme P hMac irl) A
-        (exposure P irl) (exposure P irl)] =
-      𝒟[SCKAScheme.ExposurePolicy.securityExp (scheme P hMac irl) A
-        (deltaExposure P irl) (deltaExposure P irl)] ∧
+    SCKAScheme.ExposurePolicy.securityExp (scheme P hMac irl) A
+        (exposure P irl) (exposure P irl) =ᵈ
+            SCKAScheme.ExposurePolicy.securityExp (scheme P hMac irl) A
+        (deltaExposure P irl) (deltaExposure P irl) ∧
     SCKAScheme.ExposurePolicy.sckaGuessAdvantage (scheme P hMac irl) A
         (exposure P irl) (exposure P irl) =
       SCKAScheme.ExposurePolicy.sckaGuessAdvantage (scheme P hMac irl) A

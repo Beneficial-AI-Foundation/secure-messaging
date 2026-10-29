@@ -67,9 +67,9 @@ private theorem encaps1_of_key {T : ℕ → EpochTranscript P} {g : MLKEMBraid.G
   change (if party then g.keyA else g.keyB) e ≠ none at hk
   rw [h.keys party e] at hk
   by_cases hc : 0 < e ∧ e ≤ (if party then g.stA else g.stB).completedEpoch
-  · rw [if_pos hc] at hk
+  · rw [ite_eq_left hc] at hk
     exact ⟨hc.1, fun h0 => hk (by simp [h0])⟩
-  · rw [if_neg hc] at hk
+  · rw [ite_eq_right hc] at hk
     exact absurd rfl hk
 
 /-- An available challenge key is held by one of the parties. -/
@@ -223,10 +223,10 @@ private theorem traceReceive_frame (repair party : Bool) :
   obtain ⟨w, hw, rfl⟩ := mem_support_liftGame hz
   refine ⟨rfl, ?_⟩
   cases party
-  · rw [if_neg Bool.false_ne_true] at hw
+  · rw [ite_eq_right Bool.false_ne_true] at hw
     obtain ⟨-, -, h1, h2⟩ := SCKAScheme.oracleRecvB_flags _ hw
     simp only [sendCount, h1, h2]
-  · rw [if_pos rfl] at hw
+  · rw [ite_eq_left rfl] at hw
     obtain ⟨-, -, h1, h2⟩ := SCKAScheme.oracleRecvA_flags _ hw
     simp only [sendCount, h1, h2]
 
@@ -337,9 +337,9 @@ private theorem run_mode_evalDist_eq
     (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct)
     (A : Adversary P irl) (qS : ℕ) (hqS : SendQueryBound A qS) (m m' : ℕ → Mode)
     (hm : ∀ e, 0 < e → e ≤ qS → m e = m' e) :
-    𝒟[Prod.fst <$> run P hMac irl true m A] = 𝒟[Prod.fst <$> run P hMac irl true m' A] := by
-  have hbad : Pr[fun z => qS < sendCount z.2 | run P hMac irl true m A] = 0 := by
-    rw [probEvent_eq_zero_iff]
+    Prod.fst <$> run P hMac irl true m A =ᵈ Prod.fst <$> run P hMac irl true m' A := by
+  have hbad : Pr{let z ← run P hMac irl true m A}[qS < sendCount z.2] = 0 := by
+    rw [prEvent_eq_zero_iff]
     intro z hz
     have hle := stateCounter_simulateQ_run_le (traceImpl P hMac irl true m) sendCount
       (fun t => isSendQuery t = true)
@@ -347,9 +347,9 @@ private theorem run_mode_evalDist_eq
     have h0 : z.2.game.nA + z.2.game.nB ≤ qS := by
       simpa [sendCount, SCKAScheme.initGameState] using hle
     exact not_lt.mpr h0
-  refine evalDist_ext fun x => ?_
-  rw [probOutput_fst_map_eq_probEvent, probOutput_fst_map_eq_probEvent]
-  have habs := abs_probEvent_simulateQ_run_sub_le_bad_of_inv
+  refine evalDistEq_of_forall_prEvent_eq_output fun x => ?_
+  simp only [Functor.map_map]
+  have habs := abs_prEvent_simulateQ_run_sub_le_bad_of_inv
     (traceImpl P hMac irl true m) (traceImpl P hMac irl true m')
     (fun s => TraceInv hMac true s ∧ SendBound s) (fun s => qS < sendCount s)
     (traceImpl_sendBound hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct m)
@@ -362,11 +362,11 @@ private theorem run_mode_evalDist_eq
         exact hm e hpos ((hs.1.2 e hT).trans (not_lt.mp hs.2)))
       t s ⟨hs, hb⟩)
     A (fun y => y = x) _ ⟨traceInv_init hMac true, sendBound_init hMac⟩
-  change |(Pr[fun z => z.1 = x | run P hMac irl true m A]).toReal -
-      (Pr[fun z => z.1 = x | run P hMac irl true m' A]).toReal| ≤
-    (Pr[fun z => qS < sendCount z.2 | run P hMac irl true m A]).toReal at habs
+  change |(Pr{let z ← run P hMac irl true m A}[z.1 = x]).toReal -
+      (Pr{let z ← run P hMac irl true m' A}[z.1 = x]).toReal| ≤
+    (Pr{let z ← run P hMac irl true m A}[qS < sendCount z.2]).toReal at habs
   rw [hbad, ENNReal.toReal_zero, abs_nonpos_iff, sub_eq_zero] at habs
-  exact (ENNReal.toReal_eq_toReal_iff' probEvent_ne_top probEvent_ne_top).mp habs
+  exact (ENNReal.toReal_eq_toReal_iff' (prEvent_ne_top _) (prEvent_ne_top _)).mp habs
 
 end Endpoints
 
@@ -381,10 +381,10 @@ theorem hybrid_endpoints (P : Parameters ProbComp)
     (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
     (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct)
     (A : Adversary P irl) (qS : ℕ) (hqS : SendQueryBound A qS) :
-    𝒟[hybrid P hMac irl A 0] =
-        𝒟[Prod.fst <$> run P hMac irl true (fun _ => if false then .uniform else .real) A] ∧
-      𝒟[hybrid P hMac irl A qS] =
-        𝒟[Prod.fst <$> run P hMac irl true (fun _ => if true then .uniform else .real) A] :=
+    hybrid P hMac irl A 0 =ᵈ
+        Prod.fst <$> run P hMac irl true (fun _ => if false then .uniform else .real) A ∧
+      hybrid P hMac irl A qS =ᵈ
+          Prod.fst <$> run P hMac irl true (fun _ => if true then .uniform else .real) A :=
   ⟨run_mode_evalDist_eq hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct A qS hqS _ _
       fun _ he _ => by simp [Nat.not_le.mpr he],
     run_mode_evalDist_eq hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct A qS hqS _ _

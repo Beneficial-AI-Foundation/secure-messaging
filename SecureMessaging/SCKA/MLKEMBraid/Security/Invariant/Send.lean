@@ -371,16 +371,16 @@ private theorem sendEncaps1 (h : RepairInv hMac T s) (party : Bool) {e : ℕ} {a
           (T e').encaps1.map (fun (_, _, key) => P.kdfOK key e') else none := hKeys who e'
     rw [hcomp] at hK
     by_cases hwho : who = party
-    · rw [if_pos hwho, if_pos hwho]
+    · rw [ite_eq_left hwho, ite_eq_left hwho]
       by_cases he : e' = e
       · subst e'
-        rw [Function.update_self, if_pos ⟨hpos, le_rfl⟩, hTce]
+        rw [Function.update_self, ite_eq_left ⟨hpos, le_rfl⟩, hTce]
         rfl
       · rw [Function.update_of_ne he, hK, hTc e' he]
         by_cases h1 : 0 < e' ∧ e' ≤ e - 1
-        · rw [if_pos h1, if_pos ⟨h1.1, by omega⟩]
-        · rw [if_neg h1, if_neg (by omega)]
-    · rw [if_neg hwho, if_neg hwho, hK]
+        · rw [ite_eq_left h1, ite_eq_left ⟨h1.1, by omega⟩]
+        · rw [ite_eq_right h1, ite_eq_right (by omega)]
+    · rw [ite_eq_right hwho, ite_eq_right hwho, hK]
       by_cases he : e' = e
       · subst e'
         simp [show ¬ (0 < e ∧ e ≤ e - 1) by omega]

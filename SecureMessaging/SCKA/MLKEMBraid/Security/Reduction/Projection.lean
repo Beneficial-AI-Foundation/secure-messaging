@@ -67,13 +67,13 @@ theorem SimInv.key (h : SimInv hMac e pk sk es c1 k s) :
     intro party hp
     rw [hR.keys party e] at hp
     by_cases hc : 0 < e ∧ e ≤ (if party then s.game.stA else s.game.stB).completedEpoch
-    · rw [if_pos hc] at hp
+    · rw [ite_eq_left hc] at hp
       rcases h.2.2 (es, c1, k) rfl with h2 | h2
       · rw [h2] at hp
         cases hp
       · rw [h2] at hp
         simpa using hp.symm
-    · rw [if_neg hc] at hp
+    · rw [ite_eq_right hc] at hp
       cases hp
   have hk' : s.game.keyA e = some kk ∨ s.game.keyB e = some kk := by
     unfold lookupKey at hk
@@ -140,12 +140,12 @@ theorem simStep_eq (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.
     (hkp : (ch.pk, sk) ∈ support P.kem.keygen)
     (hec : (es, ch.ct1, k) ∈ support (P.inc.encaps1 (P.inc.toHeader ch.pk)))
     (A : Adversary P irl) :
-    Pr[= true | stoppedRun (simImpl P hMac irl e ch) (simStop e) A (simInit P hMac)] =
-      Pr[= true | stoppedRun (traceImplAt P hMac irl e (some (ch.pk, sk))
+    Pr{let x ← stoppedRun (simImpl P hMac irl e ch) (simStop e) A (simInit P hMac)}[x = true] =
+      Pr{let x ← (stoppedRun (traceImplAt P hMac irl e (some (ch.pk, sk))
         (some (es, ch.ct1, k)) xo (fun t => if t < e then .uniform else .real)) (targetStop e) A
-        (initTrace P hMac)] := by
+        (initTrace P hMac))}[x = true] := by
   rw [← simOf_initTrace hMac e v]
-  exact probOutput_optionRun_eq_of_state_map
+  exact prEvent_optionRun_eq_of_state_map
     (stopOnState (traceImplAt P hMac irl e (some (ch.pk, sk)) (some (es, ch.ct1, k)) xo
       (fun t => if t < e then .uniform else .real)) (targetStop e))
     (stopOnState (simImpl P hMac irl e ch) (simStop e)) (simOf e v)

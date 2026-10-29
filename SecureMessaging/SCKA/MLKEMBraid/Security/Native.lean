@@ -50,10 +50,10 @@ theorem security_le_native (P : Parameters ProbComp)
     SCKAScheme.sckaGuessAdvantage (scheme P hMac irl) A
       (nativeExposure P irl) (nativeExposure P irl) ≤
       (∑ i ∈ Finset.range qS,
-        (P.kem.IND_CPA_Advantage ProbCompRuntime.probComp
-            (kemReduction P hMac irl A (i + 1)) +
-          (kdfExp P (i + 1) (kdfReduction P hMac irl A (i + 1)) true).boolDistAdvantage
-            (kdfExp P (i + 1) (kdfReduction P hMac irl A (i + 1)) false))) / 2 +
+        ((P.kem.IND_CPA_Advantage ProbCompRuntime.probComp
+            (kemReduction P hMac irl A (i + 1))).toReal +
+          (𝒟[kdfExp P (i + 1) (kdfReduction P hMac irl A (i + 1)) true].boolDist
+              𝒟[kdfExp P (i + 1) (kdfReduction P hMac irl A (i + 1)) false]).toReal)) / 2 +
       (qS : ℝ) * (P.kem.correctnessError ProbCompRuntime.probComp).toReal := by
   rw [← (securityGame_equiv_native P hMac irl A).2]
   exact security_le P hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct A qS hqS
@@ -104,22 +104,22 @@ theorem mlkemBraidScheme_noAuth_security_le_native
           (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2)
           (MLKEM.mlkemIncrementalRandLeak p ring prims)) ≤
       (∑ i ∈ Finset.range qS,
-        ((MLKEM.mlkemScheme p ring prims).IND_CPA_Advantage ProbCompRuntime.probComp
+        (((MLKEM.mlkemScheme p ring prims).IND_CPA_Advantage ProbCompRuntime.probComp
             (NoAuth.kemReduction
               (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2)
-              (Eq.refl Unit) (MLKEM.mlkemIncrementalRandLeak p ring prims) A (i + 1)) +
-          (NoAuth.kdfExp (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2)
+              (Eq.refl Unit) (MLKEM.mlkemIncrementalRandLeak p ring prims) A (i + 1))).toReal +
+          (𝒟[NoAuth.kdfExp (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2)
               (i + 1)
               (NoAuth.kdfReduction
                 (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2)
                 (Eq.refl Unit) (MLKEM.mlkemIncrementalRandLeak p ring prims) A (i + 1))
-              true).boolDistAdvantage
-            (NoAuth.kdfExp (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2)
+              true].boolDist 𝒟[NoAuth.kdfExp
+                  (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2)
               (i + 1)
               (NoAuth.kdfReduction
                 (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2)
                 (Eq.refl Unit) (MLKEM.mlkemIncrementalRandLeak p ring prims) A (i + 1))
-              false))) / 2 +
+              false]).toReal)) / 2 +
       (qS : ℝ) * ((MLKEM.mlkemScheme p ring prims).correctnessError
         ProbCompRuntime.probComp).toReal := by
   let : SampleableType (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2).K :=
@@ -164,15 +164,15 @@ theorem mlkemBraidBounded_noAuth_security_le_native
         (MLKEMBraid.NoAuth.nativeExposure P irl)
         (MLKEMBraid.NoAuth.nativeExposure P irl) ≤
         (∑ i ∈ Finset.range qS,
-          ((MLKEM.mlkemScheme p ring prims).IND_CPA_Advantage
+          (((MLKEM.mlkemScheme p ring prims).IND_CPA_Advantage
               ProbCompRuntime.probComp
               (MLKEM.Bounded.liftAdversary p ring prims
-                (MLKEMBraid.NoAuth.kemReduction P (Eq.refl Unit) irl A (i + 1))) +
-            (MLKEMBraid.NoAuth.kdfExp P (i + 1)
+                (MLKEMBraid.NoAuth.kemReduction P (Eq.refl Unit) irl A (i + 1)))).toReal +
+            (𝒟[MLKEMBraid.NoAuth.kdfExp P (i + 1)
               (MLKEMBraid.NoAuth.kdfReduction P (Eq.refl Unit) irl A
-                (i + 1)) true).boolDistAdvantage
-              (MLKEMBraid.NoAuth.kdfExp P (i + 1)
-                (MLKEMBraid.NoAuth.kdfReduction P (Eq.refl Unit) irl A (i + 1)) false))) / 2 +
+                (i + 1)) true].boolDist 𝒟[MLKEMBraid.NoAuth.kdfExp P (i + 1)
+                (MLKEMBraid.NoAuth.kdfReduction P (Eq.refl Unit) irl A (i + 1)) false]).toReal)) /
+          2 +
         (qS : ℝ) *
           ((MLKEM.mlkemScheme p ring prims).correctnessError
             ProbCompRuntime.probComp).toReal := by

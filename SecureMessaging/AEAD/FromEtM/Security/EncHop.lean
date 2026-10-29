@@ -35,7 +35,7 @@ private noncomputable def encFixedGame
     adv
 
 omit [Inhabited T] in
-private theorem encFixedGame_eq_reductionBranch [Inhabited K_e]
+private theorem encFixedGame_eq_reductionBranch
     (se : DetSEAlg K_e M C_e) (bit : Bool) (key : K_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     encFixedGame se bit key adv =
@@ -191,11 +191,11 @@ IND$-CPA reduction only needs to simulate encryption (forward to its oracle)
 and decryption (always reject). The `computeTag` change from random oracle
 to `$ᵗ T` is distributional equality: the cache is written but never read
 (verify disabled), and a one-time fresh RO query is uniformly distributed. -/
-theorem game2_game3_le_enc [Inhabited K_e]
+theorem game2_game3_le_enc
     (se : DetSEAlg K_e M C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
-    |(Pr[= true | game2 se adv]).toReal -
-     (Pr[= true | game3 se adv]).toReal| ≤
+    |(Pr{let x ← game2 se adv}[x = true]).toReal -
+     (Pr{let x ← game3 se adv}[x = true]).toReal| ≤
       DetSEAlg.distAdvantage se (encReduction se adv) := by
   -- NRS14 Lemma 3, privacy reduction D₁(A).
   -- RO-to-uniform: since verifyTag = pure false in both games, the TagCache
@@ -208,7 +208,7 @@ theorem game2_game3_le_enc [Inhabited K_e]
   -- game2 = DetSEAlg.securityExpFixedBit se (encReduction se adv) false
   -- game3 = DetSEAlg.securityExpFixedBit se (encReduction se adv) true
   --
-  -- Discovered proof path (both directions are probOutput equalities, then `abs_sub_comm`):
+  -- Discovered proof path (both directions are `Pr{…}[x = true]` equalities, then `abs_sub_comm`):
   --   `securityExpFixedBit se (encReduction se adv) b` unfolds to a NESTED simulateQ:
   --   `simulateQ (indCPAImpl se b k) (encReduction…)`, where `encReduction` itself is
   --   `simulateQ encRedImpl adv` over `EtmGameState`. Collapse the nesting with
@@ -225,25 +225,25 @@ theorem game2_game3_le_enc [Inhabited K_e]
   --   game3 direction: clean (encRedImpl tag = $ᵗ T already matches game3). game2 direction:
   --   additionally needs RO→uniform (game2's randomOracle tag = encRedImpl's $ᵗ T), justified
   --   as in `stepA` below (write-only cache, one-time fresh query uniform).
-  have hg3 : Pr[= true | game3 se adv] =
-      Pr[= true | DetSEAlg.securityExpFixedBit se (encReduction se adv) true] := by
+  have hg3 : Pr{let x ← game3 se adv}[x = true] =
+      Pr{let x ← DetSEAlg.securityExpFixedBit se (encReduction se adv) true}[x = true] := by
     unfold game3 DetSEAlg.securityExpFixedBit
     simp only [bind_pure_comp, ← StateT.run'_eq]
-    refine probOutput_bind_congr' se.keygen true (fun key => ?_)
-    exact congrArg (Pr[= true | ·])
+    refine prEvent_bind_congr se.keygen _ _ _ _ (fun key => ?_)
+    exact congrArg (Pr{let x ← ·}[x = true])
       (encFixedGame_eq_reductionBranch se true key adv)
-  have hg2 : Pr[= true | game2 se adv] =
-      Pr[= true | DetSEAlg.securityExpFixedBit se (encReduction se adv) false] := by
+  have hg2 : Pr{let x ← game2 se adv}[x = true] =
+      Pr{let x ← DetSEAlg.securityExpFixedBit se (encReduction se adv) false}[x = true] := by
     -- Step A (RO→uniform): replace game2's random-oracle tag with a fresh `$ᵗ T`. The cache is
     -- write-only (`verifyTag = pure false`) and the single encryption query hits a fresh point,
     -- so the tag is uniform; project the cache away (invariant `challenge = none → cache = ∅`).
-    have stepA : Pr[= true | game2 se adv] =
-        Pr[= true | (etmGameSkeleton (spec := unifSpec) se.keygen se.decrypt ∅
+    have stepA : Pr{let x ← game2 se adv}[x = true] =
+        Pr{let x ← (etmGameSkeleton (spec := unifSpec) se.keygen se.decrypt ∅
             (fun ke m => pure (se.encrypt ke m)) (fun _ => liftM ($ᵗ T : ProbComp T))
-            (fun _ _ => pure false) gameUnifImpl adv : ProbComp Bool)] := by
+            (fun _ _ => pure false) gameUnifImpl adv : ProbComp Bool)}[x = true] := by
       unfold game2 etmGameSkeleton
       simp only [bind_pure_comp, ← StateT.run'_eq]
-      refine probOutput_bind_congr' se.keygen true (fun key => ?_)
+      refine prEvent_bind_congr se.keygen _ _ _ _ (fun key => ?_)
       rw [run'_simulateQ_eq_of_query_map_eq_inv'
             _ _ (fun s => s.1 = none → s.2 = (∅ : TagCache AD C_e T))
             (fun s => (s.1, (∅ : TagCache AD C_e T))) ?hinv ?hproj adv (none, ∅) ?hs]
@@ -323,14 +323,14 @@ theorem game2_game3_le_enc [Inhabited K_e]
             simp [StateT.run_set, StateT.run_pure, Prod.map]
     -- Step B (`hg3` machinery at `b = false`): the `$ᵗ T`-tag game equals the IND$-CPA real
     -- experiment, since `oracleEncrypt false key m = se.encrypt key m` matches the game's encrypt.
-    have stepB : Pr[= true | (etmGameSkeleton (spec := unifSpec) se.keygen se.decrypt ∅
+    have stepB : Pr{let x ← (etmGameSkeleton (spec := unifSpec) se.keygen se.decrypt ∅
             (fun ke m => pure (se.encrypt ke m)) (fun _ => liftM ($ᵗ T : ProbComp T))
-            (fun _ _ => pure false) gameUnifImpl adv : ProbComp Bool)] =
-        Pr[= true | DetSEAlg.securityExpFixedBit se (encReduction se adv) false] := by
+            (fun _ _ => pure false) gameUnifImpl adv : ProbComp Bool)}[x = true] =
+        Pr{let x ← DetSEAlg.securityExpFixedBit se (encReduction se adv) false}[x = true] := by
       unfold DetSEAlg.securityExpFixedBit
       simp only [bind_pure_comp, ← StateT.run'_eq]
-      refine probOutput_bind_congr' se.keygen true (fun key => ?_)
-      exact congrArg (Pr[= true | ·])
+      refine prEvent_bind_congr se.keygen _ _ _ _ (fun key => ?_)
+      exact congrArg (Pr{let x ← ·}[x = true])
         (encFixedGame_eq_reductionBranch se false key adv)
     rw [stepA, stepB]
   unfold DetSEAlg.distAdvantage

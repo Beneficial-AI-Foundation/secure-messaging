@@ -40,23 +40,6 @@ section Step2
 variable [Inhabited F]
 variable [Fintype G]
 
-omit [Field F] [SampleableType F] [SampleableType G] [DecidableEq G] [Inhabited F] in
-/-- The CKA security spec has finitely many oracle indices. Required by
-VCVio's probability-of-output lemmas that quantify over queries. -/
-noncomputable instance ckaSecuritySpecFintype :
-    (ckaSecuritySpec (CKAState F G) G G F).Fintype := by
-  unfold ckaSecuritySpec ckaCorrectnessSpec
-  infer_instance
-
-omit [Field F] [SampleableType F] [SampleableType G] [DecidableEq G] [Inhabited F]
-  [Fintype G] [Fintype F] in
-/-- The CKA security spec has at least one oracle index. Required by
-VCVio's existence lemmas that pick a sample query. -/
-noncomputable instance ckaSecuritySpecInhabited :
-    (ckaSecuritySpec (CKAState F G) G G F).Inhabited := by
-  unfold ckaSecuritySpec ckaCorrectnessSpec
-  infer_instance
-
 open OracleComp.ProgramLogic.Relational in
 /-- Predicate defining which oracle calls may require embedding of scalar `a` -/
 def hitA (gp : GameParams) :
@@ -127,14 +110,14 @@ we sample values at first use:
 A series of lemmas prove that each lazy implementation is distributionally equal to the
 regular CKA implementation or the DDH-real branch of the reduction `ℬ`:
 
-* `evalDist_ckaSecurityImpl_lazy_eq_eager` (this file): the lazy CKA implementation
+* `evalDistEq_ckaSecurityImpl_lazy_eager` (this file): the lazy CKA implementation
   equals the eager one — sample `b, a ←$ F` in `ProbComp`, then run
   `honestImplParamReal gp gen a b`.
 
-* `evalDist_eager_honest_lazy_eq` (`Bridge.lean`, per-query steps in `Step.lean`):
+* `evalDistEq_eager_honest_lazy` (`Bridge.lean`, per-query steps in `Step.lean`):
   the eager CKA implementation equals the regular honest CKA game.
 
-* `evalDist_eager_reduction_lazy_eq` (`ReductionReal/Step.lean`): the same
+* `evalDistEq_eager_reduction_lazy` (`ReductionReal/RelStep.lean`): the same
   lazy/eager pattern for `reductionOracleImpl`, bridging to the DDH-real
   branch of `ℬ`. -/
 
@@ -302,7 +285,7 @@ the value that `ℬ` would expose when its DDH challenger gives it
 `gA = a•gen`, `gB = b•gen`, `gT = (a·b)•gen`, each parameterized handler
 matches the corresponding one in
 `reductionOracleImpl gp gen (a•gen) (b•gen) ((a·b)•gen)` (per-step lemmas
-of `evalDist_eager_reduction_lazy_eq`). -/
+of `evalDistEq_eager_reduction_lazy`). -/
 noncomputable def honestImplParamReal (gp : GameParams) (gen : G) (a b : F) :
     QueryImpl (ckaSecuritySpec (CKAState F G) G G F)
       (StateT (GameState (CKAState F G) G G) ProbComp) :=
@@ -355,7 +338,7 @@ noncomputable def reductionImplLazyReal (gp : GameParams) (gen : G) :
 open OracleComp.ProgramLogic.Relational in
 /-- Cache-aware honest oracle set wrapping `honestImplParamReal` with the
 same `consumeLazy ∘ consumeLazy` shape as `reductionImplLazyReal`. Bridge
-to the regular `ckaSecurityImpl`: `probOutput_lazy_honest_eq`. -/
+to the regular `ckaSecurityImpl`: `prEvent_lazy_honest_eq`. -/
 noncomputable def ckaSecurityImplLazyReal (gp : GameParams) (gen : G) :
     QueryImpl (ckaSecuritySpec (CKAState F G) G G F)
       (StateT ((GameState (CKAState F G) G G × Option F) × Option F) ProbComp) :=
@@ -373,10 +356,6 @@ lemma hindepA_param_honest (gp : GameParams) (b : F)
     (honestImplParamReal gp gen a₁ b t).run s =
     (honestImplParamReal gp gen a₂ b t).run s := by
   match t with
-  | OSendBrleak => rfl
-  | OSendArleak => rfl
-  | OCorruptB => rfl
-  | OCorruptA => rfl
   | OChallB =>  -- challB: gated by challengedParty = .B
     cases h_cp : gp.challengedParty with
     | A =>
@@ -391,7 +370,6 @@ lemma hindepA_param_honest (gp : GameParams) (b : F)
     | B =>
       simp only [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
         honestChallAparam]
-  | ORecvB => rfl  -- recvB
   | OSendB =>  -- sendB: gated by challengedParty = .A
     cases h_cp : gp.challengedParty with
     | A =>
@@ -399,7 +377,6 @@ lemma hindepA_param_honest (gp : GameParams) (b : F)
     | B =>
       simp [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
         honestSendBparam, h_cp]
-  | ORecvA => rfl  -- recvA
   | OSendA =>  -- sendA: gated by challengedParty = .B
     cases h_cp : gp.challengedParty with
     | A =>
@@ -407,7 +384,10 @@ lemma hindepA_param_honest (gp : GameParams) (b : F)
         honestSendAparam, h_cp]
     | B =>
       exfalso; simp [hitA, h_cp] at h
-  | OUnif _ => rfl  -- oracleUnif
+  | OSendBrleak | OSendArleak | OCorruptB | OCorruptA
+  | ORecvB | ORecvA | OUnif _ =>
+    -- `simp only` instead of `rfl`: the kernel checks this much faster.
+    simp only [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
 
 omit [Fintype G] in
 /-- Lazy honest impl wrapped in inner `consumeLazy hitA` is `b`-independent
@@ -421,10 +401,6 @@ lemma hindepB_param_honest (gp : GameParams)
     (OracleComp.ProgramLogic.Relational.consumeLazy (hit := hitA gp)
         (implFam := fun a => honestImplParamReal gp gen a b₂) t).run s := by
   match t with
-  | OSendBrleak => rfl
-  | OSendArleak => rfl
-  | OCorruptB => rfl
-  | OCorruptA => rfl
   | OChallB =>  -- challB: gated by challengedParty = .B
     cases h_cp : gp.challengedParty with
     | A =>
@@ -441,22 +417,21 @@ lemma hindepB_param_honest (gp : GameParams)
       unfold OracleComp.ProgramLogic.Relational.consumeLazy
       simp [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
         honestChallAparam, honestChallAparamMode, hitA, h_cp]
-  | ORecvB => rfl  -- recvB
-  | OSendB => rfl  -- sendB
-  | ORecvA => rfl  -- recvA
-  | OSendA => rfl  -- sendA
-  | OUnif _ => rfl  -- oracleUnif
-
+  | OSendBrleak | OSendArleak | OCorruptB | OCorruptA | ORecvB
+  | OSendB | ORecvA | OSendA | OUnif _ =>
+    -- `simp only` instead of `rfl`: the kernel checks this much faster.
+    unfold OracleComp.ProgramLogic.Relational.consumeLazy
+    simp only [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
 
 /-! ### Lazy `QueryImpl` set ↔ eager `ProbComp` sampling
 
-`evalDist_ckaSecurityImpl_lazy_eq_eager` proves the `evalDist` equality between
+`evalDistEq_ckaSecurityImpl_lazy_eager` proves equality in distribution between
 - running an adversary under the lazy `QueryImpl` set `ckaSecurityImplLazyReal`, and
 - sampling `b, a ←$ F` in `ProbComp` then running it under `honestImplParamReal`.
 -/
 
 omit [Fintype G] in
-/-- Proves the `evalDist` equality between
+/-- Proves equality in distribution between
 - running an adversary under the lazy `QueryImpl` set `ckaSecurityImplLazyReal`, and
 - sampling `b, a ←$ F` in `ProbComp` then running it under
   the parameterized `QueryImpl` set `honestImplParamReal gp gen a b`.
@@ -465,39 +440,32 @@ This is the lazy/eager endpoint for the two cache samples used by
 -- `Finite G` is unused in the proof but kept for uniformity with the
 -- surrounding lazy/eager bridge lemmas.
 @[nolint unusedArguments]
-lemma evalDist_ckaSecurityImpl_lazy_eq_eager
+lemma evalDistEq_ckaSecurityImpl_lazy_eager
     [Finite G]
     (gp : GameParams) (adversary : CKAAdversary (CKAState F G) G G F)
     (s : GameState (CKAState F G) G G) :
-    evalDist ((simulateQ (ckaSecurityImplLazyReal gp gen) adversary).run' ((s, none), none)) =
-    evalDist (do
+    ((simulateQ (ckaSecurityImplLazyReal gp gen) adversary).run' ((s, none), none)) =ᵈ
+    (do
       let b ← ($ᵗ F : ProbComp F)
       let a ← ($ᵗ F : ProbComp F)
       (simulateQ (honestImplParamReal gp gen a b) adversary).run' s) := by
   let : Fintype G := Fintype.ofFinite G
   unfold ckaSecurityImplLazyReal
-  rw [← OracleComp.ProgramLogic.Relational.probOutput_simulateQ_consumeLazy_run'_eq
+  refine (OracleComp.ProgramLogic.Relational.evalDistEq_simulateQ_consumeLazy_run'_eq
         (spec := ckaSecuritySpec (CKAState F G) G G F) (τ := F)
         (implFam := fun b => OracleComp.ProgramLogic.Relational.consumeLazy
           (hit := hitA gp)
           (implFam := fun a => honestImplParamReal gp gen a b))
         (hit := hitB gp)
         (h_indep := fun t s' b₁ b₂ h => hindepB_param_honest gp t s' b₁ b₂ h)
-        adversary (s, none)]
-  exact evalDist_bind_congr' _ (ob₁ := fun b =>
-      (simulateQ (OracleComp.ProgramLogic.Relational.consumeLazy
-        (hit := hitA gp)
-        (implFam := fun a => honestImplParamReal gp gen a b)) adversary).run' (s, none))
-    (ob₂ := fun b => do
-      let a ← ($ᵗ F : ProbComp F)
-      (simulateQ (honestImplParamReal gp gen a b) adversary).run' s)
-    (fun b => by
-      exact (OracleComp.ProgramLogic.Relational.probOutput_simulateQ_consumeLazy_run'_eq
-        (spec := ckaSecuritySpec (CKAState F G) G G F) (τ := F)
-        (implFam := fun a => honestImplParamReal gp gen a b)
-        (hit := hitA gp)
-        (h_indep := fun t s'' a₁ a₂ h => hindepA_param_honest gp b t s'' a₁ a₂ h)
-        adversary s).symm)
+        adversary (s, none)).symm.trans ?_
+  exact EvalDistEq.bind_right _ fun b =>
+    (OracleComp.ProgramLogic.Relational.evalDistEq_simulateQ_consumeLazy_run'_eq
+      (spec := ckaSecuritySpec (CKAState F G) G G F) (τ := F)
+      (implFam := fun a => honestImplParamReal gp gen a b)
+      (hit := hitA gp)
+      (h_indep := fun t s'' a₁ a₂ h => hindepA_param_honest gp b t s'' a₁ a₂ h)
+      adversary s).symm
 
 end Step2
 

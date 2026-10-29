@@ -8,6 +8,8 @@ import SecureMessagingDocs.Visuals.SCKAKeyMaterial
 import SecureMessagingDocs.Bibliography
 import SecureMessaging.SCKA.Defs
 
+/-! # Blueprint chapter: SCKA Definitions -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false
@@ -920,7 +922,7 @@ noncomputable def sckaGuessAdvantage [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (adversary : SCKAAdversary StA StB I Rho Rand)
     (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand) : ℝ :=
-  |(Pr[= true | securityExp scka adversary vulnA vulnB]).toReal - 1 / 2|
+  |(Pr{let x ← securityExp scka adversary vulnA vulnB}[x = true]).toReal - 1 / 2|
 ```
 :::::
 ::::::

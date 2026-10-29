@@ -14,16 +14,16 @@ game that differ only in where the two DDH-programmed scalars are sampled.
 
 The regular CKA game samples them lazily, inside the oracle stack:
 
-  `𝒟[simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) 𝒜]`.
+  `simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) 𝒜`.
 
 The parameterized game samples them eagerly, before the adversary runs:
 
-  `𝒟[do b a ← $ᵗ F; simulateQ (honestImplParamReal gp gen a b) 𝒜]`.
+  `do b a ← $ᵗ F; simulateQ (honestImplParamReal gp gen a b) 𝒜`.
 
 Here `a` is the scalar consumed at the embedding epoch, and `b` is the scalar
 consumed at the challenge epoch. The bridge proves that moving these samples
 from the oracle body to the top-level `ProbComp` does not change the output
-distribution.
+distribution: the two games are `=ᵈ`.
 
 The connection is made by the generic `consumeLazy` operator from
 `ToVCVio.OracleComp.QueryTracking.LazySampling.lean`. Given:
@@ -46,28 +46,28 @@ parameter-independence hypothesis (the `hindep` lemmas), which says that
 
 Main results in this file:
 
-* `evalDist_eager_honest_lazy_eq` — the whole-adversary bridge: for every
+* `evalDistEq_eager_honest_lazy` — the whole-adversary bridge: for every
   adversary `𝒜`,
 
-      `𝒟[do b a ← $ᵗ F; simulateQ (honestImplParamReal gp gen a b) 𝒜] =`
-      `𝒟[simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) 𝒜]`.
+      `(do b a ← $ᵗ F; simulateQ (honestImplParamReal gp gen a b) 𝒜) =ᵈ`
+      `simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) 𝒜`.
 
   Proved by induction on `𝒜` using the per-query step lemmas in `Step.lean`.
 
-* `probOutput_lazy_honest_eq` — the probability-level corollary of the
+* `prEvent_lazy_honest_eq` — the probability-level corollary of the
   bridge above, for an adversary `𝒜` simulated from the initial state
   `initGameState (.sendReady (x₀•gen)) (.recvReady x₀)`:
 
-      `Pr[= false | simulateQ (ckaSecurityImplLazyReal gp gen) 𝒜 …] =`
-      `Pr[= false | simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) 𝒜 …]`.
+      `Pr{let x ← simulateQ (ckaSecurityImplLazyReal gp gen) 𝒜 …}[x = false] =`
+      `Pr{let x ← simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) 𝒜 …}[x = false]`.
 
   The LHS uses the `consumeLazy`-wrapped lazy stack `ckaSecurityImplLazyReal`
   (from `GameOracles/Defs.lean`); the RHS uses the regular CKA game
   `ckaSecurityImpl gp false (ddhCKA F G gen)`. The proof composes two steps:
-  - `evalDist_ckaSecurityImpl_lazy_eq_eager` (from `GameOracles/Defs.lean`)
+  - `evalDistEq_ckaSecurityImpl_lazy_eager` (from `GameOracles/Defs.lean`)
     rewrites the lazy `consumeLazy` presentation as the eager
     `do b a ← $ᵗ F; …` form;
-  - `evalDist_eager_honest_lazy_eq` (the bridge above) connects that eager
+  - `evalDistEq_eager_honest_lazy` (the bridge above) connects that eager
     form with the regular CKA game.
 
 -/
@@ -97,28 +97,28 @@ set_option maxHeartbeats 2000000 in
 -- default heartbeat limit times out while checking the bridge theorem.
 omit [Inhabited F] [Fintype G] in
 /-- **Honest eager–lazy bridge.** For every adversary `𝒜` and initial
-state `s`, the eager parameterized presentation matches the regular CKA game
-at the `evalDist` level:
+state `s`, the eager parameterized presentation is equal in distribution to the
+regular CKA game:
 
-  `𝒟[do b a ← $ᵗ F; (simulateQ (honestImplParamReal gp gen a b) 𝒜).run' s] =`
-  `𝒟[(simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) 𝒜).run' s]`. -/
-lemma evalDist_eager_honest_lazy_eq
+  `(do b a ← $ᵗ F; (simulateQ (honestImplParamReal gp gen a b) 𝒜).run' s) =ᵈ`
+  `(simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) 𝒜).run' s`. -/
+lemma evalDistEq_eager_honest_lazy
     (gp : GameParams) (s : GameState (CKAState F G) G G)
     (adversary : OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool) :
-    evalDist (do
+    (do
       let b ← ($ᵗ F : ProbComp F)
       let a ← ($ᵗ F : ProbComp F)
-      (simulateQ (honestImplParamReal gp gen a b) adversary).run' s) =
-    evalDist ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run' s) := by
+      (simulateQ (honestImplParamReal gp gen a b) adversary).run' s) =ᵈ
+    ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run' s) := by
   induction adversary using OracleComp.inductionOn generalizing s with
   | pure x =>
     -- Both sides reduce to `pure x` after `simulateQ_pure` + `StateT.run'_pure`;
     -- on LHS the external samples `b, a` become a constant bind which collapses
     -- to `pure x` since `$ᵗ F` has zero failure probability.
     simp only [simulateQ_pure, StateT.run'_pure']
-    simp only [DeferredSampling.evalDist_bind_const_neverFails _ (probFailure_uniformSample _)]
+    exact (EvalDistEq.bind_const _ _).trans (EvalDistEq.bind_const _ _)
   | query_bind t k ih =>
-    let pass := evalDist_eager_honest_lazy_eq_step_passthrough (gen := gen) gp s
+    let pass := evalDistEq_eager_honest_lazy_step_passthrough (gen := gen) gp s
     -- Decompose: `simulateQ impl (query t >>= k) = (impl t).run >>= fun (u, s') =>
     --   simulateQ impl (k u) .run' s'`. Case on `t : ckaSecuritySpec.Domain`.
     -- The 9 oracle cases split into:
@@ -126,24 +126,19 @@ lemma evalDist_eager_honest_lazy_eq
     --     recvB, corruptA, corruptB. Bind-swap + IH.
     --   * 4 conditional-divergence (party-split): sendA, sendB, challA, challB.
     --     Off-party: same as non-divergence. On-party with embedding/challenge:
-    --     bijection `a ↔ x'` or `b ↔ x` via `probOutput_bind_bijective_uniform_cross`.
+    --     bijection `a ↔ x'` or `b ↔ x` via `map_uniformSample_evalDistEq_of_bijective`.
     match t with
-    | OUnif _ =>
-      exact pass _ k (fun _ _ => rfl) ih
-    | ORecvA =>
-      exact pass _ k (fun _ _ => rfl) ih
-    | ORecvB =>
-      exact pass _ k (fun _ _ => rfl) ih
-    | OCorruptA =>
-      exact pass _ k (fun _ _ => rfl) ih
-    | OCorruptB =>
-      exact pass _ k (fun _ _ => rfl) ih
-    | OSendArleak =>
-      exact evalDist_eager_honest_lazy_eq_step_passthrough
-        (gen := gen) gp s OSendArleak k (fun _ _ => rfl) ih
-    | OSendBrleak =>
-      exact evalDist_eager_honest_lazy_eq_step_passthrough
-        (gen := gen) gp s OSendBrleak k (fun _ _ => rfl) ih
+    -- `simp only` instead of a bare `rfl`, which unfolds both `QueryImpl` sums
+    -- and takes about 12 s per index.
+    | OCorruptA | OCorruptB | OSendArleak | OSendBrleak =>
+      refine pass _ k (fun _ _ => ?_) ih
+      simp only [honestImplParamReal, ckaSecurityImpl, ckaCorrectnessImpl,
+        QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
+    | OUnif _ | ORecvA | ORecvB =>
+      refine pass _ k (fun _ _ => ?_) ih
+      simp only [honestImplParamReal, ckaSecurityImpl, ckaCorrectnessImpl,
+        QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
+      rfl
     | OSendA =>  -- sendA
       -- Case-split on `gp.challengedParty`:
       -- • challengedParty=A (off-party): impl_eq via
@@ -155,12 +150,12 @@ lemma evalDist_eager_honest_lazy_eq
         refine pass _ k (fun a _ => ?_) ih
         exact honestSendA_param_run_eq_at_chal_A (gen := gen) gp h_cp a s
       | B =>
-        exact evalDist_eager_honest_lazy_eq_step_at_sendA_chal_B
+        exact evalDistEq_eager_honest_lazy_step_at_sendA_chal_B
           (gen := gen) gp h_cp s k ih
     | OSendB =>  -- sendB
       cases h_cp : gp.challengedParty with
       | A =>
-        exact evalDist_eager_honest_lazy_eq_step_at_sendB_chal_A
+        exact evalDistEq_eager_honest_lazy_step_at_sendB_chal_A
           (gen := gen) gp h_cp s k ih
       | B =>
         refine pass _ k (fun a _ => ?_) ih
@@ -168,7 +163,7 @@ lemma evalDist_eager_honest_lazy_eq
     | OChallA =>  -- challA
       cases h_cp : gp.challengedParty with
       | A =>
-        exact evalDist_eager_honest_lazy_eq_step_at_challA_chal_A
+        exact evalDistEq_eager_honest_lazy_step_at_challA_chal_A
           (gen := gen) gp h_cp s k ih
       | B =>
         refine pass _ k (fun _ b => ?_) ih
@@ -179,7 +174,7 @@ lemma evalDist_eager_honest_lazy_eq
         refine pass _ k (fun _ b => ?_) ih
         exact honestChallB_param_run_eq_at_chal_A (gen := gen) gp h_cp b s
       | B =>
-        exact evalDist_eager_honest_lazy_eq_step_at_challB_chal_B
+        exact evalDistEq_eager_honest_lazy_step_at_challB_chal_B
           (gen := gen) gp h_cp s k ih
 
 omit [Fintype G] in
@@ -189,33 +184,33 @@ same probability of outputting `false` under two presentations of the honest
 real-branch CKA game: the `consumeLazy`-wrapped oracle stack
 `ckaSecurityImplLazyReal gp gen`, and the regular false-branch oracle stack
 `ckaSecurityImpl gp false (ddhCKA F G gen)`. -/
-lemma probOutput_lazy_honest_eq [Finite G] (gp : GameParams)
+lemma prEvent_lazy_honest_eq [Finite G] (gp : GameParams)
     (adversary : CKAAdversary (CKAState F G) G G F) (x₀ : F) :
-    Pr[= false | do
+    Pr{let x ← (do
       let (b', _) ← (simulateQ (ckaSecurityImplLazyReal gp gen) adversary).run
         ((initGameState
             (CKAState.sendReady (x₀ • gen) : CKAState F G)
             (CKAState.recvReady x₀ : CKAState F G), none), none)
-      return b'] =
-    Pr[= false | do
+      return b')}[x = false] =
+    Pr{let x ← (do
       let (b', _) ← (simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run
         (initGameState
           (CKAState.sendReady (x₀ • gen) : CKAState F G)
           (CKAState.recvReady x₀ : CKAState F G))
-      return b'] := by
+      return b')}[x = false] := by
   let : Fintype G := Fintype.ofFinite G
   -- Compose Step 1 (consumeLazy commutation × 2) and Step 2 (adversary
   -- induction via bijection at hits + bind-swap at non-hits).
-  have h₁ := evalDist_ckaSecurityImpl_lazy_eq_eager (gen := gen) gp adversary
+  have h₁ := evalDistEq_ckaSecurityImpl_lazy_eager (gen := gen) gp adversary
     (initGameState
       (CKAState.sendReady (x₀ • gen) : CKAState F G)
       (CKAState.recvReady x₀ : CKAState F G))
-  have h₂ := evalDist_eager_honest_lazy_eq (gen := gen) gp
+  have h₂ := evalDistEq_eager_honest_lazy (gen := gen) gp
     (initGameState
       (CKAState.sendReady (x₀ • gen) : CKAState F G)
       (CKAState.recvReady x₀ : CKAState F G)) adversary
   simpa only [StateT.run'_eq, map_eq_bind_pure_comp, Function.comp_def] using
-    evalDist_ext_iff.mp (h₁.trans h₂) false
+    (h₁.trans h₂).prEvent_eq (· = false)
 
 end Step2
 

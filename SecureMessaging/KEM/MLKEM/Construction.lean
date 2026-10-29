@@ -41,18 +41,6 @@ open OracleComp KEMScheme ENNReal
 
 namespace MLKEM
 
-instance decidableEqEncodedTHat (params : Params) :
-    DecidableEq (Concrete.concreteEncoding params).EncodedTHat :=
-  inferInstanceAs (DecidableEq ByteArray)
-
-instance decidableEqEncodedU (params : Params) :
-    DecidableEq (Concrete.concreteEncoding params).EncodedU :=
-  inferInstanceAs (DecidableEq ByteArray)
-
-instance decidableEqEncodedV (params : Params) :
-    DecidableEq (Concrete.concreteEncoding params).EncodedV :=
-  inferInstanceAs (DecidableEq ByteArray)
-
 /-- The ML-KEM key-encapsulation mechanism at the approved parameter set `p`
 (FIPS 203 Section 7). Key generation samples K-PKE key-generation randomness
 `d` and an independent implicit-rejection seed `z`, then runs
