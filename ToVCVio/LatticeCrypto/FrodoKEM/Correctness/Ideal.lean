@@ -74,7 +74,7 @@ def ciphertext {ps : ParameterSet}
 
 /-- Integer half-width of the sufficient decoding interval. -/
 def threshold (ps : ParameterSet) : ℕ :=
-  ps.params.q / 2 ^ (ps.params.B + 1)
+  ps.params.noiseRadius
 
 /-- An integer residual entry lies outside the decoding interval `[-threshold, threshold)`. -/
 def entryBad (ps : ParameterSet) (z : ℤ) : Prop :=
@@ -164,13 +164,6 @@ private theorem noiseBound_of_good_entries (ps : ParameterSet) (t : NoiseSamples
   · intro i j; exact (centered_bound_of_not_entryBad ps _ (h i j)).2
 
 
-private theorem finiteLaw_bind_head {α β : Type} {mx my : ProbComp α}
-    (h : finiteLaw mx = finiteLaw my) (k : α → ProbComp β) :
-    finiteLaw (mx >>= k) = finiteLaw (my >>= k) := by
-  let : MeasurableSpace α := ⊤
-  let : MeasurableSpace β := ⊤
-  exact ((EvalDistEq.of_evalDist_eq h).bind (fun _ => EvalDistEq.refl _)).evalDist_eq
-
 theorem finiteLaw_residual_entry (ps : ParameterSet)
     (i : Fin mbar) (j : Fin nbar) :
     finiteLaw ((fun t => residual t i j) <$> sampleNoise ps) =
@@ -209,20 +202,20 @@ theorem finiteLaw_residual_entry (ps : ParameterSet)
           ($ᵗ (Bits (rows * cols * lenChi))))) =
       finiteLaw (ProbComp.sampleIID cols (sampleError ps)) :=
     (finiteLaw_map_congr (finiteLaw_SampleMatrix ps rows cols) _).trans
-      (finiteLaw_sampleMatrix_row rows cols (sampleError ps) (prFail_sampleError ps) r)
+      (finiteLaw_sampleMatrix_row rows cols (sampleError ps) r)
   have hcol (rows cols : ℕ) (r : Fin cols) :
       finiteLaw ((fun M => fun k => M k r) <$>
         (SampleMatrix ps.errorTable rows cols <$>
           ($ᵗ (Bits (rows * cols * lenChi))))) =
       finiteLaw (ProbComp.sampleIID rows (sampleError ps)) :=
     (finiteLaw_map_congr (finiteLaw_SampleMatrix ps rows cols) _).trans
-      (finiteLaw_sampleMatrix_col rows cols (sampleError ps) (prFail_sampleError ps) r)
+      (finiteLaw_sampleMatrix_col rows cols (sampleError ps) r)
   have hentry :
       finiteLaw ((fun M => M i j) <$>
         (SampleMatrix ps.errorTable mbar nbar <$>
           ($ᵗ (Bits (mbar * nbar * lenChi))))) = finiteLaw (sampleError ps) :=
     (finiteLaw_map_congr (finiteLaw_SampleMatrix ps mbar nbar) _).trans
-      (finiteLaw_sampleMatrix_entry mbar nbar (sampleError ps) (prFail_sampleError ps) i j)
+      (finiteLaw_sampleMatrix_entry mbar nbar (sampleError ps) i j)
   apply hProjected.trans
   dsimp only [projected, entryNoiseExp]
   refine (finiteLaw_bind_head (hrow nbar ps.params.n j) _).trans ?_

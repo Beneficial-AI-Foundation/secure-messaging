@@ -22,7 +22,7 @@ namespace ToVCVio.Radix
 /-! ## Radix packing of digit sequences -/
 
 /-- A digit sequence bounded by the radix packs below the radix power. -/
-private theorem sum_mul_pow_lt {R n : ℕ} {f : ℕ → ℕ} (h : ∀ i < n, f i < R) :
+theorem sum_mul_pow_lt {R n : ℕ} {f : ℕ → ℕ} (h : ∀ i < n, f i < R) :
     ∑ i ∈ Finset.range n, f i * R ^ i < R ^ n := by
   induction n with
   | zero => simp
@@ -64,7 +64,7 @@ private theorem sum_mul_pow_lt_pred {R n : ℕ} {f : ℕ → ℕ} (hR : 2 ≤ R)
   omega
 
 /-- Base-`R` digit extraction from a packed digit sequence. -/
-private theorem sum_mul_pow_div_pow_mod {R n : ℕ} {f : ℕ → ℕ} (h : ∀ i < n, f i < R)
+theorem sum_mul_pow_div_pow_mod {R n : ℕ} {f : ℕ → ℕ} (h : ∀ i < n, f i < R)
     {t : ℕ} (ht : t < n) :
     (∑ i ∈ Finset.range n, f i * R ^ i) / R ^ t % R = f t := by
   have hR : 0 < R := (Nat.zero_le _).trans_lt (h t ht)
@@ -124,7 +124,7 @@ private theorem sum_mul_pow_blocks {R : ℕ} (a b : ℕ) (f : ℕ → ℕ) :
   ring
 
 /-- Congruence of finite sums from termwise congruence. -/
-private theorem sum_modEq {M : ℕ} {ι : Type*} {s : Finset ι} {f g : ι → ℕ}
+theorem sum_modEq {M : ℕ} {ι : Type*} {s : Finset ι} {f g : ι → ℕ}
     (h : ∀ i ∈ s, f i ≡ g i [MOD M]) :
     (∑ i ∈ s, f i) ≡ ∑ i ∈ s, g i [MOD M] := by
   classical

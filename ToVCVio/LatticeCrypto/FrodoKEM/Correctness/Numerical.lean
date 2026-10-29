@@ -77,7 +77,6 @@ private theorem matrixBound_eq (ps : ParameterSet) :
 theorem noiseBadProb_le_failureBound (ps : ParameterSet) :
     Ideal.noiseBadProb ps ≤ failureBound ps := by
   have hbits : 0 < (config ps).seedBits := by cases ps <;> decide
-  have hprecision : 0 < (config ps).precision := by cases ps <;> decide
   have hlaw (z : ℤ) :
       Pr{let x ← Ideal.entryNoiseExp ps}[x = z] =
         (((ToVCVio.productMeasure
@@ -89,7 +88,7 @@ theorem noiseBadProb_le_failureBound (ps : ParameterSet) :
     simpa only [config, ← Nat.mul_assoc] using probOutput_entryNoiseExp ps z
   have hentry := FailureCertificate.RoundedConvolution.probEvent_le_certificate
     (config ps) (Ideal.entryNoiseExp ps) (Ideal.entryBad ps)
-    hbits hprecision (counts_totalMass ps) hlaw
+    hbits (counts_totalMass ps) hlaw
   calc
     Ideal.noiseBadProb ps ≤ 64 * Ideal.entryFailureProb ps := Ideal.noiseBadProb_le ps
     _ ≤ 64 *

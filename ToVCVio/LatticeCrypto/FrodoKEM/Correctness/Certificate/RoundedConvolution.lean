@@ -112,12 +112,14 @@ private theorem sum_single_apply (s : Finset ℤ) (f : ℤ → ℕ) (z : ℤ) :
   rw [AddMonoidAlgebra.coeff_sum, Finsupp.finsetSum_apply]
   simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_apply, Finset.sum_ite_eq']
 
-private theorem counts_apply_of_mem (c : Config) (z : ℤ)
+/-- Inside `[-a, a]`, the source count measure is the configured weight. -/
+theorem counts_apply_of_mem (c : Config) (z : ℤ)
     (hz : z ∈ Finset.Icc (-(c.a : ℤ)) (c.a : ℤ)) :
     counts c z = c.weight z := by
   rw [counts, sum_single_apply, ite_eq_left hz]
 
-private theorem counts_apply_of_not_mem (c : Config) (z : ℤ)
+/-- Outside `[-a, a]`, the source count measure vanishes. -/
+theorem counts_apply_of_not_mem (c : Config) (z : ℤ)
     (hz : z ∉ Finset.Icc (-(c.a : ℤ)) (c.a : ℤ)) :
     counts c z = 0 := by
   rw [counts, sum_single_apply, ite_eq_right hz]
@@ -661,13 +663,12 @@ private theorem weightedMass_eq_packExtract (c : Config) (w : ℤ → ℕ)
   simpa only [show 2 * center c + 1 - 1 = 2 * center c by omega] using hdot
 
 theorem certificateValues_eq (c : Config) (w : ℤ → ℕ)
-    (hbits : 0 < c.seedBits) (hprecision : 0 < c.precision)
+    (hbits : 0 < c.seedBits)
     (hmass : ToVCVio.totalMass (counts c) = 2 ^ c.seedBits)
     (hw : ∀ z, w z ≤ 1) :
     certificateValues c w =
       (Finsupp.sum (lowerCounts c c.steps * counts c) (fun z a => a * w z),
        2 ^ c.precision - ToVCVio.totalMass (lowerCounts c c.steps)) := by
-  have _ := hprecision
   change (((run c * extraPack c * weightPack c w) >>> (bits c * (2 * center c))) % radix c,
       2 ^ c.precision - run c % (radix c - 1)) = _
   refine Prod.ext ?_ ?_
@@ -794,7 +795,7 @@ private theorem sum_union_support_weighted_right
 theorem probEvent_le_certificate
     (c : Config) (χ : ProbComp ℤ)
     (bad : ℤ → Prop) [DecidablePred bad]
-    (hbits : 0 < c.seedBits) (hprecision : 0 < c.precision)
+    (hbits : 0 < c.seedBits)
     (hmass : ToVCVio.totalMass (counts c) = 2 ^ c.seedBits)
     (hlaw : ∀ z, Pr{let x ← χ}[x = z] =
       (((ToVCVio.productMeasure (counts c) (counts c)) ^ c.steps * counts c) z : ℝ≥0∞) /
@@ -861,7 +862,7 @@ theorem probEvent_le_certificate
     rw [hmissingNat]
     simp only [Nat.cast_mul, Nat.cast_pow, Nat.cast_ofNat]
     exact ENNReal.mul_div_mul_left _ _ (by positivity) (by simp)
-  rw [certificateValues_eq c w hbits hprecision hmass hw]
+  rw [certificateValues_eq c w hbits hmass hw]
   dsimp only
   calc
     _ ≤ ((Finsupp.sum A (fun z a => a * w z) : ℕ) : ℝ≥0∞) /
