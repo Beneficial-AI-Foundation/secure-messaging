@@ -176,9 +176,11 @@ theorem dc_ec_add (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B))
         rw [hBD, pow_succ, hQ]; push_cast; ring] at hlo hhi
     have hz : centeredRepr e = 0 := by
       rcases lt_trichotomy (centeredRepr e) 0 with h | h | h
-      · nlinarith
+      · have := mul_le_mul_of_nonneg_left (show centeredRepr e ≤ -1 by omega) hq0.le
+        linarith
       · exact h
-      · nlinarith
+      · have := mul_le_mul_of_nonneg_left (show 1 ≤ centeredRepr e by omega) hq0.le
+        linarith
     have he : e = 0 := by rw [centeredRepr_intCast e, hz]; simp
     rw [he, add_zero, dc_ec p hw k]
   have hsn : 2 ^ (p.D - p.B) * 2 ^ p.B = p.q := by rw [hQ, ← pow_add]; congr 1; omega

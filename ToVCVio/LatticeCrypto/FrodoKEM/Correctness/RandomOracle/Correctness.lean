@@ -82,26 +82,12 @@ theorem finiteLaw_samplesFromStreams_uniform (ps : ParameterSet) :
     (streamPairEquiv ps).bijective
   have hm := finiteLaw_map_congr he.evalDist_eq (streamsToSamples ps)
   rw [Functor.map_map] at hm
-  calc
-    ToVCVio.finiteLaw
-        (do
-          let kg ← $ᵗ (Bits (outputLength ps .keygenNoise))
-          let enc ← $ᵗ (Bits (outputBits ps))
-          return samplesFromStreams ps kg enc) =
-      ToVCVio.finiteLaw
-        ((fun p => samplesFromStreams ps p.1 p.2) <$>
-          ($ᵗ (Bits (outputLength ps .keygenNoise) × Bits (outputBits ps)))) := by
-        rw [SampleableType.uniformSample_prod_eq_bind]
-        simp only [map_eq_bind_pure_comp, bind_assoc, Function.comp_apply, pure_bind]
-    _ = ToVCVio.finiteLaw
-        ((streamsToSamples ps ∘ streamPairEquiv ps) <$>
-          ($ᵗ (Bits (outputLength ps .keygenNoise) × Bits (outputBits ps)))) := by
-        congr 3
-    _ = ToVCVio.finiteLaw (streamsToSamples ps <$> ($ᵗ (NoiseStreams ps))) := hm
-    _ = ToVCVio.finiteLaw (Ideal.sampleNoise ps) := by
-      simp only [SampleableType.uniformSample_prod_eq_bind, Ideal.sampleNoise,
-        streamsToSamples, map_eq_bind_pure_comp, bind_assoc, Function.comp_apply,
-        pure_bind]
+  refine Eq.trans ?_ (hm.trans ?_)
+  · rw [SampleableType.uniformSample_prod_eq_bind]
+    simp only [map_eq_bind_pure_comp, bind_assoc, Function.comp_apply, pure_bind]
+    rfl
+  · simp only [SampleableType.uniformSample_prod_eq_bind, Ideal.sampleNoise,
+      streamsToSamples, map_eq_bind_pure_comp, bind_assoc, Function.comp_apply, pure_bind]
 
 private abbrev RawInput (ps : ParameterSet) :=
   ToVCVio.FiniteXOF.Input (inputLengths ps)
@@ -175,12 +161,10 @@ private theorem eval_fixedCoinsProgram
     evalWithAnswerFn (QueryImpl.ofFn H)
         (fixedCoinsProgram ps gen fallback keySeed z message salt) =
       samplesFromCoins ps gen H fallback keySeed z message salt := by
-  have hz : lenZ ∈ inputLengths ps := by
-    simpa [inputLength] using (query_bounds ps .seedA).1
-  have hkg : 8 + ps.params.lenSeedSE ∈ inputLengths ps := by
-    simpa [inputLength] using (query_bounds ps .keygenNoise).1
-  have hh : lenSeedA + ps.params.n * nbar * ps.params.D ∈ inputLengths ps := by
-    simpa [inputLength] using (query_bounds ps .publicKeyHash).1
+  have hz : lenZ ∈ inputLengths ps := (query_bounds ps .seedA).1
+  have hkg : 8 + ps.params.lenSeedSE ∈ inputLengths ps := (query_bounds ps .keygenNoise).1
+  have hh : lenSeedA + ps.params.n * nbar * ps.params.D ∈ inputLengths ps :=
+    (query_bounds ps .publicKeyHash).1
   have hd : ps.params.ell + (ps.params.ell + ps.params.lenSalt) ∈ inputLengths ps := by
     simpa [inputLength, Nat.add_assoc] using (query_bounds ps .seedAndKey).1
   simp only [fixedCoinsProgram, longQuery, evalWithAnswerFn_bind,
@@ -238,8 +222,10 @@ private theorem fiveQueryProgram_run_eq {D R α : Type}
         return out u₀ u₁ u₂ u₃ u₄) := by
   simp only [fiveQueryProgram, randomOracle_query_bind_run', randomOracle.run_eq,
     QueryCache.empty_apply]
-  simp [QueryCache.cacheQuery_of_ne, h₁₀, h₂₀, h₂₁, h₃₀, h₃₁, h₃₂,
-    h₄₀, h₄₁, h₄₂, h₄₃, map_eq_bind_pure_comp, bind_assoc]
+  simp only [bind_pure_comp, map_eq_bind_pure_comp, simulateQ_pure, StateT.run'_eq,
+    StateT.run_pure, pure_bind, Function.comp_apply, bind_assoc, ne_eq, not_false_eq_true,
+    QueryCache.cacheQuery_of_ne, QueryCache.empty_apply,
+    h₁₀, h₂₀, h₂₁, h₃₀, h₃₁, h₃₂, h₄₀, h₄₁, h₄₂, h₄₃]
 
 private def coinQuery₀ (ps : ParameterSet) (z : Bits lenZ) : RawInput ps :=
   queryInput ps .seedA z.toList (by simp [inputLength])
@@ -308,10 +294,8 @@ private theorem seedAText_domain (ps : ParameterSet) (z : Bits lenZ) :
   simp [InDomain, inputLength]
 
 private theorem keygenText_domain (ps : ParameterSet) (keySeed : SeedSEBits ps) :
-    InDomain ps .keygenNoise (keygenPrefix.toList ++ keySeed.toList) := by
-  constructor
-  · simp [inputLength]
-  · simp [keygenPrefix]
+    InDomain ps .keygenNoise (keygenPrefix.toList ++ keySeed.toList) :=
+  ⟨by simp [inputLength], by simp [keygenPrefix]⟩
 
 private theorem publicHashText_domain (ps : ParameterSet) (pk : PublicKey ps) :
     InDomain ps .publicKeyHash (pk.seedA.toList ++ pk.b.toList) := by
@@ -323,94 +307,8 @@ private theorem seedAndKeyText_domain (ps : ParameterSet)
   simp [InDomain, inputLength, Nat.add_assoc]
 
 private theorem encryptionText_domain (ps : ParameterSet) (seed : SeedSEBits ps) :
-    InDomain ps .encryptionNoise (encryptionPrefix.toList ++ seed.toList) := by
-  constructor
-  · simp [inputLength]
-  · simp [encryptionPrefix]
-
-private theorem coinQuery₁_ne₀ (ps : ParameterSet)
-    (keySeed : SeedSEBits ps) (z : Bits lenZ) (u₀ : RawAnswer ps) :
-    coinQuery₁ ps keySeed u₀ ≠ coinQuery₀ ps z := by
-  unfold coinQuery₁ coinQuery₀
-  apply queryInput_ne_of_role_ne ps (by decide)
-  · exact keygenText_domain ps keySeed
-  · exact seedAText_domain ps z
-
-private theorem coinQuery₂_ne₀ (ps : ParameterSet) (gen : Generator ps)
-    (z : Bits lenZ) (u₀ u₁ : RawAnswer ps) :
-    coinQuery₂ ps gen u₀ u₁ ≠ coinQuery₀ ps z := by
-  unfold coinQuery₂ coinQuery₀
-  apply queryInput_ne_of_role_ne ps (by decide)
-  · exact publicHashText_domain ps _
-  · exact seedAText_domain ps z
-
-private theorem coinQuery₂_ne₁ (ps : ParameterSet) (gen : Generator ps)
-    (keySeed : SeedSEBits ps) (u₀ u₁ : RawAnswer ps) :
-    coinQuery₂ ps gen u₀ u₁ ≠ coinQuery₁ ps keySeed u₀ := by
-  unfold coinQuery₂ coinQuery₁
-  apply queryInput_ne_of_role_ne ps (by decide)
-  · exact publicHashText_domain ps _
-  · exact keygenText_domain ps keySeed
-
-private theorem coinQuery₃_ne₀ (ps : ParameterSet)
-    (message : MessageBits ps) (salt : SaltBits ps) (z : Bits lenZ)
-    (u₀ u₁ u₂ : RawAnswer ps) :
-    coinQuery₃ ps message salt u₀ u₁ u₂ ≠ coinQuery₀ ps z := by
-  unfold coinQuery₃ coinQuery₀
-  apply queryInput_ne_of_role_ne ps (by decide)
-  · exact seedAndKeyText_domain ps _ message salt
-  · exact seedAText_domain ps z
-
-private theorem coinQuery₃_ne₁ (ps : ParameterSet)
-    (message : MessageBits ps) (salt : SaltBits ps)
-    (keySeed : SeedSEBits ps) (u₀ u₁ u₂ : RawAnswer ps) :
-    coinQuery₃ ps message salt u₀ u₁ u₂ ≠ coinQuery₁ ps keySeed u₀ := by
-  unfold coinQuery₃ coinQuery₁
-  apply queryInput_ne_of_role_ne ps (by decide)
-  · exact seedAndKeyText_domain ps _ message salt
-  · exact keygenText_domain ps keySeed
-
-private theorem coinQuery₃_ne₂ (ps : ParameterSet) (gen : Generator ps)
-    (message : MessageBits ps) (salt : SaltBits ps)
-    (u₀ u₁ u₂ : RawAnswer ps) :
-    coinQuery₃ ps message salt u₀ u₁ u₂ ≠ coinQuery₂ ps gen u₀ u₁ := by
-  unfold coinQuery₃ coinQuery₂
-  apply queryInput_ne_of_role_ne ps (by decide)
-  · exact seedAndKeyText_domain ps _ message salt
-  · exact publicHashText_domain ps _
-
-private theorem coinQuery₄_ne₀ (ps : ParameterSet) (z : Bits lenZ)
-    (u₀ u₁ u₂ u₃ : RawAnswer ps) :
-    coinQuery₄ ps u₀ u₁ u₂ u₃ ≠ coinQuery₀ ps z := by
-  unfold coinQuery₄ coinQuery₀
-  apply queryInput_ne_of_role_ne ps (by decide)
-  · exact encryptionText_domain ps _
-  · exact seedAText_domain ps z
-
-private theorem coinQuery₄_ne₁ (ps : ParameterSet) (keySeed : SeedSEBits ps)
-    (u₀ u₁ u₂ u₃ : RawAnswer ps) :
-    coinQuery₄ ps u₀ u₁ u₂ u₃ ≠ coinQuery₁ ps keySeed u₀ := by
-  unfold coinQuery₄ coinQuery₁
-  apply queryInput_ne_of_role_ne ps (by decide)
-  · exact encryptionText_domain ps _
-  · exact keygenText_domain ps keySeed
-
-private theorem coinQuery₄_ne₂ (ps : ParameterSet) (gen : Generator ps)
-    (u₀ u₁ u₂ u₃ : RawAnswer ps) :
-    coinQuery₄ ps u₀ u₁ u₂ u₃ ≠ coinQuery₂ ps gen u₀ u₁ := by
-  unfold coinQuery₄ coinQuery₂
-  apply queryInput_ne_of_role_ne ps (by decide)
-  · exact encryptionText_domain ps _
-  · exact publicHashText_domain ps _
-
-private theorem coinQuery₄_ne₃ (ps : ParameterSet)
-    (message : MessageBits ps) (salt : SaltBits ps)
-    (u₀ u₁ u₂ u₃ : RawAnswer ps) :
-    coinQuery₄ ps u₀ u₁ u₂ u₃ ≠ coinQuery₃ ps message salt u₀ u₁ u₂ := by
-  unfold coinQuery₄ coinQuery₃
-  apply queryInput_ne_of_role_ne ps (by decide)
-  · exact encryptionText_domain ps _
-  · exact seedAndKeyText_domain ps _ message salt
+    InDomain ps .encryptionNoise (encryptionPrefix.toList ++ seed.toList) :=
+  ⟨by simp [inputLength], by simp [encryptionPrefix]⟩
 
 private theorem fixedCoinsProgram_run_eq
     (ps : ParameterSet) (gen : Generator ps)
@@ -426,16 +324,18 @@ private theorem fixedCoinsProgram_run_eq
         let u₄ ← $ᵗ (RawAnswer ps)
         return coinOutput ps u₀ u₁ u₂ u₃ u₄) := by
   rw [fixedCoinsProgram_eq_fiveQuery]
-  exact fiveQueryProgram_run_eq
+  refine fiveQueryProgram_run_eq
     (coinQuery₀ ps z) (coinQuery₁ ps keySeed) (coinQuery₂ ps gen)
     (coinQuery₃ ps message salt) (coinQuery₄ ps) (coinOutput ps)
-    (coinQuery₁_ne₀ ps keySeed z)
-    (coinQuery₂_ne₀ ps gen z) (coinQuery₂_ne₁ ps gen keySeed)
-    (coinQuery₃_ne₀ ps message salt z)
-    (coinQuery₃_ne₁ ps message salt keySeed)
-    (coinQuery₃_ne₂ ps gen message salt)
-    (coinQuery₄_ne₀ ps z) (coinQuery₄_ne₁ ps keySeed)
-    (coinQuery₄_ne₂ ps gen) (coinQuery₄_ne₃ ps message salt)
+    ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ <;> intros <;>
+    dsimp only [coinQuery₀, coinQuery₁, coinQuery₂, coinQuery₃, coinQuery₄] <;>
+    apply queryInput_ne_of_role_ne ps (by decide) <;>
+    first
+      | with_reducible exact seedAText_domain ps _
+      | with_reducible exact keygenText_domain ps _
+      | with_reducible exact publicHashText_domain ps _
+      | with_reducible exact encryptionText_domain ps _
+      | exact seedAndKeyText_domain ps _ _ _
 
 private theorem finiteLaw_bind_head {α β : Type} {mx my : ProbComp α}
     (h : finiteLaw mx = finiteLaw my) (k : α → ProbComp β) :
@@ -465,79 +365,19 @@ private theorem finiteLaw_fiveAnswers (ps : ParameterSet) :
           let kg ← $ᵗ (Bits (outputLength ps .keygenNoise))
           let enc ← $ᵗ (Bits (outputBits ps))
           return samplesFromStreams ps kg enc) := by
-  let long := $ᵗ (RawAnswer ps)
-  let rest (u₁ : RawAnswer ps) : ProbComp (Ideal.NoiseSamples ps) := do
-    let u₄ ← long
-    return samplesFromStreams ps
-      (ToVCVio.FiniteXOF.prefix u₁ (outputLength ps .keygenNoise))
-      (ToVCVio.FiniteXOF.prefix u₄ (outputBits ps))
-  let tail (u₁ : RawAnswer ps) : ProbComp (Ideal.NoiseSamples ps) := do
-    let _u₂ ← long
-    let _u₃ ← long
-    rest u₁
-  let middle : ProbComp (Ideal.NoiseSamples ps) := do
-    let u₁ ← long
-    tail u₁
-  have hdrop : finiteLaw
-      (do
-        let u₀ ← long
-        let u₁ ← long
-        let u₂ ← long
-        let u₃ ← long
-        let u₄ ← long
-        return coinOutput ps u₀ u₁ u₂ u₃ u₄) =
-      finiteLaw (do let u₁ ← long; rest u₁) := by
-    have htail (u₁ : RawAnswer ps) : finiteLaw (tail u₁) = finiteLaw (rest u₁) := by
-      apply (finiteLaw_bind_const long _).trans
-      exact finiteLaw_bind_const long (rest u₁)
-    have hmiddle : finiteLaw middle =
-        finiteLaw (do let u₁ ← long; rest u₁) :=
-      finiteLaw_bind_congr long htail
-    calc
-      finiteLaw
-          (do
-            let u₀ ← long
-            let u₁ ← long
-            let u₂ ← long
-            let u₃ ← long
-            let u₄ ← long
-            return coinOutput ps u₀ u₁ u₂ u₃ u₄) =
-        finiteLaw (long >>= fun _ => middle) := by rfl
-      _ = finiteLaw middle := finiteLaw_bind_const long middle
-      _ = finiteLaw (do let u₁ ← long; rest u₁) := hmiddle
-  apply hdrop.trans
   have hkg := ToVCVio.FiniteXOF.finiteLaw_prefix_uniform
-    (outputBits ps) (outputLength ps .keygenNoise)
-    (query_bounds ps .keygenNoise).2
-  have henc := ToVCVio.FiniteXOF.finiteLaw_prefix_uniform
-    (outputBits ps) (outputBits ps) (by rfl)
-  have htwo : finiteLaw
-      (do
-        let u₁ ← long
-        let u₄ ← long
-        return samplesFromStreams ps
-          (ToVCVio.FiniteXOF.prefix u₁ (outputLength ps .keygenNoise))
-          (ToVCVio.FiniteXOF.prefix u₄ (outputBits ps))) =
-      finiteLaw
-        (do
-          let kg ← $ᵗ (Bits (outputLength ps .keygenNoise))
-          let enc ← $ᵗ (Bits (outputBits ps))
-          return samplesFromStreams ps kg enc) := by
-    have hmap : finiteLaw
-        ((ToVCVio.FiniteXOF.prefix · (outputLength ps .keygenNoise)) <$> long >>=
-          fun kg => (ToVCVio.FiniteXOF.prefix · (outputBits ps)) <$> long >>=
-            fun enc => pure (samplesFromStreams ps kg enc)) =
-        finiteLaw
-          (($ᵗ (Bits (outputLength ps .keygenNoise))) >>= fun kg =>
-            ($ᵗ (Bits (outputBits ps))) >>= fun enc =>
-              pure (samplesFromStreams ps kg enc)) := by
-      apply (finiteLaw_bind_head hkg _).trans
-      refine finiteLaw_bind_congr
-        ($ᵗ (Bits (outputLength ps .keygenNoise))) fun _ => ?_
-      exact finiteLaw_bind_head henc _
-    simpa only [rest, long, map_eq_bind_pure_comp, Function.comp_apply,
-      bind_assoc, pure_bind] using hmap
-  exact htwo
+    (outputBits ps) (outputLength ps .keygenNoise) (query_bounds ps .keygenNoise).2
+  have henc := ToVCVio.FiniteXOF.finiteLaw_prefix_uniform (outputBits ps) (outputBits ps) le_rfl
+  have hmap := (finiteLaw_bind_head hkg fun kg =>
+      (fun v => ToVCVio.FiniteXOF.prefix v (outputBits ps)) <$> ($ᵗ (RawAnswer ps)) >>= fun enc =>
+        pure (samplesFromStreams ps kg enc)).trans
+    (finiteLaw_bind_congr _ fun kg =>
+      finiteLaw_bind_head henc fun enc => pure (samplesFromStreams ps kg enc))
+  simp only [map_eq_bind_pure_comp, Function.comp_apply, bind_assoc, pure_bind] at hmap
+  refine Eq.trans ?_ hmap
+  simp only [coinOutput]
+  refine (finiteLaw_bind_const _ _).trans (finiteLaw_bind_congr _ fun _ => ?_)
+  exact (finiteLaw_bind_const _ _).trans (finiteLaw_bind_const _ _)
 
 private theorem finiteLaw_lazy_fixedCoins
     (ps : ParameterSet) (gen : Generator ps)
@@ -579,22 +419,8 @@ theorem finiteLaw_samplesFromCoins
       finiteLaw
         ((simulateQ (RawOracle ps).randomOracle
           (fixedCoinsProgram ps gen fallback keySeed z message salt)).run' ∅) := by
-    calc
-      finiteLaw
-          ((fun H => samplesFromCoins ps gen H fallback keySeed z message salt) <$>
-            ($ᵗ (Table ps))) =
-        finiteLaw
-          (do
-            let H ← $ᵗ (Table ps)
-            pure (evalWithAnswerFn (QueryImpl.ofFn H)
-              (fixedCoinsProgram ps gen fallback keySeed z message salt))) := by
-          simp only [map_eq_bind_pure_comp, Function.comp_def]
-          refine finiteLaw_bind_congr ($ᵗ (Table ps)) fun H => ?_
-          rw [eval_fixedCoinsProgram]
-      _ = finiteLaw
-          ((simulateQ (RawOracle ps).randomOracle
-            (fixedCoinsProgram ps gen fallback keySeed z message salt)).run' ∅) :=
-        heager.symm
+    refine Eq.trans ?_ heager.symm
+    simp only [map_eq_bind_pure_comp, Function.comp_def, eval_fixedCoinsProgram]
   exact htableMap.trans (heager'.trans
     (finiteLaw_lazy_fixedCoins ps gen fallback keySeed z message salt))
 
@@ -632,18 +458,15 @@ noncomputable def honestNoiseBadProb
   ]
 
 private theorem prob_bind_const {α : Type} (mx : ProbComp α)
-    (hmx : Pr{let _ ← mx}[True] = 1) (f : α → ProbComp Prop) {ε : ℝ≥0∞}
+    (f : α → ProbComp Prop) {ε : ℝ≥0∞}
     (h : ∀ a, prEvent (f a) = ε) : prEvent (mx >>= f) = ε := by
-  have hh := prEvent_bind_eq_of_forall_eq mx hmx f (fun p => p)
+  simpa only [id_map'] using prEvent_bind_eq_of_forall_eq mx (by simp) f (fun p => p)
     (fun a => by simpa only [id_map'] using h a)
-  simpa only [id_map'] using hh
 
 private theorem five_coin_average {T A B C D E : Type}
     (table : ProbComp T) (a : ProbComp A) (b : ProbComp B) (c : ProbComp C)
     (d : ProbComp D) (e : ProbComp E) (P : T → A → B → C → D → E → Prop)
-    (ha : Pr{let _ ← a}[True] = 1) (hb : Pr{let _ ← b}[True] = 1)
-    (hc : Pr{let _ ← c}[True] = 1) (hd : Pr{let _ ← d}[True] = 1)
-    (he : Pr{let _ ← e}[True] = 1) {ε : ℝ≥0∞}
+    {ε : ℝ≥0∞}
     (h : ∀ aa bb cc dd ee, Pr{let t ← table}[P t aa bb cc dd ee] = ε) :
     Pr{
       let t ← table
@@ -654,22 +477,10 @@ private theorem five_coin_average {T A B C D E : Type}
       let ee ← e
     }[P t aa bb cc dd ee] = ε := by
   simp only [← bind_pure_comp]
-  rw [OracleComp.prEvent_bind_bind_swap]
-  apply prob_bind_const a ha
-  intro aa
-  rw [OracleComp.prEvent_bind_bind_swap]
-  apply prob_bind_const b hb
-  intro bb
-  rw [OracleComp.prEvent_bind_bind_swap]
-  apply prob_bind_const c hc
-  intro cc
-  rw [OracleComp.prEvent_bind_bind_swap]
-  apply prob_bind_const d hd
-  intro dd
-  rw [OracleComp.prEvent_bind_bind_swap]
-  apply prob_bind_const e he
-  intro ee
-  simpa only [← bind_pure_comp] using h aa bb cc dd ee
+  iterate 5
+    rw [OracleComp.prEvent_bind_bind_swap]
+    refine prob_bind_const _ _ fun _ => ?_
+  simpa only [← bind_pure_comp] using h _ _ _ _ _
 
 /-- The table-averaged residual-noise event has exactly the accepted ideal noise law. -/
 theorem honestNoiseBadProb_eq_ideal
@@ -692,14 +503,7 @@ theorem honestNoiseBadProb_eq_ideal
         (fun t => ¬ NoiseBound ps.params
           ((Ideal.residual t).map (fun z : ℤ => (z : ZMod ps.params.q))))
     simpa only [prEvent_map, samplesFromCoins_residual_eq, Ideal.noiseBadProb, P] using h
-  exact five_coin_average
-    (T := Table ps) (A := SharedSecretBits ps) (B := SeedSEBits ps)
-    (C := Bits lenZ) (D := MessageBits ps) (E := SaltBits ps)
-    (table := ToVCVio.FiniteXOF.sampleTable (inputLengths ps) (outputBits ps))
-    (a := $ᵗ (SharedSecretBits ps)) (b := $ᵗ (SeedSEBits ps))
-    (c := $ᵗ (Bits lenZ)) (d := $ᵗ (MessageBits ps))
-    (e := $ᵗ (SaltBits ps)) (P := P)
-    (by simp) (by simp) (by simp) (by simp) (by simp) hpoint
+  exact five_coin_average _ _ _ _ _ _ P hpoint
 
 private theorem honestFailureProb_le_honestNoiseBadProb
     (ps : ParameterSet) (gen : Generator ps) :
