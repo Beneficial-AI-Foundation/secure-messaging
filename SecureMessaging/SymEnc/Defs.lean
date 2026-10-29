@@ -29,14 +29,21 @@ operations and information-theoretic perfect-secrecy notions. The EtM proof
 instead uses a deterministic cipher with a computational one-time secrecy
 assumption; `DetSEAlg` and its game below provide that interface.
 
-## Deviations from Ros26
+## Generalizations of Ros26
+
+The game below is Ros26's game when `keygen` is uniform on `K` and all ciphertexts have one
+length.
 
 - **Key generation**: Ros26 samples the key uniformly from the key space. We use the
-  scheme's `keygen`.
+  scheme's `keygen`, which can be any distribution; `keygen = $ᵗ K` gives Ros26's game. EtM
+  builds its key generation from `keygen`.
 - **Random ciphertexts by length**: Ros26 samples the random ciphertext from the whole
   ciphertext space. As in NRS14, the random branch here returns a uniform ciphertext of the
   same length as the real one (`|C|` random bits). The length and the uniform sample of each
-  length come from the class `LenSampleable C`.
+  length come from the class `LenSampleable C`. With one length (`LenSampleable.const C`),
+  this is Ros26's sampling. With several lengths, Ros26's game is undefined (infinite `C`) or
+  lost by every padded cipher (finite `C`). The game leaks the ciphertext length, so it
+  implies message privacy only for schemes that satisfy `LengthRegular`.
 -/
 
 open OracleSpec OracleComp ENNReal

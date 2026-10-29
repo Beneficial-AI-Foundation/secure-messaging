@@ -106,11 +106,14 @@ def LengthRegular [LenSampleable C] (lenM : M → ℕ) (se : DetSEAlg K M C) : P
 :::
 
 :::::::definition "aead_etm_det_se_ots" (parent := "aead_encrypt_then_mac") (lean := "DetSEAlg.oracleEncrypt, DetSEAlg.securityExpFixedBit, DetSEAlg.distAdvantage") (uses := "aead_etm_det_se")
-Adapted from {Informal.citet Ros26}[], Definition 5.3.2 (computational one-time secrecy). There,
+Generalizes {Informal.citet Ros26}[], Definition 5.3.2 (computational one-time secrecy). There,
 the key is uniform on the key space, and the random ciphertext is uniform on $`\mathcal C`.
 Here, the key comes from $`\mathsf{SE.KeyGen}`, and the random ciphertext is uniform among the
 ciphertexts of the same length as the real one, as in the $`\$` oracle of
-{Informal.citet NRS14}[], Figure 4.
+{Informal.citet NRS14}[], Figure 4. With a uniform $`\mathsf{SE.KeyGen}` and ciphertexts of one
+length, the two games are the same. With several lengths, the game of Ros26 is undefined if
+$`\mathcal C` is infinite, and no padded cipher satisfies it if $`\mathcal C` is finite. The game
+here reveals the ciphertext length, so it hides the message only for length-regular schemes.
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Game state and notation}" (kind := "scheme-notation")
@@ -150,7 +153,7 @@ def oracleEncrypt [LenSampleable C] (se : DetSEAlg K M C) (b : Bool) :
 ```
 :::::
 
-:::::gameCell "\\Exp{\\textsf{ots}\\text{-}b}{\\textsf{SE}}(\\adv)" (kind := "game")
+:::::gameCell "\\Exp{\\textsf{ots}\\text{-}b}{\\textsf{SE}}(\\adv)" (kind := "compact")
 $`\begin{array}{l}
 b' \gets \adv^{\Oenc}; \\
 \Return b'
