@@ -49,10 +49,26 @@ theorem finiteLaw_map_congr {α β : Type} {mx my : ProbComp α}
   let : MeasurableSpace β := ⊤
   exact ((EvalDistEq.of_evalDist_eq h).map f).evalDist_eq
 
+/-- Replacing the head of a bind by one with the same finite law preserves the law. -/
+theorem finiteLaw_bind_head {α β : Type} {mx my : ProbComp α}
+    (h : finiteLaw mx = finiteLaw my) (k : α → ProbComp β) :
+    finiteLaw (mx >>= k) = finiteLaw (my >>= k) := by
+  let : MeasurableSpace α := ⊤
+  let : MeasurableSpace β := ⊤
+  exact ((EvalDistEq.of_evalDist_eq h).bind (fun _ => EvalDistEq.refl _)).evalDist_eq
+
+/-- A discarded first computation does not change the finite law. -/
+theorem finiteLaw_bind_const {α β : Type}
+    (mx : ProbComp α) (my : ProbComp β) :
+    finiteLaw (mx >>= fun _ => my) = finiteLaw my := by
+  let : MeasurableSpace α := ⊤
+  let : MeasurableSpace β := ⊤
+  exact (EvalDistEq.bind_const mx my).evalDist_eq
+
 private theorem probEvent_coord {α : Type} (n : ℕ) (g : Fin n → ProbComp α)
-    (h : ∀ i, prFail (g i) = 0) (i : Fin n) (p : α → Prop) :
+    (i : Fin n) (p : α → Prop) :
     Pr{let v ← Fin.mOfFn n g}[p (v i)] = Pr{let x ← g i}[p x] :=
-  prEvent_coord_mOfFn n g i p fun j _ => (prFail_eq_zero_iff (g j)).mp (h j)
+  prEvent_coord_mOfFn n g i p fun j _ => (prFail_eq_zero_iff (g j)).mp (prFail_eq_zero _)
 
 /-- Sample a matrix whose entries are independent draws from `χ`. -/
 def sampleMatrix {α : Type} (rows cols : ℕ)
@@ -115,7 +131,7 @@ theorem finiteLaw_sampleMatrix_map
 /-- A selected row of an independently sampled matrix has the row sampling law. -/
 theorem finiteLaw_sampleMatrix_row
     {α : Type} (rows cols : ℕ) (χ : ProbComp α)
-    (_hχ : prFail χ = 0) (i : Fin rows) :
+    (i : Fin rows) :
     finiteLaw ((fun M => M i) <$> sampleMatrix rows cols χ) =
       finiteLaw (ProbComp.sampleIID cols χ) := by
   apply finiteLaw_ext_iff.mpr
@@ -126,12 +142,12 @@ theorem finiteLaw_sampleMatrix_row
     Pr{let M ← Fin.mOfFn rows fun _ => Fin.mOfFn cols fun _ => χ}[M i = y] =
       Pr{let x ← Fin.mOfFn cols fun _ => χ}[x = y]
   exact probEvent_coord rows (fun _ => Fin.mOfFn cols fun _ => χ)
-    (fun _ => OracleComp.prFail_eq_zero _) i (· = y)
+    i (· = y)
 
 /-- A selected column of an independently sampled matrix has the column sampling law. -/
 theorem finiteLaw_sampleMatrix_col
     {α : Type} (rows cols : ℕ) (χ : ProbComp α)
-    (hχ : prFail χ = 0) (j : Fin cols) :
+    (j : Fin cols) :
     finiteLaw ((fun M => fun i => M i j) <$> sampleMatrix rows cols χ) =
       finiteLaw (ProbComp.sampleIID rows χ) := by
   apply finiteLaw_ext_iff.mpr
@@ -154,14 +170,14 @@ theorem finiteLaw_sampleMatrix_col
     _ = ∏ i, Pr{let x ← χ}[x = y i] := by
       apply Finset.prod_congr rfl
       intro i _
-      exact probEvent_coord cols (fun _ => χ) (fun _ => hχ) j (· = y i)
+      exact probEvent_coord cols (fun _ => χ) j (· = y i)
     _ = Pr{let x ← Fin.mOfFn rows fun _ => χ}[x = y] :=
       (prEvent_eq_mOfFn rows (fun _ => χ) y).symm
 
 /-- A selected entry of an independently sampled matrix has the entry sampling law. -/
 theorem finiteLaw_sampleMatrix_entry
     {α : Type} (rows cols : ℕ) (χ : ProbComp α)
-    (hχ : prFail χ = 0) (i : Fin rows) (j : Fin cols) :
+    (i : Fin rows) (j : Fin cols) :
     finiteLaw ((fun M => M i j) <$> sampleMatrix rows cols χ) =
       finiteLaw χ := by
   apply finiteLaw_ext_iff.mpr
@@ -175,9 +191,9 @@ theorem finiteLaw_sampleMatrix_entry
     Pr{let M ← Fin.mOfFn rows fun _ => Fin.mOfFn cols fun _ => χ}[M i j = y] =
         Pr{let row ← Fin.mOfFn cols fun _ => χ}[row j = y] :=
       probEvent_coord rows (fun _ => Fin.mOfFn cols fun _ => χ)
-        (fun _ => OracleComp.prFail_eq_zero _) i
+        i
         (fun row : Fin cols → α => row j = y)
     _ = Pr{let x ← χ}[x = y] :=
-      probEvent_coord cols (fun _ => χ) (fun _ => hχ) j (· = y)
+      probEvent_coord cols (fun _ => χ) j (· = y)
 
 end ToVCVio

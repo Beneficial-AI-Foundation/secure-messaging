@@ -337,20 +337,6 @@ private theorem fixedCoinsProgram_run_eq
       | with_reducible exact encryptionText_domain ps _
       | exact seedAndKeyText_domain ps _ _ _
 
-private theorem finiteLaw_bind_head {α β : Type} {mx my : ProbComp α}
-    (h : finiteLaw mx = finiteLaw my) (k : α → ProbComp β) :
-    finiteLaw (mx >>= k) = finiteLaw (my >>= k) := by
-  let : MeasurableSpace α := ⊤
-  let : MeasurableSpace β := ⊤
-  exact ((EvalDistEq.of_evalDist_eq h).bind (fun _ => EvalDistEq.refl _)).evalDist_eq
-
-private theorem finiteLaw_bind_const {α β : Type}
-    (mx : ProbComp α) (my : ProbComp β) :
-    finiteLaw (mx >>= fun _ => my) = finiteLaw my := by
-  let : MeasurableSpace α := ⊤
-  let : MeasurableSpace β := ⊤
-  exact (EvalDistEq.bind_const mx my).evalDist_eq
-
 private theorem finiteLaw_fiveAnswers (ps : ParameterSet) :
     finiteLaw
       (do

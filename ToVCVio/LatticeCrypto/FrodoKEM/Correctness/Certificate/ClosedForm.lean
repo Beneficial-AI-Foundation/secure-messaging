@@ -18,9 +18,6 @@ witnesses.
 
 namespace FailureCertificate.RoundedConvolution
 
-private theorem two_pow_eq_shift (k : ℕ) : (2 : ℕ) ^ k = 1 <<< k := by
-  simp [Nat.shiftLeft_eq]
-
 /-- `productPack` with each `radix ^ k` written as a shift. -/
 def shiftedProductPack (c : Config) : ℕ :=
   (List.range (2 * c.a + 1)).foldl (fun acc (i : ℕ) =>
@@ -37,7 +34,7 @@ theorem productPack_shifted (c : Config) : productPack c = shiftedProductPack c 
   apply congrArg (fun f : ℕ → ℕ → ℕ => (List.range (2 * c.a + 1)).foldl f acc)
   funext acc j
   simp only [radix]
-  rw [← pow_mul, two_pow_eq_shift]
+  rw [← pow_mul, ← Nat.one_shiftLeft]
 
 /-- Closed geometric form of `mask`, avoiding its Horner fold over the window. -/
 def shiftedMask (c : Config) : ℕ :=
@@ -53,7 +50,7 @@ theorem mask_shifted (c : Config) : mask c = shiftedMask c := by
   rw [ToVCVio.Packing.foldl_range_mul_add_one_eq_pack, Nat.geomSum_eq (radix_ge_two c)]
   simp only [radix]
   rw [← pow_mul]
-  simp only [two_pow_eq_shift]
+  simp only [← Nat.one_shiftLeft]
 
 /-- `extraPack` with each `radix ^ k` written as a shift. -/
 def shiftedExtraPack (c : Config) : ℕ :=
@@ -65,7 +62,7 @@ theorem extraPack_shifted (c : Config) : extraPack c = shiftedExtraPack c := by
   apply congrArg (fun f : ℕ → ℕ → ℕ => (List.range (2 * c.a + 1)).foldl f 0)
   funext acc i
   simp only [radix]
-  rw [← pow_mul, two_pow_eq_shift]
+  rw [← pow_mul, ← Nat.one_shiftLeft]
 
 /-- `step` over the shifted product pack and the closed mask. -/
 def shiftedStep (c : Config) (x : ℕ) : ℕ :=
@@ -81,7 +78,7 @@ def shiftedInit (c : Config) : ℕ := 1 <<< (c.precision + bits c * c.window)
 theorem init_shifted (c : Config) :
     2 ^ c.precision * radix c ^ c.window = shiftedInit c := by
   unfold shiftedInit radix
-  rw [← pow_mul, ← pow_add, two_pow_eq_shift]
+  rw [← pow_mul, ← pow_add, ← Nat.one_shiftLeft]
 
 theorem runN_shifted (c : Config) (k : ℕ) :
     runN c k = (List.range k).foldl (fun x _ => shiftedStep c x) (shiftedInit c) := by
@@ -155,7 +152,7 @@ theorem certificateValues_eq_closedValues (c : Config) (w : ℤ → ℕ) (lo mid
     onesPack_closed _ _ (radix_ge_two c)]
   simp only [radix]
   simp only [← pow_mul]
-  simp only [two_pow_eq_shift]
+  simp only [← Nat.one_shiftLeft]
 
 end FailureCertificate.RoundedConvolution
 

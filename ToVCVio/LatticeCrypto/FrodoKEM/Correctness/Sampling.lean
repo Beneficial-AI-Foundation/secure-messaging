@@ -37,10 +37,6 @@ theorem noiseCount_neg (ps : ParameterSet) (z : ℤ) :
     noiseCount ps (-z) = noiseCount ps z := by
   simp only [noiseCount, Int.natAbs_neg]
 
-theorem prFail_sampleError (ps : ParameterSet) :
-    prFail (sampleError ps) = 0 :=
-  OracleComp.prFail_eq_zero _
-
 private def sampleMagnitude (table : ErrorTable) (t : ℕ) : ℕ :=
   (List.finRange table.d).countP fun i =>
     decide (table.thresholds[i.castSucc] < t)

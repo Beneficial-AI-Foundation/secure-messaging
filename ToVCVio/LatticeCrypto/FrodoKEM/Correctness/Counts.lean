@@ -22,24 +22,14 @@ private theorem counts_apply (ps : ParameterSet) (z : ℤ) :
     FailureCertificate.RoundedConvolution.counts (config ps) z = noiseCount ps z := by
   classical
   by_cases hz : z ∈ Finset.Icc (-(ps.errorTable.d : ℤ)) (ps.errorTable.d : ℤ)
-  · rw [FailureCertificate.RoundedConvolution.counts,
-      AddMonoidAlgebra.coeff_sum, Finsupp.finsetSum_apply, Finset.sum_eq_single z]
-    · simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_eq_same]
-      rfl
-    · intro y hy hne
-      simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_apply, hne, ite_false]
-    · exact fun h => (h hz).elim
+  · rw [FailureCertificate.RoundedConvolution.counts_apply_of_mem (config ps) z hz]
+    rfl
   · have hzero : noiseCount ps z = 0 := by
       have hn : ¬ z.natAbs ≤ ps.errorTable.d := by
         simp only [Finset.mem_Icc] at hz
         cases z <;> simp_all; omega
       simp [noiseCount, hn]
-    rw [hzero, FailureCertificate.RoundedConvolution.counts,
-      AddMonoidAlgebra.coeff_sum, Finsupp.finsetSum_apply]
-    apply Finset.sum_eq_zero
-    intro y hy
-    have hne : y ≠ z := fun h => hz (h ▸ hy)
-    simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_apply, hne, ite_false]
+    rw [hzero, FailureCertificate.RoundedConvolution.counts_apply_of_not_mem (config ps) z hz]
 
 /-- The modern source count measure has exactly sixteen bits of mass. -/
 theorem counts_totalMass (ps : ParameterSet) :

@@ -33,27 +33,6 @@ def entryNoiseIntExp (n : ℕ) (χ : ProbComp ℤ) : ProbComp ℤ := do
   return (∑ k : Fin n, s1 k * e0 k) -
     (∑ k : Fin n, e1 k * s0 k) + extra
 
-private theorem counts_apply_of_mem (c : Config) (z : ℤ)
-    (hz : z ∈ Finset.Icc (-(c.a : ℤ)) (c.a : ℤ)) :
-    counts c z = c.weight z := by
-  classical
-  rw [counts, AddMonoidAlgebra.coeff_sum, Finsupp.finsetSum_apply,
-    Finset.sum_eq_single z]
-  · simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_eq_same]
-  · intro y hy hne
-    simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_apply, hne, ite_false]
-  · exact fun h => (h hz).elim
-
-private theorem counts_apply_of_not_mem (c : Config) (z : ℤ)
-    (hz : z ∉ Finset.Icc (-(c.a : ℤ)) (c.a : ℤ)) :
-    counts c z = 0 := by
-  classical
-  rw [counts, AddMonoidAlgebra.coeff_sum, Finsupp.finsetSum_apply]
-  apply Finset.sum_eq_zero
-  intro y hy
-  have hne : y ≠ z := fun h => hz (h ▸ hy)
-  simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_apply, hne, ite_false]
-
 private theorem probOutput_seq_map_eq_tsum_ite {α β γ : Type} [DecidableEq γ]
     (mx : ProbComp α) (my : ProbComp β) (f : α → β → γ) (z : γ) :
     Pr{let w ← f <$> mx <*> my}[w = z] =
