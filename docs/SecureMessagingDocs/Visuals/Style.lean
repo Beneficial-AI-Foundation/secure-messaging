@@ -91,10 +91,19 @@ def smDocsCss : String := r#"
   grid-column: auto;
 }
 
-/* A grid with `compact-third` cells lays them out three-up, each column as wide
-   as its content needs. */
+/* A grid with `compact-third` cells puts them in one row, each as wide as its
+   content needs. A cell that does not fit wraps to the next row. */
 .game-grid:has(> .game-cell[data-kind="compact-third"]) {
-  grid-template-columns: repeat(3, auto);
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.game-grid > .game-cell[data-kind="compact-third"] {
+  flex: 1 1 auto;
+}
+
+.game-grid:has(> .game-cell[data-kind="compact-third"]) > :not(.game-cell) {
+  flex-basis: 100%;
 }
 
 /* Other blocks in a grid, such as a Lean pill, span the full width. */

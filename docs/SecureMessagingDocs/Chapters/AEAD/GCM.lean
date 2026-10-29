@@ -272,24 +272,37 @@ supported length, ciphertext space $`\bit^L \times \bit^{128}` and the algorithm
 The block cipher $`\mathsf{CIPH}_K` of GCM-AE and GCM-AD is the permutation of $`P`.
 
 ::::::gameGrid
-:::::gameCell "\\mathsf{KeyGen}()" (kind := "compact")
+:::::gameCell "\\mathsf{KeyGen}()" (kind := "compact-third")
 $`\begin{array}{l}
 K \gets P.\mathsf{keygen}; \\
 \Return K
 \end{array}`
 :::::
 
-:::::gameCell "\\Enc(K, a, m)" (kind := "compact")
+:::::gameCell "\\Enc(K, a, m)" (kind := "compact-third")
 $`\begin{array}{l}
 \Return \mathsf{GCM\text{-}AE}_K(\mathit{IV}, m, a)
 \end{array}`
 :::::
 
-:::::gameCell "\\Dec(K, a, (C, T))" (kind := "compact")
+:::::gameCell "\\Dec(K, a, (C, T))" (kind := "compact-third")
 $`\begin{array}{l}
 \Return \mathsf{GCM\text{-}AD}_K(\mathit{IV}, C, a, T)
 \end{array}`
 :::::
+
+:::leanPillCaption "one-time AEAD scheme $`\\mathsf{GCM}[P, \\mathit{IV}, L]`"
+:::
+
+```anchor gcmOneTimeAEAD (project := ".") (module := SecureMessaging.AEAD.FromGCM.Construction)
+def gcmOneTimeAEAD {K : Type} (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
+    (_hL : ValidMsgLength L) :
+    AEADScheme ProbComp (BitVec L) SupportedAAD
+      K (BitVec L × BitVec 128) where
+  keygen := prp.keygen
+  encrypt := fun k ad m => gcmEncrypt prp.toBlockCipher k iv ad.1.2 m
+  decrypt := fun k ad c => gcmDecrypt prp.toBlockCipher k iv ad.1.2 c
+```
 ::::::
 
 ::::::gameGrid
@@ -305,19 +318,6 @@ The scheme covers a part of what {Informal.citet NIST_GCM}[] allows:
 - the tag is the full 128 bits, so $`\mathsf{MSB}_t` in step 6 of Algorithm 4 is the identity.
 :::::
 ::::::
-
-:::leanPillCaption "one-time AEAD scheme $`\\mathsf{GCM}[P, \\mathit{IV}, L]`"
-:::
-
-```anchor gcmOneTimeAEAD (project := ".") (module := SecureMessaging.AEAD.FromGCM.Construction)
-def gcmOneTimeAEAD {K : Type} (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
-    (_hL : ValidMsgLength L) :
-    AEADScheme ProbComp (BitVec L) SupportedAAD
-      K (BitVec L × BitVec 128) where
-  keygen := prp.keygen
-  encrypt := fun k ad m => gcmEncrypt prp.toBlockCipher k iv ad.1.2 m
-  decrypt := fun k ad c => gcmDecrypt prp.toBlockCipher k iv ad.1.2 c
-```
 :::::::
 
 :::defTitle "aead_gcm_correctness" "AEAD-GCM correctness"
