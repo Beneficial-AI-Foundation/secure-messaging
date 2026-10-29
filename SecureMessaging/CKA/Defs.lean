@@ -396,6 +396,11 @@ Marked `@[match_pattern]` so they unfold transparently in `match` patterns. -/
 
 end ckaCorrectnessSpec
 
+/-- Whether a query of the correctness game is `SendA` or `SendB`. -/
+def isSendQuery : (ckaCorrectnessSpec Rho I).Domain → Bool
+  | ckaCorrectnessSpec.OSendA | ckaCorrectnessSpec.OSendB => true
+  | _ => false
+
 /-- Oracle spec for the CKA security game (send + recv + challenge + corrupt + rleak).
 Defines the expected oracles types. -/
 -- ANCHOR: ckaSecuritySpec
@@ -775,6 +780,11 @@ def ckaSecurityImpl (gp : GameParams) (isRandom : Bool) [SampleableType I] [Deci
 -- ANCHOR: CKACorrectnessAdversary
 abbrev CKACorrectnessAdversary (Rho I : Type) := OracleComp (ckaCorrectnessSpec Rho I) Bool
 -- ANCHOR_END: CKACorrectnessAdversary
+
+/-- `adv` makes at most `q` `SendA` and `SendB` queries combined. `Unif`, `RecvA`, and
+`RecvB` queries are not counted, and a send query counts even when its oracle rejects it. -/
+def SendQueryBound (adv : CKACorrectnessAdversary Rho I) (q : ℕ) : Prop :=
+  adv.IsQueryBoundP (fun t => isSendQuery (Rho := Rho) (I := I) t = true) q
 
 /-- Security adversary: send + recv + challenge + corruption + rleak oracles. -/
 -- ANCHOR: CKAAdversary
