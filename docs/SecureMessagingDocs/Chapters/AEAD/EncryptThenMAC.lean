@@ -46,9 +46,12 @@ Encrypt-then-MAC.
 :::defTitle "aead_etm_det_se" "Deterministic symmetric encryption"
 :::
 
-:::::::definition "aead_etm_det_se" (parent := "aead_encrypt_then_mac") (lean := "DetSEAlg, DetSEAlg.Correct, DetSEAlg.LengthRegular, DetSEAlg.oracleEncrypt, DetSEAlg.securityExpFixedBit, DetSEAlg.distAdvantage")
-Adapted from {Informal.citet Ros26}[], Definition 5.3.2, where the adversary makes any number
-of encryption queries, each under a fresh key. The game we formalize answers one query.
+:::::::definition "aead_etm_det_se" (parent := "aead_encrypt_then_mac") (lean := "DetSEAlg, DetSEAlg.Correct, DetSEAlg.LengthRegular")
+Adapted from {Informal.citet Ros26}[], Definitions 2.5.1 (syntax) and 2.5.2 (correctness).
+There, the key is uniform on the key space, $`\mathsf{Enc}` may be randomized, and
+$`\mathsf{Dec}` always returns a message. Here, $`\mathsf{SE.KeyGen}` samples the key,
+$`\mathsf{SE.Enc}` is deterministic, and $`\mathsf{SE.Dec}` can return $`\bot`. Length
+regularity is from {Informal.citet NRS14}[], Section 2.
 
 A deterministic symmetric encryption scheme $`\mathsf{SE}` is a tuple of algorithms
 $`(\mathsf{SE.KeyGen}, \mathsf{SE.Enc}, \mathsf{SE.Dec})` with key space $`\mathcal K`,
@@ -61,8 +64,8 @@ message space $`\mathcal M` and ciphertext space $`\mathcal C`, where
   $`m \gets \mathsf{SE.Dec}(K, c)`, or $`\bot`.
 
 $`\mathsf{SE.Enc}` and $`\mathsf{SE.Dec}` are deterministic. Each ciphertext $`c` has a
-length $`|c|`, and the ciphertexts of each length form a finite nonempty set, so that the game
-below can sample from it uniformly. $`\mathsf{SE}` is correct if
+length $`|c|`, and the ciphertexts of each length form a finite nonempty set, so that the
+security game can sample from it uniformly. $`\mathsf{SE}` is correct if
 $`\mathsf{SE.Dec}(K, \mathsf{SE.Enc}(K, m)) = m` for all keys $`K` and messages $`m`. Let
 $`|m|` denote a fixed length function on messages ($`\mathit{lenM}` in Lean). $`\mathsf{SE}`
 is length-regular if $`|m| = |m'|` implies $`|\mathsf{SE.Enc}(K, m)| = |\mathsf{SE.Enc}(K', m')|`
@@ -97,28 +100,36 @@ def LengthRegular [LenSampleable C] (lenM : M → ℕ) (se : DetSEAlg K M C) : P
   ∀ (k k' : K) (m m' : M), lenM m = lenM m' →
     LenSampleable.len (se.encrypt k m) = LenSampleable.len (se.encrypt k' m')
 ```
+:::::::
+
+:::defTitle "aead_etm_det_se_ots" "One-time secrecy"
+:::
+
+:::::::definition "aead_etm_det_se_ots" (parent := "aead_encrypt_then_mac") (lean := "DetSEAlg.oracleEncrypt, DetSEAlg.securityExpFixedBit, DetSEAlg.distAdvantage") (uses := "aead_etm_det_se")
+Adapted from {Informal.citet Ros26}[], Definition 5.3.2 (computational one-time secrecy). There,
+the key is uniform on the key space, and the random ciphertext is uniform on $`\mathcal C`.
+Here, the key comes from $`\mathsf{SE.KeyGen}`, and the random ciphertext is uniform among the
+ciphertexts of the same length as the real one, as in the $`\$` oracle of
+{Informal.citet NRS14}[], Figure 4.
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Game state and notation}" (kind := "scheme-notation")
-The game state consists of the key $`K`, the challenge bit $`b` and the flag
-$`\mathsf{used}`, which records whether $`\Oenc` already answered. For $`b = 0`, $`\Oenc`
-encrypts. For $`b = 1`, it returns a uniformly random ciphertext of the same length.
+The game has no state. Each call to $`\Oenc` samples a fresh key $`K`. For $`b = 0`,
+$`\Oenc` encrypts the message under $`K`. For $`b = 1`, it returns a uniformly random
+ciphertext of the same length. The adversary can call $`\Oenc` any number of times, and it
+also has access to uniform randomness.
 
 The bit $`b \in \bit` is a fixed parameter of the experiment
-$`\Exp{\textsf{ind\$}\text{-}b}{\textsf{SE}}`, not a sampled bit. The experiment returns
+$`\Exp{\textsf{ots}\text{-}b}{\textsf{SE}}`, not a sampled bit. The experiment returns
 the adversary's output $`b'`, and the advantage below compares the experiments for $`b = 0`
 and $`b = 1`.
-
-In the oracle, $`\req\varphi` means: if $`\varphi` is false, the oracle returns $`\bot`
-and the game state does not change. The adversary also has access to uniform randomness.
 :::::
 ::::::
 
 ::::::gameGrid
 :::::gameCell "\\Oenc(m)" (kind := "compact")
 $`\begin{array}{l}
-\req\;\neg\mathsf{used}; \\
-\mathsf{used} \gets \mathsf{true}; \\
+K \gets \mathsf{SE.KeyGen}; \\
 \pif\;b = 0\;\pthen \\
 \quad c \gets \mathsf{SE.Enc}(K, m); \\
 \pelse \\
@@ -130,52 +141,44 @@ $`\begin{array}{l}
 :::
 
 ```anchor detSEOracleEncrypt (project := ".") (module := SecureMessaging.SymEnc.Defs)
-def oracleEncrypt [LenSampleable C] (se : DetSEAlg K M C) (b : Bool) (k : K) :
-    QueryImpl (M →ₒ Option C) (StateT Bool ProbComp) :=
+def oracleEncrypt [LenSampleable C] (se : DetSEAlg K M C) (b : Bool) :
+    QueryImpl (M →ₒ C) ProbComp :=
   fun m => do
-    if (← get) then pure none
-    else do
-      set true
-      let c ← if b
-        then liftM (LenSampleable.unifSameLen (se.encrypt k m))
-        else pure (se.encrypt k m)
-      return some c
+    let k ← se.keygen
+    if b then LenSampleable.unifSameLen (se.encrypt k m)
+    else pure (se.encrypt k m)
 ```
 :::::
 
-:::::gameCell "\\Exp{\\textsf{ind\\$}\\text{-}b}{\\textsf{SE}}(\\adv)" (kind := "game")
+:::::gameCell "\\Exp{\\textsf{ots}\\text{-}b}{\\textsf{SE}}(\\adv)" (kind := "game")
 $`\begin{array}{l}
-K \gets \mathsf{SE.KeyGen}; \\
-\mathsf{used} \gets \mathsf{false}; \\
 b' \gets \adv^{\Oenc}; \\
 \Return b'
 \end{array}`
 
-:::leanPillCaption "IND$-CPA experiment"
+:::leanPillCaption "one-time secrecy experiment"
 :::
 
 ```anchor detSESecurityExpFixedBit (project := ".") (module := SecureMessaging.SymEnc.Defs)
 def securityExpFixedBit [LenSampleable C] (se : DetSEAlg K M C)
-    (adversary : IndCPAAdversary M C) (b : Bool) : ProbComp Bool := do
-  let k ← se.keygen
-  let (b', _) ← (simulateQ (indCPAImpl se b k) adversary).run false
-  return b'
+    (adversary : OTSAdversary M C) (b : Bool) : ProbComp Bool :=
+  simulateQ (otsImpl se b) adversary
 ```
 :::::
 ::::::
 
-The one-time IND$-CPA advantage of $`\adv` is
+The one-time secrecy advantage of $`\adv` is
 
-$$`\mathsf{Adv}^{\textsf{ind\$}}_{\textsf{SE}}(\adv)
-  = \Bigl|\, \Pr\bigl[\Exp{\textsf{ind\$}\text{-}1}{\textsf{SE}}(\adv) = 1\bigr]
-  - \Pr\bigl[\Exp{\textsf{ind\$}\text{-}0}{\textsf{SE}}(\adv) = 1\bigr] \,\Bigr|`
+$$`\mathsf{Adv}^{\textsf{ots}}_{\textsf{SE}}(\adv)
+  = \Bigl|\, \Pr\bigl[\Exp{\textsf{ots}\text{-}1}{\textsf{SE}}(\adv) = 1\bigr]
+  - \Pr\bigl[\Exp{\textsf{ots}\text{-}0}{\textsf{SE}}(\adv) = 1\bigr] \,\Bigr|`
 
-:::leanPillCaption "IND$-CPA advantage"
+:::leanPillCaption "one-time secrecy advantage"
 :::
 
 ```anchor detSEDistAdvantage (project := ".") (module := SecureMessaging.SymEnc.Defs)
 noncomputable def distAdvantage [LenSampleable C] (se : DetSEAlg K M C)
-    (adversary : IndCPAAdversary M C) : ℝ :=
+    (adversary : OTSAdversary M C) : ℝ :=
   |(Pr{let x ← securityExpFixedBit se adversary true}[x = true]).toReal -
    (Pr{let x ← securityExpFixedBit se adversary false}[x = true]).toReal|
 ```
@@ -190,7 +193,7 @@ $`\mathcal K = \mathcal M = \mathcal C = \{0,1\}^n`, where
 - $`\mathsf{SE.Enc}(K, m) = K \oplus m`,
 - $`\mathsf{SE.Dec}(K, c) = K \oplus c`.
 
-$`\mathsf{OTP}_n` is correct, and $`\mathsf{Adv}^{\textsf{ind\$}}_{\mathsf{OTP}_n}(\adv) = 0`
+$`\mathsf{OTP}_n` is correct, and $`\mathsf{Adv}^{\textsf{ots}}_{\mathsf{OTP}_n}(\adv) = 0`
 for every adversary $`\adv`. This is adapted from {Informal.citet Ros26}[], Claim 1.2.3
 (correctness) and Claim 2.2.2 (security), for the game we formalize.
 :::::
@@ -249,11 +252,13 @@ For $`\ell = 1`, let $`P` be the padded block. The map
 $`\mathit{iv} \mapsto \mathsf{AES}_k(P \oplus \mathit{iv})` is a bijection for every key $`k`,
 so a uniform $`\mathit{iv}` gives an exactly uniform ciphertext. For two or more blocks, the
 ciphertext need not be exactly uniform, because AES under $`k` is a fixed permutation and not
-a uniform random function. For $`k` and $`\mathit{iv}` sampled uniformly, the standard CBC
-analysis bounds the advantage by the PRP advantage of AES plus a collision term of order
-$`\ell^2 / 2^{128}`. For the pair that libsignal derives, add the advantage of distinguishing
-the derivation from uniform. This repository does not prove these bounds and does not
-instantiate AES-CBC in Lean.
+a uniform random function. For an adversary that makes one query, with $`k` and
+$`\mathit{iv}` sampled uniformly, the standard CBC analysis bounds the advantage by the PRP
+advantage of AES plus a collision term of order $`\ell^2 / 2^{128}`. Each query uses a fresh
+key, so for $`q` queries a hybrid argument multiplies these terms by $`q`. The reduction
+$`\mathcal D` in the security theorem below makes one query. For the pair that libsignal
+derives, add the advantage of distinguishing the derivation from uniform. This repository does
+not prove these bounds and does not instantiate AES-CBC in Lean.
 :::::
 ::::::
 :::::::
@@ -347,7 +352,7 @@ theorem etmAEAD_correct (se : DetSEAlg K_e M C_e)
 :::defTitle "aead_etm_security" "AEAD encrypt-then-MAC security"
 :::
 
-:::::theorem "aead_etm_security" (parent := "aead_encrypt_then_mac") (lean := "EtM.etmAEAD_security, EtM.prfReduction, EtM.encReduction") (tags := "gh-26") (uses := "aead_etm_spec, aead_etm_det_se, prf, aead_security_exp, aead_dist_advantage, aead_decrypt_query_bound, aead_oracles")
+:::::theorem "aead_etm_security" (parent := "aead_encrypt_then_mac") (lean := "EtM.etmAEAD_security, EtM.prfReduction, EtM.encReduction") (tags := "gh-26") (uses := "aead_etm_spec, aead_etm_det_se, aead_etm_det_se_ots, prf, aead_security_exp, aead_dist_advantage, aead_decrypt_query_bound, aead_oracles")
 Adapted from {Informal.citet NRS14}[], Theorem 1 for scheme A5 (bound of Figure 9), for
 one-time keys without a nonce.
 
@@ -355,18 +360,22 @@ Let $`\mathsf{SE}` be a deterministic symmetric encryption scheme, $`F` a PRF wi
 range $`\mathcal T`, and $`\adv` a one-time IND-CCA adversary against
 $`\mathsf{EtM}[\mathsf{SE}, F]` that makes at most $`q_d`
 queries to the decryption oracle $`\Odec` of the {bpref "aead_oracles"}[one-time IND-CCA game].
-Then there exist a PRF adversary $`\mathcal B` against $`F` and an IND$-CPA adversary
+Then there exist a PRF adversary $`\mathcal B` against $`F` and a one-time secrecy adversary
 $`\mathcal D` against $`\mathsf{SE}`, constructed from $`\adv` as in
 {Informal.citet NRS14}[], Lemma 3, such that
 
 $$`\mathsf{Adv}^{\textsf{dist}}_{\mathsf{EtM}[\mathsf{SE}, F]}(\adv)
   \le \mathsf{Adv}^{\textsf{prf}}_{F}(\mathcal B)
   + \frac{q_d}{|\mathcal T|}
-  + \mathsf{Adv}^{\textsf{ind\$}}_{\textsf{SE}}(\mathcal D)`
+  + \mathsf{Adv}^{\textsf{ots}}_{\textsf{SE}}(\mathcal D)`
 
 where $`\mathsf{Adv}^{\textsf{dist}}` is the {bpref "aead_dist_advantage"}[distinguishing
 advantage] in the {bpref "aead_security_exp"}[one-time IND-CCA game]. In Figure 9 the middle
 term is $`q_d / 2^\tau` for $`\tau`-bit tags.
+
+$`\mathcal D` makes at most one encryption query, because it forwards only the challenge
+encryption of $`\adv`. So the bound needs one-time secrecy of $`\mathsf{SE}` only against
+adversaries that make one query, although the game allows any number of queries.
 
 :::leanPillCaption "security theorem"
 :::
@@ -393,13 +402,13 @@ noncomputable def prfReduction
     : PRFAdversary (AD × C_e) T
 ```
 
-:::leanPillCaption "IND$-CPA adversary $`\\mathcal D`"
+:::leanPillCaption "one-time secrecy adversary $`\\mathcal D`"
 :::
 
 ```anchor etmEncReduction (project := ".") (module := SecureMessaging.AEAD.FromEtM.Security.Games)
 noncomputable def encReduction
     (_se : DetSEAlg K_e M C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
-    : DetSEAlg.IndCPAAdversary M C_e
+    : DetSEAlg.OTSAdversary M C_e
 ```
 :::::

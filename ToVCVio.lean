@@ -37,6 +37,7 @@ import ToVCVio.OracleComp.SimSemantics.SimulateQForward
 import ToVCVio.OracleComp.SimSemantics.StateT.BadFlag
 import ToVCVio.OracleComp.SimSemantics.StateT.WPBound
 import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
+import ToVCVio.OracleComp.SimSemantics.StateT.LazyKey
 import ToVCVio.OracleComp.SimSemantics.StateT.MapStateTBase
 import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 import ToVCVio.OracleComp.SimSemantics.UnifLift
