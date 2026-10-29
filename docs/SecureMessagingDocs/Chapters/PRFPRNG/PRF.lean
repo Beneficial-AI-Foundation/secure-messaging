@@ -50,10 +50,10 @@ $$`\mathsf{Adv}^{\textsf{prf}}_{F}(\adv)
   - \Pr\bigl[\Exp{\textsf{prf}\text{-}\textsf{ideal}}{F}(\adv) = 1\bigr] \,\Bigr|`
 
 for the experiments below, where $`\mathsf{Func}(\mathcal D, \mathcal R)` is the set of
-functions from $`\mathcal D` to $`\mathcal R`. The adversary also has access to uniform
-randomness. {Informal.citet NRS14}[] define the advantage without the absolute value. The
-absolute value does not change the bounds, because an adversary can flip its output. In
-Lean, the ideal experiment samples the random function lazily: it samples
+functions from $`\mathcal D` to $`\mathcal R`. {Informal.citet NRS14}[] define the advantage
+without the absolute value. The absolute value does not change the bounds, because an
+adversary can flip its output. In Lean, the ideal experiment samples the random function
+lazily: it samples
 $`\rho(x)` at the first query on $`x` and caches it. The Lean definitions are VCVio's
 `PRFScheme` and `PRFScheme.prfAdvantage`.
 

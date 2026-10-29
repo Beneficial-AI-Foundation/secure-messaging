@@ -117,15 +117,10 @@ here reveals the ciphertext length, so it hides the message only for length-regu
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Game state and notation}" (kind := "scheme-notation")
-The game has no state. Each call to $`\Oenc` samples a fresh key $`K`. For $`b = 0`,
-$`\Oenc` encrypts the message under $`K`. For $`b = 1`, it returns a uniformly random
-ciphertext of the same length. The adversary can call $`\Oenc` any number of times, and it
-also has access to uniform randomness.
-
-The bit $`b \in \bit` is a fixed parameter of the experiment
-$`\Exp{\textsf{ots}\text{-}b}{\textsf{SE}}`, not a sampled bit. The experiment returns
-the adversary's output $`b'`, and the advantage below compares the experiments for $`b = 0`
-and $`b = 1`.
+There is one experiment $`\Exp{\textsf{ots}\text{-}b}{\textsf{SE}}` for each bit
+$`b \in \bit`. Each call to $`\Oenc` samples a fresh key $`K`. For $`b = 0`, $`\Oenc`
+encrypts the message under $`K`. For $`b = 1`, it returns a uniformly random ciphertext of the
+same length. The adversary can call $`\Oenc` any number of times.
 :::::
 ::::::
 
@@ -292,7 +287,9 @@ K_m \gets F.\mathsf{keygen}; \\
 \Return (K_e, K_m)
 \end{array}`
 :::::
+::::::
 
+::::::gameGrid
 :::::gameCell "\\Enc((K_e, K_m), a, m)" (kind := "compact")
 $`\begin{array}{l}
 c \gets \mathsf{SE.Enc}(K_e, m); \\
