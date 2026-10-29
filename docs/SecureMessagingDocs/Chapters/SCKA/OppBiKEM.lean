@@ -510,8 +510,8 @@ theorem security_positive (adv : SecurityAdversary leak Sym) (q : ℕ)
     SCKAScheme.sckaGuessAdvantage (scheme kem hDet ecEk ecCt leak) adv
         (exposure .A leak) (exposure .B leak) ≤
       (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal +
-      (1 / 2 : ℝ) * ∑ i ∈ Finset.range (2 * q), kem.IND_CPA_Advantage ProbCompRuntime.probComp
-        (reduction kem hDet ecEk ecCt leak adv (i + 1))
+      (1 / 2 : ℝ) * ∑ i ∈ Finset.range (2 * q), (kem.IND_CPA_Advantage ProbCompRuntime.probComp
+        (reduction kem hDet ecEk ecCt leak adv (i + 1))).toReal
 ```
 
 :::leanPillCaption "security_uniform"
@@ -521,8 +521,8 @@ theorem security_positive (adv : SecurityAdversary leak Sym) (q : ℕ)
 theorem security_uniform (adv : SecurityAdversary leak Sym) (q : ℕ)
     (hq : SecuritySendQueryBound adv q) (δ : ℝ)
     (hδ : ∀ t, 0 < t → t ≤ 2 * q →
-      kem.IND_CPA_Advantage ProbCompRuntime.probComp (reduction kem hDet ecEk ecCt leak adv t) ≤
-        δ) :
+      (kem.IND_CPA_Advantage ProbCompRuntime.probComp
+        (reduction kem hDet ecEk ecCt leak adv t)).toReal ≤ δ) :
     SCKAScheme.sckaGuessAdvantage (scheme kem hDet ecEk ecCt leak) adv
         (exposure .A leak) (exposure .B leak) ≤
       (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal + (q : ℝ) * δ
