@@ -280,17 +280,15 @@ The tag function $`F` must be a PRF (encrypt-then-PRF), not only a MAC, because 
 security game compares $`(c, t)` with a uniformly random ciphertext of the same length.
 
 ::::::gameGrid
-:::::gameCell "\\mathsf{KeyGen}()" (kind := "compact")
+:::::gameCell "\\mathsf{KeyGen}()" (kind := "compact-third")
 $`\begin{array}{l}
 K_e \gets \mathsf{SE.KeyGen}; \\
 K_m \gets F.\mathsf{keygen}; \\
 \Return (K_e, K_m)
 \end{array}`
 :::::
-::::::
 
-::::::gameGrid
-:::::gameCell "\\Enc((K_e, K_m), a, m)" (kind := "compact")
+:::::gameCell "\\Enc((K_e, K_m), a, m)" (kind := "compact-third")
 $`\begin{array}{l}
 c \gets \mathsf{SE.Enc}(K_e, m); \\
 t \gets F(K_m, (a, c)); \\
@@ -298,15 +296,13 @@ t \gets F(K_m, (a, c)); \\
 \end{array}`
 :::::
 
-:::::gameCell "\\Dec((K_e, K_m), a, (c, t))" (kind := "compact")
+:::::gameCell "\\Dec((K_e, K_m), a, (c, t))" (kind := "compact-third")
 $`\begin{array}{l}
 \pif\;t \neq F(K_m, (a, c))\;\pthen \\
 \quad\Return \bot; \\
 \Return \mathsf{SE.Dec}(K_e, c)
 \end{array}`
 :::::
-
-::::::
 
 :::leanPillCaption "construction $`\\mathsf{EtM}[\\mathsf{SE}, F]`"
 :::
@@ -328,6 +324,7 @@ def etmAEAD (se : DetSEAlg K_e M C_e)
     then se.decrypt ke c
     else none
 ```
+::::::
 :::::::
 
 :::defTitle "aead_etm_correctness" "AEAD encrypt-then-MAC correctness"
