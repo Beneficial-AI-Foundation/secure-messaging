@@ -21,24 +21,6 @@ namespace FrodoKEM.ROM
 open OracleComp OracleSpec LatticeCrypto ToVCVio
 open scoped ENNReal
 
-private def splitBitsEquiv (a b : ℕ) :
-    Bits (a + b) ≃ Bits a × Bits b where
-  toFun := splitBits
-  invFun := fun p => p.1 ++ p.2
-  left_inv := by
-    intro v
-    apply Vector.ext
-    intro i hi
-    simp only [splitBits, Vector.getElem_append hi]
-    split
-    · simp_all
-    · simp only [Vector.getElem_ofFn]
-      have hfin : Fin.natAdd a ⟨i - a, by omega⟩ = ⟨i, hi⟩ := by
-        apply Fin.ext
-        simp [Nat.add_sub_of_le (Nat.le_of_not_gt ‹¬i < a›)]
-      exact congrArg (fun j : Fin (a + b) => v[j]) hfin
-  right_inv := fun p => splitBits_append p.1 p.2
-
 private abbrev NoiseStreams (ps : ParameterSet) :=
   (Bits (nbar * ps.params.n * lenChi) ×
     Bits (ps.params.n * nbar * lenChi)) ×
