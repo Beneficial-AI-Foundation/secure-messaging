@@ -5,6 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import ToVCVio.CryptoFoundations.KeyEncapMech
+import ToVCVio.ProgramLogic.Unary.WP
 import VCVio.OracleComp.EvalDist.Sum
 
 /-!
@@ -23,9 +24,13 @@ the proof removes `φ(pk, sk)` from the potential and records a failure if decap
 `sk` disagrees, which happens with probability exactly `φ(pk, sk)`
 (`keypairFailure_eq_prEvent`). The removed term covers that probability, so encapsulation adds
 nothing to the error bound.
+
+`wp_keygen_keypairFailure` and `wp_encaps_failureIndicator` state the two results as expected
+payoffs (`wp`), the form used by potential arguments over oracle simulations.
 -/
 
 open OracleComp ENNReal
+open OracleComp.ProgramLogic
 
 namespace KEMScheme
 
@@ -77,5 +82,21 @@ theorem keypairFailure_eq_prEvent (pk : PK) (sk : SK) :
   unfold keypairFailure
   rw [hmap, prEvent_map]
   exact prEvent_congr _ _ _ fun ck => by simp only [decide_eq_false_iff_not, ne_eq]
+
+/-- Expectation form of `correctnessError_eq_avg_keypair`: averaging `φ(pk, sk)` over key
+generation gives the correctness error. -/
+theorem wp_keygen_keypairFailure :
+    wp kem.keygen (fun kp => keypairFailure kem hDet kp.1 kp.2) =
+      kem.correctnessError ProbCompRuntime.probComp := by
+  rw [correctnessError_eq_avg_keypair kem hDet, wp_eq_tsum]
+
+/-- The expected failure indicator of one encapsulation to `pk`, decapsulated with `sk`,
+is `φ(pk, sk)`. -/
+theorem wp_encaps_failureIndicator (pk : PK) (sk : SK) :
+    wp (kem.encaps pk) (fun ck => if hDet.decapsDet sk ck.1 = some ck.2 then 0 else 1) =
+      keypairFailure kem hDet pk sk := by
+  rw [keypairFailure_eq_prEvent, prEvent_eq_wp_propInd]
+  refine congrArg _ (funext fun ck => ?_)
+  by_cases h : hDet.decapsDet sk ck.1 = some ck.2 <;> simp [h]
 
 end KEMScheme
