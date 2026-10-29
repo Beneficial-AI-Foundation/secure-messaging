@@ -78,21 +78,12 @@ private theorem evalDist_bind_bind_swap {α β γ : Type} (mx : ProbComp α)
 private theorem counts_neg (c : Config)
     (hsym : ∀ z : ℤ, c.weight (-z) = c.weight z) (z : ℤ) :
     counts c (-z) = counts c z := by
+  have hiff : -z ∈ Finset.Icc (-(c.a : ℤ)) c.a ↔ z ∈ Finset.Icc (-(c.a : ℤ)) c.a := by
+    simp only [Finset.mem_Icc]
+    omega
   by_cases hz : z ∈ Finset.Icc (-(c.a : ℤ)) (c.a : ℤ)
-  · have hnz : -z ∈ Finset.Icc (-(c.a : ℤ)) (c.a : ℤ) := by
-      simpa only [Finset.mem_Icc] using
-        (show -(c.a : ℤ) ≤ -z ∧ -z ≤ c.a by
-          have := Finset.mem_Icc.mp hz
-          omega)
-    rw [counts_apply_of_mem c (-z) hnz, counts_apply_of_mem c z hz, hsym]
-  · have hnz : -z ∉ Finset.Icc (-(c.a : ℤ)) (c.a : ℤ) := by
-      intro h
-      apply hz
-      simpa only [Finset.mem_Icc] using
-        (show -(c.a : ℤ) ≤ z ∧ z ≤ c.a by
-          have := Finset.mem_Icc.mp h
-          omega)
-    rw [counts_apply_of_not_mem c (-z) hnz, counts_apply_of_not_mem c z hz]
+  · rw [counts_apply_of_mem c (-z) (hiff.mpr hz), counts_apply_of_mem c z hz, hsym]
+  · rw [counts_apply_of_not_mem c (-z) (mt hiff.mp hz), counts_apply_of_not_mem c z hz]
 
 private def productExp (χ : ProbComp ℤ) : ProbComp ℤ := do
   let x ← χ
@@ -105,7 +96,7 @@ private def negProductExp (χ : ProbComp ℤ) : ProbComp ℤ := do
   return x * y
 
 private theorem probOutput_mul_counts
-    (mx my : ProbComp ℤ) (F G : ToVCVio.IntMeasure) (D E : Nat)
+    (mx my : ProbComp ℤ) (F G : ToVCVio.IntMeasure) {D E : ℝ≥0∞} (hD : D ≠ ∞) (hE : E ≠ ∞)
     (hmx : ∀ z, Pr{let x ← mx}[x = z] = (F z : ℝ≥0∞) / D)
     (hmy : ∀ z, Pr{let x ← my}[x = z] = (G z : ℝ≥0∞) / E)
     (z : ℤ) :
@@ -126,10 +117,7 @@ private theorem probOutput_mul_counts
     simp only [Finsupp.sum]
     push_cast
     simp only [div_eq_mul_inv]
-    have hinv : ((D : ℝ≥0∞) * E)⁻¹ =
-        (D : ℝ≥0∞)⁻¹ * (E : ℝ≥0∞)⁻¹ :=
-      ENNReal.mul_inv (Or.inr ENNReal.coe_ne_top) (Or.inl ENNReal.coe_ne_top)
-    rw [hinv, Finset.sum_mul]
+    rw [ENNReal.mul_inv (Or.inr hE) (Or.inl hD), Finset.sum_mul]
     refine Finset.sum_congr rfl fun x hx => ?_
     rw [Finset.sum_mul]
     refine Finset.sum_congr rfl fun y hy => ?_
@@ -149,15 +137,9 @@ private theorem probOutput_productExp
     Pr{let x ← productExp χ}[x = z] =
       (ToVCVio.productMeasure (counts c) (counts c) z : ℝ≥0∞) /
         (2 ^ c.seedBits) ^ 2 := by
-  have hlawNat (u : ℤ) :
-      Pr{let x ← χ}[x = u] =
-        (counts c u : ℝ≥0∞) / (((2 ^ c.seedBits : Nat) : ℝ≥0∞)) := by
-    simpa only [Nat.cast_pow, Nat.cast_ofNat] using hlaw u
   simpa only [productExp, map_eq_bind_pure_comp, seq_eq_bind_map,
-    Function.comp_def, bind_assoc, pure_bind, Nat.cast_mul, Nat.cast_pow,
-    Nat.cast_ofNat, pow_two] using
-    probOutput_mul_counts χ χ (counts c) (counts c)
-      (2 ^ c.seedBits) (2 ^ c.seedBits) hlawNat hlawNat z
+    Function.comp_def, bind_assoc, pure_bind, pow_two] using
+    probOutput_mul_counts χ χ (counts c) (counts c) (by simp) (by simp) hlaw hlaw z
 
 private theorem probOutput_neg_map
     (c : Config) (χ : ProbComp ℤ)
@@ -178,24 +160,13 @@ private theorem probOutput_negProductExp
     Pr{let x ← negProductExp χ}[x = z] =
       (ToVCVio.productMeasure (counts c) (counts c) z : ℝ≥0∞) /
         (2 ^ c.seedBits) ^ 2 := by
-  have hnegNat (u : ℤ) :
-      Pr{let x ← (-·) <$> χ}[x = u] =
-        (counts c u : ℝ≥0∞) / (((2 ^ c.seedBits : Nat) : ℝ≥0∞)) := by
-    simpa only [Nat.cast_pow, Nat.cast_ofNat] using
-      probOutput_neg_map c χ hlaw hsym u
-  have hlawNat (u : ℤ) :
-      Pr{let x ← χ}[x = u] =
-        (counts c u : ℝ≥0∞) / (((2 ^ c.seedBits : Nat) : ℝ≥0∞)) := by
-    simpa only [Nat.cast_pow, Nat.cast_ofNat] using hlaw u
   simpa only [negProductExp, map_eq_bind_pure_comp, seq_eq_bind_map,
-    Function.comp_def, bind_assoc, pure_bind, Nat.cast_mul, Nat.cast_pow,
-    Nat.cast_ofNat, pow_two] using
-    probOutput_mul_counts ((-·) <$> χ) χ (counts c) (counts c)
-      (2 ^ c.seedBits) (2 ^ c.seedBits)
-      hnegNat hlawNat z
+    Function.comp_def, bind_assoc, pure_bind, pow_two] using
+    probOutput_mul_counts ((-·) <$> χ) χ (counts c) (counts c) (by simp) (by simp)
+      (probOutput_neg_map c χ hlaw hsym) hlaw z
 
 private theorem probOutput_add_counts
-    (mx my : ProbComp ℤ) (F G : ToVCVio.IntMeasure) (D E : Nat)
+    (mx my : ProbComp ℤ) (F G : ToVCVio.IntMeasure) {D E : ℝ≥0∞} (hD : D ≠ ∞) (hE : E ≠ ∞)
     (hmx : ∀ z, Pr{let x ← mx}[x = z] = (F z : ℝ≥0∞) / D)
     (hmy : ∀ z, Pr{let x ← my}[x = z] = (G z : ℝ≥0∞) / E)
     (z : ℤ) :
@@ -217,10 +188,7 @@ private theorem probOutput_add_counts
     rw [AddMonoidAlgebra.coeff_mul_apply_left, Finsupp.sum]
     push_cast
     simp only [div_eq_mul_inv]
-    have hinv : ((D : ℝ≥0∞) * E)⁻¹ =
-        (D : ℝ≥0∞)⁻¹ * (E : ℝ≥0∞)⁻¹ :=
-      ENNReal.mul_inv (Or.inr ENNReal.coe_ne_top) (Or.inl ENNReal.coe_ne_top)
-    rw [hinv, Finset.sum_mul]
+    rw [ENNReal.mul_inv (Or.inr hE) (Or.inl hD), Finset.sum_mul]
     refine Finset.sum_congr rfl fun x hx => ?_
     rw [show -x + z = z - x by ring]
     ac_rfl
@@ -287,31 +255,11 @@ private theorem probOutput_differenceBlock
       (((ToVCVio.productMeasure (counts c) (counts c)) ^ 2) z : ℝ≥0∞) /
         (2 ^ c.seedBits) ^ 4 := by
   rw [(ToVCVio.finiteLaw_ext_iff.mp (evalDist_differenceBlock_grouped χ)) z]
-  have hprodNat (u : ℤ) :
-      Pr{let x ← productExp χ}[x = u] =
-        (ToVCVio.productMeasure (counts c) (counts c) u : ℝ≥0∞) /
-          ((((2 ^ c.seedBits) ^ 2 : Nat) : ℝ≥0∞)) := by
-    simpa only [Nat.cast_pow, Nat.cast_ofNat] using
-      probOutput_productExp c χ hlaw u
-  have hnegProdNat (u : ℤ) :
-      Pr{let x ← negProductExp χ}[x = u] =
-        (ToVCVio.productMeasure (counts c) (counts c) u : ℝ≥0∞) /
-          ((((2 ^ c.seedBits) ^ 2 : Nat) : ℝ≥0∞)) := by
-    simpa only [Nat.cast_pow, Nat.cast_ofNat] using
-      probOutput_negProductExp c χ hlaw hsym u
   have h := probOutput_add_counts (productExp χ) (negProductExp χ)
     (ToVCVio.productMeasure (counts c) (counts c))
-    (ToVCVio.productMeasure (counts c) (counts c))
-    ((2 ^ c.seedBits) ^ 2) ((2 ^ c.seedBits) ^ 2)
-    hprodNat hnegProdNat z
-  have hden : (2 : ℝ≥0∞) ^
-        (c.seedBits + c.seedBits + (c.seedBits + c.seedBits)) =
-      ((2 : ℝ≥0∞) ^ c.seedBits) ^ 4 := by
-    rw [← pow_mul]
-    congr 1
-    omega
-  simpa only [Nat.cast_mul, Nat.cast_pow, Nat.cast_ofNat, pow_two, ← pow_add,
-    hden] using h
+    (ToVCVio.productMeasure (counts c) (counts c)) (by simp) (by simp)
+    (probOutput_productExp c χ hlaw) (probOutput_negProductExp c χ hlaw hsym) z
+  rw [h, ← pow_two (ToVCVio.productMeasure (counts c) (counts c)), ← pow_add]
 
 private theorem evalDist_bind_move_after_two
     {A B C D : Type} (ma : ProbComp A) (mb : ProbComp B) (mc : ProbComp C)
@@ -570,44 +518,9 @@ theorem probOutput_entryNoiseIntExp_counts
           (fun x y : ℤ => x + y) <$> entryNoiseIntExp n χ <*> differenceBlock χ by
         simp only [map_eq_bind_pure_comp, seq_eq_bind_map,
           Function.comp_def, bind_assoc, pure_bind]]
-      have ihNat (u : ℤ) :
-          Pr{let x ← entryNoiseIntExp n χ}[x = u] =
-            (((ToVCVio.productMeasure (counts c) (counts c)) ^ (2 * n) *
-                counts c) u : ℝ≥0∞) /
-              (((2 ^ c.seedBits) ^ (4 * n + 1) : Nat) : ℝ≥0∞) := by
-        simpa only [Nat.cast_pow, Nat.cast_ofNat] using ih u
-      have hstepNat (u : ℤ) :
-          Pr{let x ← differenceBlock χ}[x = u] =
-            ((((ToVCVio.productMeasure (counts c) (counts c)) ^ 2) u : ℝ≥0∞) /
-              (((2 ^ c.seedBits) ^ 4 : Nat) : ℝ≥0∞)) := by
-        simpa only [Nat.cast_pow, Nat.cast_ofNat] using
-          probOutput_differenceBlock c χ hlaw hsym u
-      calc
-        _ = ((((ToVCVio.productMeasure (counts c) (counts c)) ^ (2 * n) *
-                counts c) *
-              (ToVCVio.productMeasure (counts c) (counts c)) ^ 2) z : ℝ≥0∞) /
-            ((((2 ^ c.seedBits) ^ (4 * n + 1)) *
-                (2 ^ c.seedBits) ^ 4 : Nat) : ℝ≥0∞) := by
-          simpa only [Nat.cast_mul] using probOutput_add_counts
-            (entryNoiseIntExp n χ) (differenceBlock χ)
-            ((ToVCVio.productMeasure (counts c) (counts c)) ^ (2 * n) * counts c)
-            ((ToVCVio.productMeasure (counts c) (counts c)) ^ 2)
-            ((2 ^ c.seedBits) ^ (4 * n + 1)) ((2 ^ c.seedBits) ^ 4)
-            ihNat hstepNat z
-        _ = (((ToVCVio.productMeasure (counts c) (counts c)) ^ (2 * (n + 1)) *
-              counts c) z : ℝ≥0∞) /
-            (2 ^ c.seedBits) ^ (4 * (n + 1) + 1) := by
-          have hmeasure :
-              ((ToVCVio.productMeasure (counts c) (counts c)) ^ (2 * n) *
-                  counts c) *
-                (ToVCVio.productMeasure (counts c) (counts c)) ^ 2 =
-              (ToVCVio.productMeasure (counts c) (counts c)) ^ (2 * (n + 1)) *
-                counts c := by
-            rw [show 2 * (n + 1) = 2 * n + 2 by omega, pow_add]
-            ring
-          rw [hmeasure]
-          simp only [Nat.cast_pow, Nat.cast_ofNat, ← pow_add]
-          congr 2
-
+      rw [probOutput_add_counts (entryNoiseIntExp n χ) (differenceBlock χ)
+        _ _ (by simp) (by simp) ih (probOutput_differenceBlock c χ hlaw hsym) z,
+        ← pow_add, mul_right_comm, ← pow_add, show 2 * n + 2 = 2 * (n + 1) by ring,
+        show 4 * n + 1 + 4 = 4 * (n + 1) + 1 by ring]
 
 end ToVCVio.Probability.ScalarNoise

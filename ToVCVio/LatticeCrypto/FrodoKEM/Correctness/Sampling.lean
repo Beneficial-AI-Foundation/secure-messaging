@@ -38,8 +38,8 @@ theorem noiseCount_neg (ps : ParameterSet) (z : ℤ) :
   simp only [noiseCount, Int.natAbs_neg]
 
 theorem prFail_sampleError (ps : ParameterSet) :
-    prFail (sampleError ps) = 0 := by
-  exact OracleComp.prFail_eq_zero _
+    prFail (sampleError ps) = 0 :=
+  OracleComp.prFail_eq_zero _
 
 private def sampleMagnitude (table : ErrorTable) (t : ℕ) : ℕ :=
   (List.finRange table.d).countP fun i =>
@@ -125,10 +125,7 @@ private theorem threshold_lt_iff_lt_sampleMagnitude (table : ErrorTable)
 private theorem sampleMagnitude_le (table : ErrorTable) (t : ℕ) :
     sampleMagnitude table t ≤ table.d := by
   rw [sampleMagnitude]
-  simpa using
-    (List.countP_le_length
-      (l := List.finRange table.d)
-      (p := fun i => decide (table.thresholds[i.castSucc] < t)))
+  exact List.countP_le_length.trans_eq (List.length_finRange ..)
 
 private theorem sampleMagnitude_eq_zero_iff (table : ErrorTable)
     {probs : Vector ℕ (table.d + 1)} (hw : table.WellFormed probs)
@@ -145,46 +142,16 @@ private theorem sampleMagnitude_eq_iff (table : ErrorTable)
     sampleMagnitude table t = k ↔
       table.thresholds[k - 1]'(by omega) < t ∧
         t ≤ table.thresholds[k]'(by omega) := by
-  let before : Fin table.d := ⟨k - 1, by omega⟩
-  have hbefore := threshold_lt_iff_lt_sampleMagnitude table hw t before
-  have hbefore' : table.thresholds[k - 1]'(by omega) < t ↔
-      k - 1 < sampleMagnitude table t := by
-    simpa [before] using hbefore
-  constructor
-  · intro heq
-    constructor
-    · exact hbefore'.mpr (by omega)
-    · by_cases hk : k < table.d
-      · let current : Fin table.d := ⟨k, hk⟩
-        have hat := threshold_lt_iff_lt_sampleMagnitude table hw t current
-        have hat' : table.thresholds[k]'(by omega) < t ↔
-            k < sampleMagnitude table t := by
-          simpa [current] using hat
-        by_contra hnot
-        have : k < sampleMagnitude table t := hat'.mp (by omega)
-        omega
-      · have hkeq : k = table.d := by omega
-        have hthreshold : table.thresholds[k]'(by omega) =
-            table.thresholds[table.d] := by
-          congr 1
-        rw [hthreshold, hw.last_eq]
-        omega
-  · rintro ⟨hlow, hupp⟩
-    have hkle : k ≤ sampleMagnitude table t := by
-      have hlt := hbefore'.mp hlow
-      omega
-    apply Nat.le_antisymm _ hkle
-    by_cases hk : k < table.d
-    · let current : Fin table.d := ⟨k, hk⟩
-      have hat := threshold_lt_iff_lt_sampleMagnitude table hw t current
-      have hat' : table.thresholds[k]'(by omega) < t ↔
-          k < sampleMagnitude table t := by
-        simpa [current] using hat
-      by_contra hnot
-      have : k < sampleMagnitude table t := by omega
-      have := hat'.mpr this
-      omega
-    · exact (sampleMagnitude_le table t).trans (by omega)
+  have hbefore : table.thresholds[k - 1]'(by omega) < t ↔ k - 1 < sampleMagnitude table t := by
+    simpa using threshold_lt_iff_lt_sampleMagnitude table hw t ⟨k - 1, by omega⟩
+  by_cases hk : k < table.d
+  · have hat : table.thresholds[k]'(by omega) < t ↔ k < sampleMagnitude table t := by
+      simpa using threshold_lt_iff_lt_sampleMagnitude table hw t ⟨k, hk⟩
+    omega
+  · obtain rfl : k = table.d := by omega
+    have hlast := hw.last_eq
+    have := sampleMagnitude_le table t
+    omega
 
 private theorem prEvent_uniformFin_Icc {N a b : ℕ} [NeZero N]
     (ha : a < N) (hb : b < N) :
@@ -346,18 +313,7 @@ private theorem probSample_zero (ps : ParameterSet) :
     simpa [noiseCount] using ps.errorTable_wellFormed.zero_eq.symm
   rw [hzero]
   push_cast
-  rw [← two_mul]
-  calc
-    _ = 2 * (((ps.errorTable.thresholds[0] : ENNReal) + 1) /
-          2 ^ (lenChi - 1) / 2) := by
-      simp only [div_eq_mul_inv]
-      ring
-    _ = 2 * (((ps.errorTable.thresholds[0] : ENNReal) + 1) /
-          2 ^ lenChi) := by rw [div_seedHalf_two]
-    _ = 2 * ((ps.errorTable.thresholds[0] : ENNReal) + 1) /
-          2 ^ lenChi := by
-      simp only [div_eq_mul_inv]
-      ring
+  rw [← two_mul, mul_div_assoc, mul_div_assoc, div_seedHalf_two, ← mul_div_assoc]
 
 private theorem probSample_pos (ps : ParameterSet) (k : ℕ)
     (hk0 : 0 < k) (hkd : k ≤ ps.errorTable.d) :
@@ -368,16 +324,7 @@ private theorem probSample_pos (ps : ParameterSet) (k : ℕ)
   rw [prEvent_uniformBool_fin (p := fun b t =>
     (if b then -(sampleMagnitude ps.errorTable t.val : ℤ)
       else (sampleMagnitude ps.errorTable t.val : ℤ)) = (k : ℤ))]
-  simp only [Bool.false_eq_true, ↓reduceIte]
-  have hpos : Pr{let t ← ($ᵗ (Fin (2 ^ (lenChi - 1))) :
-      ProbComp (Fin (2 ^ (lenChi - 1))))}[
-        (sampleMagnitude ps.errorTable t.val : ℤ) = (k : ℤ)] =
-      Pr{let t ← ($ᵗ (Fin (2 ^ (lenChi - 1))) :
-        ProbComp (Fin (2 ^ (lenChi - 1))))}[
-          sampleMagnitude ps.errorTable t.val = k] := by
-    apply prEvent_congr
-    intro t
-    exact_mod_cast Iff.rfl
+  simp only [Bool.false_eq_true, ↓reduceIte, Nat.cast_inj]
   have hneg : Pr{let t ← ($ᵗ (Fin (2 ^ (lenChi - 1))) :
       ProbComp (Fin (2 ^ (lenChi - 1))))}[
         -(sampleMagnitude ps.errorTable t.val : ℤ) = (k : ℤ)] = 0 := by
@@ -385,7 +332,7 @@ private theorem probSample_pos (ps : ParameterSet) (k : ℕ)
     intro t ht
     have hkz : (0 : ℤ) < k := by exact_mod_cast hk0
     omega
-  rw [hpos, prSampleMagnitude_pos ps k hk0 hkd, hneg]
+  rw [prSampleMagnitude_pos ps k hk0 hkd, hneg]
   simp only [add_zero, threshold_diff_eq_noiseCount ps k hk0 hkd]
   exact div_seedHalf_two _
 
@@ -406,16 +353,9 @@ private theorem probSample_neg (ps : ParameterSet) (k : ℕ)
     intro t ht
     have hkz : (0 : ℤ) < k := by exact_mod_cast hk0
     omega
-  have hneg : Pr{let t ← ($ᵗ (Fin (2 ^ (lenChi - 1))) :
-      ProbComp (Fin (2 ^ (lenChi - 1))))}[
-        -(sampleMagnitude ps.errorTable t.val : ℤ) = -(k : ℤ)] =
-      Pr{let t ← ($ᵗ (Fin (2 ^ (lenChi - 1))) :
-        ProbComp (Fin (2 ^ (lenChi - 1))))}[
-          sampleMagnitude ps.errorTable t.val = k] := by
-    apply prEvent_congr
-    intro t
-    simp only [neg_inj, Int.ofNat_inj]
-  rw [hpos, hneg, prSampleMagnitude_pos ps k hk0 hkd]
+  rw [hpos]
+  simp only [neg_inj, Nat.cast_inj]
+  rw [prSampleMagnitude_pos ps k hk0 hkd]
   simp only [zero_add, noiseCount_neg ps (k : ℤ)]
   rw [threshold_diff_eq_noiseCount ps k hk0 hkd]
   exact div_seedHalf_two _
@@ -430,26 +370,16 @@ theorem probOutput_sampleError (ps : ParameterSet) (z : ℤ) :
       exact probSample_zero ps
     · by_cases hnd : n ≤ ps.errorTable.d
       · exact probSample_pos ps n (Nat.pos_of_ne_zero hn0) hnd
-      · have hzero : Pr{let r ← ($ᵗ (Bits lenChi) : ProbComp (Bits lenChi))}[
-            Sample ps.errorTable r = (n : ℤ)] = 0 := by
-          apply prEvent_eq_zero_of_forall_mem_support
-          intro r _ hr
-          have hb := Sample_bounds ps.errorTable r
-          omega
-        rw [hzero]
+      · rw [prEvent_eq_zero_of_forall_mem_support _ _ fun r _ hr => by
+          have := Sample_bounds ps.errorTable r; omega]
         simp [noiseCount, hnd]
   · by_cases hn0 : n = 0
     · subst n
       simpa using probSample_zero ps
     · by_cases hnd : n ≤ ps.errorTable.d
       · exact probSample_neg ps n (Nat.pos_of_ne_zero hn0) hnd
-      · have hzero : Pr{let r ← ($ᵗ (Bits lenChi) : ProbComp (Bits lenChi))}[
-            Sample ps.errorTable r = -(n : ℤ)] = 0 := by
-          apply prEvent_eq_zero_of_forall_mem_support
-          intro r _ hr
-          have hb := Sample_bounds ps.errorTable r
-          omega
-        rw [hzero]
+      · rw [prEvent_eq_zero_of_forall_mem_support _ _ fun r _ hr => by
+          have := Sample_bounds ps.errorTable r; omega]
         simp [noiseCount, hnd]
 
 private def blockEquiv (rows cols width : ℕ) :
@@ -473,10 +403,9 @@ private theorem sampleMatrix_uniform {α : Type} [SampleableType α] (rows cols 
     finiteLaw (ToVCVio.sampleMatrix rows cols ($ᵗ α)) =
       finiteLaw ($ᵗ (Matrix (Fin rows) (Fin cols) α)) := by
   let : MeasurableSpace (Fin cols → α) := ⊤
-  let : MeasurableSpace (Matrix (Fin rows) (Fin cols) α) :=
-    inferInstanceAs (MeasurableSpace (Fin rows → Fin cols → α))
+  let : MeasurableSpace (Matrix (Fin rows) (Fin cols) α) := MeasurableSpace.pi
   let : MeasurableSingletonClass (Matrix (Fin rows) (Fin cols) α) :=
-    inferInstanceAs (MeasurableSingletonClass (Fin rows → Fin cols → α))
+    Pi.instMeasurableSingletonClass
   have h := evalDist_mOfFn_const_uniform rows (ProbComp.sampleIID cols ($ᵗ α))
     ((sampleIID_uniform (α := α) cols).trans SampleableType.evalDist_uniformSample)
   have he := EvalDistEq.of_evalDist_eq

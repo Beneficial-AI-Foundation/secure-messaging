@@ -1,9 +1,19 @@
+/-
+Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Beneficial AI Foundation
+-/
 import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Deterministic
 import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Sampling
 import VCVio.EvalDist.ProbabilityBounds
 
-/-! Honest decryption in the ideal model with independent uniform error streams.
-No distributional claim about deterministic SHAKE expansion is made here. -/
+/-!
+# Ideal-model decryption failure for FrodoKEM
+
+Honest decryption in the ideal model with independent uniform error streams.
+No distributional claim about deterministic SHAKE expansion is made here.
+-/
+
 namespace FrodoKEM.Ideal
 open OracleComp LatticeCrypto ToVCVio
 open scoped ENNReal
@@ -192,8 +202,7 @@ theorem finiteLaw_residual_entry (ps : ParameterSet)
     refine finiteLaw_bind_congr _ fun _ => ?_
     refine finiteLaw_bind_congr _ fun _ => ?_
     refine finiteLaw_bind_congr _ fun _ => ?_
-    congr 2
-    ring
+    rw [sub_add_eq_add_sub]
   have hrow (rows cols : ℕ) (r : Fin rows) :
       finiteLaw ((fun M => M r) <$>
         (SampleMatrix ps.errorTable rows cols <$>

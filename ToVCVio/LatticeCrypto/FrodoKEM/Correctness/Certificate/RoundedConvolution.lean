@@ -1,10 +1,21 @@
+/-
+Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Beneficial AI Foundation
+-/
 import ToVCVio.Probability.IntMeasure.Packing
 import ToVCVio.Probability.IntMeasure.Radix
 import VCVio.ProgramLogic.Unary.HoareTriple
 import VCVio.OracleComp.EvalDist.Sum
 
-/-! Precision-parametric rounded convolution. Proofs adapt the historical
-Frodo count model; existing historical declarations remain unchanged. -/
+/-!
+# Rounded convolution certificates
+
+A precision-parametric, downward-rounded convolution of integer counting measures. The rounded
+counts are dominated by the exact ones, and mass lost outside the window is counted as failure,
+so `probEvent_le_certificate` bounds a failure probability by two packed natural numbers.
+-/
+
 open OracleComp
 open scoped BigOperators ENNReal
 namespace FailureCertificate.RoundedConvolution
@@ -94,26 +105,22 @@ private theorem run_eq_runN (c : Config) : run c = runN c c.steps := rfl
 
 
 
+private theorem sum_single_apply (s : Finset ℤ) (f : ℤ → ℕ) (z : ℤ) :
+    (∑ y ∈ s, AddMonoidAlgebra.single y (f y) : ToVCVio.IntMeasure) z =
+      if z ∈ s then f z else 0 := by
+  classical
+  rw [AddMonoidAlgebra.coeff_sum, Finsupp.finsetSum_apply]
+  simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_apply, Finset.sum_ite_eq']
+
 private theorem counts_apply_of_mem (c : Config) (z : ℤ)
     (hz : z ∈ Finset.Icc (-(c.a : ℤ)) (c.a : ℤ)) :
     counts c z = c.weight z := by
-  classical
-  rw [counts, AddMonoidAlgebra.coeff_sum, Finsupp.finsetSum_apply,
-    Finset.sum_eq_single z]
-  · simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_eq_same]
-  · intro y hy hne
-    simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_apply, hne, ite_false]
-  · exact fun h => (h hz).elim
+  rw [counts, sum_single_apply, ite_eq_left hz]
 
 private theorem counts_apply_of_not_mem (c : Config) (z : ℤ)
     (hz : z ∉ Finset.Icc (-(c.a : ℤ)) (c.a : ℤ)) :
     counts c z = 0 := by
-  classical
-  rw [counts, AddMonoidAlgebra.coeff_sum, Finsupp.finsetSum_apply]
-  apply Finset.sum_eq_zero
-  intro y hy
-  have hne : y ≠ z := fun h => hz (h ▸ hy)
-  simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_apply, hne, ite_false]
+  rw [counts, sum_single_apply, ite_eq_right hz]
 
 private theorem measureWindow_counts (c : Config) :
     ToVCVio.MeasureWindow (counts c) (-(c.a : ℤ)) (c.a : ℤ) := by
@@ -133,55 +140,53 @@ private theorem lowerCounts_succ_apply (c : Config) (k : ℕ) (z : ℤ) :
         ((lowerCounts c k * ToVCVio.productMeasure (counts c) (counts c)) z) /
           2 ^ (2 * c.seedBits)
       else 0 := by
-  classical
-  rw [lowerCounts, AddMonoidAlgebra.coeff_sum, Finsupp.finsetSum_apply]
-  by_cases hz : z ∈ Finset.Icc (-(c.window : ℤ)) (c.window : ℤ)
-  · rw [ite_eq_left hz, Finset.sum_eq_single z]
-    · simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_eq_same]
-    · intro y hy hne
-      simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_apply, hne, ite_false]
-    · exact fun h => (h hz).elim
-  · rw [ite_eq_right hz]
-    apply Finset.sum_eq_zero
-    intro y hy
-    have hne : y ≠ z := fun h => hz (h ▸ hy)
-    simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_apply, hne, ite_false]
+  rw [lowerCounts, sum_single_apply]
 
 private theorem measureWindow_lowerCounts (c : Config) (k : ℕ) :
     ToVCVio.MeasureWindow (lowerCounts c k)
       (-(c.window : ℤ)) (c.window : ℤ) := by
+  intro z hz
   cases k with
   | zero =>
-      intro z hz
-      simp only [lowerCounts, AddMonoidAlgebra.coeff_single,
-        Finsupp.single_apply] at hz
-      split at hz
+      rw [lowerCounts, AddMonoidAlgebra.coeff_single, Finsupp.single_apply] at hz
+      split_ifs at hz with h
       · omega
-      · simp at hz
+      · exact absurd rfl hz
   | succ k =>
-      intro z hz
-      rw [lowerCounts_succ_apply c k z] at hz
-      split at hz
-      · simpa only [Finset.mem_Icc] using
-          (show z ∈ Finset.Icc (-(c.window : ℤ)) (c.window : ℤ) from ‹_›)
-      · simp at hz
+      rw [lowerCounts_succ_apply] at hz
+      split_ifs at hz with h
+      · exact Finset.mem_Icc.mp h
+      · exact absurd rfl hz
+
+/-- A symmetric window `[-a, a]` in the `lo + n - 1` form used by the radix API. -/
+private theorem measureWindow_toRange {F : ToVCVio.IntMeasure} {a : ℕ}
+    (h : ToVCVio.MeasureWindow F (-(a : ℤ)) a) :
+    ToVCVio.MeasureWindow F (-(a : ℤ)) (-(a : ℤ) + (2 * a + 1 : ℕ) - 1) :=
+  h.mono le_rfl (by omega)
 
 private theorem finsetSum_apply_le_totalMass
     (F : ToVCVio.IntMeasure) (s : Finset ℤ) :
-    ∑ z ∈ s, F z ≤ ToVCVio.totalMass F := by
-  classical
-  calc
-    ∑ z ∈ s, F z = ∑ z ∈ s ∩ F.coeff.support, F z := by
-      symm
-      apply Finset.sum_subset Finset.inter_subset_left
-      intro z hzs hz
-      have hnot : z ∉ F.coeff.support := by
-        intro hs
-        exact hz (Finset.mem_inter.mpr ⟨hzs, hs⟩)
-      exact Finsupp.notMem_support_iff.mp hnot
-    _ ≤ ∑ z ∈ F.coeff.support, F z :=
-      Finset.sum_le_sum_of_subset Finset.inter_subset_right
-    _ = ToVCVio.totalMass F := by rfl
+    ∑ z ∈ s, F z ≤ ToVCVio.totalMass F :=
+  Finset.sum_le_sum_of_ne_zero fun _ _ hz => Finsupp.mem_support_iff.mpr hz
+
+private theorem finsetSum_mul_apply_le
+    (F G : ToVCVio.IntMeasure) (s : Finset ℤ) (z : ℤ) :
+    ∑ x ∈ s, F x * G (z - x) ≤ (F * G) z := by
+  refine (Finset.sum_le_sum_of_ne_zero fun x _ hx =>
+    Finsupp.mem_support_iff.mpr (left_ne_zero_of_mul hx)).trans_eq ?_
+  rw [AddMonoidAlgebra.coeff_mul_apply_left, Finsupp.sum]
+  exact Finset.sum_congr rfl fun x _ => by rw [neg_add_eq_sub]
+
+private theorem range_sum_eq_image_sum (lo : ℤ) (n : ℕ) (g : ℤ → ℕ) :
+    ∑ i ∈ Finset.range n, g (lo + i) =
+      ∑ z ∈ (Finset.range n).image (fun i : ℕ => lo + i), g z :=
+  (Finset.sum_image fun _ _ _ _ h => by omega).symm
+
+private theorem totalMass_products (c : Config)
+    (hmass : ToVCVio.totalMass (counts c) = 2 ^ c.seedBits) :
+    ToVCVio.totalMass (ToVCVio.productMeasure (counts c) (counts c)) =
+      2 ^ (2 * c.seedBits) := by
+  rw [ToVCVio.totalMass_productMeasure, hmass, ← pow_two, ← pow_mul, Nat.mul_comm c.seedBits 2]
 
 theorem totalMass_lowerCounts_le
     (c : Config) (hmass : ToVCVio.totalMass (counts c) = 2 ^ c.seedBits)
@@ -191,55 +196,25 @@ theorem totalMass_lowerCounts_le
   | zero => rw [lowerCounts, ToVCVio.totalMass_single]
   | succ k ih =>
       let D2 := 2 ^ (2 * c.seedBits)
-      have hD2 : D2 = ToVCVio.totalMass
-          (ToVCVio.productMeasure (counts c) (counts c)) := by
-        rw [ToVCVio.totalMass_productMeasure, hmass, ← pow_two, ← pow_mul,
-          Nat.mul_comm c.seedBits 2]
-      have hwindow : ToVCVio.MeasureWindow (lowerCounts c (k + 1))
-          (-(c.window : ℤ)) (-(c.window : ℤ) + (2 * c.window + 1 : ℕ) - 1) := by
-        convert measureWindow_lowerCounts c (k + 1) using 1
-        all_goals omega
-      have hscaled : D2 * ToVCVio.totalMass (lowerCounts c (k + 1)) ≤
-          D2 * 2 ^ c.precision := by
+      let X := lowerCounts c k * ToVCVio.productMeasure (counts c) (counts c)
+      have hscaled : D2 * ToVCVio.totalMass (lowerCounts c (k + 1)) ≤ D2 * 2 ^ c.precision := by
         calc
           D2 * ToVCVio.totalMass (lowerCounts c (k + 1)) =
-              ∑ i ∈ Finset.range (2 * c.window + 1),
-                D2 * ((lowerCounts c k *
-                  ToVCVio.productMeasure (counts c) (counts c))
-                    (-(c.window : ℤ) + i) / D2) := by
-            rw [ToVCVio.Radix.totalMass_eq_range_sum hwindow, Finset.mul_sum]
+              ∑ i ∈ Finset.range (2 * c.window + 1), D2 * (X (-(c.window : ℤ) + i) / D2) := by
+            rw [ToVCVio.Radix.totalMass_eq_range_sum
+              (measureWindow_toRange (measureWindow_lowerCounts c (k + 1))), Finset.mul_sum]
             refine Finset.sum_congr rfl fun i hi => ?_
-            rw [lowerCounts_succ_apply]
-            simp only [Finset.mem_Icc]
-            rw [ite_eq_left (by have hi := Finset.mem_range.mp hi; omega)]
-          _ ≤ ∑ i ∈ Finset.range (2 * c.window + 1),
-                (lowerCounts c k * ToVCVio.productMeasure (counts c) (counts c))
-                  (-(c.window : ℤ) + i) := by
-            exact Finset.sum_le_sum fun i _ => by
-              simpa [Nat.mul_comm] using Nat.div_mul_le_self
-                ((lowerCounts c k * ToVCVio.productMeasure (counts c) (counts c))
-                  (-(c.window : ℤ) + i)) D2
-          _ ≤ ToVCVio.totalMass
-                (lowerCounts c k * ToVCVio.productMeasure (counts c) (counts c)) := by
-            let s : Finset ℤ := (Finset.range (2 * c.window + 1)).image
-              (fun i : Nat => -(c.window : ℤ) + i)
-            have hinj : Function.Injective (fun i : Nat => -(c.window : ℤ) + i) := by
-              intro i j h
-              exact_mod_cast Int.add_left_cancel h
-            rw [show (∑ i ∈ Finset.range (2 * c.window + 1),
-                (lowerCounts c k * ToVCVio.productMeasure (counts c) (counts c))
-                  (-(c.window : ℤ) + i)) =
-                ∑ z ∈ s, (lowerCounts c k *
-                  ToVCVio.productMeasure (counts c) (counts c)) z by
-                  unfold s
-                  rw [Finset.sum_image hinj.injOn]]
+            rw [lowerCounts_succ_apply, ite_eq_left (Finset.mem_Icc.mpr
+              (by have := Finset.mem_range.mp hi; omega))]
+          _ ≤ ∑ i ∈ Finset.range (2 * c.window + 1), X (-(c.window : ℤ) + i) :=
+            Finset.sum_le_sum fun _ _ => Nat.mul_div_le _ _
+          _ ≤ ToVCVio.totalMass X := by
+            rw [range_sum_eq_image_sum (-(c.window : ℤ)) _ (fun z => X z)]
             exact finsetSum_apply_le_totalMass _ _
           _ = ToVCVio.totalMass (lowerCounts c k) * D2 := by
-            rw [ToVCVio.totalMass_mul, ← hD2]
-          _ ≤ D2 * 2 ^ c.precision := by
-            simpa [Nat.mul_comm] using Nat.mul_le_mul_right D2 ih
-      have hD2pos : 0 < D2 := by unfold D2; positivity
-      exact le_of_mul_le_mul_left (by simpa [Nat.mul_comm] using hscaled) hD2pos
+            rw [ToVCVio.totalMass_mul, totalMass_products c hmass]
+          _ ≤ D2 * 2 ^ c.precision := (Nat.mul_comm _ _).trans_le (Nat.mul_le_mul_left _ ih)
+      exact le_of_mul_le_mul_left hscaled (by positivity)
 
 private theorem productCoefficient_lt_radix
     (c : Config) (hmass : ToVCVio.totalMass (counts c) = 2 ^ c.seedBits)
@@ -254,8 +229,7 @@ private theorem productCoefficient_lt_radix
         ToVCVio.totalMass (ToVCVio.productMeasure (counts c) (counts c)) := by
       rw [ToVCVio.totalMass_mul]
     _ ≤ 2 ^ c.precision * 2 ^ (2 * c.seedBits) := by
-      rw [ToVCVio.totalMass_productMeasure, hmass, ← pow_two, ← pow_mul,
-        Nat.mul_comm c.seedBits 2]
+      rw [totalMass_products c hmass]
       exact Nat.mul_le_mul_right _ (totalMass_lowerCounts_le c hmass k)
     _ < 2 ^ ((c.precision + 1) + 2 * c.seedBits) := by
       rw [← pow_add]
@@ -277,11 +251,8 @@ private theorem rangeImage_eq_Icc (a : ℕ) :
   simp only [Finset.mem_image, Finset.mem_range, Finset.mem_Icc]
   constructor
   · rintro ⟨i, hi, rfl⟩
-    constructor <;> omega
-  · rintro ⟨hlo, hhi⟩
-    refine ⟨(z + a).toNat, ?_, ?_⟩
-    · omega
-    · omega
+    omega
+  · exact fun _ => ⟨(z + a).toNat, by omega, by omega⟩
 
 private theorem counts_apply_index (c : Config) (i : ℕ)
     (hi : i < 2 * c.a + 1) :
@@ -297,11 +268,7 @@ private theorem extraPack_eq_measurePack (c : Config) :
       ToVCVio.Radix.measurePack (2 ^ ((c.precision + 1) + 2 * c.seedBits))
         (-(c.a : ℤ)) (counts c) := by
   rw [ToVCVio.Radix.measurePack_eq_range_sum
-    (show ToVCVio.MeasureWindow (counts c)
-        (-(c.a : ℤ)) (-(c.a : ℤ) + (2 * c.a + 1 : ℕ) - 1) by
-      convert measureWindow_counts c using 1
-      all_goals push_cast
-      all_goals omega)]
+    (measureWindow_toRange (measureWindow_counts c))]
   rw [foldl_range_add_eq_sum, zero_add]
   refine Finset.sum_congr rfl fun i hi => ?_
   rw [show -(c.a : ℤ) + i = (i : ℤ) - c.a by ring,
@@ -330,11 +297,7 @@ private theorem mask_eq_sum (c : Config) :
 private theorem counts_eq_indexed_sum (c : Config) :
     counts c = ∑ i ∈ Finset.range (2 * c.a + 1),
       AddMonoidAlgebra.single ((i : ℤ) - c.a) (c.weight ((i : ℤ) - c.a)) := by
-  rw [counts, ← rangeImage_eq_Icc]
-  rw [Finset.sum_image]
-  intro i _ j _ h
-  have hz : (i : ℤ) = (j : ℤ) := sub_left_injective h
-  exact_mod_cast hz
+  rw [counts, ← rangeImage_eq_Icc, Finset.sum_image fun _ _ _ _ h => by omega]
 
 private theorem productMeasure_counts_eq_sum (c : Config) :
     ToVCVio.productMeasure (counts c) (counts c) =
@@ -361,15 +324,9 @@ private theorem productMeasure_counts_eq_sum (c : Config) :
   rw [Finsupp.sum_single_index]
   simp
 
-private theorem measurePack_zero (R : ℕ) (lo : ℤ) :
-    ToVCVio.Radix.measurePack R lo 0 = 0 := by
-  exact Finsupp.sum_zero_index
 
-private theorem measurePack_add (R : ℕ) (lo : ℤ)
-    (F G : ToVCVio.IntMeasure) :
-    ToVCVio.Radix.measurePack R lo (F + G) =
-      ToVCVio.Radix.measurePack R lo F + ToVCVio.Radix.measurePack R lo G := by
-  exact Finsupp.sum_add_index' (fun _ => zero_mul _) fun _ _ _ => add_mul _ _ _
+
+
 
 private theorem measurePack_finset_sum
     {ι : Type} (R : ℕ) (lo : ℤ)
@@ -377,27 +334,21 @@ private theorem measurePack_finset_sum
     ToVCVio.Radix.measurePack R lo (∑ i ∈ s, F i) =
       ∑ i ∈ s, ToVCVio.Radix.measurePack R lo (F i) := by
   classical
-  induction s using Finset.cons_induction with
-  | empty => simp [measurePack_zero]
-  | cons a s ha ih => simp [ha, measurePack_add, ih]
+  unfold ToVCVio.Radix.measurePack
+  rw [AddMonoidAlgebra.coeff_sum]
+  exact (Finsupp.sum_finsetSum_index (fun _ => zero_mul _) fun _ _ _ => add_mul _ _ _).symm
 
 private theorem productPack_eq_measurePack (c : Config) :
     productPack c = ToVCVio.Radix.measurePack (radix c) (-((c.a : ℤ) ^ 2))
       (ToVCVio.productMeasure (counts c) (counts c)) := by
-  unfold productPack
-  simp_rw [foldl_range_add_eq_sum]
-  simp only [zero_add]
+  simp only [productPack, foldl_range_add_eq_sum, zero_add]
   rw [productMeasure_counts_eq_sum, measurePack_finset_sum]
-  apply Finset.sum_congr rfl
-  intro i hi
+  refine Finset.sum_congr rfl fun i _ => ?_
   rw [measurePack_finset_sum]
-  apply Finset.sum_congr rfl
-  intro j hj
+  refine Finset.sum_congr rfl fun j _ => ?_
   rw [ToVCVio.Radix.measurePack_single]
   congr 2
   ring_nf
-
-
 
 private theorem runN_succ (c : Config) (k : ℕ) :
     runN c (k + 1) = step c (runN c k) := by
@@ -416,20 +367,12 @@ private theorem measurePack_lowerCounts_mod_pred
     (hmass : ToVCVio.totalMass (counts c) = 2 ^ c.seedBits) (k : ℕ) :
     ToVCVio.Radix.measurePack (radix c) (-(c.window : ℤ)) (lowerCounts c k) %
         (radix c - 1) = ToVCVio.totalMass (lowerCounts c k) := by
-  apply ToVCVio.Packing.measurePack_mod_pred_eq_totalMass
-    (n := 2 * c.window + 1)
-  · convert measureWindow_lowerCounts c k using 1
-    all_goals push_cast
-    all_goals omega
-  · calc
-      2 = 2 ^ 1 := by norm_num
-      _ ≤ 2 ^ ((c.precision + 1) + 2 * c.seedBits) :=
-        Nat.pow_le_pow_right (by omega) (by omega)
+  apply ToVCVio.Packing.measurePack_mod_pred_eq_totalMass (n := 2 * c.window + 1)
+  · exact measureWindow_toRange (measureWindow_lowerCounts c k)
+  · exact Nat.le_self_pow (by simp only [bits]; omega) 2
   · have hle := totalMass_lowerCounts_le c hmass k
-    have hpow : 2 ^ (c.precision + 2) ≤ radix c := by
-      apply Nat.pow_le_pow_right (by omega)
-      simp only [bits]
-      omega
+    have hpow : 2 ^ (c.precision + 2) ≤ radix c :=
+      Nat.pow_le_pow_right (by omega) (by simp only [bits]; omega)
     have hp : 0 < 2 ^ c.precision := by positivity
     have hgap : 2 ^ c.precision < 2 ^ (c.precision + 2) - 1 := by
       rw [pow_add]
@@ -453,12 +396,7 @@ private theorem measurePack_lowerCounts_succ_sum (c : Config) (k : ℕ) :
         ((lowerCounts c k * ToVCVio.productMeasure (counts c) (counts c))
           (-(c.window : ℤ) + i) / 2 ^ (2 * c.seedBits)) * radix c ^ i := by
   rw [ToVCVio.Radix.measurePack_eq_range_sum
-    (show ToVCVio.MeasureWindow (lowerCounts c (k + 1))
-        (-(c.window : ℤ))
-        (-(c.window : ℤ) + (2 * c.window + 1 : ℕ) - 1) by
-      convert measureWindow_lowerCounts c (k + 1) using 1
-      all_goals push_cast
-      all_goals omega)]
+    (measureWindow_toRange (measureWindow_lowerCounts c (k + 1)))]
   refine Finset.sum_congr rfl fun i hi => ?_
   rw [lowerCounts_succ_apply, ite_eq_left]
   simpa only [Finset.mem_Icc] using
@@ -483,14 +421,10 @@ private theorem measurePack_lower_product_mul (c : Config) (k : ℕ) :
         (lowerCounts c k * ToVCVio.productMeasure (counts c) (counts c)) =
       ToVCVio.Radix.measurePack (radix c) (-(c.window : ℤ)) (lowerCounts c k) *
         productPack c := by
-  calc
-    _ = ToVCVio.Radix.measurePack (radix c) (-(c.window : ℤ)) (lowerCounts c k) *
-        ToVCVio.Radix.measurePack (radix c) (-((c.a : ℤ) ^ 2))
-          (ToVCVio.productMeasure (counts c) (counts c)) := by
-      convert ToVCVio.Radix.measurePack_mul (R := radix c)
-        (measureWindow_lowerCounts c k) (measureWindow_products c) using 1
-      all_goals ring_nf
-    _ = _ := by rw [← productPack_eq_measurePack]
+  rw [productPack_eq_measurePack]
+  convert ToVCVio.Radix.measurePack_mul (R := radix c)
+    (measureWindow_lowerCounts c k) (measureWindow_products c) using 2
+  ring
 
 private theorem packed_crop_step (c : Config) (f : ℕ → ℕ)
     (hf : ∀ i < 2 * (c.window + c.a ^ 2) + 1, f i < radix c) :
@@ -591,27 +525,35 @@ theorem runN_eq_measurePack (c : Config)
     (hmass : ToVCVio.totalMass (counts c) = 2 ^ c.seedBits) (k : ℕ) :
     runN c k = ToVCVio.Radix.measurePack (radix c) (-(c.window : ℤ)) (lowerCounts c k) :=
   (measurePack_lowerCounts_runN c hmass k).symm
-private theorem finsetSum_mul_apply_le
-    (F G : ToVCVio.IntMeasure) (s : Finset ℤ) (z : ℤ) :
-    ∑ x ∈ s, F x * G (z - x) ≤ (F * G) z := by
-  classical
+private theorem lowerCounts_mul_domination
+    (c : Config) (k : ℕ) (G : ToVCVio.IntMeasure)
+    (ih : ∀ z, (2 ^ (2 * c.seedBits)) ^ k * lowerCounts c k z ≤
+      2 ^ c.precision * ((ToVCVio.productMeasure (counts c) (counts c)) ^ k) z)
+    (z : ℤ) :
+    (2 ^ (2 * c.seedBits)) ^ k * (lowerCounts c k * G) z ≤
+      2 ^ c.precision * (((ToVCVio.productMeasure (counts c) (counts c)) ^ k * G) z) := by
+  let P := ToVCVio.productMeasure (counts c) (counts c)
   calc
-    ∑ x ∈ s, F x * G (z - x) =
-        ∑ x ∈ s ∩ F.coeff.support, F x * G (z - x) := by
-      symm
-      apply Finset.sum_subset Finset.inter_subset_left
-      intro x hxs hx
-      have hnot : x ∉ F.coeff.support := by
-        intro hs
-        exact hx (Finset.mem_inter.mpr ⟨hxs, hs⟩)
-      rw [Finsupp.notMem_support_iff.mp hnot, zero_mul]
-    _ ≤ ∑ x ∈ F.coeff.support, F x * G (z - x) :=
-      Finset.sum_le_sum_of_subset Finset.inter_subset_right
-    _ = (F * G) z := by
-      rw [AddMonoidAlgebra.coeff_mul_apply_left, Finsupp.sum]
-      congr 1
-      funext x
-      rw [show -x + z = z - x by ring]
+    _ = ∑ i ∈ Finset.range (2 * c.window + 1),
+          ((2 ^ (2 * c.seedBits)) ^ k * lowerCounts c k (-(c.window : ℤ) + i)) *
+            G (z - (-(c.window : ℤ) + i)) := by
+      rw [ToVCVio.mul_apply_window (measureWindow_toRange (measureWindow_lowerCounts c k)) z,
+        Finset.mul_sum]
+      refine Finset.sum_congr rfl fun i _ => ?_
+      ring
+    _ ≤ ∑ i ∈ Finset.range (2 * c.window + 1),
+          (2 ^ c.precision * (P ^ k) (-(c.window : ℤ) + i)) *
+            G (z - (-(c.window : ℤ) + i)) :=
+      Finset.sum_le_sum fun i _ => Nat.mul_le_mul_right _ (ih _)
+    _ = 2 ^ c.precision * ∑ i ∈ Finset.range (2 * c.window + 1),
+          (P ^ k) (-(c.window : ℤ) + i) * G (z - (-(c.window : ℤ) + i)) := by
+      rw [Finset.mul_sum]
+      refine Finset.sum_congr rfl fun i _ => ?_
+      ring
+    _ ≤ 2 ^ c.precision * ((P ^ k) * G) z := by
+      apply Nat.mul_le_mul_left
+      rw [range_sum_eq_image_sum (-(c.window : ℤ)) _ (fun x => (P ^ k) x * G (z - x))]
+      exact finsetSum_mul_apply_le _ _ _ _
 
 theorem lowerCounts_domination
     (c : Config) (k : ℕ) (z : ℤ) :
@@ -624,116 +566,23 @@ theorem lowerCounts_domination
         simp [lowerCounts, AddMonoidAlgebra.one_def, hz,
           -LaurentPolynomial.single_eq_C_mul_T]
   | succ k ih =>
-      let P := ToVCVio.productMeasure (counts c) (counts c)
-      by_cases hz : z ∈ Finset.Icc (-(c.window : ℤ)) (c.window : ℤ)
-      · rw [lowerCounts_succ_apply, ite_eq_left hz]
-        have hdiv :
-            2 ^ (2 * c.seedBits) *
-                ((lowerCounts c k * P) z / 2 ^ (2 * c.seedBits)) ≤
-              (lowerCounts c k * P) z := by
-          simpa [Nat.mul_comm] using
-            Nat.div_mul_le_self ((lowerCounts c k * P) z) (2 ^ (2 * c.seedBits))
-        calc
-          (2 ^ (2 * c.seedBits)) ^ (k + 1) *
-                ((lowerCounts c k * P) z / 2 ^ (2 * c.seedBits)) =
-              (2 ^ (2 * c.seedBits)) ^ k *
-                (2 ^ (2 * c.seedBits) *
-                  ((lowerCounts c k * P) z / 2 ^ (2 * c.seedBits))) := by
-            rw [pow_succ]
-            ring
-          _ ≤ (2 ^ (2 * c.seedBits)) ^ k * (lowerCounts c k * P) z :=
-            Nat.mul_le_mul_left _ hdiv
-          _ = ∑ i ∈ Finset.range (2 * c.window + 1),
-                ((2 ^ (2 * c.seedBits)) ^ k *
-                  lowerCounts c k (-(c.window : ℤ) + i)) *
-                    P (z - (-(c.window : ℤ) + i)) := by
-            rw [ToVCVio.mul_apply_window
-              (show ToVCVio.MeasureWindow (lowerCounts c k)
-                  (-(c.window : ℤ))
-                  (-(c.window : ℤ) + (2 * c.window + 1 : ℕ) - 1) by
-                convert measureWindow_lowerCounts c k using 1
-                all_goals push_cast
-                all_goals omega) z,
-              Finset.mul_sum]
-            refine Finset.sum_congr rfl fun i _ => ?_
-            ring
-          _ ≤ ∑ i ∈ Finset.range (2 * c.window + 1),
-                (2 ^ c.precision * (P ^ k) (-(c.window : ℤ) + i)) *
-                  P (z - (-(c.window : ℤ) + i)) := by
-            exact Finset.sum_le_sum fun i _ =>
-              Nat.mul_le_mul_right _ (ih (-(c.window : ℤ) + i))
-          _ = 2 ^ c.precision * ∑ i ∈ Finset.range (2 * c.window + 1),
-                (P ^ k) (-(c.window : ℤ) + i) *
-                  P (z - (-(c.window : ℤ) + i)) := by
-            rw [Finset.mul_sum]
-            refine Finset.sum_congr rfl fun i _ => ?_
-            ring
-          _ ≤ 2 ^ c.precision * ((P ^ k) * P) z := by
-            apply Nat.mul_le_mul_left
-            let s : Finset ℤ := (Finset.range (2 * c.window + 1)).image
-              (fun i : Nat => -(c.window : ℤ) + i)
-            have hinj : Function.Injective (fun i : Nat => -(c.window : ℤ) + i) := by
-              intro i j h
-              exact_mod_cast Int.add_left_cancel h
-            rw [show (∑ i ∈ Finset.range (2 * c.window + 1),
-                (P ^ k) (-(c.window : ℤ) + i) *
-                  P (z - (-(c.window : ℤ) + i))) =
-                ∑ x ∈ s, (P ^ k) x * P (z - x) by
-                  unfold s
-                  rw [Finset.sum_image hinj.injOn]]
-            exact finsetSum_mul_apply_le _ _ _ _
-          _ = 2 ^ c.precision * (P ^ (k + 1)) z := by
-            rw [show P ^ (k + 1) = P ^ k * P by rw [pow_succ]]
-      · rw [lowerCounts_succ_apply, ite_eq_right hz]
-        simp
+      rw [lowerCounts_succ_apply]
+      split_ifs
+      · calc
+          _ ≤ (2 ^ (2 * c.seedBits)) ^ k *
+                (lowerCounts c k * ToVCVio.productMeasure (counts c) (counts c)) z := by
+            rw [pow_succ, mul_assoc]
+            exact Nat.mul_le_mul_left _ (Nat.mul_div_le _ _)
+          _ ≤ _ := lowerCounts_mul_domination c k _ ih z
+          _ = _ := by rw [pow_succ]
+      · simp
 
 private theorem lowerCounts_mul_counts_domination
     (c : Config) (k : ℕ) (z : ℤ) :
     (2 ^ (2 * c.seedBits)) ^ k * (lowerCounts c k * counts c) z ≤
       2 ^ c.precision *
-        (((ToVCVio.productMeasure (counts c) (counts c)) ^ k * counts c) z) := by
-  let P := ToVCVio.productMeasure (counts c) (counts c)
-  calc
-    (2 ^ (2 * c.seedBits)) ^ k * (lowerCounts c k * counts c) z =
-        ∑ i ∈ Finset.range (2 * c.window + 1),
-          ((2 ^ (2 * c.seedBits)) ^ k *
-            lowerCounts c k (-(c.window : ℤ) + i)) *
-              counts c (z - (-(c.window : ℤ) + i)) := by
-      rw [ToVCVio.mul_apply_window
-        (show ToVCVio.MeasureWindow (lowerCounts c k)
-            (-(c.window : ℤ))
-            (-(c.window : ℤ) + (2 * c.window + 1 : ℕ) - 1) by
-          convert measureWindow_lowerCounts c k using 1
-          all_goals push_cast
-          all_goals omega) z,
-        Finset.mul_sum]
-      refine Finset.sum_congr rfl fun i _ => ?_
-      ring
-    _ ≤ ∑ i ∈ Finset.range (2 * c.window + 1),
-          (2 ^ c.precision * (P ^ k) (-(c.window : ℤ) + i)) *
-            counts c (z - (-(c.window : ℤ) + i)) := by
-      exact Finset.sum_le_sum fun i _ =>
-        Nat.mul_le_mul_right _ (lowerCounts_domination c k (-(c.window : ℤ) + i))
-    _ = 2 ^ c.precision * ∑ i ∈ Finset.range (2 * c.window + 1),
-          (P ^ k) (-(c.window : ℤ) + i) *
-            counts c (z - (-(c.window : ℤ) + i)) := by
-      rw [Finset.mul_sum]
-      refine Finset.sum_congr rfl fun i _ => ?_
-      ring
-    _ ≤ 2 ^ c.precision * ((P ^ k) * counts c) z := by
-      apply Nat.mul_le_mul_left
-      let s : Finset ℤ := (Finset.range (2 * c.window + 1)).image
-        (fun i : Nat => -(c.window : ℤ) + i)
-      have hinj : Function.Injective (fun i : Nat => -(c.window : ℤ) + i) := by
-        intro i j h
-        exact_mod_cast Int.add_left_cancel h
-      rw [show (∑ i ∈ Finset.range (2 * c.window + 1),
-          (P ^ k) (-(c.window : ℤ) + i) *
-            counts c (z - (-(c.window : ℤ) + i))) =
-          ∑ x ∈ s, (P ^ k) x * counts c (z - x) by
-            unfold s
-            rw [Finset.sum_image hinj.injOn]]
-      exact finsetSum_mul_apply_le _ _ _ _
+        (((ToVCVio.productMeasure (counts c) (counts c)) ^ k * counts c) z) :=
+  lowerCounts_mul_domination c k _ (lowerCounts_domination c k) z
 
 private theorem totalMass_fullCounts
     (c : Config) (hmass : ToVCVio.totalMass (counts c) = 2 ^ c.seedBits) :
@@ -758,30 +607,13 @@ private theorem approxCounts_domination
         (((ToVCVio.productMeasure (counts c) (counts c)) ^ c.steps *
           counts c) z) := by
   have h := lowerCounts_mul_counts_domination c c.steps z
-  rw [← pow_mul] at h
-  have hmul := Nat.mul_le_mul_left (2 ^ c.seedBits) h
+  rw [← pow_mul, show 2 * c.seedBits * c.steps = c.seedBits * (2 * c.steps) by ring,
+    pow_mul] at h
   calc
-    (2 ^ c.seedBits) ^ (2 * c.steps + 1) *
-        (lowerCounts c c.steps * counts c) z =
-      2 ^ c.seedBits *
-        ((2 ^ c.seedBits) ^ (2 * c.steps) *
-          (lowerCounts c c.steps * counts c) z) := by
-        rw [show 2 * c.steps + 1 = 2 * c.steps + 1 by omega, pow_succ]
-        ring
-    _ ≤ 2 ^ c.seedBits *
-        (2 ^ c.precision *
-          (((ToVCVio.productMeasure (counts c) (counts c)) ^ c.steps *
-            counts c) z)) := by
-      have hpow : (2 ^ c.seedBits) ^ (2 * c.steps) =
-          2 ^ (2 * c.seedBits * c.steps) := by
-        rw [← pow_mul]
-        congr 1
-        ring
-      rw [hpow]
-      exact hmul
+    _ = 2 ^ c.seedBits * ((2 ^ c.seedBits) ^ (2 * c.steps) *
+          (lowerCounts c c.steps * counts c) z) := by ring
+    _ ≤ _ := Nat.mul_le_mul_left _ h
     _ = _ := by ring
-
-
 
 private def weightPack (c : Config) (w : ℤ → ℕ) : ℕ :=
   (List.range (2 * center c + 1)).foldl
@@ -805,10 +637,8 @@ private theorem weightedMass_eq_packExtract (c : Config) (w : ℤ → ℕ)
           radix c ^ (2 * center c) % radix c := by
   let A := lowerCounts c c.steps * counts c
   have hwindow : ToVCVio.MeasureWindow A
-      (-(center c : ℤ)) (-(center c : ℤ) + (2 * center c + 1 : ℕ) - 1) := by
-    convert measureWindow_approxCounts c c.steps using 1
-    all_goals push_cast
-    all_goals omega
+      (-(center c : ℤ)) (-(center c : ℤ) + (2 * center c + 1 : ℕ) - 1) :=
+    measureWindow_toRange (measureWindow_approxCounts c c.steps)
   have hsum : ∑ i ∈ Finset.range (2 * center c + 1), A (-(center c : ℤ) + i) =
       ToVCVio.totalMass A := (ToVCVio.Radix.totalMass_eq_range_sum hwindow).symm
   have hcarry : 1 * ∑ i ∈ Finset.range (2 * center c + 1),
@@ -840,12 +670,9 @@ theorem certificateValues_eq (c : Config) (w : ℤ → ℕ)
   have _ := hprecision
   change (((run c * extraPack c * weightPack c w) >>> (bits c * (2 * center c))) % radix c,
       2 ^ c.precision - run c % (radix c - 1)) = _
-  apply Prod.ext_iff.mpr
-  constructor
-  · have hweighted := weightedMass_eq_packExtract c w hmass hw
-    rw [measurePack_approxCounts c hmass] at hweighted
-    rw [Nat.shiftRight_eq_div_pow, pow_mul]
-    exact hweighted.symm
+  refine Prod.ext ?_ ?_
+  · rw [Nat.shiftRight_eq_div_pow, pow_mul, ← measurePack_approxCounts c hmass]
+    exact (weightedMass_eq_packExtract c w hmass hw).symm
   · rw [← measurePack_lowerCounts_mod_pred c hbits hmass c.steps,
       measurePack_lowerCounts_runN c hmass, ← run_eq_runN]
 
@@ -920,52 +747,22 @@ private theorem finite_missingMass_enclosure
               ((F z : ℝ≥0∞) / D - (A z : ℝ≥0∞) / S) * 1 := by
             exact add_le_add le_rfl (mul_le_mul' le_rfl (hrho_le z))
         _ = _ := by rw [mul_one]
+  have hS' : (S : ℝ≥0∞) ≠ 0 := by exact_mod_cast hS.ne'
   have hresidual :
       ∑ z ∈ s, ((F z : ℝ≥0∞) / D - (A z : ℝ≥0∞) / S) =
         ((S - ∑ z ∈ s, A z : Nat) : ℝ≥0∞) / S := by
-    let sumA : ℝ≥0∞ := ∑ z ∈ s, (A z : ℝ≥0∞) / S
-    let sumF : ℝ≥0∞ := ∑ z ∈ s, (F z : ℝ≥0∞) / D
-    let residual : ℝ≥0∞ :=
-      ∑ z ∈ s, ((F z : ℝ≥0∞) / D - (A z : ℝ≥0∞) / S)
-    have hsumA_top : sumA ≠ ∞ := by
-      apply ENNReal.sum_ne_top.2
-      intro z hz
-      exact ENNReal.div_ne_top ENNReal.coe_ne_top (by exact_mod_cast hS.ne')
-    have hsumAF : sumA ≤ sumF := Finset.sum_le_sum fun z _ => hratio z
-    have hdecomp : sumA + residual = sumF := by
-      dsimp only [sumA, residual, sumF]
+    have hdecomp : ∑ z ∈ s, (A z : ℝ≥0∞) / S +
+        ∑ z ∈ s, ((F z : ℝ≥0∞) / D - (A z : ℝ≥0∞) / S) = ∑ z ∈ s, (F z : ℝ≥0∞) / D := by
       rw [← Finset.sum_add_distrib]
       exact Finset.sum_congr rfl fun z _ => add_tsub_cancel_of_le (hratio z)
-    have hresidual_eq : residual = sumF - sumA := by
-      apply (ENNReal.add_right_inj hsumA_top).mp
-      rw [hdecomp, add_tsub_cancel_of_le hsumAF]
-    have hsumF_one : sumF = 1 := by
-      dsimp only [sumF]
-      simp only [div_eq_mul_inv]
-      rw [← Finset.sum_mul, ← Nat.cast_sum, hmassF]
-      exact ENNReal.mul_inv_cancel
-        (show (D : ℝ≥0∞) ≠ 0 by exact_mod_cast hD.ne') ENNReal.coe_ne_top
-    have hsumA_eq :
-        sumA = ((∑ z ∈ s, A z : Nat) : ℝ≥0∞) / S := by
-      dsimp only [sumA]
-      simp only [div_eq_mul_inv]
-      rw [← Finset.sum_mul, ← Nat.cast_sum]
-    rw [show (∑ z ∈ s,
-        ((F z : ℝ≥0∞) / D - (A z : ℝ≥0∞) / S)) = residual from rfl,
-      hresidual_eq, hsumF_one, hsumA_eq]
-    have hratio_one :
-        (((∑ z ∈ s, A z : Nat) : ℝ≥0∞) / S) ≤ 1 := by
-      apply (ENNReal.div_le_iff
-        (by exact_mod_cast hS.ne') ENNReal.coe_ne_top).2
-      simpa using (show ((∑ z ∈ s, A z : Nat) : ℝ≥0∞) ≤ S by
-        exact_mod_cast hmassA)
-    have hratio_top : (((∑ z ∈ s, A z : Nat) : ℝ≥0∞) / S) ≠ ∞ :=
-      ENNReal.div_ne_top ENNReal.coe_ne_top (by exact_mod_cast hS.ne')
-    apply (ENNReal.add_right_inj hratio_top).mp
-    rw [add_tsub_cancel_of_le hratio_one, ← ENNReal.add_div, ← Nat.cast_add,
-      Nat.add_sub_of_le hmassA]
-    exact (ENNReal.div_self
-      (show (S : ℝ≥0∞) ≠ 0 by exact_mod_cast hS.ne') ENNReal.coe_ne_top).symm
+    have hsumF_one : ∑ z ∈ s, (F z : ℝ≥0∞) / D = 1 := by
+      rw [← ENNReal.sum_div, ← Nat.cast_sum, hmassF]
+      exact ENNReal.div_self (by exact_mod_cast hD.ne') (ENNReal.natCast_ne_top _)
+    rw [hsumF_one, ← ENNReal.sum_div, ← Nat.cast_sum] at hdecomp
+    rw [ENNReal.eq_sub_of_add_eq (ENNReal.div_ne_top (ENNReal.natCast_ne_top _) hS')
+        ((add_comm _ _).trans hdecomp),
+      ENNReal.natCast_sub, ENNReal.sub_div (fun _ _ => hS'),
+      ENNReal.div_self hS' (ENNReal.natCast_ne_top S)]
   constructor
   · exact Finset.sum_le_sum fun z _ => hlower z
   · calc
@@ -973,21 +770,13 @@ private theorem finite_missingMass_enclosure
           ∑ z ∈ s, (((A z * w z : Nat) : ℝ≥0∞) / (S * H) +
             ((F z : ℝ≥0∞) / D - (A z : ℝ≥0∞) / S)) :=
         Finset.sum_le_sum fun z _ => hupper z
-      _ = (∑ z ∈ s, ((A z * w z : Nat) : ℝ≥0∞) / (S * H)) +
-          ∑ z ∈ s, ((F z : ℝ≥0∞) / D - (A z : ℝ≥0∞) / S) := by
-        rw [Finset.sum_add_distrib]
-      _ = _ := by rw [hresidual]
+      _ = _ := by rw [Finset.sum_add_distrib, hresidual]
 
 private theorem sum_union_support_left
     (F A : ToVCVio.IntMeasure) :
-    ∑ z ∈ F.coeff.support ∪ A.coeff.support, F z = ToVCVio.totalMass F := by
-  change (∑ z ∈ F.coeff.support ∪ A.coeff.support, F z) =
-    ∑ z ∈ F.coeff.support, F z
-  symm
-  apply Finset.sum_subset Finset.subset_union_left
-  intro z hz hz'
-  have hnot : z ∉ F.coeff.support := hz'
-  exact Finsupp.notMem_support_iff.mp hnot
+    ∑ z ∈ F.coeff.support ∪ A.coeff.support, F z = ToVCVio.totalMass F :=
+  (Finset.sum_subset Finset.subset_union_left fun _ _ hz =>
+    Finsupp.notMem_support_iff.mp hz).symm
 
 private theorem sum_union_support_right
     (F A : ToVCVio.IntMeasure) :
@@ -998,14 +787,9 @@ private theorem sum_union_support_right
 private theorem sum_union_support_weighted_right
     (F A : ToVCVio.IntMeasure) (w : ℤ → Nat) :
     ∑ z ∈ F.coeff.support ∪ A.coeff.support, A z * w z =
-      ∑ z ∈ A.coeff.support, A z * w z := by
-  symm
-  apply Finset.sum_subset Finset.subset_union_right
-  intro z hz hz'
-  have hnot : z ∉ A.coeff.support := hz'
-  rw [Finsupp.notMem_support_iff.mp hnot, zero_mul]
-
-
+      ∑ z ∈ A.coeff.support, A z * w z :=
+  (Finset.sum_subset Finset.subset_union_right fun _ _ hz => by
+    rw [Finsupp.notMem_support_iff.mp hz, zero_mul]).symm
 
 theorem probEvent_le_certificate
     (c : Config) (χ : ProbComp ℤ)
