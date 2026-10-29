@@ -8,6 +8,8 @@ import SecureMessaging.RKEM.FromDDHNonFS.Construction
 import SecureMessaging.RKEM.FromDDHNonFS.Correctness
 import SecureMessaging.RKEM.FromDDHNonFS.RatchetSimulatability
 
+/-! # Blueprint chapter: RKEM from DDH (non-FS) -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false
@@ -205,7 +207,7 @@ def randLeak (gen : G) : (scheme (F := F) gen).RandLeak where
 :::defTitle "rkem_from_ddh_nonfs_correctness" "RKEM from DDH non-FS correctness"
 :::
 
-::::theorem "rkem_from_ddh_nonfs_correctness" (parent := "rkem_rkem_from_ddh_non_fs") (lean := "ddhRKEM.probOutput_correctExpA_eq_one, ddhRKEM.evalDist_ratchetRoundOutputA_eq_evalDist_rkeygen, ddhRKEM.deltaCorrect") (tags := "gh-67") (uses := "rkem_from_ddh_nonfs_spec, rkem_scheme, rkem_correctness")
+::::theorem "rkem_from_ddh_nonfs_correctness" (parent := "rkem_rkem_from_ddh_non_fs") (lean := "ddhRKEM.prEvent_correctExpA_eq_one, ddhRKEM.evalDistEq_ratchetRoundOutputA_rkeygen, ddhRKEM.deltaCorrect") (tags := "gh-67") (uses := "rkem_from_ddh_nonfs_spec, rkem_scheme, rkem_correctness")
 Adapted from {Informal.citet TR25}[], Theorem A.3.
 
 The non-forward-secure RKEM from DDH is perfectly correct, that is, $`(0,0)`-correct in the sense of the {bpref "rkem_correctness"}[RKEM correctness definition]. Explicitly, for each party $`\mathsf{P}\in\{\A,\B\}` with peer $`\mathsf{\bar P}`, consider one round of the protocol from $`\mathsf{P}` towards $`\mathsf{\bar P}`:

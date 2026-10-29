@@ -7,6 +7,8 @@ import SecureMessagingDocs.Chapters.ErasureCodes.Defs
 import SecureMessagingDocs.Chapters.ErasureCodes.ReedSolomon
 import SecureMessagingDocs.Chapters.ErasureCodes.SPQRReedSolomon
 
+/-! # Blueprint chapter: Erasure Codes -/
+
 open Verso.Genre
 open Verso.Genre.Manual
 open Informal

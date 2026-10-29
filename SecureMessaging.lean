@@ -59,6 +59,7 @@ import SecureMessaging.KEM.OnOffKEM.CorrectnessError
 import SecureMessaging.KEM.OnOffKEM.Defs
 import SecureMessaging.KEM.OnOffKEM.FromKPKE
 import SecureMessaging.KEM.CorrectnessError
+import SecureMessaging.FSAEAD.Defs
 import SecureMessaging.PRFPRNG.Defs
 import SecureMessaging.RKEM.Defs
 import SecureMessaging.RKEM.FromDDHNonFS.Construction
@@ -117,6 +118,6 @@ import SecureMessaging.SCKA.OppBiKEM.Security.Simulation
 import SecureMessaging.SCKA.OppBiKEM.Security.Proofs
 import SecureMessaging.SCKA.OppBiKEM.Security
 import SecureMessaging.SCKA.OppUniKEM.Correctness
-import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
+import SecureMessaging.SCKA.OppUniKEM.Security
 import SecureMessaging.SymEnc.Defs
 import ToVCVio.OracleComp.Constructions.SampleableType

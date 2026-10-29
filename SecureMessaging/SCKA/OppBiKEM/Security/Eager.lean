@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.SCKA.OppBiKEM.Security.Injected
 import ToVCVio.OracleComp.QueryTracking.OneUseSampling
+import ToVCVio.EvalDist.Monad.Basic
 
 /-!
 # Opp-BiKEM — Eager sampling of the target's values
@@ -25,7 +26,7 @@ holds all three from the start: it runs `adv` against the injected oracles with 
 pair and the encapsulation, correlated, before the reduction's simulation starts; the reduction
 receives `pk`, `c` and a candidate key, never `sk` (`Simulation`).
 
-**Main result** (`probOutput_stoppedHybridExp_eq_eager`). With correct erasure codes,
+**Main result** (`prEvent_stoppedHybridExp_eq_eager`). With correct erasure codes,
 
 ```text
 Pr[S_t^x = true]
@@ -67,20 +68,14 @@ variable {K PK SK C Sym : Type}
 /-- A draw that is not used integrates out of the output distribution: the `ProbComp` instance of
 VCVio's `ProgramLogic.Relational.evalDist_bind_const_of_no_failure`, which lives in the relational
 program logic outside this module's imports. -/
-lemma evalDist_bind_const_probComp {α β : Type} (mx : ProbComp α) (my : ProbComp β) :
-    𝒟[mx >>= fun _ => my] = 𝒟[my] :=
-  evalDist_ext fun y => by simp only [probOutput_bind_const, probFailure_eq_zero, tsub_zero,
-    one_mul]
-
-/-- Equal output distributions of the first draw give equal output distributions after a common
-continuation. -/
-lemma evalDist_bind_left_congr {α β : Type} {mx₁ mx₂ : ProbComp α} (f : α → ProbComp β)
-    (h : 𝒟[mx₁] = 𝒟[mx₂]) : 𝒟[mx₁ >>= f] = 𝒟[mx₂ >>= f] := by
-  rw [evalDist_bind, evalDist_bind, h]
+lemma evalDistEq_bind_const_probComp {α β : Type} (mx : ProbComp α) (my : ProbComp β) :
+    (mx >>= fun _ => my) =ᵈ my :=
+  EvalDistEq.of_forall_prEvent_eq fun _ => by
+    simp only [map_bind, OracleComp.prEvent_bind_const]
 
 /-- The support of a `ProbComp` is nonempty. -/
-lemma support_nonempty_probComp {α : Type} (mx : ProbComp α) : (support mx).Nonempty := by
-  simp [Set.nonempty_iff_ne_empty, ← probFailure_eq_one_iff]
+lemma support_nonempty_probComp {α : Type} (mx : ProbComp α) : (support mx).Nonempty :=
+  support_nonempty mx
 
 /-- Two base oracles with the same query computation from `s` give the same stopped query
 computation. -/
@@ -103,16 +98,17 @@ lemma mem_support_stopOnState {ι σ : Type} {spec : OracleSpec ι}
 /-- Per-query bridge between sampling at every query and a lazy base oracle, under stopping:
 it suffices that drawing the sample and running the sampled base oracle has the distribution
 of the lazy base oracle. -/
-lemma evalDist_sampleEachQuery_stopOnState {ι σ τ : Type} {spec : OracleSpec ι}
+lemma evalDistEq_sampleEachQuery_stopOnState {ι σ τ : Type} {spec : OracleSpec ι}
     (sample : ProbComp τ) (base : τ → QueryImpl spec (StateT σ ProbComp))
     (base' : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool) (q : spec.Domain) (s : σ)
-    (h : 𝒟[do let a ← sample; (base a q).run s] = 𝒟[(base' q).run s]) :
-    𝒟[((sampleEachQuery sample (fun a => stopOnState (base a) stop) q).run).run s] =
-      𝒟[((stopOnState base' stop q).run).run s] := by
-  have h' : 𝒟[do let a ← sample; base a q s] = 𝒟[base' q s] := h
+    (h : (do let a ← sample; (base a q).run s) =ᵈ (base' q).run s) :
+    ((sampleEachQuery sample (fun a => stopOnState (base a) stop) q).run).run s =ᵈ
+      ((stopOnState base' stop q).run).run s := by
+  have h' : (do let a ← sample; base a q s) =ᵈ base' q s := h
   rw [sampleEachQuery_run]
   simp only [stopOnState, OptionT.run_mk, StateT.run]
-  rw [← bind_assoc, evalDist_bind, h', ← evalDist_bind]
+  rw [← bind_assoc]
+  exact h'.bind_left _
 
 /-! ## The intermediate oracle families -/
 
@@ -484,11 +480,11 @@ lemma eager_hitRand_evalDist (inj : TargetInjection PK SK C K)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (helig : ¬(t ∈ s.exposed ∨ t ∈ s.challenged))
     (hkey : (s.keyA t).isSome = true ∨ (s.keyB t).isSome = true) :
-    𝒟[($ᵗ K : ProbComp K) >>= fun r =>
-        (eagerSecurityImpl kem hDet ecEk ecCt leak t inj true r (OChall t)).run s] =
-      𝒟[(injectedSecurityImpl kem hDet ecEk ecCt leak t inj (hybridRandom (t + 1))
-        (OChall t)).run s] := by
-  congr 1
+    (($ᵗ K : ProbComp K) >>= fun r =>
+        (eagerSecurityImpl kem hDet ecEk ecCt leak t inj true r (OChall t)).run s) =ᵈ
+      (injectedSecurityImpl kem hDet ecEk ecCt leak t inj (hybridRandom (t + 1))
+        (OChall t)).run s := by
+  refine ToVCVio.evalDistEq_of_eq ?_
   change (($ᵗ K : ProbComp K) >>= fun r =>
       (SCKAScheme.oracleChallWith (eagerAnswer t true r) _ _ _ t).run s) =
     (SCKAScheme.oracleChallOn (hybridRandom (t + 1)) _ _ _ _ t).run s
@@ -523,12 +519,12 @@ lemma sendWith_hitEncaps_evalDist {RK : Type} (role : Role) (keygen : ProbComp (
     (st : State PK SK C Sym) (pk : PK) (hg : sendEncapsGuard role st = true)
     (hpk : ∀ pk', st.res.ekPeer (st.res.resEpoch + if sendKeygenGuard role st then 2 else 0) =
       some pk' → pk' = pk) :
-    𝒟[kem.encaps pk >>= fun y => sendWith role keygen (fun _ => pure (y, ())) ecEk ecCt st] =
-      𝒟[sendWith role keygen (honestEncaps kem) ecEk ecCt st] := by
+    (kem.encaps pk >>= fun y => sendWith role keygen (fun _ => pure (y, ())) ecEk ecCt st) =ᵈ
+      sendWith role keygen (honestEncaps kem) ecEk ecCt st := by
   rw [sendEncapsGuard_eq_true_iff] at hg
   obtain ⟨h1, h2, h3, h4⟩ := hg
   by_cases hk : sendKeygenGuard role st = true
-  · simp only [hk, if_true] at h1 h2 h4 hpk
+  · simp only [hk, ite_true] at h1 h2 h4 hpk
     obtain ⟨⟨reqEpoch, dk, ek, chunks⟩, ⟨resEpoch, ekPeer, ct, ich⟩, ack⟩ := st
     dsimp only at h1 h2 h3 h4 hpk
     subst h3
@@ -543,14 +539,14 @@ lemma sendWith_hitEncaps_evalDist {RK : Type} (role : Role) (keygen : ProbComp (
     cases o with
     | none =>
       dsimp only
-      exact evalDist_bind_const_probComp _ _
+      exact evalDistEq_bind_const_probComp _ _
     | some peerEk =>
       obtain rfl := hpk peerEk hpeer
       dsimp only
       simp only [honestEncaps, bind_assoc, pure_bind]
-      exact evalDist_bind_bind_swap _ _ _
+      exact EvalDistEq.bind_bind_swap _ _ _
   · have hk' : sendKeygenGuard role st = false := Bool.eq_false_iff.mpr hk
-    simp only [hk', Bool.false_eq_true, if_false, add_zero] at h1 h2 h4 hpk
+    simp only [hk', Bool.false_eq_true, ite_false, add_zero] at h1 h2 h4 hpk
     obtain ⟨⟨reqEpoch, dk, ek, chunks⟩, ⟨resEpoch, ekPeer, ct, ich⟩, ack⟩ := st
     dsimp only at h1 h2 h3 h4 hpk
     subst h3
@@ -565,7 +561,7 @@ lemma sendWith_hitEncaps_evalDist {RK : Type} (role : Role) (keygen : ProbComp (
     cases o with
     | none =>
       dsimp only
-      exact evalDist_bind_const_probComp _ _
+      exact evalDistEq_bind_const_probComp _ _
     | some peerEk =>
       obtain rfl := hpk peerEk hpeer
       dsimp only
@@ -605,21 +601,21 @@ lemma injected_hitEncaps_evalDist (x : PK × SK) (random : ℕ → Bool)
       ∀ pk', s.stA.res.ekPeer t = some pk' → pk' = x.1)
     (hpkB : sendEncapsulatesTarget .B t s.stB = true →
       ∀ pk', s.stB.res.ekPeer t = some pk' → pk' = x.1) :
-    𝒟[kem.encaps x.1 >>= fun y =>
-        (injectedSecurityImpl kem hDet ecEk ecCt leak t ⟨x.1, x.2, y.1, y.2⟩ random q).run s] =
-      𝒟[(idealRecvSecurityImpl kem hDet ecEk ecCt leak
-        (keygenInjectedScheme kem hDet ecEk ecCt leak t x.1 x.2) random q).run s] := by
+    (kem.encaps x.1 >>= fun y =>
+        (injectedSecurityImpl kem hDet ecEk ecCt leak t ⟨x.1, x.2, y.1, y.2⟩ random q).run s) =ᵈ
+      (idealRecvSecurityImpl kem hDet ecEk ecCt leak
+        (keygenInjectedScheme kem hDet ecEk ecCt leak t x.1 x.2) random q).run s := by
   rcases q with (((((((((n | u) | u) | n) | n) | u) | u) | e) | u) | u) <;>
     simp only [hitEncaps, Bool.false_eq_true] at hq
   · have hpkA := hpkA hq
-    have hcore : 𝒟[kem.encaps x.1 >>= fun y =>
-        injectedSend kem .A ecEk ecCt t ⟨x.1, x.2, y.1, y.2⟩ s.stA] =
-        𝒟[keygenInjectedSend kem .A ecEk ecCt t x.1 x.2 s.stA] := by
+    have hcore : (kem.encaps x.1 >>= fun y =>
+        injectedSend kem .A ecEk ecCt t ⟨x.1, x.2, y.1, y.2⟩ s.stA) =ᵈ
+        keygenInjectedSend kem .A ecEk ecCt t x.1 x.2 s.stA := by
       simp only [injectedSend, keygenInjectedSend, injectedKeygen_eq_targetKeygen,
         injectedEncaps_eq_of_target kem .A t _ s.stA hq]
       rw [← bind_assoc]
-      refine evalDist_bind_left_congr _ (sendWith_hitEncaps_evalDist kem ecEk ecCt .A _ s.stA x.1
-        ?_ ?_)
+      refine EvalDistEq.bind_left (sendWith_hitEncaps_evalDist kem ecEk ecCt .A _ s.stA x.1
+        ?_ ?_) _
       · simp only [sendEncapsulatesTarget, Bool.and_eq_true] at hq
         exact hq.1
       · simp only [sendEncapsulatesTarget, Bool.and_eq_true, decide_eq_true_eq] at hq
@@ -628,16 +624,16 @@ lemma injected_hitEncaps_evalDist (x : PK × SK) (random : ℕ → Bool)
     simp only [injectedSecurityImpl_eq, idealRecvSecurityImpl_run_OSendA,
       SCKAScheme.oracleSendA_run_eq, map_eq_bind_pure_comp]
     rw [← bind_assoc]
-    exact evalDist_bind_left_congr _ hcore
+    exact hcore.bind_left _
   · have hpkB := hpkB hq
-    have hcore : 𝒟[kem.encaps x.1 >>= fun y =>
-        injectedSend kem .B ecEk ecCt t ⟨x.1, x.2, y.1, y.2⟩ s.stB] =
-        𝒟[keygenInjectedSend kem .B ecEk ecCt t x.1 x.2 s.stB] := by
+    have hcore : (kem.encaps x.1 >>= fun y =>
+        injectedSend kem .B ecEk ecCt t ⟨x.1, x.2, y.1, y.2⟩ s.stB) =ᵈ
+        keygenInjectedSend kem .B ecEk ecCt t x.1 x.2 s.stB := by
       simp only [injectedSend, keygenInjectedSend, injectedKeygen_eq_targetKeygen,
         injectedEncaps_eq_of_target kem .B t _ s.stB hq]
       rw [← bind_assoc]
-      refine evalDist_bind_left_congr _ (sendWith_hitEncaps_evalDist kem ecEk ecCt .B _ s.stB x.1
-        ?_ ?_)
+      refine EvalDistEq.bind_left (sendWith_hitEncaps_evalDist kem ecEk ecCt .B _ s.stB x.1
+        ?_ ?_) _
       · simp only [sendEncapsulatesTarget, Bool.and_eq_true] at hq
         exact hq.1
       · simp only [sendEncapsulatesTarget, Bool.and_eq_true, decide_eq_true_eq] at hq
@@ -646,7 +642,7 @@ lemma injected_hitEncaps_evalDist (x : PK × SK) (random : ℕ → Bool)
     simp only [injectedSecurityImpl_eq, idealRecvSecurityImpl_run_OSendB,
       SCKAScheme.oracleSendB_run_eq, map_eq_bind_pure_comp]
     rw [← bind_assoc]
-    exact evalDist_bind_left_congr _ hcore
+    exact hcore.bind_left _
 
 end AtHits
 
@@ -698,12 +694,12 @@ lemma idealRecvSecurityImpl_stA_step (Q : State PK SK C Sym → Prop)
     · exact hQ
     · exact hQ
     · rcases key? with _ | ⟨tI, k⟩ <;> exact hQ
-  · rcases SCKAScheme.oracleSendArleak_support _ _ s z hz with
+  · rcases SCKAScheme.oracleSendArleak_support' _ _ s z hz with
       rfl | ⟨key?, ρ, tsnd, stA', rand, hout, -, hz2⟩
     · exact hQ
     · rw [hz2]
       rcases key? with _ | ⟨tI, k⟩ <;> exact hrleak s.stA _ _ _ _ rand hout hQ
-  · rcases SCKAScheme.oracleSendBrleak_support _ _ s z hz with
+  · rcases SCKAScheme.oracleSendBrleak_support' _ _ s z hz with
       rfl | ⟨key?, ρ, tsnd, stB', rand, -, -, hz2⟩
     · exact hQ
     · rw [hz2]
@@ -752,12 +748,12 @@ lemma idealRecvSecurityImpl_stB_step (Q : State PK SK C Sym → Prop)
     · exact hQ
     · exact hQ
     · rcases key? with _ | ⟨tI, k⟩ <;> exact hrecv _ s.stB ρ _ trcv stB' hrecv' hQ
-  · rcases SCKAScheme.oracleSendArleak_support _ _ s z hz with
+  · rcases SCKAScheme.oracleSendArleak_support' _ _ s z hz with
       rfl | ⟨key?, ρ, tsnd, stA', rand, -, -, hz2⟩
     · exact hQ
     · rw [hz2]
       rcases key? with _ | ⟨tI, k⟩ <;> exact hQ
-  · rcases SCKAScheme.oracleSendBrleak_support _ _ s z hz with
+  · rcases SCKAScheme.oracleSendBrleak_support' _ _ s z hz with
       rfl | ⟨key?, ρ, tsnd, stB', rand, hout, -, hz2⟩
     · exact hQ
     · rw [hz2]
@@ -938,16 +934,16 @@ lemma hitRand_eq_false_of_challenged (b : Bool) (q : (securitySpec leak Sym).Dom
 
 /-- Drawing the eager random key first and running the stopped eager oracles has the acceptance
 probability of the stopped injected oracles with the hybrid selection of threshold `t + b`. -/
-lemma probOutput_stopped_eager_eq_injected (inj : TargetInjection PK SK C K) (b : Bool)
+lemma prEvent_stopped_eager_eq_injected (inj : TargetInjection PK SK C K) (b : Bool)
     (adv : SecurityAdversary leak Sym)
     (s₀ : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)) :
-    Pr[= true | ($ᵗ K : ProbComp K) >>= fun r =>
+    Pr{let x ← ($ᵗ K : ProbComp K) >>= fun r =>
         stoppedRun (eagerSecurityImpl kem hDet ecEk ecCt leak t inj b r) (targetExposed t) adv
-          s₀] =
-      Pr[= true | stoppedRun (injectedSecurityImpl kem hDet ecEk ecCt leak t inj
-        (hybridRandom (t + b.toNat))) (targetExposed t) adv s₀] := by
+          s₀}[x = true] =
+      Pr{let x ← stoppedRun (injectedSecurityImpl kem hDet ecEk ecCt leak t inj
+           (hybridRandom (t + b.toNat))) (targetExposed t) adv s₀}[x = true] := by
   unfold stoppedRun
-  rw [optionRun_sample_once_eq_sampleEachQuery ($ᵗ K : ProbComp K)
+  rw [map_bind, optionRun_sample_once_eq_sampleEachQuery ($ᵗ K : ProbComp K)
     (fun r => stopOnState (eagerSecurityImpl kem hDet ecEk ecCt leak t inj b r) (targetExposed t))
     (fun _ => True) (fun s => t ∈ s.challenged) (hitRand t b)
     (fun _ _ _ _ _ _ _ _ => trivial)
@@ -972,11 +968,11 @@ lemma probOutput_stopped_eager_eq_injected (inj : TargetInjection PK SK C K) (b 
       · rw [h]
         exact Finset.mem_insert_self _ _)
     adv s₀ trivial]
-  refine (probOutput_optionRun_eq_of_state_map _ _ id (fun _ => True)
+  refine (prEvent_optionRun_eq_of_state_map _ _ id (fun _ => True)
     (fun _ _ _ _ _ _ => trivial) (fun q s _ => ?_) adv s₀ trivial).symm
   simp only [id, Prod.map_id, id_map]
-  symm
-  refine evalDist_sampleEachQuery_stopOnState ($ᵗ K : ProbComp K) _ _ (targetExposed t) q s ?_
+  refine EvalDistEq.symm ?_
+  refine evalDistEq_sampleEachQuery_stopOnState ($ᵗ K : ProbComp K) _ _ (targetExposed t) q s ?_
   cases hh : hitRand (leak := leak) t b q s with
   | false =>
     have heq : ∀ r, (eagerSecurityImpl kem hDet ecEk ecCt leak t inj b r q).run s =
@@ -985,7 +981,7 @@ lemma probOutput_stopped_eager_eq_injected (inj : TargetInjection PK SK C K) (b 
       fun r => eagerSecurityImpl_run_eq_injected_of_not_hitRand kem hDet ecEk ecCt leak t inj b
         r s q hh
     simp only [heq]
-    exact evalDist_bind_const_probComp _ _
+    exact evalDistEq_bind_const_probComp _ _
   | true =>
     rcases q with (((((q | u) | u) | e) | u) | u) <;>
       simp only [hitRand, Bool.false_eq_true, Bool.and_eq_true, decide_eq_true_eq,
@@ -1228,20 +1224,20 @@ lemma encapsInv_step (ht : 0 < t) (x : PK × SK) (hx : x ∈ support kem.keygen)
 include hEk hCt in
 /-- Drawing the target's encapsulation first and running the stopped injected oracles has the
 acceptance probability of the stopped keygen-injected oracles, for a supported key pair. -/
-lemma probOutput_stopped_injected_eq_keygenInjected (ht : 0 < t) (x : PK × SK)
+lemma prEvent_stopped_injected_eq_keygenInjected (ht : 0 < t) (x : PK × SK)
     (hx : x ∈ support kem.keygen) (b : Bool) (adv : SecurityAdversary leak Sym) :
-    Pr[= true | kem.encaps x.1 >>= fun y =>
+    Pr{let w ← kem.encaps x.1 >>= fun y =>
         stoppedRun (injectedSecurityImpl kem hDet ecEk ecCt leak t ⟨x.1, x.2, y.1, y.2⟩
           (hybridRandom (t + b.toNat))) (targetExposed t) adv
-          (initState (K := K) (PK := PK) (SK := SK) (C := C) (Sym := Sym))] =
-      Pr[= true | stoppedRun (idealRecvSecurityImpl kem hDet ecEk ecCt leak
-        (keygenInjectedScheme kem hDet ecEk ecCt leak t x.1 x.2) (hybridRandom (t + b.toNat)))
-        (targetExposed t) adv
-        (initState (K := K) (PK := PK) (SK := SK) (C := C) (Sym := Sym))] := by
+          (initState (K := K) (PK := PK) (SK := SK) (C := C) (Sym := Sym))}[w = true] =
+      Pr{let w ← stoppedRun (idealRecvSecurityImpl kem hDet ecEk ecCt leak
+           (keygenInjectedScheme kem hDet ecEk ecCt leak t x.1 x.2) (hybridRandom (t + b.toNat)))
+           (targetExposed t) adv
+           (initState (K := K) (PK := PK) (SK := SK) (C := C) (Sym := Sym))}[w = true] := by
   obtain ⟨y₀, hy₀⟩ := support_nonempty_probComp (kem.encaps x.1)
   have hinit : encapsInv kem ecEk ecCt t x initState := ⟨y₀, hy₀, injInv_init kem ecEk ecCt t ht _⟩
   unfold stoppedRun
-  rw [optionRun_sample_once_eq_sampleEachQuery (kem.encaps x.1)
+  rw [map_bind, optionRun_sample_once_eq_sampleEachQuery (kem.encaps x.1)
     (fun y : C × K => stopOnState (injectedSecurityImpl kem hDet ecEk ecCt leak t
       ⟨x.1, x.2, y.1, y.2⟩ (hybridRandom (t + b.toNat))) (targetExposed t))
     (encapsInv kem ecEk ecCt t x) (usedEncaps t) (hitEncaps t)
@@ -1266,7 +1262,7 @@ lemma probOutput_stopped_injected_eq_keygenInjected (ht : 0 < t) (x : PK × SK)
       obtain ⟨y', -, hs'⟩ := hs
       exact usedEncaps_of_hit kem hDet ecEk ecCt leak t x hx y hy _ _ q s hs' rfl hh w hw)
     adv initState hinit]
-  refine (probOutput_optionRun_eq_of_state_map
+  refine (prEvent_optionRun_eq_of_state_map
     (sampleEachQuery (kem.encaps x.1) (fun y : C × K =>
       stopOnState (injectedSecurityImpl kem hDet ecEk ecCt leak t ⟨x.1, x.2, y.1, y.2⟩
         (hybridRandom (t + b.toNat))) (targetExposed t)))
@@ -1281,8 +1277,8 @@ lemma probOutput_stopped_injected_eq_keygenInjected (ht : 0 < t) (x : PK × SK)
     rw [hzw]
     exact encapsInv_step kem hDet ecEk ecCt hEk hCt leak t ht x hx y hy _ q s hs w hw hexp
   · simp only [id, Prod.map_id, id_map]
-    symm
-    refine evalDist_sampleEachQuery_stopOnState (kem.encaps x.1) _ _ (targetExposed t) q s ?_
+    refine EvalDistEq.symm ?_
+    refine evalDistEq_sampleEachQuery_stopOnState (kem.encaps x.1) _ _ (targetExposed t) q s ?_
     cases hh : hitEncaps (leak := leak) t q s with
     | false =>
       have heq : ∀ y : C × K, (injectedSecurityImpl kem hDet ecEk ecCt leak t
@@ -1293,7 +1289,7 @@ lemma probOutput_stopped_injected_eq_keygenInjected (ht : 0 < t) (x : PK × SK)
         fun y => injectedSecurityImpl_run_eq_keygenInjected_of_not_hitEncaps kem hDet ecEk ecCt
           leak t x.1 x.2 y _ s q hh
       simp only [heq]
-      exact evalDist_bind_const_probComp _ _
+      exact evalDistEq_bind_const_probComp _ _
     | true =>
       obtain ⟨y', -, hs'⟩ := hs
       exact injected_hitEncaps_evalDist kem hDet ecEk ecCt leak t x _ s q hh
@@ -1401,14 +1397,15 @@ lemma usedKeygen_of_hit (x : PK × SK) (hx : x ∈ support kem.keygen) (random :
 include hEk hCt in
 /-- The stopped hybrid oracles have the acceptance probability of drawing the target's key pair
 first and running the stopped keygen-injected oracles. -/
-lemma probOutput_stopped_hybrid_eq_keygenInjected (b : Bool) (adv : SecurityAdversary leak Sym) :
-    Pr[= true | stoppedRun (hybridSecurityImpl kem hDet ecEk ecCt leak (hybridRandom (t + b.toNat)))
-        (targetExposed t) adv (initState (K := K) (PK := PK) (SK := SK) (C := C) (Sym := Sym))] =
-      Pr[= true | kem.keygen >>= fun x =>
-        stoppedRun (idealRecvSecurityImpl kem hDet ecEk ecCt leak
+lemma prEvent_stopped_hybrid_eq_keygenInjected (b : Bool) (adv : SecurityAdversary leak Sym) :
+    Pr{let x ← stoppedRun (hybridSecurityImpl kem hDet ecEk ecCt leak (hybridRandom (t + b.toNat)))
+        (targetExposed t) adv
+        (initState (K := K) (PK := PK) (SK := SK) (C := C) (Sym := Sym))}[x = true] =
+      Pr{let w ← kem.keygen >>= fun x =>
+           stoppedRun (idealRecvSecurityImpl kem hDet ecEk ecCt leak
           (keygenInjectedScheme kem hDet ecEk ecCt leak t x.1 x.2) (hybridRandom (t + b.toNat)))
           (targetExposed t) adv
-          (initState (K := K) (PK := PK) (SK := SK) (C := C) (Sym := Sym))] := by
+          (initState (K := K) (PK := PK) (SK := SK) (C := C) (Sym := Sym))}[w = true] := by
   have hinit : GameInv kem ecEk ecCt (initState (K := K) (PK := PK) (SK := SK) (C := C)
       (Sym := Sym)) :=
     gameInv_init kem ecEk ecCt _ _ (by simp [initA, init, initialState])
@@ -1421,7 +1418,7 @@ lemma probOutput_stopped_hybrid_eq_keygenInjected (b : Bool) (adv : SecurityAdve
       (fun st => keygenInjectedSend_support_subset kem ecEk ecCt t .A x hx st)
       (fun st => keygenInjectedSend_support_subset kem ecEk ecCt t .B x hx st) q s hs z hz
   unfold stoppedRun
-  rw [optionRun_sample_once_eq_sampleEachQuery kem.keygen
+  rw [map_bind, optionRun_sample_once_eq_sampleEachQuery kem.keygen
     (fun x : PK × SK => stopOnState (idealRecvSecurityImpl kem hDet ecEk ecCt leak
       (keygenInjectedScheme kem hDet ecEk ecCt leak t x.1 x.2) (hybridRandom (t + b.toNat)))
       (targetExposed t))
@@ -1443,7 +1440,7 @@ lemma probOutput_stopped_hybrid_eq_keygenInjected (b : Bool) (adv : SecurityAdve
       rw [hzw]
       exact usedKeygen_of_hit kem hDet ecEk ecCt leak t x hx _ q s hs hh w hw)
     adv initState hinit]
-  refine probOutput_optionRun_eq_of_state_map
+  refine prEvent_optionRun_eq_of_state_map
     (sampleEachQuery kem.keygen (fun x : PK × SK =>
       stopOnState (idealRecvSecurityImpl kem hDet ecEk ecCt leak
         (keygenInjectedScheme kem hDet ecEk ecCt leak t x.1 x.2) (hybridRandom (t + b.toNat)))
@@ -1458,8 +1455,8 @@ lemma probOutput_stopped_hybrid_eq_keygenInjected (b : Bool) (adv : SecurityAdve
     rw [hzw]
     exact hpres x hx q s hs w hw
   · simp only [id, Prod.map_id, id_map]
-    symm
-    refine evalDist_sampleEachQuery_stopOnState kem.keygen _ _ (targetExposed t) q s ?_
+    refine EvalDistEq.symm ?_
+    refine evalDistEq_sampleEachQuery_stopOnState kem.keygen _ _ (targetExposed t) q s ?_
     cases hh : hitKeygen (leak := leak) t q s with
     | false =>
       have heq : ∀ x : PK × SK, (idealRecvSecurityImpl kem hDet ecEk ecCt leak
@@ -1468,7 +1465,7 @@ lemma probOutput_stopped_hybrid_eq_keygenInjected (b : Bool) (adv : SecurityAdve
           q).run s :=
         fun x => keygenInjected_run_eq_hybrid_of_not_hitKeygen kem hDet ecEk ecCt leak t x _ s q hh
       simp only [heq]
-      exact evalDist_bind_const_probComp _ _
+      exact evalDistEq_bind_const_probComp _ _
     | true =>
       rw [keygenInjected_hitKeygen_eq kem hDet ecEk ecCt leak t _ s q hh]
 
@@ -1492,18 +1489,20 @@ include hEk hCt in
 Then the stopped hybrid with threshold `t + b` accepts with the probability of the eager hybrid
 for bit `b`, averaged over the target's key pair, encapsulation and uniform challenge key:
 `Pr[S_t^x = true] = E_{(pk, sk), (c, k), r} Pr[E_t^x(pk, sk, c, k, r) = true]`. -/
-theorem probOutput_stoppedHybridExp_eq_eager (adv : SecurityAdversary leak Sym) (t : ℕ)
+theorem prEvent_stoppedHybridExp_eq_eager (adv : SecurityAdversary leak Sym) (t : ℕ)
     (ht : 0 < t) (b : Bool) :
-    Pr[= true | stoppedHybridExp kem hDet ecEk ecCt leak t (t + b.toNat) adv] =
-      Pr[= true | kem.keygen >>= fun x => kem.encaps x.1 >>= fun y => ($ᵗ K : ProbComp K) >>=
-        fun r => stoppedEagerExp kem hDet ecEk ecCt leak t b x.1 x.2 y.1 y.2 r adv] := by
+    Pr{let x ← stoppedHybridExp kem hDet ecEk ecCt leak t (t + b.toNat) adv}[x = true] =
+      Pr{let w ← kem.keygen >>= fun x => kem.encaps x.1 >>= fun y => ($ᵗ K : ProbComp K) >>=
+           fun r => stoppedEagerExp kem hDet ecEk ecCt leak t b x.1 x.2 y.1 y.2 r
+             adv}[w = true] := by
   unfold stoppedHybridExp
-  rw [probOutput_stopped_hybrid_eq_keygenInjected kem hDet ecEk ecCt hEk hCt leak t b adv]
-  refine probOutput_bind_congr fun x hx => ?_
-  rw [← probOutput_stopped_injected_eq_keygenInjected kem hDet ecEk ecCt hEk hCt leak t ht x hx b
-    adv]
-  refine probOutput_bind_congr fun y _ => ?_
-  exact (probOutput_stopped_eager_eq_injected kem hDet ecEk ecCt leak t ⟨x.1, x.2, y.1, y.2⟩ b adv
+  rw [prEvent_stopped_hybrid_eq_keygenInjected kem hDet ecEk ecCt hEk hCt leak t b adv,
+    map_bind, map_bind]
+  refine prEvent_bind_congr_of_support _ _ _ fun x hx => ?_
+  rw [← prEvent_stopped_injected_eq_keygenInjected kem hDet ecEk ecCt hEk hCt leak t ht x hx b
+    adv, map_bind, map_bind]
+  refine prEvent_bind_congr_of_support _ _ _ fun y _ => ?_
+  exact (prEvent_stopped_eager_eq_injected kem hDet ecEk ecCt leak t ⟨x.1, x.2, y.1, y.2⟩ b adv
     _).symm
 
 end Main

@@ -4,7 +4,8 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.OracleComp.QueryTracking.QueryBound
+import VCVio.OracleComp.QueryTracking.QueryBound
+import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 import VCVio.OracleComp.SimSemantics.StateT.Basic
 import VCVio.OracleComp.ProbComp
 
@@ -56,10 +57,24 @@ theorem stateCounter_simulateQ_run_le
     (oa : OracleComp spec α) (q : ℕ) (hq : oa.IsQueryBoundP p q)
     (s : σ) (z : α × σ) (hz : z ∈ support ((simulateQ impl oa).run s)) :
     count z.2 ≤ count s + q := by
-  apply support_state_measure_le_of_isQueryBoundP impl count p ?_ ?_ oa q hq s z hz
-  · intro t ht s z hz
-    simpa [ht] using hstep t s z hz
-  · intro t ht s z hz
-    simpa [ht] using hstep t s z hz
+  induction oa using OracleComp.inductionOn generalizing q s with
+  | pure x =>
+    simp only [simulateQ_pure, StateT.run_pure, support_pure, Set.mem_singleton_iff] at hz
+    subst hz
+    exact Nat.le_add_right _ _
+  | @query_bind t cont ih =>
+    rw [OracleComp.isQueryBoundP_query_bind_iff] at hq
+    obtain ⟨hcan, hcont⟩ := hq
+    rw [simulateQ_query_bind, StateT.run_bind, mem_support_bind_iff] at hz
+    obtain ⟨y, hy, hz⟩ := hz
+    have hs := hstep t s y hy
+    by_cases ht : p t
+    · have hqpos : 0 < q := hcan.resolve_left (not_not_intro ht)
+      have := ih y.1 (q - 1) (by simpa [ht] using hcont y.1) y.2 hz
+      simp only [ht, ite_true] at hs
+      omega
+    · have := ih y.1 q (by simpa [ht] using hcont y.1) y.2 hz
+      simp only [ht, ite_false] at hs
+      omega
 
 end OracleComp

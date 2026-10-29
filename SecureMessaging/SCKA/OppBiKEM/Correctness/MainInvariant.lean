@@ -119,9 +119,9 @@ structure MessageInv (role : Role) {kem : KEMScheme ProbComp K PK SK C}
   `ρ.tRes + role.offset`. -/
   pk_chunk : ρ.bit = some 0 → ∃ pk sk i,
     (T (ρ.tRes + role.offset)).keypair = some (pk, sk) ∧ ρ.ch = some (ecEk.encode pk i)
-  /-- A chunk on a ciphertext message encodes the transcript's ciphertext for `ρ.tRes`. -/
-  ct_chunk : ρ.bit = some 1 → ∀ ch, ρ.ch = some ch → ∃ c k i,
-    (T ρ.tRes).enc = some (c, k) ∧ ch = ecCt.encode c i
+  /-- A ciphertext message carries a chunk of the transcript's ciphertext for `ρ.tRes`. -/
+  ct_chunk : ρ.bit = some 1 → ∃ c k i,
+    (T ρ.tRes).enc = some (c, k) ∧ ρ.ch = some (ecCt.encode c i)
   /-- A message without payload selector carries no chunk. -/
   no_chunk : ρ.bit = none → ρ.ch = none
   /-- A set ciphertext flag is backed by `ρ.tReq ∈ ctRec` in the sender's state. -/
@@ -365,7 +365,7 @@ lemma keys_of_ctRec {kem : KEMScheme ProbComp K PK SK C}
     obtain ⟨⟨c, k⟩, hck⟩ := Option.isSome_iff_exists.mp henc
     have hp' : t % 2 = role.peer.resParity := by simpa using hp
     refine ⟨?_, ?_⟩
-    · rw [h.key_req t hpos hp, if_pos ht, EpochTranscript.key, hck]
+    · rw [h.key_req t hpos hp, ite_eq_left ht, EpochTranscript.key, hck]
       simp
     · rw [h'.key_res t hpos hp', EpochTranscript.key, hck]
       simp
@@ -376,7 +376,7 @@ lemma keys_of_ctRec {kem : KEMScheme ProbComp K PK SK C}
     refine ⟨?_, ?_⟩
     · rw [h.key_res t hpos hp, EpochTranscript.key, hck]
       simp
-    · rw [h'.key_req t hpos hp', if_pos hpeer, EpochTranscript.key, hck]
+    · rw [h'.key_req t hpos hp', ite_eq_left hpeer, EpochTranscript.key, hck]
       simp
 
 /-- The game's known-prefix assertion: for every bound at most the sending horizon, the party's

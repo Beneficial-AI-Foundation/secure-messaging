@@ -4,13 +4,15 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.FromGCM.Security.Axu
-import SecureMessaging.AEAD.FromGCM.Security.GhashPolynomial
-import ToVCVio.CryptoFoundations.UniversalHash
-import ToVCVio.OracleComp.Constructions.BitVec
-import Mathlib.Algebra.Polynomial.Roots
-import Mathlib.Algebra.Field.ZMod
-import Mathlib.Data.List.GetD
+module
+
+public import SecureMessaging.AEAD.FromGCM.Security.Axu
+public import SecureMessaging.AEAD.FromGCM.Security.GhashPolynomial
+public import VCVio.CryptoFoundations.UniversalHash
+public import ToVCVio.OracleComp.Constructions.BitVec
+public import Mathlib.Algebra.Polynomial.Roots
+public import Mathlib.Algebra.Field.ZMod
+public import Mathlib.Data.List.GetD
 
 /-!
 # GHASH is almost-XOR-universal
@@ -32,6 +34,8 @@ degree at most `maxBlocks L`, which has at most that many roots in a field. Irre
 explicit hypothesis here and is discharged in `NistIrreducible.lean`.
 -/
 
+@[expose] public section
+
 open OracleComp OracleSpec ENNReal ToVCVio Polynomial
 
 namespace GCM
@@ -46,15 +50,15 @@ theorem ghashPoly_coeff_succ (blocks : List (BitVec 128)) (i : ℕ) :
   simp only [Polynomial.coeff_C_mul, Polynomial.coeff_X_pow, mul_ite, mul_one, mul_zero]
   by_cases hi : i < blocks.length
   · rw [Finset.sum_eq_single i]
-    · rw [if_pos rfl]
-    · intro j _ hj; exact if_neg (by omega)
+    · rw [ite_eq_left rfl]
+    · intro j _ hj; exact ite_eq_right (by omega)
     · intro h; exact absurd (Finset.mem_range.2 hi) h
   · have hz : blocks.reverse.getD i 0 = 0 :=
       List.getD_eq_default _ _ (by simpa using hi)
     rw [hz, reflectN_zero]
     refine Finset.sum_eq_zero fun j hj => ?_
     rw [Finset.mem_range] at hj
-    exact if_neg (by omega)
+    exact ite_eq_right (by omega)
 
 /-! ## The difference polynomial -/
 
@@ -81,7 +85,7 @@ theorem ghashDiffPoly_ne_zero (bp bq : List (BitVec 128)) (Δ : BitVec 128) {i :
   have hc : (ghashDiffPoly bp bq Δ).coeff (i + 1) = 0 := by rw [h0]; simp
   rw [ghashDiffPoly] at hc
   simp only [Polynomial.coeff_sub, ghashPoly_coeff_succ, Polynomial.coeff_C,
-    Nat.succ_ne_zero, if_false, sub_zero] at hc
+    Nat.succ_ne_zero, ite_false, sub_zero] at hc
   exact hne (reflectN.injective (sub_eq_zero.1 hc))
 
 /-- Evaluating `ghashDiffPoly bp bq Δ` at `reflectN H` gives
@@ -140,7 +144,7 @@ block lists GHASH is not AXU, see `Axu.lean`. -/
 theorem ghash_isAXU (L : ℕ) (hirr : Irreducible nistPoly) :
     GhashIsAXU L ((maxBlocks L : ℝ≥0∞) / 2 ^ (128 : ℕ)) := by
   have hb : GhashIsAXU L ((maxBlocks L : ℝ≥0∞) / Fintype.card (BitVec 128)) := by
-    refine ToVCVio.isAlmostXorUniversal_of_card_le (d := maxBlocks L) ?_
+    refine UniversalHash.isAlmostXorUniversal_of_card_le (d := maxBlocks L) ?_
     intro p q hpq Δ
     obtain ⟨i, hi⟩ := gcmEncode_tail_distinct hpq
     exact card_filter_le hirr _ _ Δ (gcmEncode_length_le p.1 p.2)

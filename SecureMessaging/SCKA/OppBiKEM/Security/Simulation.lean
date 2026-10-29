@@ -25,7 +25,7 @@ stopped at the first exposure of `t`, and differ only in what the game state hol
 The *state map* `targetStateMap t dummy k_x` replaces the retained secret at `t` by `dummy` in
 both parties' states and the table entries at `t` by `k_x`.
 
-**Main result** (`probOutput_stoppedEagerExp_eq_reductionRun`). With correct erasure codes, for
+**Main result** (`prEvent_stoppedEagerExp_eq_reductionRun`). With correct erasure codes, for
 every placeholder `dummy`,
 
 ```text
@@ -33,7 +33,7 @@ Pr[E_t^x(pk, sk, c, kReal, kRand) = true] = Pr[Sim_t(pk, dummy, c, k_x) = true].
 ```
 
 Acceptance is transported through the state map with
-`probOutput_optionRun_eq_of_state_map_some`, whose per-query obligation compares the answer and
+`prEvent_optionRun_eq_of_state_map_some`, whose per-query obligation compares the answer and
 the mapped successor on continuing answers only. Every oracle commutes with the map on an
 `InjInv` state with `t` unexposed:
 
@@ -325,7 +325,7 @@ lemma sendWith_mapSecret {RK RE : Type} (role : Role) (t : ℕ) (ht : 0 < t) (d 
       = true
   · rw [hk hg]
     clear hk
-    simp only [hg, if_true] at he
+    simp only [hg, ite_true] at he
     unfold sendWith
     dsimp only [mapSecret]
     simp only [hg, ↓reduceIte, bind_map_left, map_bind]
@@ -350,10 +350,12 @@ lemma sendWith_mapSecret {RK RE : Type} (role : Role) (t : ℕ) (ht : 0 < t) (d 
       split_ifs with h1 h2 h3
       all_goals first
         | (simp [mapSendOut, secretMap_mk, filter_map_secretMap, mapSecret, hsk]; done)
+        | ((cases ct <;> simp [mapSendOut, secretMap_mk, filter_map_secretMap, mapSecret, hsk]);
+            done)
         | (exfalso; exact hEnc (by simp_all))
   · have hg' := Bool.eq_false_iff.mpr hg
     clear hk
-    simp only [hg', Bool.false_eq_true, if_false, add_zero] at he
+    simp only [hg', Bool.false_eq_true, ite_false, add_zero] at he
     unfold sendWith
     dsimp only [mapSecret]
     simp only [hg', Bool.false_eq_true, ↓reduceIte]
@@ -376,6 +378,7 @@ lemma sendWith_mapSecret {RK RE : Type} (role : Role) (t : ℕ) (ht : 0 < t) (d 
       all_goals first
         | (simp [mapSendOut, mapSecret]; done)
         | ((cases ek <;> simp [mapSendOut, mapSecret]); done)
+        | ((cases ct <;> simp [mapSendOut, mapSecret]); done)
         | (exfalso; exact hEnc (by simp_all))
 
 /-- The randomness of a send does not depend on the stored secrets: projecting a `sendWith`
@@ -618,12 +621,12 @@ on A's state. -/
 lemma corruptA_step (k : K)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : t ∉ s.exposed) :
-    𝒟[(fun z => z.1.map fun a => (a, z.2)) <$>
+    ((fun z => z.1.map fun a => (a, z.2)) <$>
         ((stopOnState (SCKAScheme.oracleCorruptA (exposure .A leak).corrupt (StB PK SK C Sym) K
-          (Message Sym)) (targetExposed t) ()).run).run (targetStateMap t dummy k s)] =
-      𝒟[(fun z => z.1.map fun a => (a, targetStateMap t dummy k z.2)) <$>
+          (Message Sym)) (targetExposed t) ()).run).run (targetStateMap t dummy k s)) =ᵈ
+      ((fun z => z.1.map fun a => (a, targetStateMap t dummy k z.2)) <$>
         ((stopOnState (SCKAScheme.oracleCorruptA (exposure .A leak).corrupt (StB PK SK C Sym) K
-          (Message Sym)) (targetExposed t) ()).run).run s] := by
+          (Message Sym)) (targetExposed t) ()).run).run s) := by
   have hrun : ∀ u, ((stopOnState (SCKAScheme.oracleCorruptA (exposure .A leak).corrupt
       (StB PK SK C Sym) K (Message Sym)) (targetExposed t) ()).run).run u = (do
         let z ← (SCKAScheme.oracleCorruptA (exposure .A leak).corrupt (StB PK SK C Sym) K
@@ -724,7 +727,6 @@ lemma recvAUpdate_map (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C S
       targetStateMap t d k (SCKAScheme.recvAUpdate s tsnd key? trcv stA') := by
   rcases key? with _ | ⟨tI, key⟩
   · simp [SCKAScheme.recvAUpdate, targetStateMap]
-    try rfl
   · simp only [SCKAScheme.recvAUpdate, mapKey_some, targetStateMap]
     have hcorr' := hcorr
     simp only [SCKAScheme.recvAUpdate, Bool.and_eq_true] at hcorr'
@@ -745,7 +747,6 @@ lemma recvBUpdate_map (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C S
       targetStateMap t d k (SCKAScheme.recvBUpdate s tsnd key? trcv stB') := by
   rcases key? with _ | ⟨tI, key⟩
   · simp [SCKAScheme.recvBUpdate, targetStateMap]
-    try rfl
   · simp only [SCKAScheme.recvBUpdate, mapKey_some, targetStateMap]
     have hcorr' := hcorr
     simp only [SCKAScheme.recvBUpdate, Bool.and_eq_true] at hcorr'
@@ -815,17 +816,16 @@ lemma sendA_step (hx : (pk, sk) ∈ support kem.keygen)
     (hy : (c, kReal) ∈ support (kem.encaps pk))
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : InjInv kem ecEk ecCt t ⟨pk, sk, c, kReal⟩ s) :
-    𝒟[(SCKAScheme.oracleSendA (injectedScheme kem hDet ecEk ecCt leak t ⟨pk, d, c, k⟩) ()).run
-        (targetStateMap t d k s)] =
-      𝒟[Prod.map id (targetStateMap t d k) <$>
+    ((SCKAScheme.oracleSendA (injectedScheme kem hDet ecEk ecCt leak t ⟨pk, d, c, k⟩) ()).run
+        (targetStateMap t d k s)) =ᵈ
+      (Prod.map id (targetStateMap t d k) <$>
         (SCKAScheme.oracleSendA (injectedScheme kem hDet ecEk ecCt leak t ⟨pk, sk, c, kReal⟩)
-          ()).run s] := by
+          ()).run s) := by
   rw [SCKAScheme.oracleSendA_run_eq, SCKAScheme.oracleSendA_run_eq]
   simp only [injectedScheme, targetStateMap_stA]
   rw [injectedSend_mapSecret kem ecEk ecCt t ht pk sk c kReal d k .A s.stA, Functor.map_map]
   simp only [map_eq_bind_pure_comp, bind_assoc, pure_bind, Function.comp]
-  apply evalDist_bind_congr
-  intro out hout
+  refine EvalDistEq.bind_congr_of_support _ fun out hout => ?_
   rcases out with _ | ⟨key?, ρ, tsnd, stA'⟩
   · rfl
   · have hcorr : (SCKAScheme.sendAUpdate s key? ρ tsnd stA').correct = true :=
@@ -843,17 +843,16 @@ lemma sendB_step (hx : (pk, sk) ∈ support kem.keygen)
     (hy : (c, kReal) ∈ support (kem.encaps pk))
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : InjInv kem ecEk ecCt t ⟨pk, sk, c, kReal⟩ s) :
-    𝒟[(SCKAScheme.oracleSendB (injectedScheme kem hDet ecEk ecCt leak t ⟨pk, d, c, k⟩) ()).run
-        (targetStateMap t d k s)] =
-      𝒟[Prod.map id (targetStateMap t d k) <$>
+    ((SCKAScheme.oracleSendB (injectedScheme kem hDet ecEk ecCt leak t ⟨pk, d, c, k⟩) ()).run
+        (targetStateMap t d k s)) =ᵈ
+      (Prod.map id (targetStateMap t d k) <$>
         (SCKAScheme.oracleSendB (injectedScheme kem hDet ecEk ecCt leak t ⟨pk, sk, c, kReal⟩)
-          ()).run s] := by
+          ()).run s) := by
   rw [SCKAScheme.oracleSendB_run_eq, SCKAScheme.oracleSendB_run_eq]
   simp only [injectedScheme, targetStateMap_stB]
   rw [injectedSend_mapSecret kem ecEk ecCt t ht pk sk c kReal d k .B s.stB, Functor.map_map]
   simp only [map_eq_bind_pure_comp, bind_assoc, pure_bind, Function.comp]
-  apply evalDist_bind_congr
-  intro out hout
+  refine EvalDistEq.bind_congr_of_support _ fun out hout => ?_
   rcases out with _ | ⟨key?, ρ, tsnd, stB'⟩
   · rfl
   · have hcorr : (SCKAScheme.sendBUpdate s key? ρ tsnd stB').correct = true :=
@@ -869,9 +868,9 @@ include hEk hCt ht in
 lemma recvA_step
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : InjInv kem ecEk ecCt t ⟨pk, sk, c, kReal⟩ s) (n : ℕ) :
-    𝒟[(oracleRecvAIdeal kem hDet ecEk ecCt leak n).run (targetStateMap t d k s)] =
-      𝒟[Prod.map id (targetStateMap t d k) <$>
-        (oracleRecvAIdeal kem hDet ecEk ecCt leak n).run s] := by
+    ((oracleRecvAIdeal kem hDet ecEk ecCt leak n).run (targetStateMap t d k s)) =ᵈ
+      (Prod.map id (targetStateMap t d k) <$>
+        (oracleRecvAIdeal kem hDet ecEk ecCt leak n).run s) := by
   have hrun : ∀ u, (oracleRecvAIdeal kem hDet ecEk ecCt leak n).run u =
       (SCKAScheme.oracleRecvA (schemeWithRecv kem hDet ecEk ecCt leak
         (recvWith .A (idealRecover u.keyB) ecEk ecCt) (recvB kem hDet ecEk ecCt)) n).run u :=
@@ -908,9 +907,9 @@ include hEk hCt ht in
 lemma recvB_step
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : InjInv kem ecEk ecCt t ⟨pk, sk, c, kReal⟩ s) (n : ℕ) :
-    𝒟[(oracleRecvBIdeal kem hDet ecEk ecCt leak n).run (targetStateMap t d k s)] =
-      𝒟[Prod.map id (targetStateMap t d k) <$>
-        (oracleRecvBIdeal kem hDet ecEk ecCt leak n).run s] := by
+    ((oracleRecvBIdeal kem hDet ecEk ecCt leak n).run (targetStateMap t d k s)) =ᵈ
+      (Prod.map id (targetStateMap t d k) <$>
+        (oracleRecvBIdeal kem hDet ecEk ecCt leak n).run s) := by
   have hrun : ∀ u, (oracleRecvBIdeal kem hDet ecEk ecCt leak n).run u =
       (SCKAScheme.oracleRecvB (schemeWithRecv kem hDet ecEk ecCt leak
         (recvA kem hDet ecEk ecCt) (recvWith .B (idealRecover u.keyA) ecEk ecCt)) n).run u :=
@@ -947,12 +946,12 @@ include ht in
 lemma corruptB_step
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : t ∉ s.exposed) :
-    𝒟[(fun z => z.1.map fun a => (a, z.2)) <$>
+    ((fun z => z.1.map fun a => (a, z.2)) <$>
         ((stopOnState (SCKAScheme.oracleCorruptB (exposure .B leak).corrupt (StA PK SK C Sym) K
-          (Message Sym)) (targetExposed t) ()).run).run (targetStateMap t d k s)] =
-      𝒟[(fun z => z.1.map fun a => (a, targetStateMap t d k z.2)) <$>
+          (Message Sym)) (targetExposed t) ()).run).run (targetStateMap t d k s)) =ᵈ
+      ((fun z => z.1.map fun a => (a, targetStateMap t d k z.2)) <$>
         ((stopOnState (SCKAScheme.oracleCorruptB (exposure .B leak).corrupt (StA PK SK C Sym) K
-          (Message Sym)) (targetExposed t) ()).run).run s] := by
+          (Message Sym)) (targetExposed t) ()).run).run s) := by
   have hrun : ∀ u, ((stopOnState (SCKAScheme.oracleCorruptB (exposure .B leak).corrupt
       (StA PK SK C Sym) K (Message Sym)) (targetExposed t) ()).run).run u = (do
         let z ← (SCKAScheme.oracleCorruptB (exposure .B leak).corrupt (StA PK SK C Sym) K
@@ -981,16 +980,16 @@ lemma sendArleak_touch_evalDist
       SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hexp : t ∉ u.exposed)
     (htouch : sendGeneratesTarget .A t u.stA = true ∨ sendEncapsulatesTarget .A t u.stA = true) :
-    𝒟[(fun z => z.1.map fun a => (a, F z.2)) <$>
+    ((fun z => z.1.map fun a => (a, F z.2)) <$>
         ((stopOnState (SCKAScheme.oracleSendArleak (exposure .A leak).rleak
-          (scheme kem hDet ecEk ecCt leak)) (targetExposed t) ()).run).run u] =
-      𝒟[(Option.map fun o : Option (ℕ × K) × Message Sym × ℕ × State PK SK C Sym ×
+          (scheme kem hDet ecEk ecCt leak)) (targetExposed t) ()).run).run u) =ᵈ
+      ((Option.map fun o : Option (ℕ × K) × Message Sym × ℕ × State PK SK C Sym ×
           SendRand leak.KeygenRand leak.EncapsRand => o.2.2.2.2) <$>
         sendWith .A leak.keygenRleak leak.encapsRleak ecEk ecCt u.stA >>= fun r? =>
         pure (match r? with
           | none => some (none, F u)
           | some rand => if rleakEpochs .A u.stA rand ∩ u.challenged ≠ ∅ then some (none, F u)
-              else none)] := by
+              else none)) := by
   have hrun : ((stopOnState (SCKAScheme.oracleSendArleak (exposure .A leak).rleak
       (scheme kem hDet ecEk ecCt leak)) (targetExposed t) ()).run).run u = (do
         let z ← (SCKAScheme.oracleSendArleak (exposure .A leak).rleak
@@ -1001,8 +1000,7 @@ lemma sendArleak_touch_evalDist
       sendWith .A leak.keygenRleak leak.encapsRleak ecEk ecCt u.stA := rfl
   rw [hsend]
   simp only [map_eq_bind_pure_comp, bind_assoc, pure_bind, Function.comp, exposure_rleak]
-  apply evalDist_bind_congr
-  intro out hout
+  refine EvalDistEq.bind_congr_of_support _ fun out hout => ?_
   rcases out with _ | ⟨key?, ρ, tsnd, stA', rand⟩
   · simp [targetExposed, hexp]
   · have hmem : t ∈ rleakEpochs .A u.stA rand :=
@@ -1020,16 +1018,16 @@ lemma sendBrleak_touch_evalDist
       SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hexp : t ∉ u.exposed)
     (htouch : sendGeneratesTarget .B t u.stB = true ∨ sendEncapsulatesTarget .B t u.stB = true) :
-    𝒟[(fun z => z.1.map fun a => (a, F z.2)) <$>
+    ((fun z => z.1.map fun a => (a, F z.2)) <$>
         ((stopOnState (SCKAScheme.oracleSendBrleak (exposure .B leak).rleak
-          (scheme kem hDet ecEk ecCt leak)) (targetExposed t) ()).run).run u] =
-      𝒟[(Option.map fun o : Option (ℕ × K) × Message Sym × ℕ × State PK SK C Sym ×
+          (scheme kem hDet ecEk ecCt leak)) (targetExposed t) ()).run).run u) =ᵈ
+      ((Option.map fun o : Option (ℕ × K) × Message Sym × ℕ × State PK SK C Sym ×
           SendRand leak.KeygenRand leak.EncapsRand => o.2.2.2.2) <$>
         sendWith .B leak.keygenRleak leak.encapsRleak ecEk ecCt u.stB >>= fun r? =>
         pure (match r? with
           | none => some (none, F u)
           | some rand => if rleakEpochs .B u.stB rand ∩ u.challenged ≠ ∅ then some (none, F u)
-              else none)] := by
+              else none)) := by
   have hrun : ((stopOnState (SCKAScheme.oracleSendBrleak (exposure .B leak).rleak
       (scheme kem hDet ecEk ecCt leak)) (targetExposed t) ()).run).run u = (do
         let z ← (SCKAScheme.oracleSendBrleak (exposure .B leak).rleak
@@ -1040,8 +1038,7 @@ lemma sendBrleak_touch_evalDist
       sendWith .B leak.keygenRleak leak.encapsRleak ecEk ecCt u.stB := rfl
   rw [hsend]
   simp only [map_eq_bind_pure_comp, bind_assoc, pure_bind, Function.comp, exposure_rleak]
-  apply evalDist_bind_congr
-  intro out hout
+  refine EvalDistEq.bind_congr_of_support _ fun out hout => ?_
   rcases out with _ | ⟨key?, ρ, tsnd, stB', rand⟩
   · simp [targetExposed, hexp]
   · have hmem : t ∈ rleakEpochs .B u.stB rand :=
@@ -1058,13 +1055,13 @@ the map outright. -/
 lemma sendArleak_step
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : InjInv kem ecEk ecCt t ⟨pk, sk, c, kReal⟩ s) (hexp : t ∉ s.exposed) :
-    𝒟[(fun z => z.1.map fun a => (a, z.2)) <$>
+    ((fun z => z.1.map fun a => (a, z.2)) <$>
         ((stopOnState (SCKAScheme.oracleSendArleak (exposure .A leak).rleak
           (scheme kem hDet ecEk ecCt leak)) (targetExposed t) ()).run).run
-          (targetStateMap t d k s)] =
-      𝒟[(fun z => z.1.map fun a => (a, targetStateMap t d k z.2)) <$>
+          (targetStateMap t d k s)) =ᵈ
+      ((fun z => z.1.map fun a => (a, targetStateMap t d k z.2)) <$>
         ((stopOnState (SCKAScheme.oracleSendArleak (exposure .A leak).rleak
-          (scheme kem hDet ecEk ecCt leak)) (targetExposed t) ()).run).run s] := by
+          (scheme kem hDet ecEk ecCt leak)) (targetExposed t) ()).run).run s) := by
   by_cases htouch : sendGeneratesTarget .A t s.stA = true ∨
       sendEncapsulatesTarget .A t s.stA = true
   · have h1 := sendArleak_touch_evalDist kem hDet ecEk ecCt leak t ht (targetStateMap t d k s) id
@@ -1072,7 +1069,8 @@ lemma sendArleak_step
     have h2 := sendArleak_touch_evalDist kem hDet ecEk ecCt leak t ht s (targetStateMap t d k)
       hexp htouch
     simp only [id_eq, targetStateMap_stA, targetStateMap_challenged, rleakEpochs_mapSecret] at h1
-    rw [h1, h2, sendWith_rand_mapSecret .A t ht d k]
+    refine h1.trans ((ToVCVio.evalDistEq_of_eq ?_).trans h2.symm)
+    rw [sendWith_rand_mapSecret .A t ht d k]
     rfl
   · refine evalDist_stopped_map_of_base _ _ (targetStateMap t d k) (targetExposed t)
       (targetExposed t) (fun _ => rfl) () s ?_
@@ -1107,8 +1105,7 @@ lemma sendArleak_step
     rw [hsend, hsend, targetStateMap_stA,
       sendWith_mapSecret .A t ht d k _ _ _ _ ecEk ecCt s.stA hk he, Functor.map_map]
     simp only [map_eq_bind_pure_comp, bind_assoc, pure_bind, Function.comp, exposure_rleak]
-    apply evalDist_bind_congr
-    intro out hout
+    refine EvalDistEq.bind_congr_of_support _ fun out hout => ?_
     rcases out with _ | ⟨key?, ρ, tsnd, stA', rand⟩
     · rfl
     · simp only [Function.comp_apply, Option.map_some, mapSendOut, mapKey_map_fst,
@@ -1134,13 +1131,13 @@ include ht in
 lemma sendBrleak_step
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : InjInv kem ecEk ecCt t ⟨pk, sk, c, kReal⟩ s) (hexp : t ∉ s.exposed) :
-    𝒟[(fun z => z.1.map fun a => (a, z.2)) <$>
+    ((fun z => z.1.map fun a => (a, z.2)) <$>
         ((stopOnState (SCKAScheme.oracleSendBrleak (exposure .B leak).rleak
           (scheme kem hDet ecEk ecCt leak)) (targetExposed t) ()).run).run
-          (targetStateMap t d k s)] =
-      𝒟[(fun z => z.1.map fun a => (a, targetStateMap t d k z.2)) <$>
+          (targetStateMap t d k s)) =ᵈ
+      ((fun z => z.1.map fun a => (a, targetStateMap t d k z.2)) <$>
         ((stopOnState (SCKAScheme.oracleSendBrleak (exposure .B leak).rleak
-          (scheme kem hDet ecEk ecCt leak)) (targetExposed t) ()).run).run s] := by
+          (scheme kem hDet ecEk ecCt leak)) (targetExposed t) ()).run).run s) := by
   by_cases htouch : sendGeneratesTarget .B t s.stB = true ∨
       sendEncapsulatesTarget .B t s.stB = true
   · have h1 := sendBrleak_touch_evalDist kem hDet ecEk ecCt leak t ht (targetStateMap t d k s) id
@@ -1148,7 +1145,8 @@ lemma sendBrleak_step
     have h2 := sendBrleak_touch_evalDist kem hDet ecEk ecCt leak t ht s (targetStateMap t d k)
       hexp htouch
     simp only [id_eq, targetStateMap_stB, targetStateMap_challenged, rleakEpochs_mapSecret] at h1
-    rw [h1, h2, sendWith_rand_mapSecret .B t ht d k]
+    refine h1.trans ((ToVCVio.evalDistEq_of_eq ?_).trans h2.symm)
+    rw [sendWith_rand_mapSecret .B t ht d k]
     rfl
   · refine evalDist_stopped_map_of_base _ _ (targetStateMap t d k) (targetExposed t)
       (targetExposed t) (fun _ => rfl) () s ?_
@@ -1183,8 +1181,7 @@ lemma sendBrleak_step
     rw [hsend, hsend, targetStateMap_stB,
       sendWith_mapSecret .B t ht d k _ _ _ _ ecEk ecCt s.stB hk he, Functor.map_map]
     simp only [map_eq_bind_pure_comp, bind_assoc, pure_bind, Function.comp, exposure_rleak]
-    apply evalDist_bind_congr
-    intro out hout
+    refine EvalDistEq.bind_congr_of_support _ fun out hout => ?_
     rcases out with _ | ⟨key?, ρ, tsnd, stB', rand⟩
     · rfl
     · simp only [Function.comp_apply, Option.map_some, mapSendOut, mapKey_map_fst,
@@ -1224,17 +1221,17 @@ lemma targetStateMap_step (hx : (pk, sk) ∈ support kem.keygen)
     (hy : (c, kReal) ∈ support (kem.encaps pk)) (q : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : InjInv kem ecEk ecCt t ⟨pk, sk, c, kReal⟩ s ∧ t ∉ s.exposed) :
-    𝒟[(fun z => z.1.map fun a => (a, z.2)) <$>
+    ((fun z => z.1.map fun a => (a, z.2)) <$>
         ((stopOnState (injectedSecurityImpl kem hDet ecEk ecCt leak t
           ⟨pk, dummy, c, if b then kRand else kReal⟩ (hybridRandom t)) (targetExposed t) q).run).run
-          (targetStateMap t dummy (if b then kRand else kReal) s)] =
-      𝒟[(fun z => z.1.map fun a => (a, targetStateMap t dummy (if b then kRand else kReal) z.2)) <$>
+          (targetStateMap t dummy (if b then kRand else kReal) s)) =ᵈ
+      ((fun z => z.1.map fun a => (a, targetStateMap t dummy (if b then kRand else kReal) z.2)) <$>
         ((stopOnState (eagerSecurityImpl kem hDet ecEk ecCt leak t ⟨pk, sk, c, kReal⟩ b kRand)
-          (targetExposed t) q).run).run s] := by
+          (targetExposed t) q).run).run s) := by
   rcases q with (((((q | u) | u) | e) | u) | u)
   · rcases q with (((n | u) | u) | n) | n
     · exact evalDist_stopped_map_of_base _ _ _ _ _ (fun _ => rfl) _ s
-        (congrArg (fun x => 𝒟[x]) (unif_step t dummy (if b then kRand else kReal) s n))
+        (ToVCVio.evalDistEq_of_eq (unif_step t dummy (if b then kRand else kReal) s n))
     · cases u
       exact evalDist_stopped_map_of_base _ _ _ _ _ (fun _ => rfl) _ s
         (sendA_step kem hDet ecEk ecCt leak t ht pk sk c kReal dummy _ hx hy s hs.1)
@@ -1250,7 +1247,7 @@ lemma targetStateMap_step (hx : (pk, sk) ∈ support kem.keygen)
   · cases u
     exact sendBrleak_step kem hDet ecEk ecCt leak t ht pk sk c kReal dummy _ s hs.1 hs.2
   · exact evalDist_stopped_map_of_base _ _ _ _ _ (fun _ => rfl) _ s
-      (congrArg (fun x => 𝒟[x]) (chall_step kem ecEk ecCt t pk sk dummy c kReal kRand b s hs.1 e))
+      (ToVCVio.evalDistEq_of_eq (chall_step kem ecEk ecCt t pk sk dummy c kReal kRand b s hs.1 e))
   · cases u
     exact corruptA_step kem leak t ht dummy _ s hs.2
   · cases u
@@ -1267,17 +1264,17 @@ Then the eager hybrid of bit `b` with these values accepts with the probability 
 reduction's simulation on the KEM challenge `(pk, c, k_b)`, for every placeholder secret
 `dummy`, where `k_b` is `kRand` if `b` is set and `kReal` otherwise:
 `Pr[E_t^x(pk, sk, c, kReal, kRand) = true] = Pr[Sim_t(pk, dummy, c, k_b) = true]`. -/
-theorem probOutput_stoppedEagerExp_eq_reductionRun (adv : SecurityAdversary leak Sym)
+theorem prEvent_stoppedEagerExp_eq_reductionRun (adv : SecurityAdversary leak Sym)
     (hx : (pk, sk) ∈ support kem.keygen) (hy : (c, kReal) ∈ support (kem.encaps pk)) :
-    Pr[= true | stoppedEagerExp kem hDet ecEk ecCt leak t b pk sk c kReal kRand adv] =
-      Pr[= true | stoppedRun (injectedSecurityImpl kem hDet ecEk ecCt leak t
-        ⟨pk, dummy, c, if b then kRand else kReal⟩ (hybridRandom t)) (targetExposed t) adv
-        (initState (K := K) (PK := PK) (SK := SK) (C := C) (Sym := Sym))] := by
+    Pr{let x ← stoppedEagerExp kem hDet ecEk ecCt leak t b pk sk c kReal kRand adv}[x = true] =
+      Pr{let x ← stoppedRun (injectedSecurityImpl kem hDet ecEk ecCt leak t
+           ⟨pk, dummy, c, if b then kRand else kReal⟩ (hybridRandom t)) (targetExposed t) adv
+           (initState (K := K) (PK := PK) (SK := SK) (C := C) (Sym := Sym))}[x = true] := by
   unfold stoppedEagerExp stoppedRun
   have hinit := targetStateMap_init (K := K) (PK := PK) (SK := SK) (C := C) (Sym := Sym) t dummy
     (if b then kRand else kReal)
   conv_rhs => rw [← hinit]
-  refine (probOutput_optionRun_eq_of_state_map_some _ _
+  refine (prEvent_optionRun_eq_of_state_map_some _ _
     (targetStateMap t dummy (if b then kRand else kReal))
     (fun s => InjInv kem ecEk ecCt t ⟨pk, sk, c, kReal⟩ s ∧ t ∉ s.exposed) ?_ ?_ adv _
     ⟨injInv_init kem ecEk ecCt t ht _, by simp [initState, SCKAScheme.initGameState]⟩).symm

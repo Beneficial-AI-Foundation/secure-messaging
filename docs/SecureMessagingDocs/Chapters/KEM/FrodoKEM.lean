@@ -5,6 +5,8 @@ import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
 import ToVCVio.LatticeCrypto.FrodoKEM.Construction
 
+/-! # Blueprint chapter: FrodoKEM -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false

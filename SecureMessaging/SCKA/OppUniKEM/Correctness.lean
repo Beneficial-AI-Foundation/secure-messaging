@@ -6,6 +6,8 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.KEM.OnOffKEM.CorrectnessError
 import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction
+import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
+import ToVCVio.OracleComp.SimSemantics.StateT.BadFlag
 
 /-!
 # Correctness of Opp-UniKEM-CKA
@@ -29,10 +31,10 @@ Let:
   conjunction of all protocol correctness assertions;
 * `ε := kem.correctnessError`.
 
-## Results and proofs
+## Results
 
 Assume the erasure codes `ecEk`, `ecCt0`, and `ecCt1` are correct.
-For every SCKA correctness adversary `Adv`, we have:
+For the restricted interface (ordinary sends, receives, and uniform randomness), we have:
 
 * `correctness_failure_le` — if `Adv` makes at most `q` send queries, then
   `Pr[G(Adv) = false] ≤ q · ε`;
@@ -45,9 +47,10 @@ For every SCKA correctness adversary `Adv`, we have:
 `SendA` and `SendB` combined; `Unif`, `RecvA`, and `RecvB` queries are not
 counted.
 
-The proofs are in `Correctness.Reduction`, using the shared reachability
-invariant in `Correctness.Invariant` and the conditional KEM errors in
-`KEM.OnOffKEM.CorrectnessError`.
+`correctness_failure_le_security` also allows leaking sends, corruptions, and challenges.
+For either fixed challenge bit, assertion failures have probability at most `q · ε`, where
+`q` bounds ordinary and leaking sends of both parties on every oracle-response path
+(`SecuritySendQueryBound Adv q`).
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
@@ -55,6 +58,8 @@ open OracleSpec OracleComp ENNReal KEMScheme
 namespace oppUniKemCKA
 
 variable {K PK SK C Sym : Type}
+
+/-! ## Restricted correctness interface -/
 
 /-- Assume:
 
@@ -74,9 +79,8 @@ theorem correctness_failure_le [DecidableEq K] [DecidableEq Sym]
     (leak : KEMScheme.OnOffRandLeak kem onoff)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (q : ℕ) (hq : SendQueryBound adv q) :
-    Pr[= false |
-      SCKAScheme.correctnessExp
-        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] ≤
+    Pr{let x ← (SCKAScheme.correctnessExp
+        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv)}[x = false] ≤
       (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp
     := by
   exact correctness_failure_le_reduction kem onoff hDet
@@ -101,9 +105,8 @@ theorem correctness_true_ge [DecidableEq K] [DecidableEq Sym]
     (leak : KEMScheme.OnOffRandLeak kem onoff)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (q : ℕ) (hq : SendQueryBound adv q) :
-    Pr[= true |
-      SCKAScheme.correctnessExp
-        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] ≥
+    Pr{let x ← (SCKAScheme.correctnessExp
+        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv)}[x = true] ≥
       1 - (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp
 -- ANCHOR_END: correctnessTrueGe
     := by
@@ -129,11 +132,40 @@ theorem correctness [DecidableEq K] [DecidableEq Sym]
     (hEkCorrect : ecEk.ec.Correct) (hCt0Correct : ecCt0.ec.Correct)
     (hCt1Correct : ecCt1.ec.Correct)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym)) :
-    Pr[= true |
-      SCKAScheme.correctnessExp
-        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] = 1
+    Pr{let x ← (SCKAScheme.correctnessExp
+        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv)}[x = true] = 1
     := by
   exact correctness_of_perfectKEM kem onoff hDet ecEk ecCt0 ecCt1 leak hkem
     hEkCorrect hCt0Correct hCt1Correct adv
+
+/-! ## Full security interface -/
+
+/-- For the full security interface, `Pr[assertion failure] ≤ q · kem.correctnessError`. -/
+theorem correctness_failure_le_security [DecidableEq K] [DecidableEq Sym] [SampleableType K]
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (hDet : DeterministicDecaps kem)
+    (ecEk : ErasureCodePayload PK Sym) (hEkCorrect : ecEk.ec.Correct)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0Correct : ecCt0.ec.Correct)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1Correct : ecCt1.ec.Correct)
+    (leak : kem.OnOffRandLeak onoff)
+    (adv : SecurityAdversary leak Sym) (b : Bool)
+    (q : ℕ) (hq : SecuritySendQueryBound adv q) :
+    let scka := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak
+    let oracles := SCKAScheme.sckaSecurityImpl b
+      (exposureA kem onoff leak) (exposureB kem onoff leak) scka
+    Pr{let res ← (simulateQ oracles adv).run
+        (Reduction.Internal.initialGame kem onoff)}[res.2.correct = false] ≤
+      (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp := by
+  refine (prEvent_not_good_le_tracked_bad _
+    (currentKEMFailure kem onoff hDet)
+    (reachableInv kem onoff ecEk ecCt0 ecCt1) (fun s => s.correct) ?_
+    (Security.trackedSecurityImpl_preserves kem onoff hDet ecEk hEkCorrect
+      ecCt0 hCt0Correct ecCt1 hCt1Correct leak b) adv _
+    (Reduction.Internal.tracked_initial_inv kem onoff hDet ecEk ecCt0 ecCt1
+      ecEk.ec.nchunk_pos ecCt0.ec.nchunk_pos)).trans
+    (Security.kem_failure_probability_le kem onoff hDet ecEk hEkCorrect
+      ecCt0 hCt0Correct ecCt1 hCt1Correct leak b adv q hq)
+  rintro s ⟨T, hT⟩
+  exact hT.correct
 
 end oppUniKemCKA

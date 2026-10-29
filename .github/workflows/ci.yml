@@ -136,8 +136,22 @@ jobs:
         with:
           path: _out/site/html-multi
 
+      # Save .lake to the cache when:
+      #   - the run is not cancelled, and
+      #   - the build succeeds, and
+      #   - the audit does not fail, and
+      #   - this commit has no entry yet, and
+      #   - either the run is on main, or no entry exists for this toolchain and manifest.
       - name: Save Lake cache
-        if: ${{ !cancelled() && steps.lake-cache.outputs.cache-hit != 'true' && steps.lean.outputs.build-status == 'SUCCESS' && steps.audit.outcome != 'failure' }}
+        if: >-
+          ${{
+            !cancelled()
+            && steps.lean.outputs.build-status == 'SUCCESS'
+            && steps.audit.outcome != 'failure'
+            && steps.lake-cache.outputs.cache-hit != 'true'
+            && (github.ref == 'refs/heads/main'
+                || steps.lake-cache.outputs.cache-matched-key == '')
+          }}
         uses: actions/cache/save@v4
         with:
           path: ./.lake

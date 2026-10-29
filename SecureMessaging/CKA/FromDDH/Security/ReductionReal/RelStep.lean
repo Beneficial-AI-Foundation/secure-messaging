@@ -1369,8 +1369,8 @@ lemma reduction_honest_param_real_step_rel
                         lastAction := some .sendA })) <$> ($ᵗ F : ProbComp F)) := by
               unfold oracleSendArleak
               rw [StateT.run_get_bind]
-              rw [if_pos h_v]
-              rw [if_pos h_allow]
+              rw [ite_eq_left h_v]
+              rw [ite_eq_left h_allow]
               simp [h_stAR, ddhCKA, sendRleak]
             have h_runH :
                 (oracleSendArleak gp (ddhCKA F G gen) ()).run sH =
@@ -1382,8 +1382,8 @@ lemma reduction_honest_param_real_step_rel
                         lastAction := some .sendA })) <$> ($ᵗ F : ProbComp F)) := by
               unfold oracleSendArleak
               rw [StateT.run_get_bind]
-              rw [if_pos (by simp [h_lastH, validStep])]
-              rw [if_pos h_allowH]
+              rw [ite_eq_left (by simp [h_lastH, validStep])]
+              rw [ite_eq_left h_allowH]
               simp [h_stAH, ddhCKA, sendRleak]
             refine relTriple_of_eq_map_map h_runR h_runH fun yR => ?_
             refine ⟨rfl, ?_⟩
@@ -1510,8 +1510,8 @@ lemma reduction_honest_param_real_step_rel
                         lastAction := some .sendB })) <$> ($ᵗ F : ProbComp F)) := by
               unfold oracleSendBrleak
               rw [StateT.run_get_bind]
-              rw [if_pos h_v]
-              rw [if_pos h_allow]
+              rw [ite_eq_left h_v]
+              rw [ite_eq_left h_allow]
               simp [h_stBR, ddhCKA, sendRleak]
             have h_runH :
                 (oracleSendBrleak gp (ddhCKA F G gen) ()).run sH =
@@ -1523,8 +1523,8 @@ lemma reduction_honest_param_real_step_rel
                         lastAction := some .sendB })) <$> ($ᵗ F : ProbComp F)) := by
               unfold oracleSendBrleak
               rw [StateT.run_get_bind]
-              rw [if_pos (by simp [h_lastH, validStep])]
-              rw [if_pos h_allowH]
+              rw [ite_eq_left (by simp [h_lastH, validStep])]
+              rw [ite_eq_left h_allowH]
               simp [h_stBH, ddhCKA, sendRleak]
             refine relTriple_of_eq_map_map h_runR h_runH fun xR => ?_
             refine ⟨rfl, ?_⟩
@@ -1634,22 +1634,22 @@ This is the dead-store part of the real-branch bridge: the reduction writes
 `honestImplParamReal` writes the cached scalar. Those fields are not
 observable before the protocol overwrites them again; corruption is delayed
 by `hΔFS` and `hΔPCS`. -/
-lemma evalDist_reduction_honest_param_real_eq
+lemma evalDistEq_reduction_honest_param_real
   (gp : GameParams) (hΔFS : gp.ΔFS = 1) (hΔPCS : gp.ΔPCS = 2)
   (h_general_case : ¬ (gp.challengeEpoch = 1 ∧ gp.challengedParty = .A))
     (x₀ a b : F)
     (adversary : OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool) :
-    evalDist ((simulateQ
+    ((simulateQ
         (reductionOracleImpl gp gen (a • gen) (b • gen) ((a * b) • gen))
         adversary).run'
       (initGameState
         (CKAState.sendReady (x₀ • gen) : CKAState F G)
-        (CKAState.recvReady x₀ : CKAState F G))) =
-    evalDist ((simulateQ (honestImplParamReal gp gen a b) adversary).run'
+        (CKAState.recvReady x₀ : CKAState F G))) =ᵈ
+    ((simulateQ (honestImplParamReal gp gen a b) adversary).run'
       (initGameState
         (CKAState.sendReady (x₀ • gen) : CKAState F G)
         (CKAState.recvReady x₀ : CKAState F G))) := by
-  refine OracleComp.ProgramLogic.Relational.evalDist_eq_of_relTriple_eqRel
+  refine OracleComp.ProgramLogic.Relational.evalDistEq_of_relTriple_eqRel
     (OracleComp.ProgramLogic.Relational.relTriple_simulateQ_run' _ _
       (reductionHonestRel gp gen a b) _ ?_ _ _ ?_)
   · intro t sR sH hrel
@@ -1679,23 +1679,23 @@ lemma evalDist_reduction_honest_param_real_eq
 omit [Inhabited F] [Fintype G] in
 /-- **Reduction–honest bridge.**
 
-For any adversary, the lazy reduction simulation's output distribution
-equals the honest CKA simulation's. This is the whole-adversary form of the
+For any adversary, the lazy reduction simulation is equal in distribution
+to the honest CKA simulation. This is the whole-adversary form of the
 real-branch reduction/honest equivalence. -/
-lemma evalDist_eager_reduction_lazy_eq
+lemma evalDistEq_eager_reduction_lazy
   (gp : GameParams) (hΔFS : gp.ΔFS = 1) (hΔPCS : gp.ΔPCS = 2)
   (h_general_case : ¬ (gp.challengeEpoch = 1 ∧ gp.challengedParty = .A))
     (x₀ : F)
     (adversary : OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool) :
-    evalDist (do
+    (do
       let a ← ($ᵗ F : ProbComp F)
       let b ← ($ᵗ F : ProbComp F)
       (simulateQ
           (reductionOracleImpl gp gen (a • gen) (b • gen) ((a * b) • gen)) adversary).run'
         (initGameState
           (CKAState.sendReady (x₀ • gen) : CKAState F G)
-          (CKAState.recvReady x₀ : CKAState F G))) =
-    evalDist ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run'
+          (CKAState.recvReady x₀ : CKAState F G))) =ᵈ
+    ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run'
       (initGameState
         (CKAState.sendReady (x₀ • gen) : CKAState F G)
         (CKAState.recvReady x₀ : CKAState F G))) := by
@@ -1703,43 +1703,12 @@ lemma evalDist_eager_reduction_lazy_eq
     initGameState
       (CKAState.sendReady (x₀ • gen) : CKAState F G)
       (CKAState.recvReady x₀ : CKAState F G)
-  calc
-    evalDist (do
-        let a ← ($ᵗ F : ProbComp F)
-        let b ← ($ᵗ F : ProbComp F)
-        (simulateQ
-            (reductionOracleImpl gp gen (a • gen) (b • gen) ((a * b) • gen))
-            adversary).run' s₀)
-        =
-        evalDist (do
-          let a ← ($ᵗ F : ProbComp F)
-          let b ← ($ᵗ F : ProbComp F)
-          (simulateQ (honestImplParamReal gp gen a b) adversary).run' s₀) := by
-          apply evalDist_ext
-          intro y
-          refine probOutput_bind_congr' _ y fun a => ?_
-          refine probOutput_bind_congr' _ y fun b => ?_
-          exact evalDist_ext_iff.mp
-            (evalDist_reduction_honest_param_real_eq
-              (gen := gen) gp hΔFS hΔPCS h_general_case x₀ a b adversary)
-            y
-    _ =
-        evalDist (do
-          let b ← ($ᵗ F : ProbComp F)
-          let a ← ($ᵗ F : ProbComp F)
-          (simulateQ (honestImplParamReal gp gen a b) adversary).run' s₀) := by
-          apply evalDist_ext
-          intro y
-          exact probOutput_bind_bind_swap
-            (mx := ($ᵗ F : ProbComp F))
-            (my := ($ᵗ F : ProbComp F))
-            (f := fun a b =>
-              (simulateQ (honestImplParamReal gp gen a b) adversary).run' s₀)
-            (z := y)
-    _ =
-        evalDist ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run'
-          s₀) := by
-          exact evalDist_eager_honest_lazy_eq (gen := gen) gp s₀ adversary
+  refine (EvalDistEq.bind_right _ fun a => EvalDistEq.bind_right _ fun b =>
+    evalDistEq_reduction_honest_param_real
+      (gen := gen) gp hΔFS hΔPCS h_general_case x₀ a b adversary).trans
+    ((EvalDistEq.bind_bind_swap ($ᵗ F : ProbComp F) ($ᵗ F : ProbComp F)
+      fun a b => (simulateQ (honestImplParamReal gp gen a b) adversary).run' s₀).trans ?_)
+  exact evalDistEq_eager_honest_lazy (gen := gen) gp s₀ adversary
 
 
 end Step2

@@ -25,6 +25,7 @@ leaves it unchanged (`trackedSecurity_score_step_le`).
 -/
 
 open OracleSpec OracleComp KEMScheme ENNReal
+open OracleComp.ProgramLogic
 
 namespace oppBiKemCKA
 
@@ -42,13 +43,13 @@ lemma tracked_sendArleak_score_le
     (b : Bool)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : GameInv kem ecEk ecCt s) (hfail : kemFailure hDet s = false) :
-    expectedPayoff
+    wp
       ((trackedSecurityImpl kem hDet ecEk ecCt leak b
         SCKAScheme.sckaSecuritySpec.OSendArleak).run (s, false))
       (fun z => trackedScore hDet z.2) ≤
       trackedScore hDet (s, false) + kem.correctnessError ProbCompRuntime.probComp := by
-  rw [trackedImpl_run, bind_pure_comp, expectedPayoff_map]
-  apply SCKAScheme.oracleSendArleak_expectedPayoff_le
+  rw [trackedImpl_run, bind_pure_comp, wp_map, Function.comp_def]
+  apply SCKAScheme.oracleSendArleak_wp_le
       (scheme kem hDet ecEk ecCt leak) (rleakEpochs .A)
       (sendWith_rleak_forget kem .A ecEk ecCt leak) s (leakEpochs .A s.stA)
       (score := fun state => trackedScore hDet (state, false || kemFailure hDet state))
@@ -60,7 +61,7 @@ lemma tracked_sendArleak_score_le
     rfl
   · simp [hfail]
   · have h := tracked_sendA_score_le kem hDet ecEk ecCt leak s hs hfail
-    rw [trackedImpl_run, bind_pure_comp, expectedPayoff_map] at h
+    rw [trackedImpl_run, bind_pure_comp, wp_map, Function.comp_def] at h
     exact h
 
 /-- B's leaking send raises the expected tracked score by at most `ε` from a state
@@ -75,13 +76,13 @@ lemma tracked_sendBrleak_score_le
     (b : Bool)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : GameInv kem ecEk ecCt s) (hfail : kemFailure hDet s = false) :
-    expectedPayoff
+    wp
       ((trackedSecurityImpl kem hDet ecEk ecCt leak b
         SCKAScheme.sckaSecuritySpec.OSendBrleak).run (s, false))
       (fun z => trackedScore hDet z.2) ≤
       trackedScore hDet (s, false) + kem.correctnessError ProbCompRuntime.probComp := by
-  rw [trackedImpl_run, bind_pure_comp, expectedPayoff_map]
-  apply SCKAScheme.oracleSendBrleak_expectedPayoff_le
+  rw [trackedImpl_run, bind_pure_comp, wp_map, Function.comp_def]
+  apply SCKAScheme.oracleSendBrleak_wp_le
       (scheme kem hDet ecEk ecCt leak) (rleakEpochs .B)
       (sendWith_rleak_forget kem .B ecEk ecCt leak) s (leakEpochs .B s.stB)
       (score := fun state => trackedScore hDet (state, false || kemFailure hDet state))
@@ -93,7 +94,7 @@ lemma tracked_sendBrleak_score_le
     rfl
   · simp [hfail]
   · have h := tracked_sendB_score_le kem hDet ecEk ecCt leak s hs hfail
-    rw [trackedImpl_run, bind_pure_comp, expectedPayoff_map] at h
+    rw [trackedImpl_run, bind_pure_comp, wp_map, Function.comp_def] at h
     exact h
 
 /-- One security query raises the expected tracked score by at most `ε` if it is an
@@ -112,7 +113,7 @@ lemma trackedSecurity_score_step_le
     (t : (securitySpec leak Sym).Domain)
     (p : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym) × Bool)
     (hp : trackedInv (GameInv kem ecEk ecCt) (kemFailure hDet) p) :
-    expectedPayoff ((trackedSecurityImpl kem hDet ecEk ecCt leak b t).run p)
+    wp ((trackedSecurityImpl kem hDet ecEk ecCt leak b t).run p)
       (fun z => trackedScore hDet z.2) ≤
       trackedScore hDet p +
         if SCKAScheme.sckaSecuritySpec.isSendQuery t then
@@ -121,7 +122,7 @@ lemma trackedSecurity_score_step_le
   obtain ⟨s, flag⟩ := p
   cases flag with
   | true =>
-    exact trackedImpl_expectedPayoff_flag_le _ _ _ 1 (fun s => trackedScore_true hDet s) t s _
+    exact trackedImpl_wp_flag_le _ _ _ 1 (fun s => trackedScore_true hDet s) t s _
   | false =>
     obtain ⟨hs, hfail⟩ := trackedInv_of_flag_false hp rfl
     rcases t with (((((t | u) | u) | t) | u) | u)
@@ -137,18 +138,18 @@ lemma trackedSecurity_score_step_le
     all_goals
       simp only [SCKAScheme.sckaSecuritySpec.isSendQuery, Bool.false_eq_true, ↓reduceIte,
         add_zero]
-      rw [trackedImpl_run, bind_pure_comp, expectedPayoff_map]
-    · refine (SCKAScheme.oracleChall_expectedPayoff_le b t s
+      rw [trackedImpl_run, bind_pure_comp, wp_map, Function.comp_def]
+    · refine (SCKAScheme.oracleChall_wp_le b t s
         (fun state => trackedScore hDet (state, false || kemFailure hDet state))
         (fun _ _ => rfl)).trans ?_
       simp [hfail]
     · cases u
-      refine (SCKAScheme.oracleCorruptA_expectedPayoff_le vuln s
+      refine (SCKAScheme.oracleCorruptA_wp_le vuln s
         (fun state => trackedScore hDet (state, false || kemFailure hDet state))
         (fun _ _ => rfl)).trans ?_
       simp [hfail]
     · cases u
-      refine (SCKAScheme.oracleCorruptB_expectedPayoff_le vuln s
+      refine (SCKAScheme.oracleCorruptB_wp_le vuln s
         (fun state => trackedScore hDet (state, false || kemFailure hDet state))
         (fun _ _ => rfl)).trans ?_
       simp [hfail]
@@ -173,9 +174,8 @@ theorem security_kemFailure_le
     (leak : kem.RandLeak)
     (b : Bool)
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
-    Pr[ fun z => z.2.2 = true |
-        (simulateQ (trackedSecurityImpl kem hDet ecEk ecCt leak b) adv).run
-          (initState (K := K) (PK := PK) (SK := SK) (C := C) (Sym := Sym), false)] ≤
+    Pr{let z ← (simulateQ (trackedSecurityImpl kem hDet ecEk ecCt leak b) adv).run
+          (initState (K := K) (PK := PK) (SK := SK) (C := C) (Sym := Sym), false)}[z.2.2 = true] ≤
       (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp :=
   (OracleComp.tracked_bad_le_of_score_step _ (kemFailure hDet) (GameInv kem ecEk ecCt)
     (fun z => trackedScore hDet z)

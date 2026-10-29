@@ -18,11 +18,11 @@ Let:
 * `ε := kem.correctnessError` be the KEM's correctness error;
 * `φ(pk, sk) := keypairFailure kem hDet pk sk` (`KEM.CorrectnessError`) be the correctness
   error after fixing the key pair `(pk, sk)`, over the remaining encapsulation to `pk`;
-* `E_X[f] := Pr[X = ⊥] + Σ x, Pr[X = x] · f x` be the expected payoff of `f` under a
-  computation `X` (`expectedPayoff`).
+* `E_X[f] := Σ x, Pr[X = x] · f x` be the expected payoff of `f` under a
+  computation `X` (`wp X f`).
 
   In our context, the payoff `f x` is a failure probability, so `E_X[f]` is the probability
-  that `X` fails directly (charged `1`) or returns an `x` that fails later (probability `f x`).
+  that `X` returns an `x` that fails later.
 
 ## Main results
 
@@ -140,6 +140,7 @@ ordinary run (`SCKAScheme.correctness_failure_le_of_tracked_bad`), so
 -/
 
 open OracleComp KEMScheme ENNReal
+open OracleComp.ProgramLogic
 
 namespace oppBiKemCKA
 
@@ -196,8 +197,8 @@ Then the probability that `bad` holds after at least one query during `adv`'s ex
 `initState` is at most `q · ε`. -/
 lemma tracked_bad_le (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (q : ℕ) (hq : SCKAScheme.SendQueryBound adv q) :
-    Pr[ fun z => z.2.2 = true |
-        (simulateQ (trackedBiKem kem hDet ecEk ecCt leak) adv).run (initState, false)] ≤
+    Pr{let z ← (simulateQ (trackedBiKem kem hDet ecEk ecCt leak) adv).run
+        (initState, false)}[z.2.2 = true] ≤
       (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp :=
   SCKAScheme.tracked_bad_le_of_score_step (scheme kem hDet ecEk ecCt leak) (kemFailure hDet)
     (GameInv kem ecEk ecCt) (fun z => trackedScore hDet z)

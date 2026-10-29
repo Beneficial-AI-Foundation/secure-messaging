@@ -5,9 +5,9 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.SCKA.Defs
-import ToVCVio.OracleComp.ExpectedPayoff
-import ToVCVio.OracleComp.SimSemantics.StateT.ExpectedPayoffBound
-import ToVCVio.OracleComp.SimSemantics.StateT.PreservesInv
+import ToVCVio.OracleComp.EvalDist
+import ToVCVio.ProgramLogic.Unary.WP
+import ToVCVio.OracleComp.SimSemantics.StateT.WPBound
 
 /-!
 # Invariants of the SCKA correctness game
@@ -25,6 +25,7 @@ false correctness flag with probability at most `q · ε` (`correctness_error_le
 -/
 
 open OracleSpec OracleComp ENNReal
+open OracleComp.ProgramLogic
 
 namespace SCKAScheme
 
@@ -381,21 +382,21 @@ theorem correctness_error_le_of_potential [DecidableEq I]
         Inv ik (initGameState stA stB) ∧ V (initGameState stA stB) = 0)
     (hpres : ∀ ik, QueryImpl.PreservesInv (sckaCorrectnessImpl scka) (Inv ik))
     (hstep : ∀ ik (t : (sckaCorrectnessSpec Rho).Domain) s, Inv ik s →
-      expectedPayoff ((sckaCorrectnessImpl scka t).run s) (fun z => V z.2) ≤
+      wp ((sckaCorrectnessImpl scka t).run s) (fun z => V z.2) ≤
         V s + if isSendQuery (Rho := Rho) t then ε else 0)
     (adv : SCKACorrectnessAdversary Rho) (q : ℕ) (hq : SendQueryBound adv q) :
-    1 - Pr[= true | correctnessExp scka adv] ≤ q * ε := by
+    1 - Pr{let x ← correctnessExp scka adv}[x = true] ≤ q * ε := by
   -- The expected potential of a complete run from any initial state is at most `q · ε`.
   have hrun : ∀ ik ∈ support scka.initKeyGen, ∀ stA ∈ support (scka.initA ik),
       ∀ stB ∈ support (scka.initB ik),
-        expectedPayoff ((simulateQ (sckaCorrectnessImpl scka) adv).run (initGameState stA stB))
+        wp ((simulateQ (sckaCorrectnessImpl scka) adv).run (initGameState stA stB))
           (fun z => if z.2.correct then 0 else 1) ≤ q * ε := by
     intro ik hik stA hA stB hB
     obtain ⟨hinv, h0⟩ := hinit ik hik stA hA stB hB
-    have h := expectedPayoff_simulateQ_run_le (sckaCorrectnessImpl scka) (Inv ik) V
+    have h := wp_simulateQ_run_le (sckaCorrectnessImpl scka) (Inv ik) V
       (fun t => isSendQuery (Rho := Rho) t = true) ε (hpres ik) (hstep ik) adv q hq _ hinv
     rw [h0, zero_add] at h
-    refine le_trans (expectedPayoff_mono _ _ _ fun z => ?_) h
+    refine le_trans (wp_mono _ fun z => ?_) h
     split_ifs with hz
     · exact zero_le
     · exact hV _ (Bool.eq_false_iff.mpr hz)
@@ -405,22 +406,21 @@ theorem correctness_error_le_of_potential [DecidableEq I]
         (fun z => z.2.correct) <$>
           (simulateQ (sckaCorrectnessImpl scka) adv).run (initGameState stA stB) := by
     simp [correctnessExp, map_eq_bind_pure_comp]
-  have hle : Pr[= false | correctnessExp scka adv] ≤
-      expectedPayoff (correctnessExp scka adv) (fun b => if b then 0 else 1) := by
-    rw [← probEvent_eq_eq_probOutput]
-    exact probEvent_le_expectedPayoff _ _ _ fun b hb => by simp [hb]
-  have hfalse : Pr[= false | correctnessExp scka adv] =
-      1 - Pr[= true | correctnessExp scka adv] := by
-    rw [probOutput_false_eq_sub, probFailure_eq_zero, tsub_zero]
+  have hle : Pr{let x ← correctnessExp scka adv}[x = false] ≤
+      wp (correctnessExp scka adv) (fun b => if b then 0 else 1) := by
+    exact prEvent_le_wp _ _ _ fun b hb => by simp [hb]
+  have hfalse : Pr{let x ← correctnessExp scka adv}[x = false] =
+      1 - Pr{let x ← correctnessExp scka adv}[x = true] :=
+    OracleComp.prEvent_eq_false_eq_one_sub _
   rw [← hfalse]
   refine hle.trans ?_
-  rw [hexp, expectedPayoff_bind]
-  refine expectedPayoff_le_const_of_support _ _ _ probFailure_eq_zero fun ik hik => ?_
-  rw [expectedPayoff_bind]
-  refine expectedPayoff_le_const_of_support _ _ _ probFailure_eq_zero fun stA hA => ?_
-  rw [expectedPayoff_bind]
-  refine expectedPayoff_le_const_of_support _ _ _ probFailure_eq_zero fun stB hB => ?_
-  rw [expectedPayoff_map]
+  rw [hexp, wp_bind]
+  refine wp_le_const_of_support _ fun ik hik => ?_
+  rw [wp_bind]
+  refine wp_le_const_of_support _ fun stA hA => ?_
+  rw [wp_bind]
+  refine wp_le_const_of_support _ fun stB hB => ?_
+  rw [wp_map, Function.comp_def]
   exact hrun ik hik stA hA stB hB
 
 end SCKAScheme
@@ -435,57 +435,5 @@ lemma oracleUnif_run_eq {StA StB I Rho : Type} (n : ℕ) (s : GameState StA StB 
       (fun x => (x, s)) <$> ((QueryImpl.ofLift unifSpec ProbComp) n) := by
   simp [SCKAScheme.oracleUnif, QueryImpl.liftTarget, StateT.run_monadLift,
     map_eq_bind_pure_comp]
-
-
-/-! ### Running the leaking sends -/
-
-variable {IK StA StB I Rho Rand : Type} [DecidableEq I]
-  (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
-
-/-- A's leaking send as a map over the scheme's leaking send. -/
-lemma oracleSendArleak_run_eq (leak : StA → Rand → Finset ℕ)
-    (s : SCKAScheme.GameState StA StB I Rho) :
-    (SCKAScheme.oracleSendArleak leak scka ()).run s =
-      (fun out => match out with
-        | none => (none, s)
-        | some (keyOpt, ρ, tsnd, stA', rand) =>
-            if leak s.stA rand ∩ s.challenged ≠ ∅ then (none, s)
-            else (some (tsnd, keyOpt.map Prod.fst, ρ, rand),
-              { SCKAScheme.sendAUpdate s keyOpt ρ tsnd stA' with
-                  exposed := s.exposed ∪ leak s.stA rand })) <$> scka.sendArleak s.stA := by
-  simp only [SCKAScheme.oracleSendArleak, StateT.run_bind, StateT.run_get, pure_bind,
-    StateT.run_monadLift, monadLift_self, bind_assoc, map_eq_bind_pure_comp]
-  refine bind_congr fun out => ?_
-  rcases out with _ | ⟨_ | ⟨tI, key⟩, ρ, tsnd, stA', rand⟩
-  · rfl
-  · dsimp only
-    split_ifs with h <;> simp [h, SCKAScheme.sendAUpdate, SCKAScheme.knownPrefix,
-      StateT.run_set, StateT.run_pure]
-  · dsimp only
-    split_ifs with h <;> simp [h, SCKAScheme.sendAUpdate, SCKAScheme.knownPrefix,
-      StateT.run_set, StateT.run_pure]
-
-/-- B's leaking send as a map over the scheme's leaking send. -/
-lemma oracleSendBrleak_run_eq (leak : StB → Rand → Finset ℕ)
-    (s : SCKAScheme.GameState StA StB I Rho) :
-    (SCKAScheme.oracleSendBrleak leak scka ()).run s =
-      (fun out => match out with
-        | none => (none, s)
-        | some (keyOpt, ρ, tsnd, stB', rand) =>
-            if leak s.stB rand ∩ s.challenged ≠ ∅ then (none, s)
-            else (some (tsnd, keyOpt.map Prod.fst, ρ, rand),
-              { SCKAScheme.sendBUpdate s keyOpt ρ tsnd stB' with
-                  exposed := s.exposed ∪ leak s.stB rand })) <$> scka.sendBrleak s.stB := by
-  simp only [SCKAScheme.oracleSendBrleak, StateT.run_bind, StateT.run_get, pure_bind,
-    StateT.run_monadLift, monadLift_self, bind_assoc, map_eq_bind_pure_comp]
-  refine bind_congr fun out => ?_
-  rcases out with _ | ⟨_ | ⟨tI, key⟩, ρ, tsnd, stB', rand⟩
-  · rfl
-  · dsimp only
-    split_ifs with h <;> simp [h, SCKAScheme.sendBUpdate, SCKAScheme.knownPrefix,
-      StateT.run_set, StateT.run_pure]
-  · dsimp only
-    split_ifs with h <;> simp [h, SCKAScheme.sendBUpdate, SCKAScheme.knownPrefix,
-      StateT.run_set, StateT.run_pure]
 
 end SCKAScheme

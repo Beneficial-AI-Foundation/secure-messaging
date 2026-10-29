@@ -38,7 +38,7 @@ key pair of `t` or encapsulates for `t` is decided from the sender's state befor
 `sendWith` decides its operations (`sendGeneratesTarget`, `sendEncapsulatesTarget`). Receives
 are ideal, so the placeholder secret is never read. The same injected oracles with the honest
 secret and the encapsulated key describe the hybrids with eagerly drawn samples (`Eager`), and
-the simulation theorem relating them to `R_t` is `probOutput_stoppedEagerExp_eq_reductionRun`
+the simulation theorem relating them to `R_t` is `prEvent_stoppedEagerExp_eq_reductionRun`
 (`Simulation`). Every definition is computable.
 -/
 

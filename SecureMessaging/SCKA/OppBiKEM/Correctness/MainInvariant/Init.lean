@@ -40,7 +40,7 @@ lemma gameInv_init (kem : KEMScheme ProbComp K PK SK C)
     simp only [SCKAScheme.initGameState, Transcript.empty, EpochTranscript.empty,
       EpochTranscript.key, BufferConsistent, Acknowledgements.sendingHorizon,
       Role.reqParity, Role.resParity, Role.offset, Finset.mem_insert, Finset.mem_singleton,
-      reduceCtorEq, if_true, if_false, List.not_mem_nil, Option.isSome_none, Option.map_none,
+      reduceCtorEq, ite_true, ite_false, List.not_mem_nil, Option.isSome_none, Option.map_none,
       Bool.false_eq_true, implies_true, true_and, Finset.notMem_empty, IsEmpty.forall_iff]
   all_goals try omega
   all_goals try (intro t sk ht; simp at ht)

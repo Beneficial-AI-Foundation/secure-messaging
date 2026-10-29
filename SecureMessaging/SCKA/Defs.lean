@@ -4,12 +4,15 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.CryptoFoundations.SecExp
-import VCVio.OracleComp.Constructions.SampleableType
-import VCVio.OracleComp.QueryTracking.QueryBound
-import VCVio.OracleComp.SimSemantics.Append
-import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
-import Mathlib.Data.Finset.Basic
+module
+
+public import VCVio.CryptoFoundations.SecExp
+public import VCVio.OracleComp.Constructions.SampleableType
+public import VCVio.OracleComp.QueryTracking.QueryBound
+public import VCVio.OracleComp.SimSemantics.Append
+public import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
+public import Mathlib.Data.Finset.Basic
+public import ToVCVio.EvalDist.Monad.Basic
 
 /-!
 # Sparse Continuous Key Agreement (SCKA)
@@ -62,6 +65,8 @@ may send and receive at any time. A send/receive may produce no key; when it doe
 outputs a key with its epoch number, as a pair `(t, k) : ℕ × I`, where key `k` is to be
 used for epoch `t`.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 
@@ -283,8 +288,8 @@ abbrev sckaSecuritySpec (StA StB I Rho Rand : Type) :=
 
 namespace sckaSecuritySpec
 
-/-! Named indices for the queries used in the send bound. The state, key, message, and
-coin types affect only responses, so `Unit` gives the same query indices for every scheme. -/
+/-! Named indices for the security queries. The state, key, message, and coin types affect only
+responses, so `Unit` gives the same query indices for every scheme. -/
 
 /-- Embed a correctness-query index into the security oracle interface. -/
 @[match_pattern] abbrev OCorrectness (t : (sckaCorrectnessSpec Unit).Domain) :
@@ -298,6 +303,18 @@ coin types affect only responses, so `Unit` gives the same query indices for eve
 /-- Select B's randomness-leaking send. -/
 @[match_pattern] abbrev OSendBrleak : (sckaSecuritySpec Unit Unit Unit Unit Unit).Domain :=
   .inl (.inl (.inl (.inr ())))
+
+/-- Select the challenge oracle at epoch `t`. -/
+@[match_pattern] abbrev OChall (t : ℕ) : (sckaSecuritySpec Unit Unit Unit Unit Unit).Domain :=
+  .inl (.inl (.inr t))
+
+/-- Select A's corruption. -/
+@[match_pattern] abbrev OCorruptA : (sckaSecuritySpec Unit Unit Unit Unit Unit).Domain :=
+  .inl (.inr ())
+
+/-- Select B's corruption. -/
+@[match_pattern] abbrev OCorruptB : (sckaSecuritySpec Unit Unit Unit Unit Unit).Domain :=
+  .inr ()
 
 /-- `true` exactly on the four send queries: the ordinary sends of the correctness interface
 and the two randomness-leaking sends. -/
@@ -814,13 +831,14 @@ noncomputable def sckaGuessAdvantage [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (adversary : SCKAAdversary StA StB I Rho Rand)
     (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand) : ℝ :=
-  |(Pr[= true | securityExp scka adversary vulnA vulnB]).toReal - 1 / 2|
+  |(Pr{let x ← securityExp scka adversary vulnA vulnB}[x = true]).toReal - 1 / 2|
 -- ANCHOR_END: sckaGuessAdvantage
+
+/-! ### Fixed-bit experiments and advantage normalization -/
 
 /-- The SCKA experiment with fixed bit `b`: initialize `scka`, answer eligible challenges
 with recorded keys if `b = false` and independent uniform keys if `b = true`, and return the
 adversary's guess. -/
--- ANCHOR: securityExpFixedBit
 def securityExpFixedBit [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (adversary : SCKAAdversary StA StB I Rho Rand)
@@ -832,67 +850,58 @@ def securityExpFixedBit [SampleableType I] [DecidableEq I]
   let (b', _) ← (simulateQ (sckaSecurityImpl b vulnA vulnB scka) adversary).run
     (initGameState stA stB)
   return b'
--- ANCHOR_END: securityExpFixedBit
 
-/-- SCKA distinguishing advantage: the distance between the random-key fixed-bit experiment
-(`b = true`) and the real-key one (`b = false`). -/
+/-- Distinguishing advantage `|Pr[G_true = true] - Pr[G_false = true]|`, where
+`G_b := securityExpFixedBit scka adversary b vulnA vulnB`. -/
 noncomputable def sckaDistAdvantage [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (adversary : SCKAAdversary StA StB I Rho Rand)
     (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand) : ℝ :=
-  |(Pr[= true | securityExpFixedBit scka adversary true vulnA vulnB]).toReal -
-   (Pr[= true | securityExpFixedBit scka adversary false vulnA vulnB]).toReal|
+  |(Pr{let x ← securityExpFixedBit scka adversary true vulnA vulnB}[x = true]).toReal -
+   (Pr{let x ← securityExpFixedBit scka adversary false vulnA vulnB}[x = true]).toReal|
 
-/-- The security experiment is a uniform-bit branch over the two fixed-bit experiments. -/
-private lemma securityExp_probOutput_eq_branch [SampleableType I] [DecidableEq I]
+/-- `securityExp =ᵈ (b ←$ Bool; b' ← G_b; return (b == b'))`, where
+`G_b := securityExpFixedBit scka adversary b vulnA vulnB`. -/
+private lemma securityExp_evalDistEq_branch [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (adversary : SCKAAdversary StA StB I Rho Rand)
     (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand) :
-    Pr[= true | securityExp scka adversary vulnA vulnB] =
-    Pr[= true | do
+    securityExp scka adversary vulnA vulnB =ᵈ (do
       let b ← ($ᵗ Bool : ProbComp Bool)
       let z ← if b then securityExpFixedBit scka adversary true vulnA vulnB
                else securityExpFixedBit scka adversary false vulnA vulnB
-      pure (b == z)] := by
-  unfold securityExp
-  simp only [← probEvent_eq_eq_probOutput]
-  rw [probEvent_bind_congr fun ik _ =>
-    probEvent_bind_congr fun stA _ =>
-    probEvent_bind_bind_swap _ _ _ _]
-  rw [probEvent_bind_congr fun ik _ =>
-    probEvent_bind_bind_swap _ _ _ _]
-  rw [probEvent_bind_bind_swap]
-  simp only [probEvent_eq_eq_probOutput]
-  refine probOutput_bind_congr' ($ᵗ Bool) true ?_
-  intro b; cases b <;> simp [securityExpFixedBit]
+      pure (b == z)) := by
+  refine (EvalDistEq.bind_right _ fun ik => EvalDistEq.bind_right _ fun stA =>
+    OracleComp.EvalDistEq.bind_bind_swap _ _ _).trans ?_
+  refine (EvalDistEq.bind_right _ fun ik =>
+    OracleComp.EvalDistEq.bind_bind_swap _ _ _).trans ?_
+  refine (OracleComp.EvalDistEq.bind_bind_swap _ _ _).trans ?_
+  refine EvalDistEq.bind_right _ fun b => ?_
+  cases b <;> simp only [securityExpFixedBit, bind_assoc, pure_bind] <;> exact EvalDistEq.refl _
 
-/-- The centered success probability of the security experiment is half the difference of the
-random-key and real-key fixed-bit branches. -/
+/-- `Pr[b' = b] - 1/2 = (Pr[G_true = true] - Pr[G_false = true]) / 2`, where `Pr[b' = b]` is the
+probability that the guess `b'` equals the challenge bit `b` in `securityExp` and
+`G_b := securityExpFixedBit scka adversary b vulnA vulnB`. -/
 lemma securityExp_toReal_sub_half [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (adversary : SCKAAdversary StA StB I Rho Rand)
     (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand) :
-    (Pr[= true | securityExp scka adversary vulnA vulnB]).toReal - 1 / 2 =
-    ((Pr[= true | securityExpFixedBit scka adversary true vulnA vulnB]).toReal -
-     (Pr[= true | securityExpFixedBit scka adversary false vulnA vulnB]).toReal) / 2 := by
-  rw [show (Pr[= true | securityExp scka adversary vulnA vulnB]).toReal =
-      (Pr[= true | do
-        let b ← ($ᵗ Bool : ProbComp Bool)
-        let z ← if b then securityExpFixedBit scka adversary true vulnA vulnB
-                 else securityExpFixedBit scka adversary false vulnA vulnB
-        pure (b == z)]).toReal from by
-    congr 1; exact securityExp_probOutput_eq_branch scka adversary vulnA vulnB]
-  exact probOutput_uniformBool_branch_toReal_sub_half
+    (Pr{let x ← securityExp scka adversary vulnA vulnB}[x = true]).toReal - 1 / 2 =
+    ((Pr{let x ← securityExpFixedBit scka adversary true vulnA vulnB}[x = true]).toReal -
+     (Pr{let x ← securityExpFixedBit scka adversary false vulnA vulnB}[x = true]).toReal) / 2 := by
+  rw [(securityExp_evalDistEq_branch scka adversary vulnA vulnB).prEvent_eq]
+  exact ToVCVio.prEvent_uniformBool_branch_toReal_sub_half
     (securityExpFixedBit scka adversary true vulnA vulnB)
     (securityExpFixedBit scka adversary false vulnA vulnB)
 
-/-- The SCKA guess advantage is half the distinguishing advantage. -/
+/-- `sckaGuessAdvantage = sckaDistAdvantage / 2`. -/
 lemma sckaGuessAdvantage_eq_sckaDistAdvantage_div_two [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (adversary : SCKAAdversary StA StB I Rho Rand)
     (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand) :
     sckaGuessAdvantage scka adversary vulnA vulnB =
-      sckaDistAdvantage scka adversary vulnA vulnB / 2 := by
+      sckaDistAdvantage scka adversary vulnA vulnB / 2
+    := by
   simp only [sckaGuessAdvantage, sckaDistAdvantage]
   rw [securityExp_toReal_sub_half, abs_div]
   congr 1

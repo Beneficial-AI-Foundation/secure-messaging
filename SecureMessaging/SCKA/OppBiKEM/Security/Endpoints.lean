@@ -26,7 +26,7 @@ bit `b`,
 The two games agree on every state satisfying `GameInv` without current KEM failure
 (`IdealReceive`), and the tracked real run reaches a failure with probability at most `q · ε`
 (`BadEvent`); the identical-until-bad bound on invariant states
-(`abs_probEvent_simulateQ_run_sub_le_bad_of_inv`) combines the two.
+(`abs_prEvent_simulateQ_run_sub_le_bad_of_inv`) combines the two.
 -/
 
 open OracleSpec OracleComp KEMScheme ENNReal
@@ -72,9 +72,9 @@ theorem security_ideal_endpoint_le [DecidableEq K] [DecidableEq Sym] [Sampleable
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct) (leak : kem.RandLeak) (b : Bool)
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
-    |(Pr[= true | SCKAScheme.securityExpFixedBit (scheme kem hDet ecEk ecCt leak) adv b
-        (exposure .A leak) (exposure .B leak)]).toReal -
-      (Pr[= true | idealSecurityExp kem hDet ecEk ecCt leak b adv]).toReal| ≤
+    |(Pr{let x ← SCKAScheme.securityExpFixedBit (scheme kem hDet ecEk ecCt leak) adv b
+           (exposure .A leak) (exposure .B leak)}[x = true]).toReal -
+      (Pr{let x ← idealSecurityExp kem hDet ecEk ecCt leak b adv}[x = true]).toReal| ≤
       (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal := by
   have hagree : ∀ t p, trackedInv (GameInv kem ecEk ecCt) (kemFailure hDet) p → ¬ p.2 = true →
       (trackedSecurityImpl kem hDet ecEk ecCt leak b t).run p =
@@ -83,28 +83,26 @@ theorem security_ideal_endpoint_le [DecidableEq K] [DecidableEq Sym] [Sampleable
     obtain ⟨hs, hfail⟩ := trackedInv_of_flag_false hp (Bool.eq_false_iff.mpr hgood)
     rw [trackedImpl_run, trackedImpl_run,
       securityImpl_eq_ideal_of_noFailure kem hDet ecEk ecCt hCt leak b t p.1 hs hfail]
-  have hbound := abs_probEvent_simulateQ_run_sub_le_bad_of_inv
+  have hbound := abs_prEvent_simulateQ_run_sub_le_bad_of_inv
     (trackedSecurityImpl kem hDet ecEk ecCt leak b) (trackedIdealImpl kem hDet ecEk ecCt leak b)
     (trackedInv (GameInv kem ecEk ecCt) (kemFailure hDet)) (fun p => p.2 = true)
     (trackedSecurityImpl_preservesInv kem hDet ecEk ecCt hEk hCt leak b)
     (trackedImpl_preserves_flag _ _) hagree adv (fun guess => guess = true)
     (initState, false) (trackedInv_init kem hDet ecEk ecCt)
-  have hl : Pr[= true | SCKAScheme.securityExpFixedBit (scheme kem hDet ecEk ecCt leak) adv b
-      (exposure .A leak) (exposure .B leak)] =
-      Pr[fun z => z.1 = true |
-        (simulateQ (trackedSecurityImpl kem hDet ecEk ecCt leak b) adv).run
-          (initState, false)] := by
-    rw [securityExpFixedBit_eq_run', ← probEvent_eq_eq_probOutput, StateT.run'_eq, probEvent_map,
+  have hl : Pr{let x ← SCKAScheme.securityExpFixedBit (scheme kem hDet ecEk ecCt leak) adv b
+                 (exposure .A leak) (exposure .B leak)}[x = true] =
+      Pr{let z ← (simulateQ (trackedSecurityImpl kem hDet ecEk ecCt leak b) adv).run
+          (initState, false)}[z.1 = true] := by
+    rw [securityExpFixedBit_eq_run', StateT.run'_eq, prEvent_map,
       ← tracked_run_project (SCKAScheme.sckaSecurityImpl b (exposure .A leak) (exposure .B leak)
-        (scheme kem hDet ecEk ecCt leak)) (kemFailure hDet) adv (initState, false), probEvent_map]
+        (scheme kem hDet ecEk ecCt leak)) (kemFailure hDet) adv (initState, false), prEvent_map]
     rfl
-  have hr : Pr[= true | idealSecurityExp kem hDet ecEk ecCt leak b adv] =
-      Pr[fun z => z.1 = true |
-        (simulateQ (trackedIdealImpl kem hDet ecEk ecCt leak b) adv).run
-          (initState, false)] := by
-    rw [idealSecurityExp, ← probEvent_eq_eq_probOutput, StateT.run'_eq, probEvent_map,
+  have hr : Pr{let x ← idealSecurityExp kem hDet ecEk ecCt leak b adv}[x = true] =
+      Pr{let z ← (simulateQ (trackedIdealImpl kem hDet ecEk ecCt leak b) adv).run
+          (initState, false)}[z.1 = true] := by
+    rw [idealSecurityExp, StateT.run'_eq, prEvent_map,
       ← tracked_run_project (idealSecurityImpl kem hDet ecEk ecCt leak b) (kemFailure hDet) adv
-        (initState, false), probEvent_map]
+        (initState, false), prEvent_map]
     rfl
   rw [hl, hr]
   refine hbound.trans ?_

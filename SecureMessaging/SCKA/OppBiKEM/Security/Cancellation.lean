@@ -28,7 +28,7 @@ p_{t+1} − p_t = Pr[S_t^random = true] − Pr[S_t^real = true].
 
 `H_t` and `H_{t+1}` differ only in the answer to an accepted challenge of `t`. Once `t` is
 exposed, that challenge is rejected forever and the two hybrids agree
-(`probOutput_hybrid_succ_eq_of_exposed`), while an accepted challenge of `t` makes every later
+(`prEvent_hybrid_succ_eq_of_exposed`), while an accepted challenge of `t` makes every later
 exposure of `t` rejected (`TargetCommitted`); the signed-gap theorem `signed_gap_stoppedRun_eq`
 turns the two facts into the equality. The stopped hybrids are what the KEM reduction simulates
 (`Reduction`, `Simulation`).
@@ -144,20 +144,21 @@ lemma hybridRandom_succ_eq_of_ne (t e : ℕ) (he : e ≠ t) :
 
 /-- From a state where epoch `t` is exposed, the hybrids with thresholds `t + 1` and `t` accept
 every Boolean computation with equal probability. -/
-lemma probOutput_hybrid_succ_eq_of_exposed (t : ℕ)
+lemma prEvent_hybrid_succ_eq_of_exposed (t : ℕ)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : t ∈ s.exposed) (oa : OracleComp (securitySpec leak Sym) Bool) :
-    Pr[= true | (simulateQ (hybridSecurityImpl kem hDet ecEk ecCt leak (hybridRandom (t + 1)))
-        oa).run' s] =
-      Pr[= true | (simulateQ (hybridSecurityImpl kem hDet ecEk ecCt leak (hybridRandom t))
-        oa).run' s] := by
-  refine probOutput_run'_eq_of_run_eq _ _ _ (fun z => ?_) true
-  refine OracleComp.ProgramLogic.Relational.probOutput_simulateQ_run_eq_of_impl_eq_preservesInv
+    Pr{let x ← (simulateQ (hybridSecurityImpl kem hDet ecEk ecCt leak (hybridRandom (t + 1)))
+        oa).run' s}[x = true] =
+      Pr{let x ← (simulateQ (hybridSecurityImpl kem hDet ecEk ecCt leak (hybridRandom t))
+           oa).run' s}[x = true] := by
+  refine prEvent_run'_eq_of_run_evalDistEq _ _ _ ?_ true
+  refine OracleComp.ProgramLogic.Relational.evalDistEq_of_relTriple_eqRel
+    (OracleComp.ProgramLogic.Relational.relTriple_simulateQ_run_eqRel_of_impl_eq_preservesInv
     (hybridSecurityImpl kem hDet ecEk ecCt leak (hybridRandom (t + 1)))
     (hybridSecurityImpl kem hDet ecEk ecCt leak (hybridRandom t)) (fun u => t ∈ u.exposed) oa ?_
     (fun q u hu z hz =>
       hybridSecurityImpl_preserves_exposed kem hDet ecEk ecCt leak (hybridRandom t) t q u hu z hz)
-    s hs z
+    s hs)
   intro q u hu
   refine hybridSecurityImpl_run_eq_of_eligible kem hDet ecEk ecCt leak _ _ u ?_ q
   intro e hrej _
@@ -227,10 +228,10 @@ def stoppedHybridExp (t T : ℕ) (adv : SecurityAdversary leak Sym) : ProbComp B
 difference of their acceptance probabilities unchanged:
 `p_{t+1} − p_t = Pr[S_t^random = true] − Pr[S_t^real = true]`. -/
 theorem hybridExp_sub_eq_stopped_sub (adv : SecurityAdversary leak Sym) (t : ℕ) :
-    (Pr[= true | hybridExp kem hDet ecEk ecCt leak (t + 1) adv]).toReal -
-        (Pr[= true | hybridExp kem hDet ecEk ecCt leak t adv]).toReal =
-      (Pr[= true | stoppedHybridExp kem hDet ecEk ecCt leak t (t + 1) adv]).toReal -
-        (Pr[= true | stoppedHybridExp kem hDet ecEk ecCt leak t t adv]).toReal :=
+    (Pr{let x ← hybridExp kem hDet ecEk ecCt leak (t + 1) adv}[x = true]).toReal -
+        (Pr{let x ← hybridExp kem hDet ecEk ecCt leak t adv}[x = true]).toReal =
+      (Pr{let x ← stoppedHybridExp kem hDet ecEk ecCt leak t (t + 1) adv}[x = true]).toReal -
+        (Pr{let x ← stoppedHybridExp kem hDet ecEk ecCt leak t t adv}[x = true]).toReal :=
   signed_gap_stoppedRun_eq
     (hybridSecurityImpl kem hDet ecEk ecCt leak (hybridRandom (t + 1)))
     (hybridSecurityImpl kem hDet ecEk ecCt leak (hybridRandom t))
@@ -240,7 +241,7 @@ theorem hybridExp_sub_eq_stopped_sub (adv : SecurityAdversary leak Sym) (t : ℕ
     (hybridSecurityImpl_preserves_committed kem hDet ecEk ecCt leak _ t)
     (targetExposed_eq_false_of_committed t)
     (fun q s _ => hybrid_succ_query_eq_or_committed kem hDet ecEk ecCt leak t q s)
-    (fun s _ hs oa => probOutput_hybrid_succ_eq_of_exposed kem hDet ecEk ecCt leak t s
+    (fun s _ hs oa => prEvent_hybrid_succ_eq_of_exposed kem hDet ecEk ecCt leak t s
       (by simpa [targetExposed] using hs) oa)
     adv _ trivial
 

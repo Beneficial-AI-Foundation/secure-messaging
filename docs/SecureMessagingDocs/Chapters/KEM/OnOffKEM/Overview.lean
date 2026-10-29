@@ -8,6 +8,8 @@ import SecureMessagingDocs.Bibliography
 import SecureMessaging.KEM.OnOffKEM.Defs
 import SecureMessaging.KEM.OnOffKEM.FromKPKE
 
+/-! # Blueprint chapter: On-Off KEM -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false

@@ -46,15 +46,14 @@ lemma decapsDet_eq_some_of_mem_support [DecidableEq K]
     (hks : (pk, sk) ∈ support kem.keygen)
     (hck : (c, key) ∈ support (kem.encaps pk)) :
     hDet.decapsDet sk c = some key := by
-  have hsup : support kem.CorrectExp = {true} :=
-    (probOutput_eq_one_iff (mx := kem.CorrectExp) (x := true)).mp hkem |>.2
-  rw [KEMScheme.CorrectExp] at hsup
-  simp only [hDet.decaps_eq, bind_pure_comp, map_pure, support_bind, support_map] at hsup
-  have hin : decide (hDet.decapsDet sk c = some key) ∈
-      ⋃ x ∈ support kem.keygen,
-        (fun a => decide (hDet.decapsDet x.2 a.1 = some a.2)) '' support (kem.encaps x.1) := by
+  have h1 : ∀ b ∈ support kem.correctnessExperiment, b = true := by
+    rw [← OracleComp.prEvent_eq_one_iff, prEvent_eq_evalDist_singleton]
+    exact hkem
+  have hin : decide (hDet.decapsDet sk c = some key) ∈ support kem.correctnessExperiment := by
+    rw [KEMScheme.correctnessExperiment]
+    simp only [hDet.decaps_eq, bind_pure_comp, map_pure, support_bind, support_map]
     exact Set.mem_iUnion.2 ⟨(pk, sk), Set.mem_iUnion.2 ⟨hks, ⟨(c, key), hck, rfl⟩⟩⟩
-  exact of_decide_eq_true (by simpa [hsup] using hin)
+  exact of_decide_eq_true (h1 _ hin)
 
 private def stateShapeInv
     (kem : KEMScheme ProbComp K PK SK C)
@@ -344,16 +343,14 @@ theorem send_recv_agree [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
     (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp) :
-    Pr[= true |
-      do
+    Pr{let x ← (do
         let (pk, sk) ← kem.keygen
         let (c, keyS) ← kem.encaps pk
         let (pkNext, _skNext) ← kem.keygen
         match recv hDet (.recvReady sk) (c, pkNext) with
         | none => return false
-        | some (keyR, _) => return decide (keyR = keyS)] = 1 := by
-  rw [← probEvent_eq_eq_probOutput, probEvent_eq_one_iff]
-  refine ⟨probFailure_eq_zero, ?_⟩
+        | some (keyR, _) => return decide (keyR = keyS))}[x = true] = 1 := by
+  rw [OracleComp.prEvent_eq_one_iff]
   intro b hb
   rw [mem_support_bind_iff] at hb
   obtain ⟨⟨pk, sk⟩, hks, hb⟩ := hb
@@ -380,11 +377,10 @@ theorem correctness [DecidableEq K]
     (leak : RandLeak kem)
     (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
     (adv : CKAScheme.CKACorrectnessAdversary (Message C PK) K) :
-    Pr[= true | CKAScheme.correctnessExp (scheme kem hDet leak) adv] = 1
+    Pr{let x ← CKAScheme.correctnessExp (scheme kem hDet leak) adv}[x = true] = 1
 -- ANCHOR_END: correctness
     := by
-  rw [← probEvent_eq_eq_probOutput, probEvent_eq_one_iff]
-  refine ⟨probFailure_eq_zero, ?_⟩
+  rw [OracleComp.prEvent_eq_one_iff]
   intro b hb
   unfold CKAScheme.correctnessExp at hb
   rw [mem_support_bind_iff] at hb

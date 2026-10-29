@@ -28,8 +28,8 @@ H_T      U   U   …   U     R   R     …        (U: uniform key, R: recorded k
 ordinary or leaking sends.
 
 - `H_0 = I_false` (`hybridExp_zero`), and `p_1 = p_0`, because epoch `0` is never keyed
-  (`probOutput_hybridExp_one`).
-- `p_T = Pr[I_true = true]` for every `T > 2q` (`probOutput_hybridExp_top`): a challengeable
+  (`prEvent_hybridExp_one`).
+- `p_T = Pr[I_true = true]` for every `T > 2q` (`prEvent_hybridExp_top`): a challengeable
   epoch is keyed, hence at most `2 · advances s ≤ 2q` (`EpochCount`).
 - `AdvGuess_SCKA(scka, adv) ≤ q · ε + |Pr[I_true = true] − Pr[I_false = true]| / 2`
   (`sckaGuessAdvantage_le_ideal_term`), and
@@ -53,13 +53,13 @@ variable {K PK SK C Sym : Type}
 lemma hybridRandom_zero : hybridRandom 0 = fun _ => false := by
   funext t; simp [hybridRandom]
 
-/-- Given a lifted `StateT` computation whose output-state distributions agree with another's
+/-- Given a lifted `StateT` computation whose output-state distribution agrees with another's
 from `s`, the two output distributions agree. -/
-lemma probOutput_run'_eq_of_run_eq {σ α : Type} (x y : StateT σ ProbComp α) (s : σ)
-    (h : ∀ z, Pr[= z | x.run s] = Pr[= z | y.run s]) (a : α) :
-    Pr[= a | x.run' s] = Pr[= a | y.run' s] := by
-  rw [StateT.run'_eq, StateT.run'_eq, probOutput_map_eq_tsum, probOutput_map_eq_tsum]
-  exact tsum_congr fun z => by rw [h z]
+lemma prEvent_run'_eq_of_run_evalDistEq {σ α : Type} (x y : StateT σ ProbComp α) (s : σ)
+    (h : x.run s =ᵈ y.run s) (a : α) :
+    Pr{let w ← x.run' s}[w = a] = Pr{let w ← y.run' s}[w = a] := by
+  rw [StateT.run'_eq, StateT.run'_eq]
+  exact (h.map Prod.fst).prEvent_eq _
 
 section Hybrid
 
@@ -157,17 +157,18 @@ theorem hybridExp_zero (adv : SecurityAdversary leak Sym) :
 
 Then the first hop is exact, `p_1 = p_0`: epoch `0` is never keyed, so its challenge always
 returns `none` for either bit. -/
-lemma probOutput_hybridExp_one (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
+lemma prEvent_hybridExp_one (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
     (adv : SecurityAdversary leak Sym) :
-    Pr[= true | hybridExp kem hDet ecEk ecCt leak 1 adv] =
-      Pr[= true | hybridExp kem hDet ecEk ecCt leak 0 adv] := by
-  refine probOutput_run'_eq_of_run_eq _ _ _ (fun z => ?_) true
+    Pr{let x ← hybridExp kem hDet ecEk ecCt leak 1 adv}[x = true] =
+      Pr{let x ← hybridExp kem hDet ecEk ecCt leak 0 adv}[x = true] := by
+  refine prEvent_run'_eq_of_run_evalDistEq _ _ _ ?_ true
   rw [hybridRandom_zero, hybridSecurityImpl_const]
-  refine OracleComp.ProgramLogic.Relational.probOutput_simulateQ_run_eq_of_impl_eq_preservesInv
+  refine OracleComp.ProgramLogic.Relational.evalDistEq_of_relTriple_eqRel
+    (OracleComp.ProgramLogic.Relational.relTriple_simulateQ_run_eqRel_of_impl_eq_preservesInv
     _ _ (GameInv kem ecEk ecCt) adv ?_
     (fun t s hs => idealSecurityImpl_preservesInv kem hDet ecEk ecCt hEk hCt leak false t s hs)
     _ (gameInv_init kem ecEk ecCt _ _ (by simp [initA, init, initialState])
-      (by simp [initB, init, initialState])) z
+      (by simp [initB, init, initialState])))
   intro t s hs
   refine hybridSecurityImpl_run_eq_ideal kem hDet ecEk ecCt leak _ false s ?_ t
   intro e _ hkey
@@ -188,16 +189,16 @@ lemma probOutput_hybridExp_one (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
 Then every hybrid with threshold `T > 2q` has the output distribution of the random-key ideal
 game, `p_T = Pr[I_true = true]`: an eligible epoch is keyed, hence at most
 `2 · advances s ≤ 2q`, so its challenge is answered randomly. -/
-theorem probOutput_hybridExp_top (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
+theorem prEvent_hybridExp_top (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q)
     (T : ℕ) (hT : 2 * q < T) :
-    Pr[= true | hybridExp kem hDet ecEk ecCt leak T adv] =
-      Pr[= true | idealSecurityExp kem hDet ecEk ecCt leak true adv] := by
-  refine probOutput_run'_eq_of_run_eq _ _ _ (fun z => ?_) true
-  refine OracleComp.ProgramLogic.Relational.probOutput_simulateQ_run_eq_of_impl_eq_queryBound
+    Pr{let x ← hybridExp kem hDet ecEk ecCt leak T adv}[x = true] =
+      Pr{let x ← idealSecurityExp kem hDet ecEk ecCt leak true adv}[x = true] := by
+  refine prEvent_run'_eq_of_run_evalDistEq _ _ _ ?_ true
+  refine OracleComp.ProgramLogic.Relational.evalDistEq_simulateQ_run_of_impl_eq_queryBound
     _ _ (fun s r => GameInv kem ecEk ecCt s ∧ advances s + r ≤ q) _ _ adv q hq ?_ ?_ _
     ⟨gameInv_init kem ecEk ecCt _ _ (by simp [initA, init, initialState])
-      (by simp [initB, init, initialState]), by rw [advances_init]; omega⟩ z
+      (by simp [initB, init, initialState]), by rw [advances_init]; omega⟩
   · intro t s r hs _
     refine hybridSecurityImpl_run_eq_ideal kem hDet ecEk ecCt leak _ true s ?_ t
     intro e _ hkey
@@ -231,23 +232,23 @@ lemma sckaGuessAdvantage_le_ideal_term (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Co
         (exposure .A leak) (exposure .B leak) ≤
       (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal +
       (1 / 2 : ℝ) *
-        |(Pr[= true | idealSecurityExp kem hDet ecEk ecCt leak true adv]).toReal -
-         (Pr[= true | idealSecurityExp kem hDet ecEk ecCt leak false adv]).toReal| := by
+        |(Pr{let x ← idealSecurityExp kem hDet ecEk ecCt leak true adv}[x = true]).toReal -
+         (Pr{let x ← idealSecurityExp kem hDet ecEk ecCt leak false adv}[x = true]).toReal| := by
   rw [SCKAScheme.sckaGuessAdvantage_eq_sckaDistAdvantage_div_two, SCKAScheme.sckaDistAdvantage]
   have h1 := security_ideal_endpoint_le kem hDet ecEk ecCt hEk hCt leak true adv q hq
   have h0 := security_ideal_endpoint_le kem hDet ecEk ecCt hEk hCt leak false adv q hq
   rw [abs_sub_comm] at h0
   have h2 := abs_sub_le
-    (Pr[= true | SCKAScheme.securityExpFixedBit (scheme kem hDet ecEk ecCt leak) adv true
-      (exposure .A leak) (exposure .B leak)]).toReal
-    (Pr[= true | idealSecurityExp kem hDet ecEk ecCt leak true adv]).toReal
-    (Pr[= true | SCKAScheme.securityExpFixedBit (scheme kem hDet ecEk ecCt leak) adv false
-      (exposure .A leak) (exposure .B leak)]).toReal
+    (Pr{let x ← SCKAScheme.securityExpFixedBit (scheme kem hDet ecEk ecCt leak) adv true
+          (exposure .A leak) (exposure .B leak)}[x = true]).toReal
+    (Pr{let x ← idealSecurityExp kem hDet ecEk ecCt leak true adv}[x = true]).toReal
+    (Pr{let x ← SCKAScheme.securityExpFixedBit (scheme kem hDet ecEk ecCt leak) adv false
+          (exposure .A leak) (exposure .B leak)}[x = true]).toReal
   have h3 := abs_sub_le
-    (Pr[= true | idealSecurityExp kem hDet ecEk ecCt leak true adv]).toReal
-    (Pr[= true | idealSecurityExp kem hDet ecEk ecCt leak false adv]).toReal
-    (Pr[= true | SCKAScheme.securityExpFixedBit (scheme kem hDet ecEk ecCt leak) adv false
-      (exposure .A leak) (exposure .B leak)]).toReal
+    (Pr{let x ← idealSecurityExp kem hDet ecEk ecCt leak true adv}[x = true]).toReal
+    (Pr{let x ← idealSecurityExp kem hDet ecEk ecCt leak false adv}[x = true]).toReal
+    (Pr{let x ← SCKAScheme.securityExpFixedBit (scheme kem hDet ecEk ecCt leak) adv false
+          (exposure .A leak) (exposure .B leak)}[x = true]).toReal
   linarith
 
 /-- Assume:
@@ -259,15 +260,15 @@ Then `|Pr[I_true = true] − Pr[I_false = true]| ≤ Σ_{t=0}^{2q} |p_{t+1} − 
 games `I_b` and `p_T := Pr[H_T = true]`. -/
 lemma idealDist_le_sum_hybrid_hops (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
-    |(Pr[= true | idealSecurityExp kem hDet ecEk ecCt leak true adv]).toReal -
-     (Pr[= true | idealSecurityExp kem hDet ecEk ecCt leak false adv]).toReal| ≤
+    |(Pr{let x ← idealSecurityExp kem hDet ecEk ecCt leak true adv}[x = true]).toReal -
+     (Pr{let x ← idealSecurityExp kem hDet ecEk ecCt leak false adv}[x = true]).toReal| ≤
       ∑ t ∈ Finset.range (2 * q + 1),
-        |(Pr[= true | hybridExp kem hDet ecEk ecCt leak (t + 1) adv]).toReal -
-         (Pr[= true | hybridExp kem hDet ecEk ecCt leak t adv]).toReal| := by
+        |(Pr{let x ← hybridExp kem hDet ecEk ecCt leak (t + 1) adv}[x = true]).toReal -
+         (Pr{let x ← hybridExp kem hDet ecEk ecCt leak t adv}[x = true]).toReal| := by
   have htel := dist_le_range_sum_dist
-    (fun T => (Pr[= true | hybridExp kem hDet ecEk ecCt leak T adv]).toReal) (2 * q + 1)
+    (fun T => (Pr{let x ← hybridExp kem hDet ecEk ecCt leak T adv}[x = true]).toReal) (2 * q + 1)
   simp only [Real.dist_eq] at htel
-  rw [hybridExp_zero, probOutput_hybridExp_top kem hDet ecEk ecCt leak hEk hCt adv q hq
+  rw [hybridExp_zero, prEvent_hybridExp_top kem hDet ecEk ecCt leak hEk hCt adv q hq
     (2 * q + 1) (by omega), abs_sub_comm] at htel
   refine htel.trans (le_of_eq (Finset.sum_congr rfl fun t _ => ?_))
   rw [abs_sub_comm]
@@ -285,8 +286,8 @@ theorem sckaGuessAdvantage_le_of_hop_bound (hEk : ecEk.ec.Correct) (hCt : ecCt.e
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q)
     (δ : ℕ → ℝ) (hδ : ∀ t, 0 ≤ δ t)
     (hhop : ∀ t, 0 < t → t ≤ 2 * q →
-      |(Pr[= true | hybridExp kem hDet ecEk ecCt leak (t + 1) adv]).toReal -
-       (Pr[= true | hybridExp kem hDet ecEk ecCt leak t adv]).toReal| ≤ δ t) :
+      |(Pr{let x ← hybridExp kem hDet ecEk ecCt leak (t + 1) adv}[x = true]).toReal -
+       (Pr{let x ← hybridExp kem hDet ecEk ecCt leak t adv}[x = true]).toReal| ≤ δ t) :
     SCKAScheme.sckaGuessAdvantage (scheme kem hDet ecEk ecCt leak) adv
         (exposure .A leak) (exposure .B leak) ≤
       (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal +
@@ -294,12 +295,12 @@ theorem sckaGuessAdvantage_le_of_hop_bound (hEk : ecEk.ec.Correct) (hCt : ecCt.e
   refine (sckaGuessAdvantage_le_ideal_term kem hDet ecEk ecCt leak hEk hCt adv q hq).trans ?_
   have htel := idealDist_le_sum_hybrid_hops kem hDet ecEk ecCt leak hEk hCt adv q hq
   have hsum : ∑ t ∈ Finset.range (2 * q + 1),
-      |(Pr[= true | hybridExp kem hDet ecEk ecCt leak (t + 1) adv]).toReal -
-       (Pr[= true | hybridExp kem hDet ecEk ecCt leak t adv]).toReal| ≤
+      |(Pr{let x ← hybridExp kem hDet ecEk ecCt leak (t + 1) adv}[x = true]).toReal -
+       (Pr{let x ← hybridExp kem hDet ecEk ecCt leak t adv}[x = true]).toReal| ≤
       ∑ t ∈ Finset.range (2 * q + 1), δ t := by
     refine Finset.sum_le_sum fun t ht => ?_
     rcases Nat.eq_zero_or_pos t with rfl | hpos
-    · rw [zero_add, probOutput_hybridExp_one kem hDet ecEk ecCt leak hEk hCt adv, sub_self,
+    · rw [zero_add, prEvent_hybridExp_one kem hDet ecEk ecCt leak hEk hCt adv, sub_self,
         abs_zero]
       exact hδ 0
     · exact hhop t hpos (by have := Finset.mem_range.1 ht; omega)

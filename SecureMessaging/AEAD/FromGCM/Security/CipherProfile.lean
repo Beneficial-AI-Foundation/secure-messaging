@@ -83,7 +83,7 @@ theorem gcmDecrypt_profile {K : Type} (ciph : CIPH K) (k : K) (iv : BitVec 96)
 -- ANCHOR_END: gcmDecrypt_profile
   obtain ⟨c, t⟩ := ct
   simp only [gcmDecrypt, gcmDecryptSpec]
-  rw [if_pos hv, gctr_single_block]
+  rw [ite_eq_left hv, gctr_single_block]
   simp only [gctr]
 
 /-! ## Specialization to `gcmOneTimeAEAD` -/

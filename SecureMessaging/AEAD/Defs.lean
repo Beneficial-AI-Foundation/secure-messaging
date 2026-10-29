@@ -9,6 +9,7 @@ import VCVio.OracleComp.Constructions.SampleableType
 import VCVio.OracleComp.QueryTracking.QueryBound
 import VCVio.OracleComp.SimSemantics.Append
 import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
+import ToVCVio.EvalDist.Monad.Basic
 import ToVCVio.OracleComp.SimSemantics.UnifLift
 
 /-!
@@ -288,7 +289,7 @@ def securityExp [SampleableType C] [DecidableEq AD] [DecidableEq C]
 noncomputable def guessAdvantage [SampleableType C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) : ℝ :=
-  |(Pr[= true | securityExp ae adversary]).toReal - 1 / 2|
+  |(Pr{let x ← securityExp ae adversary}[x = true]).toReal - 1 / 2|
 -- ANCHOR_END: guessAdvantage
 
 /-! ### Useful security game decomposition -/
@@ -315,36 +316,32 @@ is `securityExpFixedBit ae adversary true`. -/
 noncomputable def distAdvantage [SampleableType C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) : ℝ :=
-  |(Pr[= true | securityExpFixedBit ae adversary true]).toReal -
-   (Pr[= true | securityExpFixedBit ae adversary false]).toReal|
+  |(Pr{let x ← securityExpFixedBit ae adversary true}[x = true]).toReal -
+   (Pr{let x ← securityExpFixedBit ae adversary false}[x = true]).toReal|
 -- ANCHOR_END: distAdvantage
 
-/-- The single-game AEAD experiment can be decomposed as a uniform-bit branch over
+
+/-- The single-game AEAD experiment is equal in distribution to a uniform-bit branch over
 the two fixed-bit experiments:
 
-  `Pr[Exp^{ot-cca}(ae, A) = 1]`
-    `= Pr[b ←$ {0,1}; b' ← (if b then AEAD_rand else AEAD_real); output (b = b')]`.
+  `Exp^{ot-cca}(ae, A) =ᵈ (b ←$ {0,1}; b' ← (if b then AEAD_rand else AEAD_real); output (b = b'))`.
 
 Here `AEAD_real` abbreviates `securityExpFixedBit ae adversary false`, and
 `AEAD_rand` abbreviates `securityExpFixedBit ae adversary true`; each branch
 returns the adversary's raw guess `b'`. Proved by swapping `b ← $ᵗ Bool` past
-the key-generation step using `probEvent_bind_bind_swap`. -/
-private lemma securityExp_probOutput_eq_branch
+the key-generation step using `OracleComp.EvalDistEq.bind_bind_swap`. -/
+private lemma securityExp_evalDistEq_branch
     [SampleableType C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) :
-    Pr[= true | securityExp ae adversary] =
-    Pr[= true | do
+    securityExp ae adversary =ᵈ (do
       let b ← ($ᵗ Bool : ProbComp Bool)
       let z ← if b then securityExpFixedBit ae adversary true
                else securityExpFixedBit ae adversary false
-      pure (b == z)] := by
-  unfold securityExp
-  simp only [← probEvent_eq_eq_probOutput]
-  rw [probEvent_bind_bind_swap]
-  simp only [probEvent_eq_eq_probOutput]
-  refine probOutput_bind_congr' ($ᵗ Bool) true ?_
-  intro b; cases b <;> simp [securityExpFixedBit]
+      pure (b == z)) := by
+  refine (OracleComp.EvalDistEq.bind_bind_swap _ _ _).trans ?_
+  refine EvalDistEq.bind_right _ fun b => ?_
+  cases b <;> simp only [securityExpFixedBit, bind_assoc, pure_bind] <;> exact EvalDistEq.refl _
 
 /-- The centered success probability of the single-bit experiment decomposes
 as the difference of the random and real fixed-bit branches:
@@ -357,17 +354,11 @@ private lemma securityExp_toReal_sub_half
     [SampleableType C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) :
-    (Pr[= true | securityExp ae adversary]).toReal - 1 / 2 =
-    ((Pr[= true | securityExpFixedBit ae adversary true]).toReal -
-     (Pr[= true | securityExpFixedBit ae adversary false]).toReal) / 2 := by
-  rw [show (Pr[= true | securityExp ae adversary]).toReal =
-      (Pr[= true | do
-        let b ← ($ᵗ Bool : ProbComp Bool)
-        let z ← if b then securityExpFixedBit ae adversary true
-                 else securityExpFixedBit ae adversary false
-        pure (b == z)]).toReal from by
-    congr 1; exact securityExp_probOutput_eq_branch ae adversary]
-  exact probOutput_uniformBool_branch_toReal_sub_half
+    (Pr{let x ← securityExp ae adversary}[x = true]).toReal - 1 / 2 =
+    ((Pr{let x ← securityExpFixedBit ae adversary true}[x = true]).toReal -
+     (Pr{let x ← securityExpFixedBit ae adversary false}[x = true]).toReal) / 2 := by
+  rw [(securityExp_evalDistEq_branch ae adversary).prEvent_eq]
+  exact ToVCVio.prEvent_uniformBool_branch_toReal_sub_half
     (securityExpFixedBit ae adversary true)
     (securityExpFixedBit ae adversary false)
 

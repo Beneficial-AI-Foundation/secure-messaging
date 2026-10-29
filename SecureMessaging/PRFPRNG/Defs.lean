@@ -146,8 +146,8 @@ in the real and ideal experiments. -/
 noncomputable def pppAdvantage [SampleableType K] [SampleableType I] [SampleableType R]
     [SampleableType (I → R)]
     (ppp : PRFPRNGScheme K Sigma I R) (adversary : PPPAdversary Sigma I R) : ℝ :=
-  |(Pr[= true | pppRealExp ppp adversary]).toReal -
-    (Pr[= true | pppIdealExp ppp adversary]).toReal|
+  |(Pr{let x ← pppRealExp ppp adversary}[x = true]).toReal -
+    (Pr{let x ← pppIdealExp ppp adversary}[x = true]).toReal|
 
 end Game
 

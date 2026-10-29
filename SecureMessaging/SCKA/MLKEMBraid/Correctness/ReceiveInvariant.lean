@@ -84,7 +84,7 @@ theorem receive_preserves_transcriptConsistent
     simp only [stateAt_recvSuccessor]
     by_cases hwho : who = party
     · subst who; simpa only [↓reduceIte] using And.intro hmono hcompMono
-    · simp only [if_neg hwho]; exact ⟨le_rfl, le_rfl⟩
+    · simp only [ite_eq_right hwho]; exact ⟨le_rfl, le_rfl⟩
   have hLocal (who : Bool) : LocalPayloadInv auth ik T (s'.stateAt who) := by
     dsimp only [s']
     rw [stateAt_recvSuccessor]
@@ -108,13 +108,13 @@ theorem receive_preserves_transcriptConsistent
         by_cases het : e = t
         · subst het
           obtain ⟨-, -, es', ct1', k', -, hc', -, hk'⟩ := hkeyFact e key hkey
-          rw [Function.update_self, if_pos ⟨by omega, le_refl e⟩, hc']
+          rw [Function.update_self, ite_eq_left ⟨by omega, le_refl e⟩, hc']
           exact congrArg some hk'
         · rw [Function.update_of_ne het, hK]
           by_cases h1 : 0 < e ∧ e ≤ (s.stateAt party).completedEpoch
-          · rw [if_pos h1, if_pos (by omega)]
-          · rw [if_neg h1, if_neg (by omega)]
-    · simpa only [if_neg hwho] using hK
+          · rw [ite_eq_left h1, ite_eq_left (by omega)]
+          · rw [ite_eq_right h1, ite_eq_right (by omega)]
+    · simpa only [ite_eq_right hwho] using hK
   rintro ⟨hC', hP'⟩
   refine ⟨by simpa only [correct_recvSuccessor] using hT.correct, hC', hP',
     hT.keypair_zero, hT.encaps_zero, ?_, ?_, hLocal true, hLocal false, ?_, hKeys⟩
@@ -131,7 +131,7 @@ theorem receive_preserves_transcriptConsistent
     · rw [← GameState.stateAt_generator] at hdec hle'
       rw [stateAt_recvSuccessor] at hle'
       by_cases howner : decide (e % 2 = 1) = party
-      · rw [if_pos howner] at hle'
+      · rw [ite_eq_left howner] at hle'
         rw [howner] at hdec
         rcases hcomp with ⟨-, hceq⟩ | ⟨t, k', hkey, ht, hceq⟩
         · exact hdec (hceq ▸ hle')
@@ -144,7 +144,7 @@ theorem receive_preserves_transcriptConsistent
             cases hc'
             exact hdec'
           · exact hdec (by omega)
-      · rw [if_neg howner] at hle'
+      · rw [ite_eq_right howner] at hle'
         exact hdec hle'
   · intro who n' msg' tsnd' hmsg'
     apply hT.messages who n' msg' tsnd'

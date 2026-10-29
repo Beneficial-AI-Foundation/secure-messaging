@@ -64,9 +64,9 @@ assumes `(pk, sk) ∈ support kem.keygen` and `(c, k) ∈ support (kem.encaps pk
 
 2. *Hybrids and telescoping* (`EpochCount`, `Hybrid`).
    - `H_0 = I_false` (`hybridExp_zero`); `p_1 = p_0`, since epoch `0` is never keyed
-     (`probOutput_hybridExp_one`); and `p_T = Pr[I_true = true]` for `T > 2q`, since a keyed
+     (`prEvent_hybridExp_one`); and `p_T = Pr[I_true = true]` for `T > 2q`, since a keyed
      epoch is at most twice the number of committed epoch advances, which is at most `q`
-     (`probOutput_hybridExp_top`, `keyed_epoch_le_two_mul_advances`).
+     (`prEvent_hybridExp_top`, `keyed_epoch_le_two_mul_advances`).
 
    Main result: for every `δ : ℕ → ℝ` with `0 ≤ δ t` for all `t` and
    `|p_{t+1} − p_t| ≤ δ t` at every `1 ≤ t ≤ 2q`,
@@ -92,7 +92,7 @@ assumes `(pk, sk) ∈ support kem.keygen` and `(c, k) ∈ support (kem.encaps pk
      `InjInv` (`Injected`), which pins the injected values wherever the state holds them.
 
    Main result: `Pr[S_t^x = true] = E_{(pk, sk), (c, k), r} Pr[E_t^x(pk, sk, c, k, r) = true]`
-   (`probOutput_stoppedHybridExp_eq_eager`).
+   (`prEvent_stoppedHybridExp_eq_eager`).
 
 5. *Simulation* (`Reduction`, `Simulation`).
    - `Sim_t(pk, dummy, c, k*)` runs `adv` against the injected oracles
@@ -106,12 +106,12 @@ assumes `(pk, sk) ∈ support kem.keygen` and `(c, k) ∈ support (kem.encaps pk
      requiring their successor states to correspond.
 
    Main result: `Pr[E_t^x(pk, sk, c, k, r) = true] = Pr[Sim_t(pk, dummy, c, k_x) = true]` for
-   every placeholder `dummy` (`probOutput_stoppedEagerExp_eq_reductionRun`).
+   every placeholder `dummy` (`prEvent_stoppedEagerExp_eq_reductionRun`).
 
 6. *The hop is the reduction's advantage* (this module).
    - Unfolding the IND-CPA experiment of `R_t` and integrating out the placeholder gives
      `Pr[R_t^x = true] = E_{(pk, sk), (c, k), r} Pr[E_t^x(pk, sk, c, k, r) = true]`
-     (`probOutput_indCPAExpProb_reduction_eq`), which is `Pr[S_t^x = true]` by step 4; with
+     (`prEvent_indCPAExpProb_reduction_eq`), which is `Pr[S_t^x = true]` by step 4; with
      step 3, `|p_{t+1} − p_t| = AdvINDCPA_KEM(kem, R_t)` for `t > 0` (`hybrid_hop_eq_reduction`).
    - Substituting `δ t := AdvINDCPA_KEM(kem, R_t)` for `t > 0` and `δ 0 := 0` into step 2 gives
      `security_positive`.
@@ -148,52 +148,60 @@ include hEk hCt in
 `Pr[R_t^x = true] = E_{(pk, sk), (c, k), r} Pr[E_t^x(pk, sk, c, k, r) = true]` over
 `(pk, sk) ← keygen`, `(c, k) ← encaps pk` and `r ←$ K`, where the IND-CPA bit `bb = true` is the
 version `real` and the eager bit is `!bb`. -/
-lemma probOutput_indCPAExpProb_reduction_eq (adv : SecurityAdversary leak Sym) (t : ℕ)
+lemma prEvent_indCPAExpProb_reduction_eq (adv : SecurityAdversary leak Sym) (t : ℕ)
     (ht : 0 < t) (bb : Bool) :
-    Pr[= true | indCPAExpProb kem (reduction kem hDet ecEk ecCt leak adv t) bb] =
-      Pr[= true | kem.keygen >>= fun x => kem.encaps x.1 >>= fun y => ($ᵗ K : ProbComp K) >>=
-        fun r => stoppedEagerExp kem hDet ecEk ecCt leak t (!bb) x.1 x.2 y.1 y.2 r adv] := by
+    Pr{let x ← indCPAExpProb kem (reduction kem hDet ecEk ecCt leak adv t) bb}[x = true] =
+      Pr{let w ← kem.keygen >>= fun x => kem.encaps x.1 >>= fun y => ($ᵗ K : ProbComp K) >>=
+           fun r => stoppedEagerExp kem hDet ecEk ecCt leak t (!bb) x.1 x.2 y.1 y.2 r
+             adv}[w = true] := by
   simp only [indCPAExpProb, indCPAPrefix, reduction_preChallenge, bind_assoc]
-  refine probOutput_bind_congr (mx := kem.keygen) ?_
+  rw [map_bind, map_bind]
+  refine prEvent_bind_congr_of_support _ _ _ ?_
   rintro ⟨pk, sk⟩ hx
-  change Pr[= true | (do
-      let st ← (pure pk : ProbComp PK)
-      let y ← kem.encaps pk
-      let r ← ($ᵗ K : ProbComp K)
-      pure (⟨st, y.1, y.2, r⟩ : INDCPAPrefixState kem (reduction kem hDet ecEk ecCt leak adv t)))
-      >>= fun p => reductionRun kem hDet ecEk ecCt leak adv t p.st p.cStar
-        (if bb then p.kReal else p.kRand)] = _
+  change Pr{let x ← (do
+              let st ← (pure pk : ProbComp PK)
+              let y ← kem.encaps pk
+              let r ← ($ᵗ K : ProbComp K)
+              pure (⟨st, y.1, y.2, r⟩ :
+                INDCPAPrefixState kem (reduction kem hDet ecEk ecCt leak adv t)))
+              >>= fun p => reductionRun kem hDet ecEk ecCt leak adv t p.st p.cStar
+              (if bb then p.kReal else p.kRand)}[x = true] = _
   simp only [bind_assoc, pure_bind]
-  refine probOutput_bind_congr (mx := kem.encaps pk) ?_
+  rw [map_bind, map_bind]
+  refine prEvent_bind_congr_of_support _ _ _ ?_
   rintro ⟨c, kReal⟩ hy
-  refine probOutput_bind_congr (mx := ($ᵗ K : ProbComp K)) ?_
+  rw [map_bind, map_bind]
+  refine prEvent_bind_congr_of_support _ _ _ ?_
   intro r _
   dsimp only
   unfold reductionRun
-  trans Pr[= true | kem.keygen >>= fun _ =>
-    stoppedEagerExp kem hDet ecEk ecCt leak t (!bb) pk sk c kReal r adv]
-  · refine probOutput_bind_congr ?_
+  trans Pr{let x ← kem.keygen >>= fun _ =>
+             stoppedEagerExp kem hDet ecEk ecCt leak t (!bb) pk sk c kReal r adv}[x = true]
+  · rw [map_bind, map_bind]
+    refine prEvent_bind_congr_of_support _ _ _ ?_
     rintro ⟨_, dummy⟩ _
-    rw [probOutput_stoppedEagerExp_eq_reductionRun kem hDet ecEk ecCt hEk hCt leak t ht pk sk
+    rw [prEvent_stoppedEagerExp_eq_reductionRun kem hDet ecEk ecCt hEk hCt leak t ht pk sk
       dummy c kReal r (!bb) adv hx hy]
     cases bb <;> rfl
-  · exact probOutput_congr rfl (evalDist_bind_const_probComp _ _)
+  · exact (evalDistEq_bind_const_probComp _ _).prEvent_eq _
 
 namespace Proofs
 
 include hEk hCt in
 /-- The proof of `hybrid_hop_eq_reduction`, stated in `Security`. -/
 lemma hybrid_hop_eq_reduction (adv : SecurityAdversary leak Sym) (t : ℕ) (ht : 0 < t) :
-    |(Pr[= true | hybridExp kem hDet ecEk ecCt leak (t + 1) adv]).toReal -
-        (Pr[= true | hybridExp kem hDet ecEk ecCt leak t adv]).toReal| =
-      kem.IND_CPA_Advantage ProbCompRuntime.probComp (reduction kem hDet ecEk ecCt leak adv t) := by
-  rw [IND_CPA_Advantage_eq_fixed_branch_dist, ← indCPAExpProb_probOutput_true_eq,
-    ← indCPAExpProb_probOutput_true_eq, hybridExp_sub_eq_stopped_sub]
-  have h1 := probOutput_stoppedHybridExp_eq_eager kem hDet ecEk ecCt hEk hCt leak adv t ht true
-  have h0 := probOutput_stoppedHybridExp_eq_eager kem hDet ecEk ecCt hEk hCt leak adv t ht false
+    |(Pr{let x ← hybridExp kem hDet ecEk ecCt leak (t + 1) adv}[x = true]).toReal -
+        (Pr{let x ← hybridExp kem hDet ecEk ecCt leak t adv}[x = true]).toReal| =
+      (kem.IND_CPA_Advantage ProbCompRuntime.probComp
+        (reduction kem hDet ecEk ecCt leak adv t)).toReal := by
+  rw [IND_CPA_Advantage_eq_fixed_branch_dist,
+    ENNReal.absDiff_toReal (prEvent_ne_top _) (prEvent_ne_top _), ← indCPAExpProb_prEvent_true_eq,
+    ← indCPAExpProb_prEvent_true_eq, hybridExp_sub_eq_stopped_sub]
+  have h1 := prEvent_stoppedHybridExp_eq_eager kem hDet ecEk ecCt hEk hCt leak adv t ht true
+  have h0 := prEvent_stoppedHybridExp_eq_eager kem hDet ecEk ecCt hEk hCt leak adv t ht false
   simp only [Bool.toNat_true, Bool.toNat_false, add_zero] at h1 h0
-  rw [h1, h0, probOutput_indCPAExpProb_reduction_eq kem hDet ecEk ecCt hEk hCt leak adv t ht,
-    probOutput_indCPAExpProb_reduction_eq kem hDet ecEk ecCt hEk hCt leak adv t ht,
+  rw [h1, h0, prEvent_indCPAExpProb_reduction_eq kem hDet ecEk ecCt hEk hCt leak adv t ht,
+    prEvent_indCPAExpProb_reduction_eq kem hDet ecEk ecCt hEk hCt leak adv t ht,
     Bool.not_true, Bool.not_false, abs_sub_comm]
 
 include hEk hCt in
@@ -203,19 +211,20 @@ lemma security_positive (adv : SecurityAdversary leak Sym) (q : ℕ)
     SCKAScheme.sckaGuessAdvantage (scheme kem hDet ecEk ecCt leak) adv
         (exposure .A leak) (exposure .B leak) ≤
       (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal +
-      (1 / 2 : ℝ) * ∑ i ∈ Finset.range (2 * q), kem.IND_CPA_Advantage ProbCompRuntime.probComp
-        (reduction kem hDet ecEk ecCt leak adv (i + 1)) := by
+      (1 / 2 : ℝ) * ∑ i ∈ Finset.range (2 * q), (kem.IND_CPA_Advantage ProbCompRuntime.probComp
+        (reduction kem hDet ecEk ecCt leak adv (i + 1))).toReal := by
   set δ' : ℕ → ℝ := fun t => if t = 0 then 0 else
-    kem.IND_CPA_Advantage ProbCompRuntime.probComp (reduction kem hDet ecEk ecCt leak adv t)
+    (kem.IND_CPA_Advantage ProbCompRuntime.probComp
+      (reduction kem hDet ecEk ecCt leak adv t)).toReal
     with hδ'
   have hbound := sckaGuessAdvantage_le_of_hop_bound kem hDet ecEk ecCt leak hEk hCt adv q hq δ'
     (fun t => by
       simp only [hδ']
       split_ifs
       · exact le_rfl
-      · exact abs_nonneg _)
+      · exact ENNReal.toReal_nonneg)
     (fun t ht _ => by
-      simp only [hδ', if_neg (Nat.pos_iff_ne_zero.mp ht)]
+      simp only [hδ', ite_eq_right (Nat.pos_iff_ne_zero.mp ht)]
       exact le_of_eq (hybrid_hop_eq_reduction kem hDet ecEk ecCt hEk hCt leak adv t ht))
   simpa only [Finset.sum_range_succ', hδ', Nat.succ_ne_zero, ↓reduceIte, add_zero] using hbound
 
@@ -226,12 +235,11 @@ lemma security (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQu
         (exposure .A leak) (exposure .B leak) ≤
       (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal +
       (1 / 2 : ℝ) * ∑ t ∈ Finset.range (2 * q + 1),
-        kem.IND_CPA_Advantage ProbCompRuntime.probComp
-          (reduction kem hDet ecEk ecCt leak adv t) := by
+        (kem.IND_CPA_Advantage ProbCompRuntime.probComp
+          (reduction kem hDet ecEk ecCt leak adv t)).toReal := by
   refine (security_positive kem hDet ecEk ecCt hEk hCt leak adv q hq).trans ?_
-  have h0 : 0 ≤ kem.IND_CPA_Advantage ProbCompRuntime.probComp
-      (reduction kem hDet ecEk ecCt leak adv 0) := by
-    exact abs_nonneg _
+  have h0 : 0 ≤ (kem.IND_CPA_Advantage ProbCompRuntime.probComp
+      (reduction kem hDet ecEk ecCt leak adv 0)).toReal := ENNReal.toReal_nonneg
   rw [Finset.sum_range_succ']
   linarith
 
@@ -240,8 +248,8 @@ include hEk hCt in
 lemma security_uniform (adv : SecurityAdversary leak Sym) (q : ℕ)
     (hq : SecuritySendQueryBound adv q) (δ : ℝ)
     (hδ : ∀ t, 0 < t → t ≤ 2 * q →
-      kem.IND_CPA_Advantage ProbCompRuntime.probComp (reduction kem hDet ecEk ecCt leak adv t) ≤
-        δ) :
+      (kem.IND_CPA_Advantage ProbCompRuntime.probComp
+        (reduction kem hDet ecEk ecCt leak adv t)).toReal ≤ δ) :
     SCKAScheme.sckaGuessAdvantage (scheme kem hDet ecEk ecCt leak) adv
         (exposure .A leak) (exposure .B leak) ≤
       (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal + (q : ℝ) * δ := by

@@ -71,9 +71,10 @@ Then the hop at `t` is the IND-CPA advantage of the reduction at target `t`:
 `|p_{t+1} − p_t| = AdvINDCPA_KEM(kem, R_t)`, where `p_T := Pr[hybridExp … T adv = true]` and
 `R_t := reduction … adv t`. -/
 theorem hybrid_hop_eq_reduction (adv : SecurityAdversary leak Sym) (t : ℕ) (ht : 0 < t) :
-    |(Pr[= true | hybridExp kem hDet ecEk ecCt leak (t + 1) adv]).toReal -
-        (Pr[= true | hybridExp kem hDet ecEk ecCt leak t adv]).toReal| =
-      kem.IND_CPA_Advantage ProbCompRuntime.probComp (reduction kem hDet ecEk ecCt leak adv t) :=
+    |(Pr{let x ← hybridExp kem hDet ecEk ecCt leak (t + 1) adv}[x = true]).toReal -
+        (Pr{let x ← hybridExp kem hDet ecEk ecCt leak t adv}[x = true]).toReal| =
+      (kem.IND_CPA_Advantage ProbCompRuntime.probComp
+        (reduction kem hDet ecEk ecCt leak adv t)).toReal :=
   Proofs.hybrid_hop_eq_reduction kem hDet ecEk ecCt hEk hCt leak adv t ht
 
 include hEk hCt in
@@ -91,8 +92,8 @@ theorem security_positive (adv : SecurityAdversary leak Sym) (q : ℕ)
     SCKAScheme.sckaGuessAdvantage (scheme kem hDet ecEk ecCt leak) adv
         (exposure .A leak) (exposure .B leak) ≤
       (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal +
-      (1 / 2 : ℝ) * ∑ i ∈ Finset.range (2 * q), kem.IND_CPA_Advantage ProbCompRuntime.probComp
-        (reduction kem hDet ecEk ecCt leak adv (i + 1))
+      (1 / 2 : ℝ) * ∑ i ∈ Finset.range (2 * q), (kem.IND_CPA_Advantage ProbCompRuntime.probComp
+        (reduction kem hDet ecEk ecCt leak adv (i + 1))).toReal
 -- ANCHOR_END: securityPositive
     :=
   Proofs.security_positive kem hDet ecEk ecCt hEk hCt leak adv q hq
@@ -112,8 +113,8 @@ theorem security (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySend
         (exposure .A leak) (exposure .B leak) ≤
       (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal +
       (1 / 2 : ℝ) * ∑ t ∈ Finset.range (2 * q + 1),
-        kem.IND_CPA_Advantage ProbCompRuntime.probComp
-          (reduction kem hDet ecEk ecCt leak adv t) :=
+        (kem.IND_CPA_Advantage ProbCompRuntime.probComp
+          (reduction kem hDet ecEk ecCt leak adv t)).toReal :=
   Proofs.security kem hDet ecEk ecCt hEk hCt leak adv q hq
 
 include hEk hCt in
@@ -130,8 +131,8 @@ Then `AdvGuess_SCKA(scka, adv) ≤ q · ε + q · δ`, where `ε` is the correct
 theorem security_uniform (adv : SecurityAdversary leak Sym) (q : ℕ)
     (hq : SecuritySendQueryBound adv q) (δ : ℝ)
     (hδ : ∀ t, 0 < t → t ≤ 2 * q →
-      kem.IND_CPA_Advantage ProbCompRuntime.probComp (reduction kem hDet ecEk ecCt leak adv t) ≤
-        δ) :
+      (kem.IND_CPA_Advantage ProbCompRuntime.probComp
+        (reduction kem hDet ecEk ecCt leak adv t)).toReal ≤ δ) :
     SCKAScheme.sckaGuessAdvantage (scheme kem hDet ecEk ecCt leak) adv
         (exposure .A leak) (exposure .B leak) ≤
       (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal + (q : ℝ) * δ

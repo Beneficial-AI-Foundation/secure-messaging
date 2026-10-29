@@ -21,6 +21,7 @@ so every non-send query keeps the expected tracked score `S` at most its initial
 -/
 
 open OracleComp KEMScheme ENNReal
+open OracleComp.ProgramLogic
 
 namespace oppBiKemCKA
 
@@ -340,12 +341,12 @@ lemma gameInv_step_of_noFailure (t : (SCKAScheme.sckaCorrectnessSpec (Message Sy
 lemma tracked_step_score_le_of_flag (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (ε : ℝ≥0∞) :
-    expectedPayoff ((trackedBiKem kem hDet ecEk ecCt leak t).run (s, true))
+    wp ((trackedBiKem kem hDet ecEk ecCt leak t).run (s, true))
         (fun z => trackedScore hDet z.2) ≤
       trackedScore hDet (s, true) + ε := by
   rw [trackedScore_true]
   refine le_add_right ?_
-  refine expectedPayoff_le_const_of_support _ _ _ probFailure_eq_zero ?_
+  refine wp_le_const_of_support _ ?_
   intro z hz
   change z ∈ support
     ((SCKAScheme.sckaCorrectnessImpl (scheme kem hDet ecEk ecCt leak) t).run s >>=
@@ -431,10 +432,10 @@ lemma tracked_nonSend_score_le (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym
     (hNonSend : ¬ SCKAScheme.isSendQuery t = true)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : GameInv kem ecEk ecCt s) (hfail : kemFailure hDet s = false) :
-    expectedPayoff ((trackedBiKem kem hDet ecEk ecCt leak t).run (s, false))
+    wp ((trackedBiKem kem hDet ecEk ecCt leak t).run (s, false))
         (fun z => trackedScore hDet z.2) ≤
       trackedScore hDet (s, false) := by
-  refine expectedPayoff_le_const_of_support _ _ _ probFailure_eq_zero ?_
+  refine wp_le_const_of_support _ ?_
   intro z hz
   change z ∈ support
     ((SCKAScheme.sckaCorrectnessImpl (scheme kem hDet ecEk ecCt leak) t).run s >>=

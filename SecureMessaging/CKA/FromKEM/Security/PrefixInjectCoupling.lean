@@ -95,7 +95,7 @@ private def rawResumeKilled [SampleableType K] [DecidableEq K]
 
 /-- Pointwise split of the injected game's resume into its paused and
 finished contributions. -/
-private lemma injResume_probOutput_decomp [SampleableType K] [DecidableEq K]
+private lemma injResume_prEvent_decomp [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
     (leak : RandLeak kem)
@@ -103,11 +103,10 @@ private lemma injResume_probOutput_decomp [SampleableType K] [DecidableEq K]
     (b : Bool)
     (pkStar : PK) (skStar : SK)
     (z : CKAChallengeStepResult leak Bool × SecurityState K PK SK C) :
-    Pr[= true |
-        Prod.fst <$> injectedChallengeResume kem hDet leak gp b pkStar skStar
-          z.1 z.2] =
-      Pr[= true | injResumeKilled kem hDet leak gp b pkStar skStar z] +
-        Pr[= true | injDone leak z] := by
+    Pr{let x ← (Prod.fst <$> injectedChallengeResume kem hDet leak gp b pkStar skStar
+          z.1 z.2)}[x = true] =
+      Pr{let x ← injResumeKilled kem hDet leak gp b pkStar skStar z}[x = true] +
+        Pr{let x ← injDone leak z}[x = true] := by
   rcases z with ⟨res, σ⟩
   cases res with
   | done g => simp [injectedChallengeResume, injResumeKilled, injDone]
@@ -117,7 +116,7 @@ private lemma injResume_probOutput_decomp [SampleableType K] [DecidableEq K]
 /-- Pointwise split of the reduction game's resume into its paused and
 finished contributions.  In the finished case the unused challenge and key
 draws integrate out. -/
-private lemma rawResume_probOutput_decomp [SampleableType K] [DecidableEq K]
+private lemma rawResume_prEvent_decomp [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
     (leak : RandLeak kem)
@@ -125,16 +124,16 @@ private lemma rawResume_probOutput_decomp [SampleableType K] [DecidableEq K]
     (b : Bool)
     (pkStar : PK)
     (z : CKAChallengeStepResult leak Bool × SecurityState K PK SK C) :
-    Pr[= true | rawResume kem hDet leak gp b pkStar z] =
-      Pr[= true | rawResumeKilled kem hDet leak gp b pkStar z] +
-        Pr[= true | injDone leak z] := by
+    Pr{let x ← rawResume kem hDet leak gp b pkStar z}[x = true] =
+      Pr{let x ← rawResumeKilled kem hDet leak gp b pkStar z}[x = true] +
+        Pr{let x ← injDone leak z}[x = true] := by
   rcases z with ⟨res, σ⟩
   cases res with
   | done g =>
       simp only [rawResume, finishChallengeStepRaw, rawResumeKilled, injDone]
-      rw [probOutput_bind_of_const' (kem.encaps pkStar) fun _ _ => rfl,
-        probOutput_bind_of_const' ($ᵗ K : ProbComp K) fun _ _ => rfl]
-      simp only [probOutput_pure, Bool.true_eq, Bool.false_eq_true, ↓reduceIte, zero_add]
+      rw [(OracleComp.EvalDistEq.bind_const (kem.encaps pkStar) _).prEvent_eq,
+        (OracleComp.EvalDistEq.bind_const ($ᵗ K : ProbComp K) _).prEvent_eq]
+      simp only [prEvent_pure, Bool.false_eq_true, ↓reduceIte, zero_add]
   | pausedA cont => simp [rawResumeKilled, injDone]
   | pausedB cont => simp [rawResumeKilled, injDone]
 
@@ -226,7 +225,7 @@ private def reductionDoneGame [SampleableType K] [DecidableEq K]
   injDone leak z
 
 /-- The injected game's success probability splits over the first pause. -/
-private lemma injected_probOutput_eq_killed_add_done
+private lemma injected_prEvent_eq_killed_add_done
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -234,20 +233,20 @@ private lemma injected_probOutput_eq_killed_add_done
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
     (b : Bool) :
-    Pr[= true | ckaSecurityFixedBranchWithInjectedChallengeKey kem hDet leak adv gp b] =
-      Pr[= true | injectedKilledGame kem hDet leak adv gp b] +
-        Pr[= true | injectedDoneGame kem hDet leak adv gp] := by
+    Pr{let x ← ckaSecurityFixedBranchWithInjectedChallengeKey kem hDet leak adv gp b}[x = true] =
+      Pr{let x ← injectedKilledGame kem hDet leak adv gp b}[x = true] +
+        Pr{let x ← injectedDoneGame kem hDet leak adv gp}[x = true] := by
   rw [ckaSecurityFixedBranchWithInjectedChallengeKey_eq_split]
   simp only [injectedKilledGame, injectedDoneGame]
-  refine probOutput_bind_congr_eq_add fun ks0 _ => ?_
+  refine ToVCVio.prEvent_bind_congr_eq_add _ fun ks0 _ => ?_
   obtain ⟨pk0, sk0⟩ := ks0
-  refine probOutput_bind_congr_eq_add fun ksS _ => ?_
+  refine ToVCVio.prEvent_bind_congr_eq_add _ fun ksS _ => ?_
   obtain ⟨pkStar, skStar⟩ := ksS
-  refine probOutput_bind_congr_eq_add fun z _ => ?_
-  exact injResume_probOutput_decomp kem hDet leak gp b pkStar skStar z
+  refine ToVCVio.prEvent_bind_congr_eq_add _ fun z _ => ?_
+  exact injResume_prEvent_decomp kem hDet leak gp b pkStar skStar z
 
 /-- The reduction game's success probability splits over the first pause. -/
-private lemma reduction_probOutput_eq_killed_add_done
+private lemma reduction_prEvent_eq_killed_add_done
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -255,22 +254,22 @@ private lemma reduction_probOutput_eq_killed_add_done
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
     (b : Bool) :
-    Pr[= true | ckaReductionINDCPABranchRawKeygenSwapped kem hDet leak adv gp b] =
-      Pr[= true | reductionKilledGame kem hDet leak adv gp b] +
-        Pr[= true | reductionDoneGame kem hDet leak adv gp] := by
+    Pr{let x ← ckaReductionINDCPABranchRawKeygenSwapped kem hDet leak adv gp b}[x = true] =
+      Pr{let x ← reductionKilledGame kem hDet leak adv gp b}[x = true] +
+        Pr{let x ← reductionDoneGame kem hDet leak adv gp}[x = true] := by
   simp only [ckaReductionINDCPABranchRawKeygenSwapped, reductionKilledGame,
     reductionDoneGame]
-  refine probOutput_bind_congr_eq_add fun ks0 _ => ?_
+  refine ToVCVio.prEvent_bind_congr_eq_add _ fun ks0 _ => ?_
   obtain ⟨pk0, sk0⟩ := ks0
-  refine probOutput_bind_congr_eq_add fun ksS _ => ?_
+  refine ToVCVio.prEvent_bind_congr_eq_add _ fun ksS _ => ?_
   obtain ⟨pkStar, skStar⟩ := ksS
-  refine probOutput_bind_congr_eq_add fun z _ => ?_
-  exact rawResume_probOutput_decomp kem hDet leak gp b pkStar z
+  refine ToVCVio.prEvent_bind_congr_eq_add _ fun z _ => ?_
+  exact rawResume_prEvent_decomp kem hDet leak gp b pkStar z
 
 /-! ## Toward the paused-run chains
 
 The killed-game chain composes equality-relation triples, obtained from equal
-success probabilities by `relTriple_eqRel_of_probOutput_true_eq`.
+success probabilities by `relTriple_eqRel_of_prEvent_true_eq`.
 The two support lemmas pin the counters after a fired challenge query: the
 challenged party's counter is bumped once, the other counter is unchanged.
 The apexes' `injectionPassed`/`challengePassed` hypotheses follow from them at
@@ -433,7 +432,7 @@ installed key pair from the continuation; at the resume bit `true` the bumped
 counter gives `challengePassed` and the second apex erases the bit.  The
 result is the challenge bridges' left-hand side. -/
 
-private lemma injResumeKilled_pausedA_probOutput_true_eq
+private lemma injResumeKilled_pausedA_prEvent_true_eq
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -445,13 +444,12 @@ private lemma injResumeKilled_pausedA_probOutput_true_eq
     (hInv : epochCounterInv base)
     (hWill : willChallengeA gp base = true)
     (cont : Option (Message C PK × K) → OracleComp (securitySpec leak) Bool) :
-    Pr[= true | injResumeKilled kem hDet leak gp b pkStar skStar
-        (.pausedA cont, preAToBHonestState base pkStar skStar)] =
-      Pr[= true |
-        ((securityImpl kem hDet leak gp b
+    Pr{let x ← (injResumeKilled kem hDet leak gp b pkStar skStar
+        (.pausedA cont, preAToBHonestState base pkStar skStar))}[x = true] =
+      Pr{let x ← (((securityImpl kem hDet leak gp b
           (CKAScheme.ckaSecuritySpec.OChallA : (securitySpec leak).Domain)).run
           (preAToBHonestState base pkStar skStar)) >>= fun p =>
-            (simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2] := by
+            (simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2)}[x = true] := by
   have hWill' := hWill
   simp only [willChallengeA, Bool.and_eq_true, beq_iff_eq] at hWill'
   obtain ⟨⟨_hvalid, hpartyEq⟩, htA⟩ := hWill'
@@ -467,29 +465,29 @@ private lemma injResumeKilled_pausedA_probOutput_true_eq
       (securityImpl kem hDet leak gp b
         (CKAScheme.ckaSecuritySpec.OChallA : (securitySpec leak).Domain)).run
         (preAToBHonestState base pkStar skStar) from rfl]
-  refine probOutput_bind_congr fun p hp => ?_
+  refine prEvent_bind_congr_of_support _ _ _ fun p hp => ?_
   obtain ⟨hpA, hpB⟩ := challA_run_support_counters kem hDet leak gp b
     (preAToBHonestState base pkStar skStar) pkStar rfl hWillH p hp
   simp only [preAToBHonestState] at hpA hpB
   have hinj : injectionPassed gp p.2 := by
     simp only [injectionPassed, hpartyEq]
     omega
-  change Pr[= true | (simulateQ (securityImplWithChallengeKeyPair kem hDet leak gp b
-      pkStar skStar) (cont p.1)).run' p.2] = _
+  change Pr{let x ← ((simulateQ (securityImplWithChallengeKeyPair kem hDet leak gp b
+      pkStar skStar) (cont p.1)).run' p.2)}[x = true] = _
   cases b with
   | false =>
-      exact probOutput_simulateQ_wck_run'_eq_of_injectionPassed kem hDet leak gp
+      exact prEvent_simulateQ_wck_run'_eq_of_injectionPassed kem hDet leak gp
         false pkStar skStar (cont p.1) p.2 hinj
   | true =>
       have hpass : challengePassed gp p.2 := by
         simp only [challengePassed, hpartyEq]
         omega
-      exact (probOutput_simulateQ_wck_run'_eq_of_injectionPassed kem hDet leak gp
+      exact (prEvent_simulateQ_wck_run'_eq_of_injectionPassed kem hDet leak gp
         true pkStar skStar (cont p.1) p.2 hinj).trans
-        (probOutput_simulateQ_true_false_run'_eq_of_challengePassed kem hDet leak
+        (prEvent_simulateQ_true_false_run'_eq_of_challengePassed kem hDet leak
           gp (cont p.1) p.2 hpass)
 
-private lemma injResumeKilled_pausedB_probOutput_true_eq
+private lemma injResumeKilled_pausedB_prEvent_true_eq
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -501,13 +499,12 @@ private lemma injResumeKilled_pausedB_probOutput_true_eq
     (hInv : epochCounterInv base)
     (hWill : willChallengeB gp base = true)
     (cont : Option (Message C PK × K) → OracleComp (securitySpec leak) Bool) :
-    Pr[= true | injResumeKilled kem hDet leak gp b pkStar skStar
-        (.pausedB cont, preBToAHonestState base pkStar skStar)] =
-      Pr[= true |
-        ((securityImpl kem hDet leak gp b
+    Pr{let x ← (injResumeKilled kem hDet leak gp b pkStar skStar
+        (.pausedB cont, preBToAHonestState base pkStar skStar))}[x = true] =
+      Pr{let x ← (((securityImpl kem hDet leak gp b
           (CKAScheme.ckaSecuritySpec.OChallB : (securitySpec leak).Domain)).run
           (preBToAHonestState base pkStar skStar)) >>= fun p =>
-            (simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2] := by
+            (simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2)}[x = true] := by
   have hWill' := hWill
   simp only [willChallengeB, Bool.and_eq_true, beq_iff_eq] at hWill'
   obtain ⟨⟨_hvalid, hpartyEq⟩, htB⟩ := hWill'
@@ -523,26 +520,26 @@ private lemma injResumeKilled_pausedB_probOutput_true_eq
       (securityImpl kem hDet leak gp b
         (CKAScheme.ckaSecuritySpec.OChallB : (securitySpec leak).Domain)).run
         (preBToAHonestState base pkStar skStar) from rfl]
-  refine probOutput_bind_congr fun p hp => ?_
+  refine prEvent_bind_congr_of_support _ _ _ fun p hp => ?_
   obtain ⟨hpB, hpA⟩ := challB_run_support_counters kem hDet leak gp b
     (preBToAHonestState base pkStar skStar) pkStar rfl hWillH p hp
   simp only [preBToAHonestState] at hpA hpB
   have hinj : injectionPassed gp p.2 := by
     simp only [injectionPassed, hpartyEq]
     omega
-  change Pr[= true | (simulateQ (securityImplWithChallengeKeyPair kem hDet leak gp b
-      pkStar skStar) (cont p.1)).run' p.2] = _
+  change Pr{let x ← ((simulateQ (securityImplWithChallengeKeyPair kem hDet leak gp b
+      pkStar skStar) (cont p.1)).run' p.2)}[x = true] = _
   cases b with
   | false =>
-      exact probOutput_simulateQ_wck_run'_eq_of_injectionPassed kem hDet leak gp
+      exact prEvent_simulateQ_wck_run'_eq_of_injectionPassed kem hDet leak gp
         false pkStar skStar (cont p.1) p.2 hinj
   | true =>
       have hpass : challengePassed gp p.2 := by
         simp only [challengePassed, hpartyEq]
         omega
-      exact (probOutput_simulateQ_wck_run'_eq_of_injectionPassed kem hDet leak gp
+      exact (prEvent_simulateQ_wck_run'_eq_of_injectionPassed kem hDet leak gp
         true pkStar skStar (cont p.1) p.2 hinj).trans
-        (probOutput_simulateQ_true_false_run'_eq_of_challengePassed kem hDet leak
+        (prEvent_simulateQ_true_false_run'_eq_of_challengePassed kem hDet leak
           gp (cont p.1) p.2 hpass)
 
 /-! ## The paused chains
@@ -554,7 +551,7 @@ the hidden-state move, and the reduction side normalizes to
 encapsulated key and the unused uniform draw integrates out; at `true` the
 bridge draws the uniform key itself. -/
 
-private lemma pausedA_killed_probOutput_true_eq
+private lemma pausedA_killed_prEvent_true_eq
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -569,37 +566,36 @@ private lemma pausedA_killed_probOutput_true_eq
     (hWill : willChallengeA gp base = true)
     (hks : (pkStar, skStar) ∈ support kem.keygen)
     (cont : Option (Message C PK × K) → OracleComp (securitySpec leak) Bool) :
-    Pr[= true | injResumeKilled kem hDet leak gp b pkStar skStar
-        (.pausedA cont, preAToBHonestState base pkStar skStar)] =
-      Pr[= true | rawResumeKilled kem hDet leak gp (!b) pkStar
-        (.pausedA cont, preAToBReductionState base pkStar)] := by
-  rw [injResumeKilled_pausedA_probOutput_true_eq kem hDet leak gp b pkStar skStar
+    Pr{let x ← (injResumeKilled kem hDet leak gp b pkStar skStar
+        (.pausedA cont, preAToBHonestState base pkStar skStar))}[x = true] =
+      Pr{let x ← (rawResumeKilled kem hDet leak gp (!b) pkStar
+        (.pausedA cont, preAToBReductionState base pkStar))}[x = true] := by
+  rw [injResumeKilled_pausedA_prEvent_true_eq kem hDet leak gp b pkStar skStar
     base hInv hWill cont]
   have hWillR : willChallengeA gp (preAToBReductionState base pkStar) = true := by
     simpa [willChallengeA, preAToBReductionState] using hWill
   cases b with
   | false =>
-      rw [challA_sampled_reduction_cont_probOutput_true_eq kem hDet hkem leak gp
+      rw [challA_sampled_reduction_cont_prEvent_true_eq kem hDet hkem leak gp
         hgp base hInv hWill hks cont]
       simp only [Bool.not_false, rawResumeKilled, rawResume, ↓reduceIte]
-      refine probOutput_bind_congr fun ck _ => ?_
+      refine prEvent_bind_congr _ _ _ _ _ fun ck => ?_
       obtain ⟨cStar, kReal⟩ := ck
       rw [reductionBranch_challA_cont_eq_finishChallengeStepRaw kem hDet leak gp
         pkStar cStar kReal (preAToBReductionState base pkStar) hWillR cont]
-      rw [probOutput_bind_const]
-      simp only [probFailure_of_liftM_PMF, tsub_zero, one_mul]
+      rw [(EvalDistEq.bind_const ($ᵗ K : ProbComp K) _).prEvent_eq]
   | true =>
-      rw [challA_sampled_reduction_random_cont_probOutput_true_eq kem hDet hkem
+      rw [challA_sampled_reduction_random_cont_prEvent_true_eq kem hDet hkem
         leak gp hgp base hInv hWill hks cont]
       simp only [Bool.not_true, rawResumeKilled, rawResume, Bool.false_eq_true,
         ↓reduceIte]
-      refine probOutput_bind_congr fun ck _ => ?_
+      refine prEvent_bind_congr _ _ _ _ _ fun ck => ?_
       obtain ⟨cStar, _kReal⟩ := ck
-      refine probOutput_bind_congr fun kRand _ => ?_
+      refine prEvent_bind_congr _ _ _ _ _ fun kRand => ?_
       rw [reductionBranch_challA_cont_eq_finishChallengeStepRaw kem hDet leak gp
         pkStar cStar kRand (preAToBReductionState base pkStar) hWillR cont]
 
-private lemma pausedB_killed_probOutput_true_eq
+private lemma pausedB_killed_prEvent_true_eq
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -614,33 +610,32 @@ private lemma pausedB_killed_probOutput_true_eq
     (hWill : willChallengeB gp base = true)
     (hks : (pkStar, skStar) ∈ support kem.keygen)
     (cont : Option (Message C PK × K) → OracleComp (securitySpec leak) Bool) :
-    Pr[= true | injResumeKilled kem hDet leak gp b pkStar skStar
-        (.pausedB cont, preBToAHonestState base pkStar skStar)] =
-      Pr[= true | rawResumeKilled kem hDet leak gp (!b) pkStar
-        (.pausedB cont, preBToAReductionState base pkStar)] := by
-  rw [injResumeKilled_pausedB_probOutput_true_eq kem hDet leak gp b pkStar skStar
+    Pr{let x ← (injResumeKilled kem hDet leak gp b pkStar skStar
+        (.pausedB cont, preBToAHonestState base pkStar skStar))}[x = true] =
+      Pr{let x ← (rawResumeKilled kem hDet leak gp (!b) pkStar
+        (.pausedB cont, preBToAReductionState base pkStar))}[x = true] := by
+  rw [injResumeKilled_pausedB_prEvent_true_eq kem hDet leak gp b pkStar skStar
     base hInv hWill cont]
   have hWillR : willChallengeB gp (preBToAReductionState base pkStar) = true := by
     simpa [willChallengeB, preBToAReductionState] using hWill
   cases b with
   | false =>
-      rw [challB_sampled_reduction_cont_probOutput_true_eq kem hDet hkem leak gp
+      rw [challB_sampled_reduction_cont_prEvent_true_eq kem hDet hkem leak gp
         hgp base hInv hWill hks cont]
       simp only [Bool.not_false, rawResumeKilled, rawResume, ↓reduceIte]
-      refine probOutput_bind_congr fun ck _ => ?_
+      refine prEvent_bind_congr _ _ _ _ _ fun ck => ?_
       obtain ⟨cStar, kReal⟩ := ck
       rw [reductionBranch_challB_cont_eq_finishChallengeStepRaw kem hDet leak gp
         pkStar cStar kReal (preBToAReductionState base pkStar) hWillR cont]
-      rw [probOutput_bind_const]
-      simp only [probFailure_of_liftM_PMF, tsub_zero, one_mul]
+      rw [(EvalDistEq.bind_const ($ᵗ K : ProbComp K) _).prEvent_eq]
   | true =>
-      rw [challB_sampled_reduction_random_cont_probOutput_true_eq kem hDet hkem
+      rw [challB_sampled_reduction_random_cont_prEvent_true_eq kem hDet hkem
         leak gp hgp base hInv hWill hks cont]
       simp only [Bool.not_true, rawResumeKilled, rawResume, Bool.false_eq_true,
         ↓reduceIte]
-      refine probOutput_bind_congr fun ck _ => ?_
+      refine prEvent_bind_congr _ _ _ _ _ fun ck => ?_
       obtain ⟨cStar, _kReal⟩ := ck
-      refine probOutput_bind_congr fun kRand _ => ?_
+      refine prEvent_bind_congr _ _ _ _ _ fun kRand => ?_
       rw [reductionBranch_challB_cont_eq_finishChallengeStepRaw kem hDet leak gp
         pkStar cStar kRand (preBToAReductionState base pkStar) hWillR cont]
 
@@ -653,7 +648,7 @@ apply.  The initial states are equal inside the pre-injection invariant,
 except that party A with challenge epoch `1` starts at the challenge phase of
 `coupleRelA`. -/
 
-private lemma injectedKilledGame_probOutput_true_eq_A
+private lemma injectedKilledGame_prEvent_true_eq_A
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -664,11 +659,11 @@ private lemma injectedKilledGame_probOutput_true_eq_A
     (hgp : AdmissibleParams gp)
     (hparty : gp.challengedParty = CKAScheme.CKAParty.A)
     (b : Bool) :
-    Pr[= true | injectedKilledGame kem hDet leak adv gp b] =
-      Pr[= true | reductionKilledGame kem hDet leak adv gp (!b)] := by
+    Pr{let x ← injectedKilledGame kem hDet leak adv gp b}[x = true] =
+      Pr{let x ← reductionKilledGame kem hDet leak adv gp (!b)}[x = true] := by
   have hodd : gp.challengeEpoch % 2 = 1 := by
     simpa [challengeEpochCompatible, hparty] using hgp.challenge_epoch_compatible
-  refine probOutput_true_eq_of_relTriple_eqRel ?_
+  refine (evalDistEq_of_relTriple_eqRel ?_).prEvent_eq _
   simp only [injectedKilledGame, reductionKilledGame]
   refine relTriple_bind (relTriple_refl_support kem.keygen) ?_
   rintro ⟨pk0, sk0⟩ _ ⟨rfl, h0⟩
@@ -702,11 +697,11 @@ private lemma injectedKilledGame_probOutput_true_eq_A
       obtain rfl : res' = CKAChallengeStepResult.done a' := hz'
       simp only [injResumeKilled, rawResumeKilled]
       exact relTriple_pure_pure rfl
-    · exact relTriple_eqRel_of_probOutput_true_eq
-        (pausedA_killed_probOutput_true_eq kem hDet hkem leak gp hgp b
+    · exact relTriple_eqRel_of_prEvent_true_eq
+        (pausedA_killed_prEvent_true_eq kem hDet hkem leak gp hgp b
           pkStar skStar base hInv hWill hks cont)
 
-private lemma injectedKilledGame_probOutput_true_eq_B
+private lemma injectedKilledGame_prEvent_true_eq_B
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -717,11 +712,11 @@ private lemma injectedKilledGame_probOutput_true_eq_B
     (hgp : AdmissibleParams gp)
     (hparty : gp.challengedParty = CKAScheme.CKAParty.B)
     (b : Bool) :
-    Pr[= true | injectedKilledGame kem hDet leak adv gp b] =
-      Pr[= true | reductionKilledGame kem hDet leak adv gp (!b)] := by
+    Pr{let x ← injectedKilledGame kem hDet leak adv gp b}[x = true] =
+      Pr{let x ← reductionKilledGame kem hDet leak adv gp (!b)}[x = true] := by
   have heven : gp.challengeEpoch % 2 = 0 ∧ 0 < gp.challengeEpoch := by
     simpa [challengeEpochCompatible, hparty] using hgp.challenge_epoch_compatible
-  refine probOutput_true_eq_of_relTriple_eqRel ?_
+  refine (evalDistEq_of_relTriple_eqRel ?_).prEvent_eq _
   simp only [injectedKilledGame, reductionKilledGame]
   refine relTriple_bind (relTriple_refl_support kem.keygen) ?_
   rintro ⟨pk0, sk0⟩ _ ⟨rfl, h0⟩
@@ -745,8 +740,8 @@ private lemma injectedKilledGame_probOutput_true_eq_B
       obtain rfl : res' = CKAChallengeStepResult.done a' := hz'
       simp only [injResumeKilled, rawResumeKilled]
       exact relTriple_pure_pure rfl
-    · exact relTriple_eqRel_of_probOutput_true_eq
-        (pausedB_killed_probOutput_true_eq kem hDet hkem leak gp hgp b
+    · exact relTriple_eqRel_of_prEvent_true_eq
+        (pausedB_killed_prEvent_true_eq kem hDet hkem leak gp hgp b
           pkStar skStar base hInv hWill hks cont)
 
 /-! ## The gap bridge
@@ -765,41 +760,37 @@ lemma cka_injected_honest_gap_eq_keygen_swapped_raw_gap
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
     (hgp : AdmissibleParams gp) :
-    |(Pr[= true |
-        ckaSecurityFixedBranchWithInjectedChallengeKey
-          kem hDet leak adv gp true]).toReal -
-      (Pr[= true |
-        ckaSecurityFixedBranchWithInjectedChallengeKey
-          kem hDet leak adv gp false]).toReal| =
-    |(Pr[= true |
-        ckaReductionINDCPABranchRawKeygenSwapped
-          kem hDet leak adv gp true]).toReal -
-      (Pr[= true |
-        ckaReductionINDCPABranchRawKeygenSwapped
-          kem hDet leak adv gp false]).toReal| := by
+    |(Pr{let x ← (ckaSecurityFixedBranchWithInjectedChallengeKey
+          kem hDet leak adv gp true)}[x = true]).toReal -
+      (Pr{let x ← (ckaSecurityFixedBranchWithInjectedChallengeKey
+          kem hDet leak adv gp false)}[x = true]).toReal| =
+    |(Pr{let x ← (ckaReductionINDCPABranchRawKeygenSwapped
+          kem hDet leak adv gp true)}[x = true]).toReal -
+      (Pr{let x ← (ckaReductionINDCPABranchRawKeygenSwapped
+          kem hDet leak adv gp false)}[x = true]).toReal| := by
   have hkill : ∀ b : Bool,
-      Pr[= true | injectedKilledGame kem hDet leak adv gp b] =
-        Pr[= true | reductionKilledGame kem hDet leak adv gp (!b)] := by
+      Pr{let x ← injectedKilledGame kem hDet leak adv gp b}[x = true] =
+        Pr{let x ← reductionKilledGame kem hDet leak adv gp (!b)}[x = true] := by
     intro b
     cases hcp : gp.challengedParty with
     | A =>
-        exact injectedKilledGame_probOutput_true_eq_A kem hDet hkem leak adv
+        exact injectedKilledGame_prEvent_true_eq_A kem hDet hkem leak adv
           gp hgp hcp b
     | B =>
-        exact injectedKilledGame_probOutput_true_eq_B kem hDet hkem leak adv
+        exact injectedKilledGame_prEvent_true_eq_B kem hDet hkem leak adv
           gp hgp hcp b
   have h1 := hkill true
   have h0 := hkill false
   simp only [Bool.not_true, Bool.not_false] at h1 h0
-  rw [injected_probOutput_eq_killed_add_done kem hDet leak adv gp true,
-    injected_probOutput_eq_killed_add_done kem hDet leak adv gp false,
-    reduction_probOutput_eq_killed_add_done kem hDet leak adv gp true,
-    reduction_probOutput_eq_killed_add_done kem hDet leak adv gp false,
+  rw [injected_prEvent_eq_killed_add_done kem hDet leak adv gp true,
+    injected_prEvent_eq_killed_add_done kem hDet leak adv gp false,
+    reduction_prEvent_eq_killed_add_done kem hDet leak adv gp true,
+    reduction_prEvent_eq_killed_add_done kem hDet leak adv gp false,
     h1, h0]
-  rw [ENNReal.toReal_add probOutput_ne_top probOutput_ne_top,
-    ENNReal.toReal_add probOutput_ne_top probOutput_ne_top,
-    ENNReal.toReal_add probOutput_ne_top probOutput_ne_top,
-    ENNReal.toReal_add probOutput_ne_top probOutput_ne_top]
+  rw [ENNReal.toReal_add (prEvent_ne_top _) (prEvent_ne_top _),
+    ENNReal.toReal_add (prEvent_ne_top _) (prEvent_ne_top _),
+    ENNReal.toReal_add (prEvent_ne_top _) (prEvent_ne_top _),
+    ENNReal.toReal_add (prEvent_ne_top _) (prEvent_ne_top _)]
   rw [add_sub_add_right_eq_sub, add_sub_add_right_eq_sub]
   exact abs_sub_comm _ _
 

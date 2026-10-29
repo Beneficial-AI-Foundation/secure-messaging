@@ -4,10 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import Mathlib.RingTheory.AdjoinRoot
-import Mathlib.LinearAlgebra.Basis.Defs
-import Mathlib.Data.BitVec
-import Mathlib.Data.ZMod.Basic
+module
+
+public import Mathlib.RingTheory.AdjoinRoot
+public import Mathlib.LinearAlgebra.Basis.Defs
+public import Mathlib.Data.BitVec
+public import Mathlib.Data.ZMod.Basic
 
 /-!
 # Bit vectors as elements of `AdjoinRoot p`
@@ -28,6 +30,8 @@ The leftmost bit is the constant coefficient. This is the bit order NIST fixes f
 `reflect` is a plain `Equiv` with a separate additivity lemma rather than a `≃ₗ[ZMod 2]`, because
 Mathlib's `AddCommGroup (BitVec n)` is arithmetic `+`, not XOR.
 -/
+
+@[expose] public section
 
 open Polynomial
 
@@ -65,11 +69,11 @@ def bitVecEquivFun (n : ℕ) : BitVec n ≃ (Fin n → ZMod 2) where
     apply BitVec.eq_of_getMsbD_eq
     intro i hi
     simp only [BitVec.getMsbD_cast, BitVec.getMsbD_ofBoolListBE, List.getD_eq_getElem?_getD,
-      List.getElem?_ofFn, hi, dif_pos, Option.getD_some, zmod2ToBool_boolToZMod2]
+      List.getElem?_ofFn, hi, dite_eq_left, Option.getD_some, zmod2ToBool_boolToZMod2]
   right_inv f := by
     funext i
     simp only [BitVec.getMsbD_cast, BitVec.getMsbD_ofBoolListBE, List.getD_eq_getElem?_getD,
-      List.getElem?_ofFn, i.isLt, dif_pos, Option.getD_some, boolToZMod2_zmod2ToBool]
+      List.getElem?_ofFn, i.isLt, dite_eq_left, Option.getD_some, boolToZMod2_zmod2ToBool]
 
 @[simp] theorem bitVecEquivFun_apply (n : ℕ) (x : BitVec n) (i : Fin n) :
     bitVecEquivFun n x i = boolToZMod2 (x.getMsbD i) := rfl

@@ -51,7 +51,7 @@ namespace SCKAScheme
 /-- Support of A's leaking-send query from `s`: a rejection leaves the state unchanged, and an
 acceptance is a supported leaking send whose leaked epochs avoid the challenged set, applied as
 the ordinary send is, with the leaked epochs exposed. -/
-lemma oracleSendArleak_support {IK StA StB I Rho Rand : Type} [DecidableEq I]
+lemma oracleSendArleak_support' {IK StA StB I Rho Rand : Type} [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) (leak : StA → Rand → Finset ℕ)
     (s : SCKAScheme.GameState StA StB I Rho)
     (z : Option (ℕ × Option ℕ × Rho × Rand) × SCKAScheme.GameState StA StB I Rho)
@@ -81,8 +81,8 @@ lemma oracleSendArleak_support {IK StA StB I Rho Rand : Type} [DecidableEq I]
           obtain rfl := hz
           exact Or.inr ⟨_, _, _, _, _, hout, not_not.mp hvuln, rfl⟩
 
-/-- The version of `oracleSendArleak_support` for B. -/
-lemma oracleSendBrleak_support {IK StA StB I Rho Rand : Type} [DecidableEq I]
+/-- The version of `oracleSendArleak_support'` for B. -/
+lemma oracleSendBrleak_support' {IK StA StB I Rho Rand : Type} [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) (leak : StB → Rand → Finset ℕ)
     (s : SCKAScheme.GameState StA StB I Rho)
     (z : Option (ℕ × Option ℕ × Rho × Rand) × SCKAScheme.GameState StA StB I Rho)
@@ -195,12 +195,12 @@ lemma sendWith_support_mono {RK RE : Type} (role : Role)
     support (sendWith role keygen₁ encaps₁ ecEk ecCt st) ⊆
       support (sendWith role keygen₂ encaps₂ ecEk ecCt st) := by
   by_cases hg : sendKeygenGuard role st = true
-  · simp only [hg, if_true] at he
+  · simp only [hg, ite_true] at he
     have hc : (st.req.ek.isNone && decide (st.res.resEpoch ∈ st.ack.ctRec ∧
         st.res.resEpoch + role.offset ∈ st.ack.ctRec)) = true := hg
     unfold sendWith
     dsimp only
-    rw [if_pos hc, if_pos hc]
+    rw [ite_eq_left hc, ite_eq_left hc]
     intro y hy
     rw [mem_support_bind_iff] at hy ⊢
     obtain ⟨x, hx, hy⟩ := hy
@@ -217,12 +217,12 @@ lemma sendWith_support_mono {RK RE : Type} (role : Role)
       obtain ⟨z, hz, hy⟩ := hy
       exact ⟨z, he _ hpeer hz, hy⟩
   · have hg' : sendKeygenGuard role st = false := by simpa using hg
-    simp only [hg', Bool.false_eq_true, if_false, add_zero] at he
+    simp only [hg', Bool.false_eq_true, ite_false, add_zero] at he
     have hc : ¬ (st.req.ek.isNone && decide (st.res.resEpoch ∈ st.ack.ctRec ∧
         st.res.resEpoch + role.offset ∈ st.ack.ctRec)) = true := hg
     unfold sendWith
     dsimp only
-    rw [if_neg hc, if_neg hc]
+    rw [ite_eq_right hc, ite_eq_right hc]
     intro y hy
     split_ifs at hy ⊢ <;> (try exact hy)
     generalize hpeer : st.res.ekPeer st.res.resEpoch = o at hy ⊢
@@ -575,7 +575,7 @@ lemma ownSend {RK RE : Type} (h : TargetInv role t inj own peer peerMsgs ownKey 
     | none =>
       obtain ⟨hek', -⟩ := f.no_keygen hrk
       rw [hres, hrk] at hk
-      simp only [Option.isSome_none, Bool.false_eq_true, if_false, add_zero] at hk
+      simp only [Option.isSome_none, Bool.false_eq_true, ite_false, add_zero] at hk
       rw [hek'] at hek
       exact h.ek_pinned hk pk hek
     | some rk =>
@@ -650,7 +650,7 @@ lemma peerSend {RK RE : Type} (h : TargetInv role t inj own peer peerMsgs ownKey
       cases hrk : rand.keygenRand with
       | none =>
         rw [hres, hrk] at hr
-        simp only [Option.isSome_none, Bool.false_eq_true, if_false, add_zero] at hr
+        simp only [Option.isSome_none, Bool.false_eq_true, ite_false, add_zero] at hr
         exact h.ct_decoded hr hct
       | some rk =>
         exfalso
@@ -1109,7 +1109,7 @@ lemma injInv_sendArleak_step
     SCKAScheme.oracleSendArleak_preservesInv_at _ _ (sendWith_rleak_forget kem .A ecEk ecCt leak)
       (GameInv kem ecEk ecCt) (fun _ _ h => h) s hs.1
       (gameInv_sendA_step kem hDet ecEk ecCt leak s hs.1) z hz
-  rcases SCKAScheme.oracleSendArleak_support _ _ s z hz with
+  rcases SCKAScheme.oracleSendArleak_support' _ _ s z hz with
     rfl | ⟨key?, ρ, tsnd, stA', rand, hout, -, hz2⟩
   · exact hs
   rw [hz2] at hexp hG ⊢
@@ -1148,7 +1148,7 @@ lemma injInv_sendBrleak_step
     SCKAScheme.oracleSendBrleak_preservesInv_at _ _ (sendWith_rleak_forget kem .B ecEk ecCt leak)
       (GameInv kem ecEk ecCt) (fun _ _ h => h) s hs.1
       (gameInv_sendB_step kem hDet ecEk ecCt leak s hs.1) z hz
-  rcases SCKAScheme.oracleSendBrleak_support _ _ s z hz with
+  rcases SCKAScheme.oracleSendBrleak_support' _ _ s z hz with
     rfl | ⟨key?, ρ, tsnd, stB', rand, hout, -, hz2⟩
   · exact hs
   rw [hz2] at hexp hG ⊢

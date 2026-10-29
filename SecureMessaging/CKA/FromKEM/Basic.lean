@@ -87,7 +87,7 @@ theorem oracleSendA_rleak_fst_eq_oracleSendA
       rw [hst] at hPCS
       simp only [CKAScheme.oracleSendArleak, scheme, sendRleak, bind_pure_comp,
         map_bind, StateT.run_bind, StateT.run_get, StateT.run_map,
-        sendOracleWithRandFst, pure_bind, hValid, if_true, hst, hPCS,
+        sendOracleWithRandFst, pure_bind, hValid, ite_true, hst, hPCS,
         liftM_bind, liftM_map, bind_assoc, bind_map_left, StateT.run_monadLift,
         monadLift_self, StateT.run_set, map_pure, Functor.map_map,
         Option.map_some, CKAScheme.oracleSendA, send]
@@ -122,7 +122,7 @@ theorem oracleSendB_rleak_fst_eq_oracleSendB
       rw [hst] at hPCS
       simp only [CKAScheme.oracleSendBrleak, scheme, sendRleak, bind_pure_comp,
         map_bind, StateT.run_bind, StateT.run_get, StateT.run_map,
-        sendOracleWithRandFst, pure_bind, hValid, if_true, hst, hPCS,
+        sendOracleWithRandFst, pure_bind, hValid, ite_true, hst, hPCS,
         liftM_bind, liftM_map, bind_assoc, bind_map_left, StateT.run_monadLift,
         monadLift_self, StateT.run_set, map_pure, Functor.map_map,
         Option.map_some, CKAScheme.oracleSendB, send]
