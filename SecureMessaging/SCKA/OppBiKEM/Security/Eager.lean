@@ -1073,37 +1073,6 @@ lemma exists_base_of_mem {ι σ : Type} {spec : OracleSpec ι}
 
 /-! ### Peel 2: the encapsulation -/
 
-omit [DecidableEq K] [DecidableEq Sym] [SampleableType K] hDet leak in
-/-- On an `InjInv` state where A is about to encapsulate for the target, A's decoded key for the
-target is the injected public key. -/
-lemma ekPeer_pinned_of_hitA (inj : TargetInjection PK SK C K)
-    (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
-    (hs : InjInv kem ecEk ecCt t inj s) (hq : sendEncapsulatesTarget .A t s.stA = true) :
-    ∀ pk', s.stA.res.ekPeer t = some pk' → pk' = inj.pk := by
-  obtain ⟨-, T, hA, -⟩ := hs.1
-  have htpar := targetOwner_parity t
-  cases ho : targetOwner t
-  · rw [ho] at htpar
-    rw [sendEncapsulatesTarget_eq_false_of_parity .A t s.stA htpar hA.res_parity] at hq
-    cases hq
-  · rw [injInv_B ho] at hs
-    exact hs.2.ekPeer_pinned
-
-omit [DecidableEq K] [DecidableEq Sym] [SampleableType K] hDet leak in
-/-- The version of `ekPeer_pinned_of_hitA` for B. -/
-lemma ekPeer_pinned_of_hitB (inj : TargetInjection PK SK C K)
-    (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
-    (hs : InjInv kem ecEk ecCt t inj s) (hq : sendEncapsulatesTarget .B t s.stB = true) :
-    ∀ pk', s.stB.res.ekPeer t = some pk' → pk' = inj.pk := by
-  obtain ⟨-, T, -, hB⟩ := hs.1
-  have htpar := targetOwner_parity t
-  cases ho : targetOwner t
-  · rw [injInv_A ho] at hs
-    exact hs.2.ekPeer_pinned
-  · rw [ho] at htpar
-    rw [sendEncapsulatesTarget_eq_false_of_parity .B t s.stB htpar hB.res_parity] at hq
-    cases hq
-
 omit [DecidableEq K] [DecidableEq Sym] [SampleableType K] hDet in
 /-- At an encapsulation for the target on an `InjInv` state, both tables are empty at the
 target. -/

@@ -213,17 +213,11 @@ lemma security_positive (adv : SecurityAdversary leak Sym) (q : ℕ)
       simp only [hδ']
       split_ifs
       · exact le_rfl
-      · rw [IND_CPA_Advantage_eq_fixed_branch_dist]
-        exact abs_nonneg _)
+      · exact abs_nonneg _)
     (fun t ht _ => by
       simp only [hδ', if_neg (Nat.pos_iff_ne_zero.mp ht)]
       exact le_of_eq (hybrid_hop_eq_reduction kem hDet ecEk ecCt hEk hCt leak adv t ht))
-  have hsum : ∑ t ∈ Finset.range (2 * q + 1), δ' t = ∑ i ∈ Finset.range (2 * q),
-      kem.IND_CPA_Advantage ProbCompRuntime.probComp
-        (reduction kem hDet ecEk ecCt leak adv (i + 1)) := by
-    rw [Finset.sum_range_succ']
-    simp [hδ']
-  rwa [hsum] at hbound
+  simpa only [Finset.sum_range_succ', hδ', Nat.succ_ne_zero, ↓reduceIte, add_zero] using hbound
 
 include hEk hCt in
 /-- The proof of `security`, stated in `Security`. -/
@@ -237,7 +231,6 @@ lemma security (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQu
   refine (security_positive kem hDet ecEk ecCt hEk hCt leak adv q hq).trans ?_
   have h0 : 0 ≤ kem.IND_CPA_Advantage ProbCompRuntime.probComp
       (reduction kem hDet ecEk ecCt leak adv 0) := by
-    rw [IND_CPA_Advantage_eq_fixed_branch_dist]
     exact abs_nonneg _
   rw [Finset.sum_range_succ']
   linarith
@@ -253,17 +246,9 @@ lemma security_uniform (adv : SecurityAdversary leak Sym) (q : ℕ)
         (exposure .A leak) (exposure .B leak) ≤
       (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal + (q : ℝ) * δ := by
   refine (security_positive kem hDet ecEk ecCt hEk hCt leak adv q hq).trans ?_
-  have hsum : ∑ i ∈ Finset.range (2 * q), kem.IND_CPA_Advantage ProbCompRuntime.probComp
-      (reduction kem hDet ecEk ecCt leak adv (i + 1)) ≤ 2 * (q : ℝ) * δ := by
-    calc ∑ i ∈ Finset.range (2 * q), kem.IND_CPA_Advantage ProbCompRuntime.probComp
-          (reduction kem hDet ecEk ecCt leak adv (i + 1))
-        ≤ ∑ _i ∈ Finset.range (2 * q), δ :=
-          Finset.sum_le_sum fun i hi => hδ (i + 1) (Nat.succ_pos i)
-            (by have := Finset.mem_range.1 hi; omega)
-      _ = 2 * (q : ℝ) * δ := by
-          simp only [Finset.sum_const, Finset.card_range, nsmul_eq_mul]
-          push_cast
-          ring
+  have hsum := Finset.sum_le_card_nsmul (Finset.range (2 * q)) _ δ
+    (fun i hi => hδ (i + 1) (Nat.succ_pos i) (Nat.succ_le_of_lt (Finset.mem_range.1 hi)))
+  simp only [Finset.card_range, nsmul_eq_mul, Nat.cast_mul, Nat.cast_ofNat] at hsum
   linarith
 
 end Proofs

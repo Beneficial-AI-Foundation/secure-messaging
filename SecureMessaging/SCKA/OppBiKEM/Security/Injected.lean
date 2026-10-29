@@ -892,6 +892,37 @@ lemma injectedEncaps_target (role : Role) (st : State PK SK C Sym)
     Prod.mk.injEq] at hmem
   exact hmem.1.2
 
+omit [DecidableEq K] [DecidableEq Sym] in
+/-- On an `InjInv` state where A is about to encapsulate for the target, A's decoded key for the
+target is the injected public key. -/
+lemma ekPeer_pinned_of_hitA (inj : TargetInjection PK SK C K)
+    (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
+    (hs : InjInv kem ecEk ecCt t inj s) (hq : sendEncapsulatesTarget .A t s.stA = true) :
+    ∀ pk', s.stA.res.ekPeer t = some pk' → pk' = inj.pk := by
+  obtain ⟨-, T, hA, -⟩ := hs.1
+  have htpar := targetOwner_parity t
+  cases ho : targetOwner t
+  · rw [ho] at htpar
+    rw [sendEncapsulatesTarget_eq_false_of_parity .A t s.stA htpar hA.res_parity] at hq
+    cases hq
+  · rw [injInv_B ho] at hs
+    exact hs.2.ekPeer_pinned
+
+omit [DecidableEq K] [DecidableEq Sym] in
+/-- The version of `ekPeer_pinned_of_hitA` for B. -/
+lemma ekPeer_pinned_of_hitB (inj : TargetInjection PK SK C K)
+    (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
+    (hs : InjInv kem ecEk ecCt t inj s) (hq : sendEncapsulatesTarget .B t s.stB = true) :
+    ∀ pk', s.stB.res.ekPeer t = some pk' → pk' = inj.pk := by
+  obtain ⟨-, T, -, hB⟩ := hs.1
+  have htpar := targetOwner_parity t
+  cases ho : targetOwner t
+  · rw [injInv_A ho] at hs
+    exact hs.2.ekPeer_pinned
+  · rw [ho] at htpar
+    rw [sendEncapsulatesTarget_eq_false_of_parity .B t s.stB htpar hB.res_parity] at hq
+    cases hq
+
 variable (hpk : (inj.pk, inj.sk) ∈ support kem.keygen)
   (hct : (inj.ct, inj.key) ∈ support (kem.encaps inj.pk))
 
@@ -904,19 +935,10 @@ lemma injectedSendA_subset
     (hs : InjInv kem ecEk ecCt t inj s) :
     support (injectedSend kem .A ecEk ecCt t inj s.stA) ⊆
       support (send .A kem ecEk ecCt s.stA) := by
-  obtain ⟨-, T, hA, -⟩ := hs.1
   refine injectedSend_support_subset kem .A ecEk ecCt t inj s.stA (fun _ => hpk) ?_
   intro h pk hpk'
-  cases ho : targetOwner t with
-  | A =>
-    have htpar := targetOwner_parity t
-    rw [ho] at htpar
-    rw [sendEncapsulatesTarget_eq_false_of_parity .A t s.stA htpar hA.res_parity] at h
-    cases h
-  | B =>
-    rw [injInv_B ho] at hs
-    rw [hs.2.ekPeer_pinned pk hpk']
-    exact hct
+  rw [ekPeer_pinned_of_hitA kem ecEk ecCt t inj s hs h pk hpk']
+  exact hct
 
 omit [DecidableEq K] [DecidableEq Sym] in
 include hpk hct in
@@ -927,19 +949,10 @@ lemma injectedSendB_subset
     (hs : InjInv kem ecEk ecCt t inj s) :
     support (injectedSend kem .B ecEk ecCt t inj s.stB) ⊆
       support (send .B kem ecEk ecCt s.stB) := by
-  obtain ⟨-, T, -, hB⟩ := hs.1
   refine injectedSend_support_subset kem .B ecEk ecCt t inj s.stB (fun _ => hpk) ?_
   intro h pk hpk'
-  cases ho : targetOwner t with
-  | B =>
-    have htpar := targetOwner_parity t
-    rw [ho] at htpar
-    rw [sendEncapsulatesTarget_eq_false_of_parity .B t s.stB htpar hB.res_parity] at h
-    cases h
-  | A =>
-    rw [injInv_A ho] at hs
-    rw [hs.2.ekPeer_pinned pk hpk']
-    exact hct
+  rw [ekPeer_pinned_of_hitB kem ecEk ecCt t inj s hs h pk hpk']
+  exact hct
 
 variable (ht : 0 < t)
 
