@@ -32,7 +32,6 @@ import ToVCVio.OracleComp.QueryTracking.LazySampling
 import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 import ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate
 import ToVCVio.OracleComp.QueryTracking.RandomOracle.FreshQueries
-import ToVCVio.OracleComp.QueryTracking.StateBudget
 import ToVCVio.OracleComp.SimSemantics.SimulateQForward
 import ToVCVio.OracleComp.SimSemantics.StateT.BadFlag
 import ToVCVio.OracleComp.SimSemantics.StateT.WPBound

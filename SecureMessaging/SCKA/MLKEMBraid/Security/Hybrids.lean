@@ -6,7 +6,6 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.SCKA.MLKEMBraid.Security.Trace
 import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
-import ToVCVio.OracleComp.QueryTracking.StateBudget
 
 /-!
 # Numerical-epoch hybrid endpoints
@@ -341,9 +340,11 @@ private theorem run_mode_evalDist_eq
   have hbad : Pr{let z ← run P hMac irl true m A}[qS < sendCount z.2] = 0 := by
     rw [prEvent_eq_zero_iff]
     intro z hz
-    have hle := stateCounter_simulateQ_run_le (traceImpl P hMac irl true m) sendCount
-      (fun t => isSendQuery t = true)
-      (fun t s z hz => (traceImpl_count hMac irl true m t s z hz).2) A qS hqS _ z hz
+    have hle := IsQueryBoundP.cost_le_of_mem_support_run_simulateQ
+      (impl := traceImpl P hMac irl true m) sendCount
+      (fun t ht s z hz => by simpa [ht] using (traceImpl_count hMac irl true m t s z hz).2)
+      (fun t ht s z hz => by simpa [ht] using (traceImpl_count hMac irl true m t s z hz).2)
+      hqS _ z hz
     have h0 : z.2.game.nA + z.2.game.nB ≤ qS := by
       simpa [sendCount, SCKAScheme.initGameState] using hle
     exact not_lt.mpr h0
