@@ -53,7 +53,7 @@ K=g^{xy}\in G & \text{shared key, for key pairs }(g^x,x)\text{ and }(g^y,y)
 
 Ciphertexts are empty: the sender's public value $`g^x` doubles as the KEM ciphertext and as its encapsulation key, which the generic CKA construction transmits alongside the ciphertext and $`\RDec\text{-}\mathsf{P}` receives as $`\ek_{\mathsf{\bar P}}`. Used in the generic CKA construction, this RKEM yields the Double Ratchet CKA of {Informal.citet ACD19}[] (see {bpref "cka_from_ddh"}[CKA from DDH]).
 
-The scheme is the non-forward-secure special case of an {bpref "rkem_scheme"}[RKEM]: $`\REnc\text{-}\mathsf{P}` returns its input $`\dk_\mathsf{P}` unchanged as the updated decapsulation key, and $`\RDec\text{-}\mathsf{P}` returns its input $`\ek_{\mathsf{\bar P}}` unchanged as the peer's updated encapsulation key. In particular, it is not FS-IND-CPA secure, since the {bpref "rkem_forward_security"}[forward-security game] hands the adversary $`\dkh{A}=x` together with $`\ekh{B}=Y`, from which it recomputes $`K=Y^x`; the paper only claims plain IND-CPA security under DDH (Theorem A.4).
+The scheme is the non-forward-secure special case of an {bpref "rkem_scheme"}[RKEM]: $`\REnc\text{-}\mathsf{P}` returns its input $`\dk_\mathsf{P}` unchanged as the updated decapsulation key, and $`\RDec\text{-}\mathsf{P}` returns its input $`\ek_{\mathsf{\bar P}}` unchanged as the peer's updated encapsulation key. In particular, it is not FS-IND-CPA secure, since the {bpref "rkem_security"}[forward-security game] hands the adversary $`\dkh{A}=x` together with $`\ekh{B}=Y`, from which it recomputes $`K=Y^x`; the paper only claims plain IND-CPA security under DDH (Theorem A.4).
 
 Both parties run the same algorithms, shown below for one round in each direction, with $`\A`'s key pair $`(g^x,x)` on the left and $`\B`'s key pair $`(g^y,y)` on the right. In Lean, the group is modelled additively as a module over the scalar field $`F` (playing $`\mathbb{Z}_q`) with a fixed generator $`\mathsf{gen}`, given as a parameter of the construction: $`g^x` is `x • gen` and $`Y^x` is `x • Y`.
 
@@ -235,10 +235,10 @@ theorem deltaCorrect [DecidableEq G] (gen : G) :
 :::defTitle "rkem_from_ddh_nonfs_ind_cpa" "RKEM from DDH non-FS IND-CPA security"
 :::
 
-:::::::theorem "rkem_from_ddh_nonfs_ind_cpa" (parent := "rkem_rkem_from_ddh_non_fs") (lean := "ddhRKEM.ddhReduction, ddhRKEM.indCpaAdvantageA_eq, ddhRKEM.indCpaAdvantageB_eq, ddhRKEM.INDCPASecure") (tags := "gh-375") (uses := "rkem_from_ddh_nonfs_spec, rkem_scheme, rkem_forward_security")
+:::::::theorem "rkem_from_ddh_nonfs_ind_cpa" (parent := "rkem_rkem_from_ddh_non_fs") (lean := "ddhRKEM.ddhReduction, ddhRKEM.indCpaAdvantageA_eq, ddhRKEM.indCpaAdvantageB_eq, ddhRKEM.INDCPASecure") (tags := "gh-375") (uses := "rkem_from_ddh_nonfs_spec, rkem_scheme, rkem_security")
 Adapted from {Informal.citet TR25}[], Theorem A.4.
 
-Let $`G=\langle g\rangle` be of prime order $`q`, so that $`x\mapsto g^x` is a bijection $`\mathbb{Z}_q\to G`; modeled as `fun x => x • gen` is bijective from $`F` to $`G`.
+Let $`G=\langle g\rangle` be of prime order $`q`, so that $`x\mapsto g^x` is a bijection $`\mathbb{Z}_q\to G`.
 
 :::leanPillCaption "Generator hypothesis"
 :::
@@ -253,7 +253,7 @@ $$`\mathsf{Adv}^{\mathsf{IND\text{-}CPA}\text{-}\mathsf{P}}(\adv)=\tfrac12\,\mat
 
 with $`\mathsf{Adv}^{\mathsf{DDH}}(\mathcal{B})=|\Pr[\mathcal{B}\text{ outputs }1\text{ on a real triple}]-\Pr[\mathcal{B}\text{ outputs }1\text{ on a random triple}]|` the distinguishing advantage. The factor $`\tfrac12` only converts this distinguishing advantage into the bias advantage $`|\Pr[\cdot]-\tfrac12|` of the IND-CPA game; the reduction is tight.
 
-Consequently, if every DDH adversary has advantage at most $`\varepsilon`, the scheme is $`\tfrac{\varepsilon}{2}`-IND-CPA secure in the sense of {bpref "rkem_forward_security"}[RKEM IND-CPA].
+Consequently, if every DDH adversary has advantage at most $`\varepsilon`, the scheme is $`\tfrac{\varepsilon}{2}`-IND-CPA secure in the sense of {bpref "rkem_security"}[RKEM IND-CPA].
 
 ::::::gameGrid
 :::::gameCell "\\mathcal{B}(g,X,Y,T)" (kind := "compact")

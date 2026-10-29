@@ -40,7 +40,7 @@ $`\todo`
 :::defTitle "opp_rkem_cka_security" "Opp-RKEM-CKA security"
 :::
 
-::::theorem "opp_rkem_cka_security" (parent := "cka_protocols_opp_rkem_cka") (tags := "gh-114") (uses := "opp_rkem_cka_spec, scka_security, erasure_code_scheme, rkem_forward_security, rkem_ratchet_sim")
+::::theorem "opp_rkem_cka_security" (parent := "cka_protocols_opp_rkem_cka") (tags := "gh-114") (uses := "opp_rkem_cka_spec, scka_security, erasure_code_scheme, rkem_security, rkem_ratchet_sim")
 $`\todo`
 
 :::leanPill "missing"

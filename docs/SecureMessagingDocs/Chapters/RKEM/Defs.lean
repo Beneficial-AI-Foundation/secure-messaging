@@ -475,13 +475,17 @@ abbrev INDCPAAdversary (Par EK CT K : Type) : Type :=
 ::::
 :::::::
 
-:::defTitle "rkem_guess_advantageA" "RKEM Guess Advantage"
+:::defTitle "rkem_guess_advantage" "RKEM Guess Advantage"
 :::
 
-:::::definition "rkem_guess_advantageA" (parent := "rkem") (lean := "RKEMScheme.fsIndCpaAdvantageA, RKEMScheme.indCpaAdvantageA, RKEMScheme.indCpaAdvantageB") (uses := "rkem_security_experiment")
+:::::definition "rkem_guess_advantage" (parent := "rkem") (lean := "RKEMScheme.fsIndCpaAdvantageA, RKEMScheme.indCpaAdvantageA, RKEMScheme.indCpaAdvantageB, RKEMScheme.fsIndCpaAdvantage, RKEMScheme.indCpaAdvantage") (uses := "rkem_security_experiment")
 For $`\mathsf{X}\in\{\mathsf{FS\text{-}IND\text{-}CPA},\mathsf{IND\text{-}CPA}\}`, the advantage of an adversary $`\adv` against party $`\mathsf{P}\in\{\A,\B\}` is
 
-$$`\mathsf{Adv}^{\mathsf{X}\text{-}\mathsf{P}}(\adv)=\left|\Pr\left[\mathsf{Exp}^{\mathsf{X}\text{-}\mathsf{P}}(\adv)=1\right]-\tfrac12\right|.`
+$$`\mathsf{Adv}^{\mathsf{X}\text{-}\mathsf{P}}(\adv)=\left|\Pr\left[\mathsf{Exp}^{\mathsf{X}\text{-}\mathsf{P}}(\adv)=1\right]-\tfrac12\right|`
+
+We denote
+
+$$`\mathsf{Adv}^{\mathsf{X}}(\adv)=\max_{\mathsf{P}\in\{\A,\B\}}\mathsf{Adv}^{\mathsf{X}\text{-}\mathsf{P}}(\adv).`
 
 ::::leanCompare "Advantage against party $`\\A`" (left := "FS-IND-CPA") (right := "IND-CPA")
 ```anchor fsIndCpaAdvantageA (project := ".") (module := SecureMessaging.RKEM.Defs)
@@ -497,15 +501,6 @@ noncomputable def indCpaAdvantageA (rkem : RKEMScheme ProbComp Par EK DK CT K)
     adversary par ekA ekAHat ekBHat ctB kb
 ```
 ::::
-:::::
-
-:::defTitle "rkem_guess_advantage" "RKEM Guess Advantage"
-:::
-
-:::::definition "rkem_guess_advantage" (parent := "rkem") (lean := "RKEMScheme.fsIndCpaAdvantage, RKEMScheme.indCpaAdvantage") (uses := "rkem_guess_advantageA")
-For $`\mathsf{X}\in\{\mathsf{FS\text{-}IND\text{-}CPA},\mathsf{IND\text{-}CPA}\}`, the advantage of a pair of adversaries is
-
-$$`\mathsf{Adv}^{\mathsf{X}}(\adv_\A,\adv_\B)=\max_{\mathsf{P}\in\{\A,\B\}}\mathsf{Adv}^{\mathsf{X}\text{-}\mathsf{P}}(\adv_\mathsf{P}).`
 
 ::::leanCompare "Advantage, maximum over both parties" (left := "FS-IND-CPA") (right := "IND-CPA")
 ```anchor fsIndCpaAdvantage (project := ".") (module := SecureMessaging.RKEM.Defs)
@@ -522,10 +517,10 @@ noncomputable def indCpaAdvantage (rkem : RKEMScheme ProbComp Par EK DK CT K)
 ::::
 :::::
 
-:::defTitle "rkem_forward_security" "RKEM (forward secure)-IND-CPA"
+:::defTitle "rkem_security" "RKEM (forward secure)-IND-CPA"
 :::
 
-:::::definition "rkem_forward_security" (parent := "rkem") (lean := "RKEMScheme.FSINDCPASecure, RKEMScheme.INDCPASecure") (tags := "gh-178, gh-375") (uses := "rkem_guess_advantage")
+:::::definition "rkem_security" (parent := "rkem") (lean := "RKEMScheme.FSINDCPASecure, RKEMScheme.INDCPASecure") (tags := "gh-178, gh-375") (uses := "rkem_guess_advantage")
 An RKEM is $`\varepsilon`-FS-IND-CPA secure when $`\mathsf{Adv}^{\mathsf{FS\text{-}IND\text{-}CPA}}(\adv_\A,\adv_\B)\le\varepsilon`, and a non-forward-secure RKEM is $`\varepsilon`-IND-CPA secure when $`\mathsf{Adv}^{\mathsf{IND\text{-}CPA}}(\adv_\A,\adv_\B)\le\varepsilon`.
 
 ::::leanCompare "Security" (left := "FS-IND-CPA") (right := "IND-CPA")

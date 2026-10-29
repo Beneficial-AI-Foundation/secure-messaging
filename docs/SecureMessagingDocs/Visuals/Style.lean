@@ -460,30 +460,23 @@ p.lean-pill-caption {
   margin-top: 0.45rem;
 }
 
-/* `leanCompare`: one pill whose panel lays two code blocks out two-up. */
+/* `leanCompare`: one pill whose panel stacks its code blocks, each full width. */
 .lean-compare-body:not([hidden]) {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.85rem 1rem;
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.85rem;
 }
 .lean-compare-col {
   min-width: 0;
 }
 .lean-compare-col > .hl.lean.block {
   margin: 0;
-  font-size: 0.88em;
 }
 .lean-compare-label {
   margin-bottom: 0.3rem;
   font-size: 0.85rem;
   font-weight: 600;
   color: #57606a;
-}
-@media (max-width: 900px) {
-  .lean-compare-body:not([hidden]) {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* Shared pill appearance (details summary or standalone toggle button). */

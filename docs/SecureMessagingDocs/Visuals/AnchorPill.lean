@@ -146,9 +146,9 @@ block_extension Block.leanPill (status : String) where
             (renderPillCaption caption)
         ]
 
--- One Lean pill opening two code blocks side by side: the pill row is rendered
--- here (same classes as the rows `smDocsJs` builds), and the first two child
--- blocks become the columns, headed by the optional `left`/`right` labels.
+-- One Lean pill opening two code blocks stacked one above the other: the pill row
+-- is rendered here (same classes as the rows `smDocsJs` builds), and the first two
+-- child blocks are headed by the optional `left`/`right` labels.
 block_extension Block.leanCompare (caption : String) (left right : Option String) where
   data := toJson (caption, left, right)
   traverse _id _data _contents := do
@@ -188,7 +188,7 @@ def leanPillCaption : DirectiveExpanderOf LeanPillCaptionConfig
     ``(Block.other (Block.leanPillCaption $(quote cfg.caption)) #[])
 
 /-- `:::leanCompare "Caption" (left := "...") (right := "...")` around two anchors: one Lean
-pill whose panel shows both side by side, e.g. a definition next to its variant. -/
+pill whose panel shows both, stacked at full width, e.g. a definition above its variant. -/
 @[directive]
 def leanCompare : DirectiveExpanderOf LeanCompareConfig
   | cfg, contents => do
