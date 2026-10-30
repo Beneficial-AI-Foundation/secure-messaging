@@ -24,8 +24,8 @@ Blueprint documentation and status: [Secure Messaging](https://beneficial-ai-fou
 From the repository root, build the Verso Blueprint HTML and start a local server:
 
 ```sh
-rtk proxy env LEAN_NUM_THREADS=4 nice -n 19 lake exe secureMessagingDocs
-rtk proxy python3 -m http.server 8000 --bind 127.0.0.1 --directory _out/site/html-multi
+lake exe secureMessagingDocs
+python3 -m http.server 8000 --bind 127.0.0.1 --directory _out/site/html-multi
 ```
 
 Open <http://127.0.0.1:8000/>. Use HTTP rather than opening the HTML files directly so
