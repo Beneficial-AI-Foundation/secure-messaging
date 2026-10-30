@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.SCKA.OppUniKEM.Security.Basic
 import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
+import ToVCVio.OracleComp.Constructions.EpochChoice
 
 /-!
 # The IND-CPA reduction and its fixed branches
@@ -48,7 +49,7 @@ Pr[𝓑_real = true] - Pr[𝓑_random = true]
 ```
 -/
 
-open OracleSpec OracleComp KEMScheme
+open OracleSpec OracleComp KEMScheme ToVCVio
 open SCKAScheme.sckaSecuritySpec
 
 namespace oppUniKemCKA.Security.Embedding
@@ -324,14 +325,6 @@ def run [DecidableEq K] [DecidableEq Sym] [SampleableType K]
   let result ← ((simulateQ (simOracle kem onoff ecEk ecCt0 ecCt1 leak e pkStar ctStar kStar)
     adv).run).run' (initial onoff)
   pure (result.getD false)
-
-/-- Challenge epoch sampler: draws an epoch uniformly from `{1, …, q}` when `q > 0`, and returns
-`1` when `q = 0`. -/
-def epochChoice (q : ℕ) : ProbComp ℕ :=
-  if hq : q = 0 then pure 1
-  else
-    letI : NeZero q := ⟨hq⟩
-    (fun i : Fin q => i.val + 1) <$> ($ᵗ (Fin q) : ProbComp (Fin q))
 
 /-- The IND-CPA adversary against `kem` constructed from an SCKA adversary `adv` and send budget
 `q`: in the pre-challenge phase it draws a challenge epoch `e ← epochChoice q` and stores `(pk, e)`;
