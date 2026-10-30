@@ -113,4 +113,31 @@ noncomputable def parameters (p : MLKEM.ParameterSet) (ring : MLKEM.NTTRingOps)
   ecpCt1 := ct1Payload p
   ecpCt2 := ct2Payload p
 
+section Instances
+
+variable (p : MLKEM.ParameterSet) (ring : MLKEM.NTTRingOps)
+    (prims : MLKEM.Primitives (MLKEM.ParameterSet.params p)
+      (MLKEM.Concrete.concreteEncoding (MLKEM.ParameterSet.params p)))
+    {EpochKey : Type} (kdfOK : MLKEM.SharedSecret → ℕ → EpochKey)
+
+/-! The sampling and equality instances of the shared-secret, epoch-key and chunk types of
+`parameters`. -/
+
+instance : SampleableType (parameters p ring prims kdfOK).K :=
+  inferInstanceAs (SampleableType MLKEM.SharedSecret)
+
+instance : DecidableEq (parameters p ring prims kdfOK).K :=
+  inferInstanceAs (DecidableEq MLKEM.SharedSecret)
+
+instance [SampleableType EpochKey] : SampleableType (parameters p ring prims kdfOK).EpochKey :=
+  inferInstanceAs (SampleableType EpochKey)
+
+instance [DecidableEq EpochKey] : DecidableEq (parameters p ring prims kdfOK).EpochKey :=
+  inferInstanceAs (DecidableEq EpochKey)
+
+noncomputable instance : DecidableEq (parameters p ring prims kdfOK).Sym :=
+  inferInstanceAs (DecidableEq (Chunk GF16))
+
+end Instances
+
 end MLKEMBraid.Bounded

@@ -242,27 +242,18 @@ theorem MLKEMBraid.security
     {EpochKey : Type} [SampleableType EpochKey] [DecidableEq EpochKey]
     (kdfOK : MLKEM.SharedSecret → ℕ → EpochKey) :
     let P := MLKEMBraid.Bounded.parameters p ring prims kdfOK
-    letI : SampleableType (MLKEMBraid.Bounded.parameters p ring prims kdfOK).K :=
-      inferInstanceAs (SampleableType MLKEM.SharedSecret)
-    letI : SampleableType (MLKEMBraid.Bounded.parameters p ring prims kdfOK).EpochKey :=
-      inferInstanceAs (SampleableType EpochKey)
-    letI : DecidableEq (MLKEMBraid.Bounded.parameters p ring prims kdfOK).EpochKey :=
-      inferInstanceAs (DecidableEq EpochKey)
-    letI : DecidableEq (MLKEMBraid.Bounded.parameters p ring prims kdfOK).Sym :=
-      inferInstanceAs (DecidableEq
-        (ErasureCode.SPQRReedSolomon.Chunk ErasureCode.SPQRReedSolomon.GF16))
     let irl := MLKEM.incrementalRandLeak ring
       (MLKEM.Bounded.encoding (MLKEM.ParameterSet.params p))
       (MLKEM.Bounded.primitives (MLKEM.ParameterSet.params p) prims)
     ∀ (A : MLKEMBraid.NoAuth.Adversary P irl) (q : ℕ),
       MLKEMBraid.NoAuth.SendQueryBound A q →
       let ℬ := MLKEM.Bounded.liftAdversary p ring prims
-        (MLKEMBraid.NoAuth.kemMixReduction P (Eq.refl Unit) irl A q)
-      let 𝒞 := MLKEMBraid.NoAuth.kdfMixReduction P (Eq.refl Unit) irl A q
+        (MLKEMBraid.NoAuth.kemMixReduction P rfl irl A q)
+      let 𝒞 := MLKEMBraid.NoAuth.kdfMixReduction P rfl irl A q
       let ε := ((MLKEM.mlkemScheme p ring prims).correctnessError
         ProbCompRuntime.probComp).toReal
       SCKAScheme.sckaGuessAdvantage
-        (MLKEMBraid.NoAuth.scheme P (Eq.refl Unit) irl) A
+        (MLKEMBraid.NoAuth.scheme P rfl irl) A
         (MLKEMBraid.NoAuth.nativeExposure P irl)
         (MLKEMBraid.NoAuth.nativeExposure P irl) ≤
         (q / 2 : ℝ) *
@@ -272,24 +263,13 @@ theorem MLKEMBraid.security
     := by
   intro P irl A q hq
   dsimp only
-  let : SampleableType (MLKEMBraid.Bounded.parameters p ring prims kdfOK).K :=
-    inferInstanceAs (SampleableType MLKEM.SharedSecret)
-  let : SampleableType (MLKEMBraid.Bounded.parameters p ring prims kdfOK).EpochKey :=
-    inferInstanceAs (SampleableType EpochKey)
-  let : DecidableEq (MLKEMBraid.Bounded.parameters p ring prims kdfOK).K :=
-    inferInstanceAs (DecidableEq MLKEM.SharedSecret)
-  let : DecidableEq (MLKEMBraid.Bounded.parameters p ring prims kdfOK).EpochKey :=
-    inferInstanceAs (DecidableEq EpochKey)
-  let : DecidableEq (MLKEMBraid.Bounded.parameters p ring prims kdfOK).Sym :=
-    inferInstanceAs (DecidableEq
-      (ErasureCode.SPQRReedSolomon.Chunk ErasureCode.SPQRReedSolomon.GF16))
   obtain ⟨hHdr, hEk, hCt1, hCt2⟩ := Bounded.payloads_correct p
-  refine le_trans (NoAuth.security P (Eq.refl Unit) irl hHdr hEk hCt1 hCt2 A q hq) ?_
+  refine le_trans (NoAuth.security P rfl irl hHdr hEk hCt1 hCt2 A q hq) ?_
   apply add_le_add
   · apply mul_le_mul_of_nonneg_left _ (by positivity)
     apply add_le_add
     · exact le_of_eq (congrArg ENNReal.toReal (MLKEM.Bounded.indCPAAdvantage_lift p ring prims
-        (NoAuth.kemMixReduction P (Eq.refl Unit) irl A q))).symm
+        (NoAuth.kemMixReduction P rfl irl A q))).symm
     · exact le_rfl
   · exact le_of_eq (congrArg (fun x => (q : ℝ) * x.toReal)
       (MLKEM.Bounded.correctnessError_eq p ring prims))
