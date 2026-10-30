@@ -33,9 +33,11 @@ namespace GCM
 
 /-- `ghash` composed with the GHASH encoding is `ε`-almost-XOR-universal on the AEAD domain
 `SupportedAAD × BitVec L`. -/
+-- ANCHOR: GhashIsAXU
 def GhashIsAXU (L : ℕ) (ε : ℝ≥0∞) : Prop :=
   UniversalHash.IsAlmostXorUniversal
     (fun (H : BitVec 128) (p : SupportedAAD × BitVec L) => ghash H (gcmEncode p.1 p.2)) ε
+-- ANCHOR_END: GhashIsAXU
 
 /-! ## Witnessed pair
 

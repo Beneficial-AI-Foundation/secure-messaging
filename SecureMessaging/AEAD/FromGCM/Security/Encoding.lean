@@ -26,8 +26,10 @@ namespace GCM
 /-- The block sequence GCM feeds to GHASH, `A ‖ 0ᵛ ‖ C ‖ 0ᵘ ‖ [len(A)]₆₄ ‖ [len(C)]₆₄`
 (NIST SP 800-38D §7.1 steps 4–5), as a map on the AEAD domain. Definitionally equal to
 `gcmEncrypt`'s GHASH argument. -/
+-- ANCHOR: gcmEncode
 def gcmEncode {L : ℕ} (ad : SupportedAAD) (c : BitVec L) : List (BitVec 128) :=
   padBlocks ad.1.2 ++ padBlocks c ++ [BitVec.ofNat 64 ad.1.1 ++ BitVec.ofNat 64 L]
+-- ANCHOR_END: gcmEncode
 
 /-! ## Block budget -/
 

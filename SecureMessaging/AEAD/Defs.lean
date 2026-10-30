@@ -11,6 +11,7 @@ import VCVio.OracleComp.SimSemantics.Append
 import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 import ToVCVio.EvalDist.Monad.Basic
 import ToVCVio.OracleComp.SimSemantics.UnifLift
+import ToVCVio.OracleComp.Constructions.LenSampleable
 
 /-!
 # Authenticated Encryption with Associated Data (AEAD)
@@ -34,7 +35,7 @@ Indistinguishability under Chosen-Ciphertext Attack (IND-CCA) security following
 
 - [NRS14] Namprempre, Rogaway, Shrimpton.
   *Reconsidering Generic Composition.*
-  EUROCRYPT 2014, https://eprint.iacr.org/2013/765
+  EUROCRYPT 2014, https://eprint.iacr.org/2014/206
 
 - [BS] Boneh, Shoup.
   *A Graduate Course in Applied Cryptography*, version 0.6, 2023.
@@ -70,7 +71,8 @@ The game samples `K ←$ K`, `(a*, e*) ← ⊥`, `b ←$ {0, 1}`, then the adver
 `A^{encrypt, decrypt}` interacts with:
 
 - A **one-time encryption oracle** `encrypt(a, m)`:
-  sets `a* ← a`; if `b = 0`, sets `e* ← Enc(K, a, m)`; else sets `e* ←$ C`; returns `e*`.
+  sets `a* ← a`; if `b = 0`, sets `e* ← Enc(K, a, m)`; else samples `e*` uniformly among the
+  ciphertexts of length `|Enc(K, a, m)|`; returns `e*`.
   This oracle may be called at most once (stated in Figure 1 caption).
 
 - A **decryption oracle** `decrypt(a, e)`:
@@ -80,7 +82,7 @@ The game samples `K ←$ K`, `(a*, e*) ← ⊥`, `b ←$ {0, 1}`, then the adver
 The adversary wins if its guess `b'` satisfies `b' = b`.
 
 [DEVIATIONS FROM ACD19]
-The deviation is marked `Deviation (D1)` where it takes effect.
+Each deviation is marked `Deviation (D1)` or `Deviation (D2)` where it takes effect.
 
 - (D1) The challenge is the pair `(a*, e*)`, not the ciphertext `e*` alone. Two oracle lines
   change:
@@ -114,13 +116,36 @@ The deviation is marked `Deviation (D1)` where it takes effect.
   [NRS14] and Definition 9.10 of [BS] restrict decryption queries in the same way: only the
   exact pair returned by encryption is refused.
 
+- (D2) For `b = 1`, the challenge `e*` is uniform among the ciphertexts of the same length as
+  `Enc(K, a, m)`, not uniform on all of `C`. One oracle line changes:
+
+  ```
+             ACD19 Figure 1                    here
+  encrypt    e* ←$ C                           e* ←$ {e ∈ C : |e| = |Enc(K, a, m)|}
+  ```
+
+  The length and the uniform sample of each length come from the class `LenSampleable C`.
+
+  Reason. If `C` is infinite, for example all bit strings, Figure 1 is not defined: `C` has no
+  uniform distribution. If `C` is finite with several lengths, an adversary that encrypts a
+  message whose ciphertext length is rare under `$ C` tells the two branches apart by the
+  length alone. The new game follows the `$` oracle of [NRS14] Figure 4, which returns `|C|`
+  random bits. For a ciphertext type with one length, such as `BitVec n` or
+  `BitVec n × BitVec 128`, the two games are the same (`LenSampleable.unifSameLen_const_prod`).
+
+  The new game leaks `|Enc(K, a, m)|`. For fixed associated data, `LengthRegular` below limits
+  that leak to the message length. It suffices for the proof of Theorem 5 of [ACD19]: in hybrid
+  H3, the challenge ciphertext is drawn from `unifSameLen (Enc(K, (i, a), m_b))`. If `ae` is
+  `LengthRegular` and `|m₀| = |m₁|`, this distribution does not depend on `b`.
+
 [WHY A PRF TAG, NOT JUST A MAC]
 The game above is *real-or-random*: when `b = 1` the oracle returns a uniform random
-ciphertext `e* ←$ C`, so the **whole** ciphertext — authentication tag included — must be
-indistinguishable from uniform. MAC unforgeability cannot deliver this (an unforgeable tag
-may still look non-uniform); pseudorandomness can. So the `AEAD/FromEtM` construction tags
-with a PRF, not a MAC. The textbook "LoR ⇒ RoR" shortcut does not bridge the gap: it is for
-random-*message* RoR, whereas ACD19 is random-*ciphertext* IND$, strictly stronger than LoR.
+ciphertext `e*` of the right length, so the **whole** ciphertext — authentication tag
+included — must be indistinguishable from uniform. MAC unforgeability cannot deliver this
+(an unforgeable tag may still look non-uniform); pseudorandomness can. So the `AEAD/FromEtM`
+construction tags with a PRF, not a MAC. The textbook "LoR ⇒ RoR" shortcut does not bridge the
+gap: it is for random-*message* RoR, whereas ACD19 is random-*ciphertext* IND$. For schemes
+that satisfy `LengthRegular`, IND$ is strictly stronger than LoR on messages of equal length.
 
 -/
 
@@ -155,6 +180,21 @@ variable {m : Type → Type u} [Monad m] {M AD K C : Type}
 def Correct (ae : AEADScheme m M AD K C) : Prop :=
   ∀ (k : K) (a : AD) (msg : M), ae.decrypt k a (ae.encrypt k a msg) = some msg
 -- ANCHOR_END: Correct
+
+/-- Let `lenM : M → ℕ` be a message length. Under fixed associated data, the ciphertext length
+of `ae` depends only on the message length: `|m| = |m'|` implies
+`|Enc(K, a, m)| = |Enc(K', a, m')|` for all keys `K, K'`.
+
+The game of Deviation (D2) leaks the ciphertext length. For fixed associated data, this property
+limits that leak to the message length. Section 2 of [NRS14] requires more: without a nonce,
+the length depends only on `|a|` and `|m|`, not on the content of `a`. Fixing `a` suffices for
+the FS-AEAD challenge of [ACD19], which encrypts both messages under the same associated
+data. -/
+-- ANCHOR: LengthRegular
+def LengthRegular [LenSampleable C] (lenM : M → ℕ) (ae : AEADScheme m M AD K C) : Prop :=
+  ∀ (k k' : K) (a : AD) (msg msg' : M), lenM msg = lenM msg' →
+    LenSampleable.len (ae.encrypt k a msg) = LenSampleable.len (ae.encrypt k' a msg')
+-- ANCHOR_END: LengthRegular
 
 section OneTime_CCA
 
@@ -227,11 +267,13 @@ def oracleUnif (AD C : Type) :
 
 /-- One-time encryption oracle `encrypt(a, m)` (Figure 1 of [ACD19], middle column).
 First call: if `b = false`, sets `e* ← Enc(K, a, m)`;
-            if `b = true`,  sets `e* ←$ C`.
+            if `b = true`,  samples `e*` uniformly among the ciphertexts of length
+            `|Enc(K, a, m)|`.
             Records `(a, e*)` and returns `some e*`.
-Subsequent calls: returns `none` (one-time oracle). -/
+Subsequent calls: returns `none` (one-time oracle).
+Deviation (D2): Figure 1 samples `e* ←$ C`. -/
 -- ANCHOR: oracleEncrypt
-def oracleEncrypt [SampleableType C] (ae : AEADScheme ProbComp M AD K C)
+def oracleEncrypt [LenSampleable C] (ae : AEADScheme ProbComp M AD K C)
     (b : Bool) (k : K) :
     QueryImpl (AD × M →ₒ Option C) (StateT (Option (AD × C)) ProbComp) :=
   fun (a, m) => do
@@ -239,7 +281,7 @@ def oracleEncrypt [SampleableType C] (ae : AEADScheme ProbComp M AD K C)
     | some _ => pure none
     | none =>
       let eStar ← if b
-        then liftM ($ᵗ C : ProbComp C)
+        then liftM (LenSampleable.unifSameLen (ae.encrypt k a m))
         else pure (ae.encrypt k a m)
       set (some (a, eStar))
       return some eStar
@@ -261,7 +303,7 @@ def oracleDecrypt [DecidableEq AD] [DecidableEq C] (ae : AEADScheme ProbComp M A
 
 /-- Complete oracle set for the one-time IND-CCA game (Figure 1 of [ACD19]). -/
 -- ANCHOR: aeadSecurityImpl
-def aeadSecurityImpl [SampleableType C] [DecidableEq AD] [DecidableEq C]
+def aeadSecurityImpl [LenSampleable C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C) (b : Bool) (k : K) :
     QueryImpl (aeadOneTimeCCASpec AD M C) (StateT (Option (AD × C)) ProbComp) :=
   oracleUnif AD C + oracleEncrypt ae b k + oracleDecrypt ae b k
@@ -275,7 +317,7 @@ def aeadSecurityImpl [SampleableType C] [DecidableEq AD] [DecidableEq C]
 `run`:    `b' ← A^{encrypt, decrypt}`
 `output`: `b' = b` -/
 -- ANCHOR: securityExp
-def securityExp [SampleableType C] [DecidableEq AD] [DecidableEq C]
+def securityExp [LenSampleable C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) : ProbComp Bool := do
   let k ← ae.keygen
@@ -286,7 +328,7 @@ def securityExp [SampleableType C] [DecidableEq AD] [DecidableEq C]
 
 /-- One-time IND-CCA guess advantage: `|Pr[b' = b] - 1/2|`. -/
 -- ANCHOR: guessAdvantage
-noncomputable def guessAdvantage [SampleableType C] [DecidableEq AD] [DecidableEq C]
+noncomputable def guessAdvantage [LenSampleable C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) : ℝ :=
   |(Pr{let x ← securityExp ae adversary}[x = true]).toReal - 1 / 2|
@@ -298,7 +340,7 @@ noncomputable def guessAdvantage [SampleableType C] [DecidableEq AD] [DecidableE
 The branch `b = false` is `AEAD_real`; the branch `b = true` is `AEAD_rand`.
 Returns the adversary's raw guess `b'` (not `b == b'`). -/
 -- ANCHOR: securityExpFixedBit
-def securityExpFixedBit [SampleableType C] [DecidableEq AD] [DecidableEq C]
+def securityExpFixedBit [LenSampleable C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C)
     (b : Bool) : ProbComp Bool := do
@@ -313,7 +355,7 @@ def securityExpFixedBit [SampleableType C] [DecidableEq AD] [DecidableEq C]
 Here `AEAD_real` is `securityExpFixedBit ae adversary false` and `AEAD_rand`
 is `securityExpFixedBit ae adversary true`. -/
 -- ANCHOR: distAdvantage
-noncomputable def distAdvantage [SampleableType C] [DecidableEq AD] [DecidableEq C]
+noncomputable def distAdvantage [LenSampleable C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) : ℝ :=
   |(Pr{let x ← securityExpFixedBit ae adversary true}[x = true]).toReal -
@@ -331,7 +373,7 @@ Here `AEAD_real` abbreviates `securityExpFixedBit ae adversary false`, and
 returns the adversary's raw guess `b'`. Proved by swapping `b ← $ᵗ Bool` past
 the key-generation step using `OracleComp.EvalDistEq.bind_bind_swap`. -/
 private lemma securityExp_evalDistEq_branch
-    [SampleableType C] [DecidableEq AD] [DecidableEq C]
+    [LenSampleable C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) :
     securityExp ae adversary =ᵈ (do
@@ -351,7 +393,7 @@ Here `AEAD_rand` is `securityExpFixedBit ae adversary true`, and `AEAD_real`
 is `securityExpFixedBit ae adversary false`; both return the adversary's
 raw guess. -/
 private lemma securityExp_toReal_sub_half
-    [SampleableType C] [DecidableEq AD] [DecidableEq C]
+    [LenSampleable C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) :
     (Pr{let x ← securityExp ae adversary}[x = true]).toReal - 1 / 2 =
@@ -366,7 +408,7 @@ private lemma securityExp_toReal_sub_half
 `guessAdvantage = distAdvantage / 2`. -/
 -- ANCHOR: guessAdvantage_eq_distAdvantage_div_two
 lemma guessAdvantage_eq_distAdvantage_div_two
-    [SampleableType C] [DecidableEq AD] [DecidableEq C]
+    [LenSampleable C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) :
     guessAdvantage ae adversary = distAdvantage ae adversary / 2

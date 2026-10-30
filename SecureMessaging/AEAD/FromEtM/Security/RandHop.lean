@@ -19,7 +19,7 @@ open ToVCVio OracleSpec OracleComp ENNReal PRFScheme AEADScheme
 variable {K_e K_m M AD C_e T : Type}
   [DecidableEq AD] [DecidableEq C_e] [DecidableEq T]
   [Inhabited C_e] [Inhabited T]
-  [SampleableType C_e] [SampleableType T]
+  [LenSampleable C_e] [SampleableType T]
 
 omit [Inhabited C_e] [Inhabited T] in
 /-- `game3` (the final endpoint of the game-hop sequence) coincides with the real
@@ -63,7 +63,7 @@ theorem game3_eq_rand
         simp [AEADScheme.aeadSecurityImpl, AEADScheme.oracleEncrypt, etmAEAD,
           QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
           StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_pure,
-          SampleableType.uniformSample_prod_eq_bind, bind_assoc, map_pure, Prod.map]
+          LenSampleable.unifSameLen_prod, bind_assoc, map_pure, Prod.map]
     · -- decryption oracle: both always reject
       obtain ⟨ad, c, t⟩ := ac
       cases ch <;>

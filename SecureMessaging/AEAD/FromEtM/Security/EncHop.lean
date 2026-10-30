@@ -5,11 +5,12 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.AEAD.FromEtM.Security.Games
+import ToVCVio.OracleComp.SimSemantics.StateT.LazyKey
 
 /-!
-# Encrypt-then-MAC — IND$-CPA hop (`game2` → `game3`)
+# Encrypt-then-MAC — one-time secrecy hop (`game2` → `game3`)
 
-`game2_game3_le_enc`: the gap is bounded by the IND$-CPA advantage of `encReduction`.
+`game2_game3_le_enc`: the gap is bounded by the one-time secrecy advantage of `encReduction`.
 -/
 
 namespace EtM
@@ -19,178 +20,172 @@ open OracleSpec OracleComp ENNReal PRFScheme AEADScheme
 variable {K_e K_m M AD C_e T : Type}
   [DecidableEq AD] [DecidableEq C_e] [DecidableEq T]
   [Inhabited C_e] [Inhabited T]
-  [SampleableType C_e] [SampleableType T]
+  [LenSampleable C_e] [SampleableType T]
 
-/-- Fixed-key EtM game used on both sides of the IND$-CPA hop. At bit
-`false` encryption is real; at bit `true` ciphertexts are sampled uniformly. -/
-private noncomputable def encFixedGame
-    (se : DetSEAlg K_e M C_e) (bit : Bool) (key : K_e)
+/-- EtM game whose skeleton key slot is `()` and whose encryption answers with `enc m`. With
+`enc = DetSEAlg.oracleEncrypt se b`, it samples the cipher key inside the encryption query. -/
+private noncomputable def lazyKeyGame (enc : M → ProbComp C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) : ProbComp Bool :=
   etmGameSkeleton (spec := unifSpec)
-    (pure key) se.decrypt ∅
-    (fun ke m => if bit then liftM ($ᵗ C_e : ProbComp C_e) else pure (se.encrypt ke m))
+    (pure ()) (fun _ _ => none) ∅
+    (fun _ m => liftM (enc m))
     (fun _ => liftM ($ᵗ T : ProbComp T))
     (fun _ _ => pure false)
     gameUnifImpl
     adv
 
-omit [Inhabited T] in
-private theorem encFixedGame_eq_reductionBranch
-    (se : DetSEAlg K_e M C_e) (bit : Bool) (key : K_e)
+omit [Inhabited C_e] [Inhabited T] in
+/-- The one-time secrecy experiment of `encReduction` is the lazy-key game: the experiment
+answers the reduction's encryption query with `oracleEncrypt se b`. -/
+private theorem securityExpFixedBit_encReduction (se : DetSEAlg K_e M C_e) (b : Bool)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
-    encFixedGame se bit key adv =
-      (simulateQ (DetSEAlg.indCPAImpl se bit key) (encReduction se adv)).run' false := by
-  unfold encFixedGame encReduction etmGameSkeleton
-  simp only [simulateQ_bind, simulateQ_pure, pure_bind,
-    QueryImpl.simulateQ_mapStateTBase_run]
-  simp only [bind_pure_comp, ← StateT.run'_eq]
-  conv_rhs => rw [StateT.run'_eq _ (none, ∅)]
-  rw [← simulateQ_flattenStateT_run']
-  rw [← run'_simulateQ_eq_of_query_map_eq_inv'
-        _ _ (fun s => s.2 = s.1.1.isSome) Prod.fst ?hinv ?hproj adv
-        ((none, ∅), false) ?hs]
-  case hs => rfl
-  case hinv =>
-    intro t s hs y hy
-    obtain ⟨⟨ch, qc⟩, flag⟩ := s
+    DetSEAlg.securityExpFixedBit se (encReduction se adv) b =
+      lazyKeyGame (DetSEAlg.oracleEncrypt se b) adv := by
+  unfold DetSEAlg.securityExpFixedBit encReduction lazyKeyGame etmGameSkeleton
+  simp only [pure_bind, bind_pure_comp, ← StateT.run'_eq,
+    QueryImpl.simulateQ_mapStateTBase_run']
+  refine run'_simulateQ_eq_of_query_map_eq_inv' _ _ (fun _ => True) id
+    (fun _ _ _ _ _ => trivial) ?_ adv _ trivial
+  intro t s _
+  rw [Prod.map_id, id_map]
+  obtain ⟨ch, qc⟩ := s
+  have hT0 : simulateQ (DetSEAlg.otsImpl se b)
+      ((liftM ($ᵗ T : ProbComp T) :
+        StateT (TagCache AD C_e T) (OracleComp (DetSEAlg.otsSpec M C_e)) T).run qc) =
+        (fun x => (x, qc)) <$> ($ᵗ T : ProbComp T) := by
+    have hrun : (liftM ($ᵗ T : ProbComp T) :
+        StateT (TagCache AD C_e T) (OracleComp (DetSEAlg.otsSpec M C_e)) T).run qc =
+          (liftM ((fun x => (x, qc)) <$> ($ᵗ T : ProbComp T)) :
+            OracleComp (DetSEAlg.otsSpec M C_e) (T × TagCache AD C_e T)) := by
+      change (liftM (liftM ($ᵗ T : ProbComp T) : StateT (TagCache AD C_e T) ProbComp T) :
+        StateT (TagCache AD C_e T) (OracleComp (DetSEAlg.otsSpec M C_e)) T).run qc = _
+      simp only [liftM_StateT_eq, StateT.run_monadLift, monadLift_self, bind_pure_comp,
+          map_eq_bind_pure_comp, liftM_bind, Function.comp_apply, liftM_pure, StateT.run_mk]
+    rw [hrun, DetSEAlg.otsImpl, QueryImpl.simulateQ_add_liftM_left, DetSEAlg.oracleUnif,
+      QueryImpl.simulateQ_toQueryImpl]
+  have hT : simulateQ (HasQuery.toQueryImpl + DetSEAlg.oracleEncrypt se b)
+      ((monadLift ($ᵗ T : ProbComp T) :
+        StateT (TagCache AD C_e T) (OracleComp (DetSEAlg.otsSpec M C_e)) T).run qc) =
+        (fun x => (x, qc)) <$> ($ᵗ T : ProbComp T) := hT0
+  rcases t with (n | ⟨ad, m⟩) | ⟨ad, c⟩ <;> cases ch <;>
+    simp only [add_apply_inl, QueryImpl.mapStateTBase, DetSEAlg.otsImpl, DetSEAlg.oracleUnif,
+        ToVCVio.unifLiftStateT, liftM, StateT.run_monadLift, monadLift_self, bind_pure_comp,
+        liftM_map, bind_map_left, Prod.mk.eta, beq_iff_eq, StateT.run_pure, liftM_pure, ite_self,
+        pure_bind, QueryImpl.add_apply_inl, PFunctor.Handler.liftTarget_apply,
+        ofPFunctor_toPFunctor, QueryImpl.ofLift_apply, simulateQ_map,
+        QueryImpl.simulateQ_add_liftM_query_left, HasQuery.toQueryImpl_apply,
+        HasQuery.instOfMonadLift_query, StateT.run_mk, gameUnifImpl, QueryImpl.ofLift_eq_id',
+        QueryImpl.id'_apply, id_eq, add_apply_inr, QueryImpl.add_apply_inr, StateT.run_bind,
+        StateT.run_get, StateT.run_map, StateT.run_set, map_pure, Functor.map_map, simulateQ_bind,
+        simulateQ_query, OracleQuery.input_query, OracleQuery.cont_query, id_map, hT,
+        simulateQ_pure] <;>
+    (try split_ifs) <;>
+    simp only [StateT.run_pure, StateT.run_map, StateT.run_set, map_pure, simulateQ_pure]
+
+omit [Inhabited C_e] [Inhabited T] [LenSampleable C_e] in
+/-- Let `X k m` encrypt `m` under the cipher key `k`. Then the EtM game that samples `k` before
+the adversary runs, and rejects every decryption query, has the same output distribution as
+the lazy-key game that samples `k` inside the encryption query. -/
+private theorem keyFirst_evalDistEq_lazyKeyGame (se : DetSEAlg K_e M C_e)
+    (X : K_e → M → ProbComp C_e) (adv : OneTimeCCAAdversary AD M (C_e × T)) :
+    (etmGameSkeleton (spec := unifSpec) se.keygen se.decrypt ∅
+        (fun ke m => liftM (X ke m)) (fun _ => liftM ($ᵗ T : ProbComp T))
+        (fun _ _ => pure false) gameUnifImpl adv : ProbComp Bool) =ᵈ
+      lazyKeyGame (fun m => do let k ← se.keygen; X k m) adv := by
+  unfold lazyKeyGame etmGameSkeleton
+  simp only [pure_bind, ← bind_assoc]
+  refine EvalDistEq.bind_left (keygen_bind_run_simulateQ_evalDistEq se.keygen _ _
+    (fun s => s.1 = none) ?_ ?_ ?_ adv (none, ∅) rfl) _
+  · intro t s hs
+    obtain ⟨ch, qc⟩ := s
     simp only at hs
     subst hs
     rcases t with (n | ⟨ad, m⟩) | ⟨ad, c⟩
-    · have hq : simulateQ ((QueryImpl.id' unifSpec).liftTarget (StateT Bool ProbComp) +
-            se.oracleEncrypt bit key)
-          (liftM (OracleSpec.query n) :
-            OracleComp (unifSpec + (M →ₒ Option C_e)) (unifSpec.Range n))
-          = liftM (liftM (OracleSpec.query n) : OracleComp unifSpec (unifSpec.Range n)) :=
-        OracleComp.simulateQ_id'_liftTarget_add_liftComp _
-          (liftM (OracleSpec.query n) : OracleComp unifSpec (unifSpec.Range n))
-      simp only [add_apply_inl, QueryImpl.flattenStateT, QueryImpl.mapStateTBase,
-        DetSEAlg.indCPAImpl, DetSEAlg.oracleUnif, QueryImpl.ofLift_eq_id', StateT.run_bind,
-        StateT.run_monadLift, monadLift_self, bind_pure_comp, bind_map_left, liftM_bind,
-        bind_assoc, Prod.mk.eta, beq_iff_eq, StateT.run_pure, liftM_pure, ite_self, pure_bind,
-        QueryImpl.add_apply_inl, QueryImpl.liftTarget_apply, QueryImpl.ofLift_apply,
-        simulateQ_map, hq, StateT.run_mk, StateT.run_map, Functor.map_map, support_map,
-        support_liftM, OracleQuery.input_query, OracleQuery.cont_query, Set.range_id,
-        Set.image_univ] at hy
+    · refine Or.inl ⟨fun _ => rfl, fun y hy => ?_⟩
+      simp only [add_apply_inl, gameUnifImpl, liftM_bind, StateT.run_bind, StateT.run_monadLift,
+          monadLift_self, bind_pure_comp, bind_map_left, liftM_map, bind_assoc, Prod.mk.eta,
+          beq_iff_eq, StateT.run_pure, liftM_pure, ite_self, pure_bind, QueryImpl.add_apply_inl,
+          PFunctor.Handler.liftTarget_apply, ofPFunctor_toPFunctor, QueryImpl.ofLift_apply,
+          MonadAttach.support_map, support_liftM, OracleQuery.input_query, OracleQuery.cont_query,
+          Set.range_id, Set.image_univ, Set.mem_range] at hy
       obtain ⟨_, rfl⟩ := hy
       rfl
-    · have hqT : simulateQ ((QueryImpl.id' unifSpec).liftTarget (StateT Bool ProbComp) +
-            se.oracleEncrypt bit key)
-          ((liftM ($ᵗ T : ProbComp T) :
-              StateT (TagCache AD C_e T)
-                (OracleComp (unifSpec + (M →ₒ Option C_e))) T).run qc)
-          = liftM ((fun t => (t, qc)) <$> ($ᵗ T : ProbComp T)) :=
-        OracleComp.simulateQ_id'_liftTarget_add_run_liftComp (τ := Bool)
-          (se.oracleEncrypt bit key) ($ᵗ T : ProbComp T) qc
-      cases ch with
-      | none =>
-        cases bit with
-        | false =>
-          simp only [add_apply_inl, add_apply_inr, QueryImpl.flattenStateT,
-            QueryImpl.mapStateTBase, DetSEAlg.indCPAImpl, DetSEAlg.oracleUnif,
-            QueryImpl.ofLift_eq_id', StateT.run_bind, StateT.run_monadLift, monadLift_self,
-            bind_pure_comp, bind_map_left, liftM_bind, bind_assoc, Prod.mk.eta, beq_iff_eq,
-            StateT.run_pure, liftM_pure, ite_self, pure_bind, QueryImpl.add_apply_inl,
-            QueryImpl.add_apply_inr, StateT.run_get, StateT.run_mk, Option.isSome_none,
-            StateT.run_map, StateT.run_set, map_pure, Functor.map_map, simulateQ_bind,
-            simulateQ_query, OracleQuery.input_query, OracleQuery.cont_query,
-            DetSEAlg.oracleEncrypt, Bool.false_eq_true, ↓reduceIte, map_bind, id_map,
-            simulateQ_map, simulateQ_pure, hqT, liftM_map, support_map, support_uniformSample,
-            Set.image_univ] at hy
-          obtain ⟨a, rfl⟩ := hy
-          rfl
-        | true =>
-          simp only [add_apply_inl, add_apply_inr, QueryImpl.flattenStateT,
-            QueryImpl.mapStateTBase, DetSEAlg.indCPAImpl, DetSEAlg.oracleUnif,
-            QueryImpl.ofLift_eq_id', StateT.run_bind, StateT.run_monadLift, monadLift_self,
-            bind_pure_comp, bind_map_left, liftM_bind, bind_assoc, Prod.mk.eta, beq_iff_eq,
-            StateT.run_pure, liftM_pure, ite_self, pure_bind, QueryImpl.add_apply_inl,
-            QueryImpl.add_apply_inr, StateT.run_get, StateT.run_mk, Option.isSome_none,
-            StateT.run_map, StateT.run_set, map_pure, Functor.map_map, simulateQ_bind,
-            simulateQ_query, OracleQuery.input_query, OracleQuery.cont_query,
-            DetSEAlg.oracleEncrypt, ↓reduceIte, map_bind, id_map, simulateQ_map,
-            Bool.false_eq_true, simulateQ_pure, hqT, liftM_map, support_bind,
-            support_uniformSample, Set.mem_univ, support_map, Set.image_univ,
-            Set.iUnion_true] at hy
-          obtain ⟨_, ⟨x, rfl⟩, a, rfl⟩ := hy
-          rfl
-      | some v =>
-        cases bit <;>
-          simp only [add_apply_inl, add_apply_inr, QueryImpl.flattenStateT,
-            QueryImpl.mapStateTBase, DetSEAlg.indCPAImpl, DetSEAlg.oracleUnif,
-            QueryImpl.ofLift_eq_id', StateT.run_bind, StateT.run_monadLift, monadLift_self,
-            bind_pure_comp, bind_map_left, liftM_bind, bind_assoc, Prod.mk.eta, beq_iff_eq,
-            StateT.run_pure, liftM_pure, ite_self, pure_bind, QueryImpl.add_apply_inl,
-            QueryImpl.add_apply_inr, StateT.run_get, StateT.run_mk, Option.isSome_some,
-            simulateQ_pure, map_pure, support_pure] at hy <;>
-          (obtain rfl := Set.eq_of_mem_singleton hy; rfl)
-    · cases ch with
-      | none =>
-        simp only [add_apply_inr, QueryImpl.flattenStateT, QueryImpl.mapStateTBase,
-          DetSEAlg.indCPAImpl, DetSEAlg.oracleUnif, QueryImpl.ofLift_eq_id', StateT.run_bind,
-          StateT.run_monadLift, monadLift_self, bind_pure_comp, bind_map_left, liftM_bind,
-          bind_assoc, Prod.mk.eta, beq_iff_eq, StateT.run_pure, liftM_pure, ite_self, pure_bind,
-          QueryImpl.add_apply_inr, StateT.run_get, StateT.run_mk, Option.isSome_none,
-          reduceCtorEq, ↓reduceIte, StateT.run_map, StateT.run_set, map_pure, simulateQ_pure,
-          support_pure] at hy
-        subst hy
-        rfl
-      | some v =>
-        simp only [add_apply_inr, QueryImpl.flattenStateT, QueryImpl.mapStateTBase,
-          DetSEAlg.indCPAImpl, DetSEAlg.oracleUnif, QueryImpl.ofLift_eq_id', StateT.run_bind,
-          StateT.run_monadLift, monadLift_self, bind_pure_comp, bind_map_left, liftM_bind,
-          bind_assoc, Prod.mk.eta, beq_iff_eq, StateT.run_pure, liftM_pure, ite_self, pure_bind,
-          QueryImpl.add_apply_inr, StateT.run_get, StateT.run_mk, Option.isSome_some,
-          Option.some.injEq, support_map] at hy
-        split_ifs at hy <;>
-          (simp only [StateT.run_map, StateT.run_set, map_pure, simulateQ_pure,
-              StateT.run_pure, support_pure, Set.image_singleton] at hy
-           obtain rfl := Set.eq_of_mem_singleton hy
-           rfl)
-  case hproj =>
-    intro t s hs
-    obtain ⟨⟨ch, qc⟩, flag⟩ := s
-    simp only at hs
-    subst hs
+    · refine Or.inr ⟨?_, fun k y hy => ?_⟩
+      · simp only [add_apply_inl, add_apply_inr, StateT.run_monadLift, monadLift_self,
+          bind_pure_comp, liftM_map, bind_map_left, Prod.mk.eta, beq_iff_eq, StateT.run_pure,
+          liftM_pure, pure_bind, Bool.false_eq_true, ↓reduceIte, QueryImpl.add_apply_inl,
+          QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get, StateT.run_map, StateT.run_set,
+          map_pure, Functor.map_map, bind_assoc, liftM_bind, ite_self]
+        exact EvalDistEq.rfl
+      · simp only [add_apply_inl, add_apply_inr, StateT.run_monadLift, monadLift_self,
+          bind_pure_comp, liftM_map, bind_map_left, Prod.mk.eta, beq_iff_eq, StateT.run_pure,
+          liftM_pure, pure_bind, Bool.false_eq_true, ↓reduceIte, QueryImpl.add_apply_inl,
+          QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get, StateT.run_map, StateT.run_set,
+          map_pure, Functor.map_map, MonadAttach.support_bind, MonadAttach.mem_support,
+          MonadAttach.support_map, support_uniformSample, Set.image_univ, Set.mem_iUnion,
+          Set.mem_range, exists_prop] at hy
+        obtain ⟨_, _, _, rfl⟩ := hy
+        simp only [reduceCtorEq, not_false_eq_true]
+    · refine Or.inl ⟨fun _ => by simp only [add_apply_inr, StateT.run_monadLift, monadLift_self,
+        bind_pure_comp, liftM_map, bind_map_left, Prod.mk.eta, beq_iff_eq, StateT.run_pure,
+        liftM_pure, pure_bind, Bool.false_eq_true, ↓reduceIte, QueryImpl.add_apply_inr,
+        StateT.run_bind, StateT.run_get, reduceCtorEq, StateT.run_map, StateT.run_set, map_pure,
+        liftM_bind, bind_assoc, ite_self], fun y hy => ?_⟩
+      simp only [add_apply_inr, liftM_bind, StateT.run_bind, StateT.run_monadLift, monadLift_self,
+          bind_pure_comp, bind_map_left, liftM_map, bind_assoc, Prod.mk.eta, beq_iff_eq,
+          StateT.run_pure, liftM_pure, ite_self, pure_bind, QueryImpl.add_apply_inr, StateT.run_get,
+          reduceCtorEq, ↓reduceIte, StateT.run_map, StateT.run_set, map_pure,
+          MonadAttach.support_pure, Set.mem_singleton_iff] at hy
+      obtain rfl := hy
+      rfl
+  · intro t s k hs
+    obtain ⟨ch, qc⟩ := s
+    obtain ⟨v, rfl⟩ := Option.ne_none_iff_exists'.mp hs
     rcases t with (n | ⟨ad, m⟩) | ⟨ad, c⟩
-    · have hq : simulateQ ((QueryImpl.id' unifSpec).liftTarget (StateT Bool ProbComp) +
-            se.oracleEncrypt bit key)
-          (liftM (OracleSpec.query n) :
-            OracleComp (unifSpec + (M →ₒ Option C_e)) (unifSpec.Range n))
-          = liftM (liftM (OracleSpec.query n) : OracleComp unifSpec (unifSpec.Range n)) :=
-        OracleComp.simulateQ_id'_liftTarget_add_liftComp _
-          (liftM (OracleSpec.query n) : OracleComp unifSpec (unifSpec.Range n))
-      simp [QueryImpl.flattenStateT, QueryImpl.mapStateTBase, DetSEAlg.indCPAImpl,
-        DetSEAlg.oracleUnif, gameUnifImpl, QueryImpl.add_apply_inl,
-        hq, StateT.run_bind, StateT.run_monadLift, Prod.map, Functor.map_map]
-    · have hqT : simulateQ ((QueryImpl.id' unifSpec).liftTarget (StateT Bool ProbComp) +
-            se.oracleEncrypt bit key)
-          ((liftM ($ᵗ T : ProbComp T) :
-              StateT (TagCache AD C_e T)
-                (OracleComp (unifSpec + (M →ₒ Option C_e))) T).run qc)
-          = liftM ((fun t => (t, qc)) <$> ($ᵗ T : ProbComp T)) :=
-        OracleComp.simulateQ_id'_liftTarget_add_run_liftComp (τ := Bool)
-          (se.oracleEncrypt bit key) ($ᵗ T : ProbComp T) qc
-      cases bit <;> cases ch <;>
-        simp [QueryImpl.flattenStateT, QueryImpl.mapStateTBase, DetSEAlg.indCPAImpl,
-          DetSEAlg.oracleEncrypt, DetSEAlg.oracleUnif, QueryImpl.add_apply_inl,
-          QueryImpl.add_apply_inr, hqT, StateT.run_bind, StateT.run_get, StateT.run_set,
-          StateT.run_monadLift, StateT.run_pure, Prod.map, Functor.map_map]
-    · cases ch <;>
-        simp [QueryImpl.flattenStateT, QueryImpl.mapStateTBase, QueryImpl.add_apply_inr,
-          StateT.run_bind, StateT.run_get, StateT.run_set,
-          StateT.run_monadLift, StateT.run_pure, Prod.map, Functor.map_map]
-      split_ifs <;>
-        simp [StateT.run_set, StateT.run_pure]
+    · rfl
+    · simp only [add_apply_inl, add_apply_inr, StateT.run_monadLift, monadLift_self, bind_pure_comp,
+        liftM_map, bind_map_left, Prod.mk.eta, beq_iff_eq, StateT.run_pure, liftM_pure, pure_bind,
+        Bool.false_eq_true, ↓reduceIte, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+        StateT.run_bind, StateT.run_get, liftM_bind, bind_assoc, ite_self]
+    · simp only [add_apply_inr, StateT.run_monadLift, monadLift_self, bind_pure_comp, liftM_map,
+        bind_map_left, Prod.mk.eta, beq_iff_eq, StateT.run_pure, liftM_pure, pure_bind,
+        Bool.false_eq_true, ↓reduceIte, QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get,
+        Option.some.injEq, liftM_bind, bind_assoc, ite_self]
+  · intro t s k hs y hy
+    obtain ⟨ch, qc⟩ := s
+    obtain ⟨v, rfl⟩ := Option.ne_none_iff_exists'.mp hs
+    rcases t with (n | ⟨ad, m⟩) | ⟨ad, c⟩
+    · simp only [add_apply_inl, gameUnifImpl, StateT.run_monadLift, monadLift_self, bind_pure_comp,
+        liftM_map, bind_map_left, Prod.mk.eta, beq_iff_eq, StateT.run_pure, liftM_pure, pure_bind,
+        Bool.false_eq_true, ↓reduceIte, QueryImpl.add_apply_inl, PFunctor.Handler.liftTarget_apply,
+        ofPFunctor_toPFunctor, QueryImpl.ofLift_apply, MonadAttach.support_map, support_liftM,
+        OracleQuery.input_query, OracleQuery.cont_query, Set.range_id, Set.image_univ,
+        Set.mem_range] at hy
+      obtain ⟨_, rfl⟩ := hy
+      simp only [reduceCtorEq, not_false_eq_true]
+    · simp only [add_apply_inl, add_apply_inr, StateT.run_monadLift, monadLift_self, bind_pure_comp,
+        liftM_map, bind_map_left, Prod.mk.eta, beq_iff_eq, StateT.run_pure, liftM_pure, pure_bind,
+        Bool.false_eq_true, ↓reduceIte, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+        StateT.run_bind, StateT.run_get, MonadAttach.support_pure, Set.mem_singleton_iff] at hy
+      obtain rfl := hy
+      simp only [reduceCtorEq, not_false_eq_true]
+    · simp only [add_apply_inr, StateT.run_monadLift, monadLift_self, bind_pure_comp, liftM_map,
+        bind_map_left, Prod.mk.eta, beq_iff_eq, StateT.run_pure, liftM_pure, pure_bind,
+        Bool.false_eq_true, ↓reduceIte, QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get,
+        Option.some.injEq, MonadAttach.mem_support] at hy
+      split_ifs at hy <;> (obtain rfl := hy; simp only [reduceCtorEq, not_false_eq_true])
 
-omit [Inhabited T] in
-/-- Game 2 → 3: IND$-CPA hop. Gap bounded by encryption advantage.
+omit [Inhabited C_e] [Inhabited T] [LenSampleable C_e] in
+/-- Probability form of `keyFirst_evalDistEq_lazyKeyGame`. -/
+private theorem prEvent_keyFirst_eq_lazyKeyGame (se : DetSEAlg K_e M C_e)
+    (X : K_e → M → ProbComp C_e) (adv : OneTimeCCAAdversary AD M (C_e × T)) :
+    Pr{let x ← (etmGameSkeleton (spec := unifSpec) se.keygen se.decrypt ∅
+        (fun ke m => liftM (X ke m)) (fun _ => liftM ($ᵗ T : ProbComp T))
+        (fun _ _ => pure false) gameUnifImpl adv : ProbComp Bool)}[x = true] =
+      Pr{let x ← lazyKeyGame (fun m => do let k ← se.keygen; X k m) adv}[x = true] :=
+  (keyFirst_evalDistEq_lazyKeyGame se X adv).prEvent_eq _
 
-NRS14 Lemma 3, privacy reduction D₁(A). Since `verifyTag = pure false` in
-both game2 and game3, no decrypt query ever reaches `se.decrypt`. The
-IND$-CPA reduction only needs to simulate encryption (forward to its oracle)
-and decryption (always reject). The `computeTag` change from random oracle
-to `$ᵗ T` is distributional equality: the cache is written but never read
-(verify disabled), and a one-time fresh RO query is uniformly distributed. -/
+omit [Inhabited C_e] [Inhabited T] in
 theorem game2_game3_le_enc
     (se : DetSEAlg K_e M C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
@@ -198,40 +193,17 @@ theorem game2_game3_le_enc
      (Pr{let x ← game3 se adv}[x = true]).toReal| ≤
       DetSEAlg.distAdvantage se (encReduction se adv) := by
   -- NRS14 Lemma 3, privacy reduction D₁(A).
-  -- RO-to-uniform: since verifyTag = pure false in both games, the TagCache
-  -- is write-only. A fresh RO query on a never-read input is uniformly
-  -- distributed, so replacing randomOracle with $ᵗ T preserves the distribution.
-  -- After this substitution, game2 and game3 differ only in encryptMsg:
-  --   game2: se.encrypt ke m (real)
-  --   game3: $ᵗ C_e (random)
-  -- This is exactly the IND$-CPA distinguishing experiment.
-  -- game2 = DetSEAlg.securityExpFixedBit se (encReduction se adv) false
-  -- game3 = DetSEAlg.securityExpFixedBit se (encReduction se adv) true
-  --
-  -- Discovered proof path (both directions are `Pr{…}[x = true]` equalities, then `abs_sub_comm`):
-  --   `securityExpFixedBit se (encReduction se adv) b` unfolds to a NESTED simulateQ:
-  --   `simulateQ (indCPAImpl se b k) (encReduction…)`, where `encReduction` itself is
-  --   `simulateQ encRedImpl adv` over `EtmGameState`. Collapse the nesting with
-  --   `simulateQ_mapStateTBase_run` (VCVio `…/SimSemantics/StateT/Basic.lean`):
-  --     simulateQ outer ((simulateQ inner oa).run s)
-  --       = (simulateQ (outer.mapStateTBase inner) oa).run s
-  --   giving a SINGLE `simulateQ (indCPAImpl.mapStateTBase encRedImpl) adv` over state
-  --   `EtmGameState` with base monad `StateT Bool ProbComp` (the Bool = indCPA "encrypt
-  --   called" flag). Split the leading `se.keygen` with `simulateQ_bind` +
-  --   `simulateQ_liftComp` (forwarded). Then relate the combined impl to game3's impl via
-  --   the invariant-gated projection `map_run_simulateQ_eq_of_query_map_eq_inv'`, with
-  --   invariant `Bool = challenge.isSome` (the indCPA flag stays in sync with the skeleton's
-  --   one-time challenge), projecting the Bool away.
-  --   game3 direction: clean (encRedImpl tag = $ᵗ T already matches game3). game2 direction:
-  --   additionally needs RO→uniform (game2's randomOracle tag = encRedImpl's $ᵗ T), justified
-  --   as in `stepA` below (write-only cache, one-time fresh query uniform).
+  -- `game2` and `game3` sample the cipher key before the adversary runs, and the one-time
+  -- secrecy experiment of `encReduction` samples it inside the encryption query. Both games
+  -- reject every decryption query and answer at most one encryption query, so the key is read
+  -- once, and `prEvent_keyFirst_eq_lazyKeyGame` moves its sample into that query. The result is
+  -- the lazy-key game, which `securityExpFixedBit_encReduction` identifies with the experiment.
+  -- `game2` first needs its random-oracle tag replaced by a uniform one (`stepA`).
   have hg3 : Pr{let x ← game3 se adv}[x = true] =
       Pr{let x ← DetSEAlg.securityExpFixedBit se (encReduction se adv) true}[x = true] := by
-    unfold game3 DetSEAlg.securityExpFixedBit
-    simp only [bind_pure_comp, ← StateT.run'_eq]
-    refine prEvent_bind_congr se.keygen _ _ _ _ (fun key => ?_)
-    exact congrArg (Pr{let x ← ·}[x = true])
-      (encFixedGame_eq_reductionBranch se true key adv)
+    rw [securityExpFixedBit_encReduction]
+    exact prEvent_keyFirst_eq_lazyKeyGame se
+      (fun k m => LenSampleable.unifSameLen (se.encrypt k m)) adv
   have hg2 : Pr{let x ← game2 se adv}[x = true] =
       Pr{let x ← DetSEAlg.securityExpFixedBit se (encReduction se adv) false}[x = true] := by
     -- Step A (RO→uniform): replace game2's random-oracle tag with a fresh `$ᵗ T`. The cache is
@@ -321,17 +293,13 @@ theorem game2_game3_le_enc
               StateT.run_monadLift, StateT.run_pure, Prod.map]
           split_ifs <;>
             simp [StateT.run_set, StateT.run_pure, Prod.map]
-    -- Step B (`hg3` machinery at `b = false`): the `$ᵗ T`-tag game equals the IND$-CPA real
-    -- experiment, since `oracleEncrypt false key m = se.encrypt key m` matches the game's encrypt.
+    -- Step B: move the key sample into the encryption query, as for `hg3`.
     have stepB : Pr{let x ← (etmGameSkeleton (spec := unifSpec) se.keygen se.decrypt ∅
             (fun ke m => pure (se.encrypt ke m)) (fun _ => liftM ($ᵗ T : ProbComp T))
             (fun _ _ => pure false) gameUnifImpl adv : ProbComp Bool)}[x = true] =
         Pr{let x ← DetSEAlg.securityExpFixedBit se (encReduction se adv) false}[x = true] := by
-      unfold DetSEAlg.securityExpFixedBit
-      simp only [bind_pure_comp, ← StateT.run'_eq]
-      refine prEvent_bind_congr se.keygen _ _ _ _ (fun key => ?_)
-      exact congrArg (Pr{let x ← ·}[x = true])
-        (encFixedGame_eq_reductionBranch se false key adv)
+      rw [securityExpFixedBit_encReduction]
+      exact prEvent_keyFirst_eq_lazyKeyGame se (fun k m => pure (se.encrypt k m)) adv
     rw [stepA, stepB]
   unfold DetSEAlg.distAdvantage
   rw [hg2, hg3]

@@ -23,7 +23,7 @@ import ToVCVio.OracleComp.SimSemantics.UnifLift
 # Encrypt-then-MAC — game and reduction definitions
 
 The OracleSpec-polymorphic game skeleton, its `unifSpec` oracle handler, the four games
-`game0`–`game3` (instantiated at `spec = unifSpec`), and the PRF / IND$-CPA reductions
+`game0`–`game3` (instantiated at `spec = unifSpec`), and the PRF / one-time secrecy reductions
 (`prfReduction`, `encReduction`). Shared by every game-hop file.
 -/
 
@@ -34,7 +34,7 @@ open ToVCVio OracleSpec OracleComp ENNReal PRFScheme AEADScheme
 variable {K_e K_m M AD C_e T : Type}
   [DecidableEq AD] [DecidableEq C_e] [DecidableEq T]
   [Inhabited C_e] [Inhabited T]
-  [SampleableType C_e] [SampleableType T]
+  [LenSampleable C_e] [SampleableType T]
 
 /-! ## Type abbreviations -/
 
@@ -193,6 +193,7 @@ noncomputable def game2'
     adv
 
 /-- Game 3: decrypt always rejects (random encrypt, random tag, no decryption).
+The random ciphertext is uniform among those of the same length as `Enc(ke, m)`.
 Cache unused but present for type uniformity.
 
 NRS14 Figure 4, right column: `$` oracle (random bits) + `⊥` oracle
@@ -202,7 +203,7 @@ noncomputable def game3
     (adv : OneTimeCCAAdversary AD M (C_e × T)) : ProbComp Bool :=
   etmGameSkeleton (spec := unifSpec)
     se.keygen se.decrypt ∅
-    (fun _ _ => liftM ($ᵗ C_e : ProbComp C_e))
+    (fun ke m => liftM (LenSampleable.unifSameLen (se.encrypt ke m)))
     (fun _ => liftM ($ᵗ T : ProbComp T))
     (fun _ _ => pure false)
     gameUnifImpl
@@ -216,7 +217,7 @@ serve as adversaries for the underlying primitive's security game.
 - `prfReduction`: game0 → game1 hop. Instantiates the skeleton with
   `spec = PRFOracleSpec`, forwarding tag queries to the external oracle.
 - `encReduction`: game2 → game3 hop. Instantiates the skeleton with
-  `spec = indCPASpec`, forwarding encryption to its oracle, sampling tags
+  `spec = otsSpec`, forwarding encryption to its oracle, sampling tags
   uniformly, and always rejecting decrypt (since `verifyTag = pure false`
   in both game2 and game3, no `ke` or `se.decrypt` access is needed).
 
@@ -232,10 +233,13 @@ NRS14 Lemma 3, eq. (4): reduction B(A) that distinguishes F^tag from ρ.
 The body is a skeleton instantiation where `computeTag` and `verifyTag` forward
 their queries to `OracleSpec.query (Sum.inr (ad, c))` — the PRF/random oracle
 provided by the experiment. -/
+-- ANCHOR: etmPrfReduction
 noncomputable def prfReduction
     (se : DetSEAlg K_e M C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
-    : PRFAdversary (AD × C_e) T :=
+    : PRFAdversary (AD × C_e) T
+-- ANCHOR_END: etmPrfReduction
+    :=
   let spec := unifSpec + ((AD × C_e) →ₒ T)
   let unifImpl : QueryImpl unifSpec
       (StateT (EtmGameState AD C_e T) (OracleComp spec)) :=
@@ -255,8 +259,9 @@ noncomputable def prfReduction
     unifImpl
     adv
 
-/-- IND$-CPA reduction: skeleton with `spec = indCPASpec`, encryption queries
-forwarded to the external oracle (which is either real encryption or random).
+/-- One-time secrecy reduction: skeleton with `spec = otsSpec`, encryption queries
+forwarded to the external oracle (which is either real encryption under a fresh key or
+random).
 
 NRS14 Lemma 3, privacy reduction D₁(A).
 
@@ -268,32 +273,29 @@ to `ke` or `se.decrypt` is needed.
 The skeleton's key slot is never observed: `encryptMsg` ignores `_ke`, and
 `verifyTag = pure false` makes `decrypt_c` unreachable. So the slot has type `Unit`
 and is filled by `pure ()`, not by `se.keygen`. The only `se.keygen` sample is then
-the IND$-CPA experiment's own key. `decrypt_c` is `fun _ _ => none`, because the
-branch is unreachable. -/
+the one inside the encryption oracle of the one-time secrecy game. `decrypt_c` is
+`fun _ _ => none`, because the branch is unreachable.
+
+The skeleton answers at most one encryption query, so the reduction makes at most one query to
+the one-time secrecy oracle. -/
 -- `_se` is unused in the body but kept to pin the key type `K_e` and to align
 -- the reduction's signature with `prfReduction` and the security theorems.
 @[nolint unusedArguments]
+-- ANCHOR: etmEncReduction
 noncomputable def encReduction
     (_se : DetSEAlg K_e M C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
-    : DetSEAlg.IndCPAAdversary M C_e :=
-  let spec := unifSpec + (M →ₒ Option C_e)
+    : DetSEAlg.OTSAdversary M C_e
+-- ANCHOR_END: etmEncReduction
+    :=
+  let spec := unifSpec + (M →ₒ C_e)
   let unifImpl : QueryImpl unifSpec
       (StateT (EtmGameState AD C_e T) (OracleComp spec)) :=
     unifLiftStateT (EtmGameState AD C_e T) spec
   etmGameSkeleton (spec := spec)
     (pure () : OracleComp spec Unit)
     (fun _ _ => none) ∅
-    (fun _ke m => do
-      let oc ← liftM (liftM (spec.query (Sum.inr m)) :
-        OracleComp spec (Option C_e))
-      match oc with
-      | some c => pure c
-      -- Unreachable: the skeleton gates encryption to fire at most once, so the
-      -- IND$-CPA oracle (whose `none` means "already queried") is never `none`
-      -- here. If the skeleton is ever changed to allow multiple encrypt queries,
-      -- this dead branch must be revisited rather than returning `default`.
-      | none => pure default)
+    (fun _ke m => liftM (liftM (spec.query (Sum.inr m)) : OracleComp spec C_e))
     (fun _ => liftM ($ᵗ T : ProbComp T))
     (fun _ _ => pure false)
     unifImpl

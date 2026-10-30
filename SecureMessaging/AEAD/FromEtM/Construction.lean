@@ -66,4 +66,12 @@ def etmAEAD (se : DetSEAlg K_e M C_e)
     else none
 -- ANCHOR_END: etmAEAD
 
+omit [DecidableEq AD] [DecidableEq C_e] in
+/-- Let `se` be `LengthRegular` for `lenM`. Then `etmAEAD se prf` is `LengthRegular` for `lenM`:
+the length of `(c, t)` is the length of `c`. -/
+theorem etmAEAD_lengthRegular [LenSampleable C_e] [SampleableType T] {lenM : M → ℕ}
+    (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
+    (hse : se.LengthRegular lenM) : (etmAEAD se prf).LengthRegular lenM :=
+  fun k k' _ msg msg' h => hse k.1 k'.1 msg msg' h
+
 end EtM
