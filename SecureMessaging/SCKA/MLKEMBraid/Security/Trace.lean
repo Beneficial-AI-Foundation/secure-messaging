@@ -442,41 +442,6 @@ theorem run_erase (P : Parameters ProbComp)
   OracleComp.map_run_simulateQ_eq_of_query_map_eq _ _ TraceState.game
     (traceImpl_real_map hMac irl b) A _
 
-/-- **`repaired_trace_invariant`**: every result in the support of a repaired trace run satisfies
-the fields of `TranscriptConsistent` for its own transcript, except the condition in `encaps` that
-decapsulation gives the recorded key. Its exposed and challenged epochs are disjoint. -/
-theorem repaired_trace_invariant (P : Parameters ProbComp)
-    [SampleableType P.K] [SampleableType P.EpochKey]
-    [DecidableEq P.EpochKey] [DecidableEq P.Sym]
-    (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
-    (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct)
-    (mode : ℕ → Mode) (A : Adversary P irl)
-    (z : Bool × TraceState P) (hz : z ∈ support (run P hMac irl true mode A)) :
-    z.2.game.correct = true ∧ ControlInv z.2.game ∧ StatePairInv z.2.game ∧
-      (z.2.transcript 0).keypair = none ∧ (z.2.transcript 0).encaps1 = none ∧
-      (∀ e pk sk, (z.2.transcript e).keypair = some (pk, sk) →
-        0 < e ∧ e ≤ (if e % 2 = 1 then z.2.game.stA else z.2.game.stB).epoch) ∧
-      (∀ e encapsState ct1 key, (z.2.transcript e).encaps1 = some (encapsState, ct1, key) →
-        0 < e ∧ e ≤ (if e % 2 = 1 then z.2.game.stB else z.2.game.stA).completedEpoch ∧
-          ∃ pk sk, (z.2.transcript e).keypair = some (pk, sk)) ∧
-      LocalPayloadInv (auth P hMac) () z.2.transcript z.2.game.stA ∧
-      LocalPayloadInv (auth P hMac) () z.2.transcript z.2.game.stB ∧
-      (∀ (party : Bool) n msg tsnd,
-        (if party then z.2.game.msgA else z.2.game.msgB) n = some (msg, tsnd) →
-          MessagePayloadInv (auth P hMac) () z.2.transcript msg) ∧
-      (∀ (party : Bool) e, (if party then z.2.game.keyA else z.2.game.keyB) e =
-        if 0 < e ∧ e ≤ (if party then z.2.game.stA else z.2.game.stB).completedEpoch then
-          (z.2.transcript e).encaps1.map (fun (_, _, key) => P.kdfOK key e)
-        else none) ∧
-      z.2.game.exposed ∩ z.2.game.challenged = ∅ := by
-  have hinv := simulateQ_run_preservesInv (traceImpl P hMac irl true mode) (TraceInv hMac true)
-    (traceImpl_preservesInv hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct true mode)
-    A _ (traceInv_init hMac true) z hz
-  obtain ⟨h, -⟩ := hinv.1 (Or.inl rfl)
-  exact ⟨h.correct, h.control, h.statePair, h.keypair_zero, h.encaps_zero, h.keypair, h.encaps,
-    h.localA, h.localB, h.messages, h.keys, hinv.2⟩
-
 /-- **`real_trace_before_bad`**: every result in the support of a real trace run whose bad flag
 is false is transcript consistent, has disjoint exposed and challenged epochs, and decapsulates
 every recorded encapsulation to its derived key. -/

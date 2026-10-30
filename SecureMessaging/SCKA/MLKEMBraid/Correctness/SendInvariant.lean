@@ -12,6 +12,7 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.SendPayload
 A send samples a key pair, encapsulates against a received header, sends the next chunk of a
 recorded stream, or emits an empty `none` message. The transcript, extended when a new sample is
 drawn, is consistent with the successor state. Thus the send oracles preserve `CorrectnessInv`.
+The lemmas for one send hold for `TranscriptInv` with any condition `D` on decapsulation.
 -/
 
 open OracleSpec OracleComp
@@ -23,19 +24,23 @@ namespace MLKEMBraid
 variable {P : Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
     P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
+  {D : ℕ → P.PK → P.SK → P.inc.St → P.inc.C₁ → P.K → Prop}
 
 /-- A send from `keysUnsampled` records its sampled key pair and leaves the successor consistent
 with the extended transcript. -/
-private theorem send_keysUnsampled_transcript {ik : InitKey} {T : ℕ → EpochTranscript P}
-    {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
-    (party : Bool) {r : SendResult P AuthState}
-    (hr : r ∈ support (send P auth (s.stateAt party)))
-    {e : ℕ} {a : AuthState} (hst : (s.stateAt party) = .keysUnsampled e a) :
+theorem send_keysUnsampled_transcript {ik : InitKey} {T : ℕ → EpochTranscript P}
+    {s : GameState P AuthState} (hT : TranscriptInv auth D ik T s)
+    (party : Bool) {e : ℕ} {a : AuthState} (hst : (s.stateAt party) = .keysUnsampled e a)
+    (pk : P.PK) (sk : P.SK) :
+    let r : SendResult P AuthState :=
+      ⟨⟨e, .hdr, some (EncoderState.init P.ecpHdr
+        (P.inc.toHeader pk, auth.macHeader a e (P.inc.toHeader pk))).nextChunk.1⟩,
+        e - 1, none, .keysSampled e a sk (P.inc.toVector pk)
+          (EncoderState.init P.ecpHdr
+            (P.inc.toHeader pk, auth.macHeader a e (P.inc.toHeader pk))).nextChunk.2⟩
     let s' := sendSuccessor s party r
     (ControlInv s' ∧ StatePairInv s') →
-      ∃ pk sk,
-        TranscriptConsistent auth ik
-          (Function.update T e { (T e) with keypair := some (pk, sk) }) s' := by
+      TranscriptInv auth D ik (Function.update T e { (T e) with keypair := some (pk, sk) }) s' := by
   dsimp only
   -- The peer still holds an empty header decoder, and no stored message or key depends on the
   -- key-pair record of `e`.
@@ -53,8 +58,6 @@ private theorem send_keysUnsampled_transcript {ik : InitKey} {T : ℕ → EpochT
   simp only [LocalPayloadInv, hkp0] at hLp
   obtain ⟨hb, hdec⟩ := hLp
   subst hdec
-  rw [hst] at hr
-  rcases (mem_support_send_iff auth).mp hr with ⟨_, _, pk, sk, -⟩
   set r' : SendResult P AuthState :=
     ⟨⟨e, .hdr, some (EncoderState.init P.ecpHdr
       (P.inc.toHeader pk, auth.macHeader a e (P.inc.toHeader pk))).nextChunk.1⟩,
@@ -125,7 +128,7 @@ private theorem send_keysUnsampled_transcript {ik : InitKey} {T : ℕ → EpochT
       refine ⟨hbT, rfl, ∅, ?_⟩
       simp [DecoderState.empty]
   rintro ⟨hC', hP'⟩
-  refine ⟨pk, sk, by simpa only [correct_sendSuccessor] using hcorr, hC', hP',
+  refine ⟨by simpa only [correct_sendSuccessor] using hcorr, hC', hP',
     ?_, ?_, ?_, ?_, hLocal true, hLocal false, ?_, ?_⟩
   · rw [hTk 0 (by omega)]; exact h0k
   · rw [hTe]; exact h0e
@@ -185,19 +188,21 @@ private theorem send_keysUnsampled_transcript {ik : InitKey} {T : ℕ → EpochT
 
 /-- A send from `headerReceived` records its first-stage encapsulation and outputs the derived epoch
 key; the successor is consistent with the extended transcript. -/
-private theorem send_headerReceived_transcript {ik : InitKey} {T : ℕ → EpochTranscript P}
-    {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
-    (party : Bool) {r : SendResult P AuthState}
-    (hr : r ∈ support (send P auth (s.stateAt party)))
-    {e : ℕ} {a : AuthState} {hdr : P.inc.PKheader} {dec : DecoderState P.inc.PKvector P.Sym}
-    (hst : (s.stateAt party) = .headerReceived e a hdr dec) :
+theorem send_headerReceived_transcript {ik : InitKey} {T : ℕ → EpochTranscript P}
+    {s : GameState P AuthState} (hT : TranscriptInv auth D ik T s)
+    (party : Bool) {e : ℕ} {a : AuthState} {hdr : P.inc.PKheader}
+    {dec : DecoderState P.inc.PKvector P.Sym}
+    (hst : (s.stateAt party) = .headerReceived e a hdr dec) (es : P.inc.St) (ct1 : P.inc.C₁)
+    (k : P.K) :
+    let r : SendResult P AuthState :=
+      ⟨⟨e, .ct1, some (EncoderState.init P.ecpCt1 ct1).nextChunk.1⟩,
+        e - 1, some (e, P.kdfOK k e),
+        .ct1Sampled e (auth.update a e (P.kdfOK k e)) hdr es ct1
+          (EncoderState.init P.ecpCt1 ct1).nextChunk.2 dec⟩
     let s' := sendSuccessor s party r
     (ControlInv s' ∧ StatePairInv s') →
-      ∃ pk sk encapsState ct1 key,
-        (T e).keypair = some (pk, sk) ∧
-        r.outputKey = some (e, P.kdfOK key e) ∧
-        TranscriptConsistent auth ik
-          (Function.update T e { (T e) with encaps1 := some (encapsState, ct1, key) }) s' := by
+      TranscriptInv auth D ik (Function.update T e { (T e) with encaps1 := some (es, ct1, k) }) s'
+    := by
   dsimp only
   -- The generator is still at `keysSampled e`, whose completed epoch is `e - 1`, so the
   -- decapsulation clause for `e` is vacuous. Messages and authenticator values below `e`
@@ -220,9 +225,6 @@ private theorem send_headerReceived_transcript {ik : InitKey} {T : ℕ → Epoch
   obtain ⟨ha, hc0, _, _, -, -, hdec⟩ := hLs
   obtain ⟨hb, pk', hkp', hvec, hecp, hpay⟩ := hLp
   subst hhdr hdec
-  rw [hst] at hr
-  cases (mem_support_send_iff auth).mp hr
-  rename_i es ct1 k _
   set r' : SendResult P AuthState :=
     ⟨⟨e, .ct1, some (EncoderState.init P.ecpCt1 ct1).nextChunk.1⟩,
       e - 1, some (e, P.kdfOK k e),
@@ -315,8 +317,7 @@ private theorem send_headerReceived_transcript {ik : InitKey} {T : ℕ → Epoch
       omega
     · exact decide_eq_false hpar
   rintro ⟨hC', hP'⟩
-  refine ⟨pk, sk, es, ct1, k, hkpT, rfl,
-    by simpa only [correct_sendSuccessor] using hcorr, hC', hP', ?_, ?_, ?_, ?_,
+  refine ⟨by simpa only [correct_sendSuccessor] using hcorr, hC', hP', ?_, ?_, ?_, ?_,
     hLocal true, hLocal false, ?_, ?_⟩
   · rw [hTk]; exact h0k
   · rw [hTc 0 (by omega)]; exact h0e
@@ -396,12 +397,12 @@ private theorem send_headerReceived_transcript {ik : InitKey} {T : ℕ → Epoch
 /-- A send that samples nothing keeps the game state consistent with the same transcript, provided
 its successor satisfies the control and pair invariants. -/
 theorem send_existing_transcript {ik : InitKey} {T : ℕ → EpochTranscript P}
-    {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
+    {s : GameState P AuthState} (hT : TranscriptInv auth D ik T s)
     (party : Bool) {r : SendResult P AuthState}
     (hr : r ∈ support (send P auth (s.stateAt party)))
     (hsteady : (s.stateAt party).SendsNoSample) :
     let s' := sendSuccessor s party r
-    (ControlInv s' ∧ StatePairInv s') → TranscriptConsistent auth ik T s' := by
+    (ControlInv s' ∧ StatePairInv s') → TranscriptInv auth D ik T s' := by
   dsimp only
   obtain ⟨hnone, hep, hcomp, hLocalNew, hMsgNew⟩ :=
     send_steady_step auth ((mem_support_send_iff auth).mp hr) hsteady (hT.local auth party)
@@ -440,14 +441,14 @@ private theorem send_preserves_transcript {ik : InitKey} {T : ℕ → EpochTrans
       ∃ T', TranscriptConsistent auth ik T' (sendSuccessor s party r) := by
   cases hst : (s.stateAt party) with
   | keysUnsampled e a =>
-      intro hCP
-      obtain ⟨pk, sk, h⟩ := send_keysUnsampled_transcript auth hT party hr hst hCP
-      exact ⟨_, h⟩
+      rw [hst] at hr
+      rcases (mem_support_send_iff auth).mp hr with ⟨_, _, pk, sk, -⟩
+      exact fun hCP => ⟨_, send_keysUnsampled_transcript auth hT party hst pk sk hCP⟩
   | headerReceived e a hdr dec =>
-      intro hCP
-      obtain ⟨pk, sk, es, ct1, key, -, -, h⟩ :=
-        send_headerReceived_transcript auth hT party hr hst hCP
-      exact ⟨_, h⟩
+      rw [hst] at hr
+      cases (mem_support_send_iff auth).mp hr
+      rename_i es ct1 k _
+      exact fun hCP => ⟨_, send_headerReceived_transcript auth hT party hst es ct1 k hCP⟩
   | _ =>
       intro hCP
       exact ⟨T, send_existing_transcript auth hT party hr

@@ -176,7 +176,7 @@ theorem traceSend_payoff (party leaking : Bool) (s : TraceState P)
         intro r
         simp only [R, hst]
         rfl
-      have hL := hR.local party
+      have hL := hR.local _ party
       rw [hst] at hL
       obtain ⟨-, h1, h2⟩ := hL
       rw [obs_sampledSend_keysUnsampled hMac irl s party hst, wp_map]
@@ -211,14 +211,14 @@ theorem traceSend_payoff (party leaking : Bool) (s : TraceState P)
         rw [hkg]
         exact le_of_eq (add_comm _ _)
     case headerReceived e a hdr dec =>
-      obtain ⟨pk, sk, -, -, hkpT, -, hhdr⟩ := hR.peer_of_headerReceived party hst
+      obtain ⟨pk, sk, -, -, hkpT, -, hhdr⟩ := peer_keysSampled_of_headerReceived _ hR party hst
       subst hhdr
       have hRe : ∀ r, R (SendRand.encaps1 r) =
           (leaking && decide ({e} ∩ s.game.challenged ≠ ∅)) := by
         intro r
         simp only [R, hst]
         rfl
-      have hL := hR.local party
+      have hL := hR.local _ party
       rw [hst] at hL
       have hc0 : (s.transcript e).encaps1 = none := hL.2.1
       have hrisk : pendingRisk (s.transcript e) =

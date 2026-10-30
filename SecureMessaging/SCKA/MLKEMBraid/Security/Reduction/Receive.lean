@@ -588,8 +588,8 @@ theorem recvStep (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Co
       obtain ⟨key?, st', -, htrue, hinv⟩ := recv_outcome hHdrCorrect hEkCorrect hCt1Correct
         hCt2Correct irl h party hm true (fun h => absurd h (by decide))
       have hloc' : LocalPayloadInv (auth P hMac) () s.transcript st' := by
-        simpa using hinv.local party
-      have hS := simRecv_eq hMac ch hv (h.local party) hc2 htrue hloc'
+        simpa using hinv.local _ party
+      have hS := simRecv_eq hMac ch hv (h.local _ party) hc2 htrue hloc'
       rw [traceReceive_accept hMac irl party n s hm htrue, map_pure]
       simp only [simOf_transcript, simOf_game, simGameOf_stateAt, hS]
       congr 1

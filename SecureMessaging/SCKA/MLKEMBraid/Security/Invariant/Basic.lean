@@ -10,10 +10,10 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
 /-!
 # The repaired transcript invariant
 
-`RepairInv` states that the control states, the payloads and the output keys agree with the
-transcript. It does not require that decapsulation of a recorded encapsulation gives its key.
-`DecapsGood` is this extra condition. The module also proves that the invariant ignores the
-exposed and challenged epochs, and facts about the peer of a party.
+`RepairInv` is `TranscriptInv` with no condition on decapsulation: the control states, the
+payloads and the output keys agree with the transcript. `DecapsGood` is the extra condition that
+decapsulation of every recorded encapsulation gives its key. The module also proves that the
+invariant ignores the exposed and challenged epochs.
 -/
 
 open OracleSpec OracleComp
@@ -23,43 +23,10 @@ namespace MLKEMBraid.NoAuth
 
 variable {P : Parameters ProbComp}
 
-/-- `TranscriptConsistent` for the unit authenticator without the generator's actual
-decapsulation agreement. -/
-structure RepairInv (hMac : P.Mac = Unit) (T : ℕ → EpochTranscript P)
-    (s : MLKEMBraid.GameState P Unit) : Prop where
-  /-- The correctness flag is true. -/
-  correct : s.correct = true
-  /-- The control invariant holds. -/
-  control : ControlInv s
-  /-- The state-pair invariant holds. -/
-  statePair : StatePairInv s
-  /-- Epoch `0` has no key pair. -/
-  keypair_zero : (T 0).keypair = none
-  /-- Epoch `0` has no encapsulation. -/
-  encaps_zero : (T 0).encaps1 = none
-  /-- A recorded key pair belongs to a positive epoch its generator has reached. -/
-  keypair : ∀ e pk sk, (T e).keypair = some (pk, sk) →
-    0 < e ∧ e ≤ (if e % 2 = 1 then s.stA else s.stB).epoch
-  /-- A recorded encapsulation belongs to a positive epoch its encapsulator has completed and
-  that has a recorded key pair. -/
-  encaps : ∀ e encapsState ct1 key,
-    (T e).encaps1 = some (encapsState, ct1, key) →
-    0 < e ∧ e ≤ (if e % 2 = 1 then s.stB else s.stA).completedEpoch ∧
-      ∃ pk sk, (T e).keypair = some (pk, sk)
-  /-- A's state agrees with the transcript. -/
-  localA : LocalPayloadInv (auth P hMac) () T s.stA
-  /-- B's state agrees with the transcript. -/
-  localB : LocalPayloadInv (auth P hMac) () T s.stB
-  /-- Every recorded message agrees with the transcript. -/
-  messages : ∀ (party : Bool) n msg tsnd,
-    (if party then s.msgA else s.msgB) n = some (msg, tsnd) →
-      MessagePayloadInv (auth P hMac) () T msg
-  /-- Each party's output keys are the transcript keys of its completed epochs. -/
-  keys : ∀ (party : Bool) e,
-    (if party then s.keyA else s.keyB) e =
-      if 0 < e ∧ e ≤ (if party then s.stA else s.stB).completedEpoch then
-        (T e).encaps1.map (fun (_, _, key) => P.kdfOK key e)
-      else none
+/-- `TranscriptInv` for the unit authenticator with no condition on decapsulation. -/
+abbrev RepairInv (hMac : P.Mac = Unit) (T : ℕ → EpochTranscript P)
+    (s : MLKEMBraid.GameState P Unit) : Prop :=
+  TranscriptInv (auth P hMac) (fun _ _ _ _ _ _ => True) () T s
 
 /-- Actual decapsulation of every recorded first-stage encapsulation gives its derived key. -/
 def DecapsGood (T : ℕ → EpochTranscript P) : Prop :=
@@ -74,25 +41,12 @@ variable {hMac : P.Mac = Unit} {T : ℕ → EpochTranscript P} {s : MLKEMBraid.G
 /-- Transcript consistency implies the repaired invariant. -/
 theorem of_transcriptConsistent (h : TranscriptConsistent (auth P hMac) () T s) :
     RepairInv hMac T s :=
-  ⟨h.correct, h.control, h.statePair, h.keypair_zero, h.encaps_zero, h.keypair,
-    fun e es ct1 key hc => by
-      obtain ⟨h0, hle, pk, sk, hkp, -⟩ := h.encaps e es ct1 key hc
-      exact ⟨h0, hle, pk, sk, hkp⟩,
-    h.localA, h.localB, h.messages, h.keys⟩
+  h.mono _ _ fun _ _ _ _ _ _ _ _ _ => trivial
 
 /-- With decapsulation agreement the repaired invariant is transcript consistency. -/
 theorem transcriptConsistent (h : RepairInv hMac T s) (hgood : DecapsGood T) :
     TranscriptConsistent (auth P hMac) () T s :=
-  ⟨h.correct, h.control, h.statePair, h.keypair_zero, h.encaps_zero, h.keypair,
-    fun e es ct1 key hc => by
-      obtain ⟨h0, hle, pk, sk, hkp⟩ := h.encaps e es ct1 key hc
-      exact ⟨h0, hle, pk, sk, hkp, fun _ => hgood e pk sk es ct1 key hkp hc⟩,
-    h.localA, h.localB, h.messages, h.keys⟩
-
-/-- The state of either party agrees with the transcript. -/
-theorem «local» (h : RepairInv hMac T s) (party : Bool) :
-    LocalPayloadInv (auth P hMac) () T (s.stateAt party) := by
-  cases party; exacts [h.localB, h.localA]
+  h.mono _ _ fun e pk sk es ct1 key hkp hc _ => hgood e pk sk es ct1 key hkp hc
 
 /-- The invariant reads neither the exposed nor the challenged epochs. -/
 theorem setFlags (h : RepairInv hMac T s) (X Y : Finset ℕ) :
@@ -128,55 +82,10 @@ theorem of_le (h : RepairInv hMac T s) {s' : MLKEMBraid.GameState P Unit}
     rw [← GameState.stateAt_generator] at hle ⊢
     exact hle.trans (he _)
   · intro e es ct1 key hc'
-    obtain ⟨h0, hle, hkp⟩ := h.encaps e es ct1 key hc'
-    refine ⟨h0, ?_, hkp⟩
+    obtain ⟨h0, hle, pk, sk, hkp, -⟩ := h.encaps e es ct1 key hc'
+    refine ⟨h0, ?_, pk, sk, hkp, fun _ => trivial⟩
     rw [← GameState.stateAt_encapsulator] at hle ⊢
     exact hle.trans (hcomp _)
-
-/-- The pair and epoch bounds of the two parties. -/
-theorem pairBounds (h : RepairInv hMac T s) (party : Bool) :
-    let st := s.stateAt party
-    let peer := s.stateAt (!party)
-    PairInv st peer ∧ PairInv peer st ∧ 0 < st.epoch ∧ 0 < peer.epoch ∧
-      st.epoch ≤ peer.completedEpoch + 1 ∧ peer.epoch ≤ st.completedEpoch + 1 ∧
-      (st.epoch = peer.epoch →
-        st.controlPosition.isGenerator = (!peer.controlPosition.isGenerator)) := by
-  have hE := h.control.epochKnowledge
-  refine ⟨h.statePair.pair party, by simpa using h.statePair.pair (!party),
-    hE.keyPrefix.pos party, hE.keyPrefix.pos (!party), hE.epoch_le party,
-    by simpa using hE.epoch_le (!party), ?_⟩
-  cases party
-  · intro heq
-    simpa only [GameState.stateAt, Bool.not_false, Bool.false_eq_true, ↓reduceIte,
-      Bool.not_not] using (congrArg Bool.not (roles_opposite h.control heq.symm)).symm
-  · exact roles_opposite h.control
-
-/-- The peer of a key generator in `keysUnsampled` waits for the header of the same epoch. -/
-theorem peer_of_keysUnsampled (h : RepairInv hMac T s) (party : Bool) {e : ℕ} {a : Unit}
-    (hst : s.stateAt party = .keysUnsampled e a) :
-    ∃ b dec, s.stateAt (!party) = .noHeaderReceived e b dec := by
-  obtain ⟨h1, h2, hpos, hposP, hcross, hcrossP, -⟩ := h.pairBounds party
-  exact PairInv.peer_of_keysUnsampled h1 h2 hpos hposP hcross hcrossP hst
-
-/-- The peer of an encapsulator in `headerReceived` holds the recorded key pair of the epoch. -/
-theorem peer_of_headerReceived (h : RepairInv hMac T s) (party : Bool) {e : ℕ} {a : Unit}
-    {hdr : P.inc.PKheader} {dec : DecoderState P.inc.PKvector P.Sym}
-    (hst : s.stateAt party = .headerReceived e a hdr dec) :
-    ∃ pk sk b enc,
-      (T e).keypair = some (pk, sk) ∧
-      s.stateAt (!party) = .keysSampled e b sk (P.inc.toVector pk) enc ∧
-      hdr = P.inc.toHeader pk := by
-  obtain ⟨h1, h2, hpos, hposP, hcross, hcrossP, hroles⟩ := h.pairBounds party
-  obtain ⟨b, sk', vec, enc, hpeer⟩ :=
-    PairInv.peer_of_headerReceived h1 h2 hpos hposP hcross hcrossP hroles hst
-  have hLs := h.local party
-  have hLp := h.local (!party)
-  rw [hst] at hLs
-  rw [hpeer] at hLp
-  obtain ⟨-, -, pk, sk, hkp, hhdr, -⟩ := hLs
-  obtain ⟨-, pk', hkp', hvec, -⟩ := hLp
-  obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj (hkp.symm.trans hkp'))
-  exact ⟨pk, sk, b, enc, hkp, by rw [hpeer, hvec], hhdr⟩
 
 end RepairInv
 

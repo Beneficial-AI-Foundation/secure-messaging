@@ -310,7 +310,7 @@ theorem InstInv.header {e : ℕ} {x : P.PK × P.SK} {ec : Option (P.inc.St × P.
     {s : TraceState P} (hs : InstInv hMac e (some x) ec s) {party : Bool} {a : Unit}
     {hdr : P.inc.PKheader} {dec : DecoderState P.inc.PKvector P.Sym}
     (hst : s.game.stateAt party = .headerReceived e a hdr dec) : hdr = P.inc.toHeader x.1 := by
-  have hl := (hs.1.1 (Or.inl rfl)).1.local party
+  have hl := (hs.1.1 (Or.inl rfl)).1.local _ party
   rw [hst] at hl
   obtain ⟨-, -, pk, sk, hkp', hhdr, -⟩ := hl
   rcases hs.2.1 x rfl with h0 | h0
@@ -324,7 +324,7 @@ theorem InstInv.header {e : ℕ} {x : P.PK × P.SK} {ec : Option (P.inc.St × P.
 theorem isKeygenAt_false {s : TraceState P} (hs : TraceInv hMac true s) {e : ℕ}
     (hu : (s.transcript e).keypair ≠ none) (p : Bool) :
     isKeygenAt e (s.game.stateAt p) = false := by
-  have hl := (hs.1 (Or.inl rfl)).1.local p
+  have hl := (hs.1 (Or.inl rfl)).1.local _ p
   cases hst : s.game.stateAt p with
   | keysUnsampled t a =>
       rw [hst] at hl
@@ -339,7 +339,7 @@ encapsulation. -/
 theorem isEncaps1At_false {s : TraceState P} (hs : TraceInv hMac true s) {e : ℕ}
     (hu : (s.transcript e).encaps1 ≠ none) (p : Bool) :
     isEncaps1At e (s.game.stateAt p) = false := by
-  have hl := (hs.1 (Or.inl rfl)).1.local p
+  have hl := (hs.1 (Or.inl rfl)).1.local _ p
   cases hst : s.game.stateAt p with
   | headerReceived t a hdr dec =>
       rw [hst] at hl

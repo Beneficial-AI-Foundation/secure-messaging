@@ -57,7 +57,7 @@ theorem receive_cases
       ∀ repair, repairedRecv P hMac repair T (s.stateAt party) msg =
         MLKEMBraid.recvSCKA P (auth P hMac) (s.stateAt party) msg) := by
   have hRole := h.control.role party
-  have hLocal := h.local party
+  have hLocal := h.local _ party
   have hPayload := h.messages (!party) n msg tsnd hmsg
   have hF : (s.stateAt party).controlPosition.isGenerator = false →
       ∀ t, t = (s.stateAt party).epoch →
@@ -185,7 +185,7 @@ theorem receive_cases
       cases hc : (T (e + 1)).encaps1 with
       | none => rfl
       | some c =>
-          obtain ⟨-, -, pk, sk, hkp'⟩ := h.encaps (e + 1) c.1 c.2.1 c.2.2 hc
+          obtain ⟨-, -, pk, sk, hkp', -⟩ := h.encaps (e + 1) c.1 c.2.1 c.2.2 hc
           rw [hkp] at hkp'
           cases hkp'
     obtain ⟨r, hr, hnone, hinv⟩ :=
@@ -259,7 +259,7 @@ private theorem recvNoKey (irl : P.kem.IncrementalRandLeak P.inc) [DecidableEq P
     rw [stateAt_recvSuccessor]
     split_ifs with hwho
     · exact hLocalNew
-    · exact h.local who
+    · exact h.local _ who
   · intro who n' msg' tsnd' hmsg'
     exact h.messages who n' msg' tsnd'
       ((congrFun (messagesAt_recvSuccessor s party who r (msg.epoch - 1)) n').symm.trans hmsg')
@@ -291,7 +291,7 @@ private theorem completion_control (h : RepairInv hMac T s) (party : Bool) {e : 
       ⟨e - 1, some (e, key), .noHeaderReceived (e + 1) () (DecoderState.empty P.ecpHdr)⟩ (e - 1)
     ControlInv s' ∧ StatePairInv s' := by
   intro s'
-  obtain ⟨h1, h2, hpos, hposP, hcross, hcrossP, -⟩ := h.pairBounds party
+  obtain ⟨h1, h2, hpos, hposP, hcross, hcrossP, -⟩ := h.pairBounds _ party
   obtain ⟨b, enc, hpeer⟩ :=
     PairInv.peer_of_ekSentCt1Received h1 h2 hpos hposP hcross hcrossP hst
   have he0 : 0 < e := by rw [hst] at hpos; exact hpos
@@ -430,7 +430,7 @@ private theorem completion [DecidableEq P.EpochKey] (h : RepairInv hMac T s) (pa
     RepairInv hMac T (recvUpdate s party (e - 1)
       ⟨e - 1, some (e, P.kdfOK k e), .noHeaderReceived (e + 1) () (DecoderState.empty P.ecpHdr)⟩
       (e - 1)) := by
-  obtain ⟨h1, h2, hpos, hposP, hcross, hcrossP, -⟩ := h.pairBounds party
+  obtain ⟨h1, h2, hpos, hposP, hcross, hcrossP, -⟩ := h.pairBounds _ party
   obtain ⟨b, enc, hpeer⟩ :=
     PairInv.peer_of_ekSentCt1Received h1 h2 hpos hposP hcross hcrossP hst
   have he0 : 0 < e := by rw [hst] at hpos; exact hpos
@@ -479,7 +479,7 @@ private theorem completion [DecidableEq P.EpochKey] (h : RepairInv hMac T s) (pa
       cases (T (e + 1)).keypair with
       | none => exact rfl
       | some kp => exact ⟨rfl, ∅, (ErasureCodePayload.payloadChunks_empty P.ecpHdr _).symm⟩
-    · exact h.local who
+    · exact h.local _ who
   · intro who n' msg' tsnd' hmsg'
     exact h.messages who n' msg' tsnd'
       ((congrFun (messagesAt_recvSuccessor s party who _ (e - 1)) n').symm.trans hmsg')
