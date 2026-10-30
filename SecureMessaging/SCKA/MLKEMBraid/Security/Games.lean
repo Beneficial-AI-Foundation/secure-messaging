@@ -11,17 +11,14 @@ import ToVCVio.EvalDist.BoolDist
 /-!
 # No-authentication Braid security games
 
-The explicit-policy and baseline delta games agree on the complete joint
-response/state computation, for either bit and any initial game state. The
-comparison uses the supported joint send output, including its returned coins;
-it assumes neither correctness nor admissibility of the trace.
+The security game with the exposure policy `exposure` and the game with the rule
+`deltaExposure` of [SCKA, Fig. 1] give the same experiment and the same guessing advantage
+(`securityGame_equiv_delta`). The proof compares the two rules on every send output that the
+protocol can produce. It uses neither correctness nor any property of the adversary.
 
 The trace game `traceImpl` runs the same security interface on a `TraceState`: the actual game
 state, ghost records of the key-generation and first-stage encapsulation samples, and a virtual
-bad flag. Its query components (`traceUnif`, `tracePlain`, `traceReceive`, `traceLeak`,
-`traceChallenge`, `traceCorruptA`, `traceCorruptB`) and the helpers `sampledSend`, `traceSend`,
-`repairedRecv` and `recvScheme` form the internal interface used by the invariant, bad-event and
-reduction modules.
+bad flag.
 -/
 
 open OracleSpec OracleComp
@@ -126,7 +123,8 @@ private theorem securityImpl_eq_delta
   rw [oracleSendArleak_eq_delta P hMac irl, oracleSendBrleak_eq_delta P hMac irl]
   rfl
 
-/-- Sampled-bit experiment and guessing advantage fidelity to the frozen baseline game. -/
+/-- The games with the policies `exposure` and `deltaExposure` give the same experiment and the
+same guessing advantage. -/
 theorem securityGame_equiv_delta
     (P : Parameters ProbComp)
     [SampleableType P.EpochKey] [DecidableEq P.EpochKey] [DecidableEq P.Sym]
@@ -318,7 +316,7 @@ def traceCorruptB (P : Parameters ProbComp) :
     QueryImpl (Unit →ₒ Option (State P Unit)) (StateT (TraceState P) ProbComp) :=
   fun t => liftGame ((SCKAScheme.oracleCorruptB vuln (State P Unit) P.EpochKey (Message P.Sym)) t)
 
-/-- The security interface with same-site ghost records and optional proof-game receive repair. -/
+/-- The SCKA security interface with recorded samples and optional repaired receives. -/
 def traceImpl (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
     [DecidableEq P.EpochKey] [DecidableEq P.Sym]

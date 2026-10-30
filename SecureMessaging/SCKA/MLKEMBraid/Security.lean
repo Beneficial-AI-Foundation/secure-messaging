@@ -32,8 +32,9 @@ and decapsulation `Decaps(sk, c)`, which recovers the shared secret from the cip
 - an adversary `A : Adversary P irl` making at most `q` send requests to the two parties in
   total, with or without revealed coins, on every path of oracle answers (`SendQueryBound A q`);
 - the IND-CPA adversary `ℬ := kemMixReduction … A q` against `P.kem` and the key-derivation
-  adversary `𝒞 := kdfMixReduction … A q`. Each draws a *challenge epoch* `e` uniformly from
-  `1, …, q` and then runs the reduction for `e` (`kemReduction`, `kdfReduction`).
+  adversary `𝒞 := kdfMixReduction … A q`. Each draws a *challenge epoch* `e ← epochChoice q` and
+  then runs the reduction for `e` (`kemReduction`, `kdfReduction`). The epoch `e` is uniform on
+  `1, …, q` when `q > 0`, and `e = 1` when `q = 0`.
 
 The network is the passive one of the SCKA security game [SCKA, Sec. 3.1, Fig. 1]: the adversary
 delivers recorded messages in any order and with any delay, but cannot modify them. `NoAuth` in a
@@ -81,9 +82,10 @@ Reed–Solomon codes (`Bounded.parameters`). There `ℬ` attacks raw ML-KEM thro
   the reduction needs none. The ring and primitive functions are parameters, so the theorem does
   not establish SHA-3 or SHAKE semantics, and a numerical value of `ε` still needs
   `NTTRingLaws` and `CoefficientFailureBound`.
-- The bound adds no hardness assumption and no efficiency class of adversaries. It does not cover
-  C or FFI code, implemented NTT loops, entropy or sampler failure, constant time, physical
-  erasure, authenticated security, or composition with messaging.
+- The bound holds for every adversary `A`, with no hardness assumption and no bound on the running
+  time of `A`. It is a statement about the Lean model of Braid with the authenticator off. C or
+  FFI code, implemented NTT loops, entropy or sampler failure, constant time, physical erasure,
+  authenticated security and composition with messaging are separate questions.
 
 ## Proof structure
 
@@ -144,7 +146,8 @@ Paths are relative to `MLKEMBraid/Security/`.
                = q · ((Pr[ℬ_real] - Pr[ℬ_random]) + (Pr[𝒞_derived] - Pr[𝒞_uniform]))
      ```
 
-   - Hence `|p_0 - p_q| ≤ q · (AdvINDCPA(ℬ) + AdvKDF(𝒞))`, and step 1 gives `NoAuth.security`.
+   - For `q = 0` both sides are `0`. Hence `|p_0 - p_q| ≤ q · (AdvINDCPA(ℬ) + AdvKDF(𝒞))`, and
+     step 1 gives `NoAuth.security`.
 
 5. *ML-KEM instance* (this module). `MLKEM.Bounded.indCPAAdvantage_lift` and
    `MLKEM.Bounded.correctnessError_eq` move the KEM terms to raw ML-KEM, and

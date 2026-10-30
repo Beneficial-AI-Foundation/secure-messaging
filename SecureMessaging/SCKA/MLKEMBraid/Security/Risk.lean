@@ -359,8 +359,7 @@ theorem traceImpl_payoff (mode : ℕ → Mode) :
 end BadEventBound
 
 /-- **`badEvent_le`**: in the real trace game of either bit, the bad event has probability at most
-`qS` times the KEM correctness error. Key generation charges the KEM's average failure; the
-retained pair's conditional risk is consumed at first-stage encapsulation. -/
+`qS` times the KEM correctness error. -/
 theorem badEvent_le (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
     [DecidableEq P.K] [DecidableEq P.EpochKey] [DecidableEq P.Sym]
@@ -370,6 +369,8 @@ theorem badEvent_le (P : Parameters ProbComp)
     (A : Adversary P irl) (qS : ℕ) (hqS : SendQueryBound A qS) (b : Bool) :
     Pr{let z ← run P hMac irl false (fun _ => if b then .uniform else .real) A}[z.2.bad = true] ≤
       (qS : ℝ≥0∞) * P.kem.correctnessError ProbCompRuntime.probComp := by
+  -- Key generation charges the average failure of the KEM. The conditional risk of the retained
+  -- key pair is consumed at first-stage encapsulation.
   have hE := wp_simulateQ_run_le
     (traceImpl P hMac irl false (fun _ => if b then .uniform else .real))
     (TraceInv hMac false) badScore (fun t => isSendQuery t = true)

@@ -11,7 +11,7 @@ import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
 
 Installed key-generation and first-stage samples retain the original send outcomes, transcript
 updates and refusal/exposure convention. This module contains their executable operations and
-joint run equations, without importing trace-invariant or analytical bad-event bounds.
+joint run equations.
 -/
 
 open OracleSpec OracleComp

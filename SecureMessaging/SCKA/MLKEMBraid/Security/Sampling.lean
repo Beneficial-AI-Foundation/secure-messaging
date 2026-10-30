@@ -13,8 +13,7 @@ import SecureMessaging.SCKA.Security
 # Joint sampling and elementary trace transitions
 
 The normalization equations retain send results, leaked coins, transcript updates and bad
-flags together. Invariant, installed-game and simulator proofs share these equations without
-importing analytical risk bounds.
+flags together.
 -/
 
 open OracleSpec OracleComp

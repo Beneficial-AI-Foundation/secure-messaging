@@ -11,21 +11,19 @@ import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.KDF
 /-!
 # Reductions that choose the epoch at random
 
-`kemReduction` and `kdfReduction` target the challenge of one fixed epoch `e`. The reductions in
-this module first draw `e` uniformly from `{1, …, q}` (`epochChoice q`) and then run the
-reduction for `e`:
+`kemReduction` and `kdfReduction` attack the challenge of one fixed epoch `e`. The reductions of
+this module first draw `e ← epochChoice q`, which is uniform on `{1, …, q}` when `q > 0` and is
+`1` when `q = 0`. They then run the reduction for `e`:
 
 - `kemMixReduction A q` is an IND-CPA adversary against the KEM;
-- `kdfMixReduction A q` is a distinguisher in the key-derivation game `kdfContextExp`.
+- `kdfMixReduction A q` is a distinguisher in the key-derivation game `kdfContextExp`. In this
+  game the distinguisher first chooses an epoch label `e`. It then receives either `kdfOK u e`
+  for a uniform KEM key `u`, or a uniform epoch key.
 
-In `kdfContextExp` the distinguisher first chooses an epoch label `e`. It then receives either
-`kdfOK u e` for a uniform KEM key `u`, or a uniform epoch key. `kdfAdvantage` is its
-distinguishing advantage.
-
-Since the epoch is uniform, the difference between the two outcomes of each reduction is the
-average over `e ∈ {1, …, q}` of the same difference for the reduction at `e`
-(`kemMixReduction_signed_gap`, `kdfMixReduction_signed_gap`). At each `e` these differences add up
-to the difference between two consecutive hybrids, so their sum over `e` telescopes
+For `q > 0`, the difference between the acceptance probabilities of each reduction is the average
+over `e ∈ {1, …, q}` of the same difference for the reduction at `e`
+(`kemMixReduction_signed_gap`, `kdfMixReduction_signed_gap`). At each `e` the two differences add
+up to the difference between two consecutive hybrids, so their sum over `e` telescopes
 (`hybrid_gap_eq_query_factor`).
 -/
 
@@ -37,8 +35,8 @@ variable (P : Parameters ProbComp) [SampleableType P.K] [SampleableType P.EpochK
   [DecidableEq P.EpochKey] [DecidableEq P.Sym]
   (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
 
-/-- The IND-CPA adversary against `P.kem` that draws an epoch `e ∈ {1, …, q}` and runs
-`kemReduction` at `e`. -/
+/-- The IND-CPA adversary against `P.kem` that draws `e ← epochChoice q` and runs `kemReduction` at
+`e`. The epoch `e` is uniform on `{1, …, q}` when `q > 0`, and `e = 1` when `q = 0`. -/
 def kemMixReduction (A : Adversary P irl) (q : ℕ) : P.kem.IND_CPA_Adversary where
   State := P.PK × ℕ
   preChallenge pk := do pure (pk, ← epochChoice q)
@@ -49,7 +47,9 @@ def kemMixReduction (A : Adversary P irl) (q : ℕ) : P.kem.IND_CPA_Adversary wh
           { pk, ct1 := (P.inc.splitC c).1, ct2 := (P.inc.splitC c).2, key := k })
         (simStop (e + 1)) A (simInit P hMac)
 
-/-- The key-derivation adversary that draws `e ∈ {1, …, q}` and runs `kdfReduction` at `e`. -/
+/-- The key-derivation adversary that draws `e ← epochChoice q`, announces `e` as its label and
+runs `kdfReduction` at `e`. The epoch `e` is uniform on `{1, …, q}` when `q > 0`, and `e = 1` when
+`q = 0`. -/
 def kdfMixReduction (A : Adversary P irl) (q : ℕ) : KDFContextAdversary P where
   State := ℕ
   context := do let e ← epochChoice q; pure (e, e)
@@ -119,10 +119,10 @@ theorem kdfMixReduction_signed_gap (A : Adversary P irl) (q : ℕ) (hq : q ≠ 0
 /-! ## Telescoping over the hybrids -/
 
 /-- Let `p_i` be the probability that the hybrid with uniform keys through epoch `i` outputs
-`true`. For every `q`, `p_0 - p_q` is `q` times the sum of two differences: the real-key minus
-the random-key acceptance probability of `kemMixReduction A q` in the IND-CPA experiment, and
-the derived-key minus the uniform-key acceptance probability of `kdfMixReduction A q` in
-`kdfContextExp`. -/
+`true`. Let `Δ_KEM` be the acceptance probability of `kemMixReduction A q` on the real key minus
+that on a random key, and `Δ_KDF` the acceptance probability of `kdfMixReduction A q` in
+`kdfContextExp` on a derived key minus that on a uniform key. For every `q`,
+`p_0 - p_q = q · (Δ_KEM + Δ_KDF)`. -/
 theorem hybrid_gap_eq_query_factor (hHdrCorrect : P.ecpHdr.ec.Correct)
     (hEkCorrect : P.ecpEk.ec.Correct) (hCt1Correct : P.ecpCt1.ec.Correct)
     (hCt2Correct : P.ecpCt2.ec.Correct) (A : Adversary P irl) (q : ℕ) :

@@ -11,8 +11,7 @@ import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 # Executable masked KEM reduction
 
 The simulator retains observable fields while omitting the selected decapsulation key and
-encapsulation state. This module defines its operations and adversary only; correspondence,
-installation arguments and analytical bad-event estimates belong to downstream modules.
+encapsulation state. This module defines its operations and the adversary.
 -/
 
 open OracleSpec OracleComp
@@ -422,8 +421,7 @@ def simStop (e : ℕ) (s : SimState P) : Bool :=
 Otherwise its first phase keeps the challenge public key, and its second phase runs `A` once
 against the masked simulation `simImpl` of the stopped repaired game, with the challenge public
 key, ciphertext parts and test key installed at epoch `e`; it returns `A`'s bit, or `false` when
-`e` becomes exposed. The simulator never compares epoch keys, so no decidable equality of epoch
-keys is required. -/
+`e` becomes exposed. -/
 def kemReduction (P : Parameters ProbComp) [SampleableType P.K] [SampleableType P.EpochKey]
     [DecidableEq P.Sym]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)

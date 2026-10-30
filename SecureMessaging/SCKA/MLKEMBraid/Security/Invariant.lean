@@ -11,7 +11,7 @@ import SecureMessaging.SCKA.MLKEMBraid.Security.Invariant.Receive
 /-!
 # Repaired transcript invariants of the no-authentication trace games
 
-This compatibility import exposes the invariant, its send and receive preservation arguments,
-and the shared joint sampling facts. Actual decapsulation agreement remains a separate condition;
-repaired completion is proved from the repaired invariant's own hypotheses.
+This module collects the repaired transcript invariant and its preservation by sends and
+receives. Agreement of the actual decapsulation with the recorded key is a separate condition.
+The repaired completion of an epoch follows from the hypotheses of the repaired invariant.
 -/

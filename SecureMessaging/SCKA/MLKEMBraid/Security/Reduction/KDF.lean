@@ -11,7 +11,8 @@ import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Stopping
 
 Adjacent numerical-epoch hybrids differ at the selected challenge. Stopping and once-used
 challenge installation identify the difference between their acceptance probabilities with the
-difference between the two outcomes of the supplied KDF distinguisher (`kdf_signed_gap_eq`).
+difference between the acceptance probabilities of the KDF distinguisher on a derived key and on a
+uniform key (`kdf_signed_gap_eq`).
 No codec-correctness hypothesis is needed for this equality.
 -/
 

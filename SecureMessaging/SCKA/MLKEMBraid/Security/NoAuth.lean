@@ -10,11 +10,10 @@ import SecureMessaging.SCKA.MLKEMBraid.Construction
 /-!
 # Braid without internal authentication
 
-The authenticator retains no state, emits unit tags and accepts every tag.
-The explicit exposure policy records the current epoch on key-generation and
-first-stage encapsulation leaks. Its agreement with the delta rule below is a
-property of supported joint outputs of this Braid wrapper, not a universal law
-about incremental-KEM leakage packages.
+The authenticator keeps no state, emits unit tags and accepts every tag. The exposure policy
+`exposure` exposes the current epoch when a send that reveals its coins generates a key pair or
+runs the first stage of encapsulation. On every send output that the protocol can produce, this
+policy agrees with the rule `vuln st' \ vuln st` (`sendExposure_eq_delta`).
 -/
 
 open OracleComp
@@ -59,7 +58,7 @@ def exposure (P : Parameters ProbComp) (irl : P.kem.IncrementalRandLeak P.inc) :
   corrupt := vuln
   send := sendExposure
 
-/-- The explicit-policy embedding of the baseline delta comparison rule. -/
+/-- The exposure policy with the send rule `vuln st' \ vuln st` of [SCKA, Fig. 1]. -/
 def deltaExposure (P : Parameters ProbComp) (irl : P.kem.IncrementalRandLeak P.inc) :
     SCKAScheme.ExposurePolicy (State P Unit)
       (SendRand irl.KeygenRand irl.Encaps1Rand) :=

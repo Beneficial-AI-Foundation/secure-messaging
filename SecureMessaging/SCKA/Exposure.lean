@@ -9,14 +9,17 @@ import SecureMessaging.SCKA.Defs
 /-!
 # Explicit SCKA exposure policies
 
-This supported interface allows send exposure to depend on both the old and proposed new state,
-as well as the joint send coins. A refused proposal commits neither its local state nor its
-bookkeeping. The canonical root interface instead uses presend-state-and-coins callbacks.
+An exposure policy of a party gives the epochs that the security game marks as exposed. Revealing
+the local state `st` exposes `corrupt st`. A send that reveals its coins `r` and proposes the new
+state `st'` exposes `send st st' r`. If these epochs meet the challenged epochs, the game refuses
+the send and keeps neither the new state nor its bookkeeping.
 
-`ExposurePolicy.ofDelta` retains the paper's historical rule `vuln new \ vuln old`. General
-poststate-dependent policies need not admit native callbacks. For no-authentication Braid, the
-actual coin policy ignores poststate on all inputs; its separate agreement with the delta rule
-holds on supported joint send outputs.
+The SCKA security game of `SCKA.Defs` uses callbacks that see only the state before a send and
+its coins. The policies here can also see the new state, so they express the rule of
+[SCKA, Fig. 1]: `ExposurePolicy.ofDelta V` exposes `V st' \ V st`, the epochs that the new state
+exposes and the old state does not. This module keeps that rule available, so that a protocol
+proof can relate its game to [SCKA, Fig. 1]. The ML-KEM Braid proof does this in
+`MLKEMBraid.NoAuth.securityGame_equiv_delta`.
 -/
 
 open OracleSpec OracleComp
@@ -36,7 +39,7 @@ namespace ExposurePolicy
 
 variable {IK StA StB I Rho Rand : Type}
 
-/-- The explicit-policy embedding of a delta rule; this does not assert leakage soundness. -/
+/-- The exposure policy with send exposure `V st' \ V st`. -/
 def ofDelta {St Rand : Type} (V : St → Finset ℕ) :
     SCKAScheme.ExposurePolicy St Rand where
   corrupt := V

@@ -13,8 +13,7 @@ import ToVCVio.OracleComp.SimSemantics.StateT.QueryImplAdd
 
 Every available challenge key belongs to a positive recorded encapsulation epoch. The
 produced-epoch invariant bounds it by accepted sends, and the pathwise budget bounds those
-sends along adaptive runs. This identifies the repaired endpoint distributions without
-importing analytical bad-event risk estimates.
+sends along adaptive runs. This identifies the repaired endpoint distributions.
 -/
 
 open OracleSpec OracleComp ENNReal
@@ -314,15 +313,16 @@ private theorem traceImpl_sendBound
   · exact fun _ s hs z hz => hsend false true s hs z hz
 
 /-- Two repaired trace runs whose modes agree on every positive epoch up to the send budget have
-the same output distribution. The modes differ only at challenges, every available challenge key
-is for a positive encapsulated epoch, and the produced-epoch bound and the send budget bound that
-epoch by `qS` along every adaptive run. -/
+the same output distribution. -/
 private theorem run_mode_evalDist_eq
     (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
     (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct)
     (A : Adversary P irl) (qS : ℕ) (hqS : SendQueryBound A qS) (m m' : ℕ → Mode)
     (hm : ∀ e, 0 < e → e ≤ qS → m e = m' e) :
     Prod.fst <$> run P hMac irl true m A =ᵈ Prod.fst <$> run P hMac irl true m' A := by
+  -- The modes matter only at challenges. Every available challenge key is for a positive
+  -- encapsulated epoch, and the produced-epoch bound and the send budget bound that epoch by `qS`
+  -- along every adaptive run.
   have hbad : Pr{let z ← run P hMac irl true m A}[qS < sendCount z.2] = 0 := by
     rw [prEvent_eq_zero_iff]
     intro z hz
@@ -359,8 +359,7 @@ end Endpoints
 
 /-- **`hybrid_endpoints`**: the repaired hybrid with no uniform epochs has the distribution of the
 repaired real-key game, and the hybrid with uniform keys through epoch `qS` has the distribution of
-the repaired uniform-key game. Every available challenge key is for a positive epoch at most the
-number of accepted sends, which the send budget bounds along every adaptive run. -/
+the repaired uniform-key game. -/
 theorem hybrid_endpoints (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
     [DecidableEq P.EpochKey] [DecidableEq P.Sym]
@@ -372,6 +371,8 @@ theorem hybrid_endpoints (P : Parameters ProbComp)
         Prod.fst <$> run P hMac irl true (fun _ => if false then .uniform else .real) A ∧
       hybrid P hMac irl A qS =ᵈ
           Prod.fst <$> run P hMac irl true (fun _ => if true then .uniform else .real) A :=
+  -- Every available challenge key is for a positive epoch at most the number of accepted sends,
+  -- which the send budget bounds along every adaptive run.
   ⟨run_mode_evalDist_eq hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct A qS hqS _ _
       fun _ he _ => by simp [Nat.not_le.mpr he],
     run_mode_evalDist_eq hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct A qS hqS _ _

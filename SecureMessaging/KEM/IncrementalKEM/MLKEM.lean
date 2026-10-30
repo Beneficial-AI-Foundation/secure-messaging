@@ -10,8 +10,9 @@ import LatticeCrypto.MLKEM.KEM
 /-!
 # Encoding-polymorphic incremental ML-KEM
 
-The two stages retain the original ML-KEM samplers and semantic encapsulation state.
-Only the encoded public-vector and ciphertext representations depend on `encoding`.
+This module defines incremental ML-KEM for any byte encoding `encoding`. The two encapsulation
+stages use the samplers of ML-KEM. Only the encoded public vector and the encoded ciphertext
+components depend on `encoding`.
 -/
 
 open OracleComp KEMScheme LatticeCrypto
@@ -27,9 +28,9 @@ def incrementalHeader {params : Params} {encoding : Encoding params}
   (ek.rho, encapsulationKeyHash encoding prims ek)
 -- ANCHOR_END: incrementalHeader
 
-/-- Values computed during the first incremental encapsulation stage and needed by the
-second: the NTT-domain ephemeral vector `yHat`, second noise polynomial `e2`, and ML-KEM
-`message`. This semantic state retains derived values rather than the raw coins. -/
+/-- The values that the first encapsulation stage computes and the second stage needs: the
+NTT-domain ephemeral vector `yHat`, the second noise polynomial `e2`, and the sampled ML-KEM
+message `message` from which the first stage derives them. -/
 -- ANCHOR: incrementalEncapsulationState
 structure EncapsulationState (params : Params) where
   /-- NTT-domain form of the ephemeral vector `y`, used to compute the second ciphertext
@@ -41,9 +42,9 @@ structure EncapsulationState (params : Params) where
   message : Message
 -- ANCHOR_END: incrementalEncapsulationState
 
-/-- Given `(ρ, h)` and `m`, derives `(k, r) = G(m ‖ h)`, computes `yHat`, `e2`, and the
-encoded `u` component, and returns them as the stage-2 state, first ciphertext component,
-and shared secret. -/
+/-- First encapsulation stage `((ρ, h), m) ↦ (st, u, k)`, where `(k, r) = G(m ‖ h)`. Here `st` is
+the state for the second stage, `u` the encoded first ciphertext component and `k` the shared
+secret. -/
 -- ANCHOR: incrementalEncaps1
 def incrementalEncaps1 {params : Params} {encoding : Encoding params} (ring : NTTRingOps)
     (prims : Primitives params encoding) (hdr : Seed32 × PublicKeyHash) (m : Message) :
@@ -58,9 +59,9 @@ def incrementalEncaps1 {params : Params} {encoding : Encoding params} (ring : NT
   ({ yHat, e2, message := m }, encoding.byteEncodeDUVec (encoding.compressDU u), k)
 -- ANCHOR_END: incrementalEncaps1
 
-/-- Given the derived stage-2 state and encoded `t̂`, decodes `tHat`, combines it with the
-retained `yHat`, `e2`, and `message`, and returns the encoded `v` component without
-re-sampling or recomputing an NTT. -/
+/-- Second encapsulation stage `(st, t̂) ↦ v`: the encoded second ciphertext component, computed
+from the state `st` and the encoded public vector `t̂`. It samples nothing and computes no NTT of
+`y`. -/
 -- ANCHOR: incrementalEncaps2
 def incrementalEncaps2 {params : Params} {encoding : Encoding params} (ring : NTTRingOps)
     (st : EncapsulationState params)
@@ -71,7 +72,7 @@ def incrementalEncaps2 {params : Params} {encoding : Encoding params} (ring : NT
   encoding.byteEncodeDV (encoding.compressDV v)
 -- ANCHOR_END: incrementalEncaps2
 
-/-- The original incremental construction, parameterized by its byte representation. -/
+/-- Incremental ML-KEM for the byte encoding `encoding`. -/
 def incrementalStructure {params : Params} (ring : NTTRingOps)
     (encoding : Encoding params) (prims : Primitives params encoding)
     [DecidableEq encoding.EncodedTHat]
@@ -107,7 +108,7 @@ def incrementalStructure {params : Params} (ring : NTTRingOps)
     simp only [asKEMScheme, Equiv.coe_fn_symm_mk, bind_assoc, pure_bind]
     rfl
 
-/-- The second stage uses the semantic state and samples no further randomness. -/
+/-- The second stage samples no randomness. -/
 def incrementalDeterministicEncaps2 {params : Params} (ring : NTTRingOps)
     (encoding : Encoding params) (prims : Primitives params encoding)
     [DecidableEq encoding.EncodedTHat]
@@ -116,7 +117,7 @@ def incrementalDeterministicEncaps2 {params : Params} (ring : NTTRingOps)
   encaps2Det := fun st _hdr vec => incrementalEncaps2 ring st vec
   encaps2_eq := fun _st _hdr _vec => rfl
 
-/-- The same total implicit-rejection computation supplies deterministic decapsulation. -/
+/-- Decapsulation is deterministic: it is the total implicit-rejection computation of ML-KEM. -/
 def incrementalDeterministicDecaps {params : Params} (ring : NTTRingOps)
     (encoding : Encoding params) (prims : Primitives params encoding)
     [DecidableEq encoding.EncodedTHat]
@@ -125,7 +126,7 @@ def incrementalDeterministicDecaps {params : Params} (ring : NTTRingOps)
   decapsDet := fun dk c => some (decapsInternal ring encoding prims dk c)
   decaps_eq := fun _sk _c => rfl
 
-/-- Joint algorithm outputs and original coins for the three incremental operations. -/
+/-- The three incremental operations with their outputs and the coins they sample. -/
 def incrementalRandLeak {params : Params} (ring : NTTRingOps)
     (encoding : Encoding params) (prims : Primitives params encoding)
     [DecidableEq encoding.EncodedTHat]
