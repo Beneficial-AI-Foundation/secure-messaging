@@ -8,6 +8,7 @@ import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.Simulator
 import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Basic
 import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
 import ToVCVio.OracleComp.SimSemantics.StateT.Stop
+import ToVCVio.OracleComp.EvalDist
 
 /-!
 # Simulator views and elementary query projections
@@ -278,13 +279,6 @@ theorem exact_mapAnswer {α β : Type} {oS : ProbComp (α × SimState P)}
   exact .rfl
 
 end Step
-
-/-- Maps agreeing on the support give the same distribution. -/
-theorem evalDist_map_congr_support {α β : Type} (X : ProbComp α) (f g : α → β)
-    (h : ∀ x ∈ support X, f x = g x) : f <$> X =ᵈ g <$> X := by
-  simp only [map_eq_bind_pure_comp]
-  exact EvalDistEq.bind_congr_of_support X fun x hx => by
-    simp only [Function.comp_apply, h x hx, EvalDistEq.refl]
 
 section Queries
 

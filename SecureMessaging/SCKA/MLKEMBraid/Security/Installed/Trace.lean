@@ -7,6 +7,7 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Basic
 import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Stopping
 import SecureMessaging.SCKA.MLKEMBraid.Security.Trace
+import ToVCVio.OracleComp.SimSemantics.StateT.QueryImplAdd
 
 /-!
 # Installed transcript preservation

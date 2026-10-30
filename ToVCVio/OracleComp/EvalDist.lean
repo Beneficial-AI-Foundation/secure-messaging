@@ -44,4 +44,20 @@ lemma prEvent_eq_false_eq_one_sub {ι : Type} {spec : OracleSpec ι}
   rw [← prEvent_not_eq_one_sub mx (· = true)]
   simp only [Bool.not_eq_true]
 
+/-- Maps agreeing on the support give the same distribution. -/
+theorem evalDist_map_congr_support {α β : Type} (X : ProbComp α) (f g : α → β)
+    (h : ∀ x ∈ support X, f x = g x) : f <$> X =ᵈ g <$> X := by
+  simp only [map_eq_bind_pure_comp]
+  exact EvalDistEq.bind_congr_of_support X fun x hx => by
+    simp only [Function.comp_apply, h x hx, EvalDistEq.refl]
+
+/-- An independent sample commutes past two dependent ones. -/
+theorem prEvent_swap3 {α β γ : Type} (mx : ProbComp α) (my : α → ProbComp β)
+    (mz : ProbComp γ) (f : α → β → γ → ProbComp Prop) :
+    prEvent (mx >>= fun a => my a >>= fun b => mz >>= fun c => f a b c) =
+      prEvent (mz >>= fun c => mx >>= fun a => my a >>= fun b => f a b c) :=
+  (prEvent_bind_congr_of_support _ _ _ fun a _ =>
+      OracleComp.prEvent_bind_bind_swap (my a) mz (fun b c => f a b c)).trans
+    (OracleComp.prEvent_bind_bind_swap mx mz (fun a c => my a >>= fun b => f a b c))
+
 end OracleComp

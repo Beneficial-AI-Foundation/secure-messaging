@@ -9,6 +9,7 @@ import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
 import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 import VCVio.OracleComp.SimSemantics.StateT.StateProjection
+import ToVCVio.OracleComp.SimSemantics.StateT.QueryImplAdd
 
 /-!
 # Exposure stopping and once-used challenge installation
@@ -24,30 +25,6 @@ open ErasureCodePayload.Streaming
 namespace MLKEMBraid.NoAuth
 
 variable {P : Parameters ProbComp}
-
-/-- Query-wise step relations combine over a sum of oracle implementations. -/
-theorem relStep_add {ι₁ ι₂ : Type} {spec₁ : OracleSpec ι₁} {spec₂ : OracleSpec ι₂} {σ : Type}
-    (R : σ → σ → Prop) {i₁ : QueryImpl spec₁ (StateT σ ProbComp)}
-    {i₂ : QueryImpl spec₂ (StateT σ ProbComp)}
-    (h₁ : ∀ t s z, z ∈ support ((i₁ t).run s) → R s z.2)
-    (h₂ : ∀ t s z, z ∈ support ((i₂ t).run s) → R s z.2) :
-    ∀ t s z, z ∈ support (((i₁ + i₂) t).run s) → R s z.2
-  | .inl t, s, z, hz => h₁ t s z hz
-  | .inr t, s, z, hz => h₂ t s z hz
-
-/-- Query-wise equality, or commitment of both outcomes, combine over a sum of implementations. -/
-theorem queryEqOr_add {ι₁ ι₂ : Type} {spec₁ : OracleSpec ι₁} {spec₂ : OracleSpec ι₂} {σ : Type}
-    (Inv C : σ → Prop) {i₁ j₁ : QueryImpl spec₁ (StateT σ ProbComp)}
-    {i₂ j₂ : QueryImpl spec₂ (StateT σ ProbComp)}
-    (h₁ : ∀ t s, Inv s → (i₁ t).run s = (j₁ t).run s ∨
-      ((∀ z ∈ support ((i₁ t).run s), C z.2) ∧ ∀ z ∈ support ((j₁ t).run s), C z.2))
-    (h₂ : ∀ t s, Inv s → (i₂ t).run s = (j₂ t).run s ∨
-      ((∀ z ∈ support ((i₂ t).run s), C z.2) ∧ ∀ z ∈ support ((j₂ t).run s), C z.2)) :
-    ∀ t s, Inv s → ((i₁ + i₂) t).run s = ((j₁ + j₂) t).run s ∨
-      ((∀ z ∈ support (((i₁ + i₂) t).run s), C z.2) ∧
-        ∀ z ∈ support (((j₁ + j₂) t).run s), C z.2)
-  | .inl t, s, hs => h₁ t s hs
-  | .inr t, s, hs => h₂ t s hs
 
 /-- One query never shrinks the exposed or challenged epochs and never exposes an epoch that is
 already challenged. -/

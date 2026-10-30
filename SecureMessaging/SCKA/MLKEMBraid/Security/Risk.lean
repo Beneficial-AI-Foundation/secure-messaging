@@ -9,6 +9,7 @@ import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
 import SecureMessaging.KEM.IncrementalKEM.Correctness
 import ToVCVio.ProgramLogic.Unary.WP
 import ToVCVio.OracleComp.SimSemantics.StateT.WPBound
+import ToVCVio.OracleComp.SimSemantics.StateT.QueryImplAdd
 
 /-!
 # Conditional decapsulation risk and the bad-event bound
@@ -30,21 +31,6 @@ variable {P : Parameters ProbComp}
 private theorem wp_add_const_le {α : Type} (oa : ProbComp α) (f : α → ℝ≥0∞) (c : ℝ≥0∞) :
     wp oa (fun a => f a + c) ≤ wp oa f + c :=
   le_of_eq (by rw [wp_add, wp_const])
-
-/-- Query-wise expected-score bounds combine over a sum of implementations, charging `ε` exactly
-on the queries selected by `Sum.elim p₁ p₂`. -/
-theorem payoff_add {ι₁ ι₂ : Type} {spec₁ : OracleSpec ι₁} {spec₂ : OracleSpec ι₂} {σ : Type}
-    (Inv : σ → Prop) (score : σ → ℝ≥0∞) (ε : ℝ≥0∞)
-    {i₁ : QueryImpl spec₁ (StateT σ ProbComp)} {i₂ : QueryImpl spec₂ (StateT σ ProbComp)}
-    (p₁ : ι₁ → Bool) (p₂ : ι₂ → Bool)
-    (h₁ : ∀ t s, Inv s → wp ((i₁ t).run s) (fun z => score z.2) ≤
-      score s + if p₁ t then ε else 0)
-    (h₂ : ∀ t s, Inv s → wp ((i₂ t).run s) (fun z => score z.2) ≤
-      score s + if p₂ t then ε else 0) :
-    ∀ t s, Inv s → wp (((i₁ + i₂) t).run s) (fun z => score z.2) ≤
-      score s + if Sum.elim p₁ p₂ t then ε else 0
-  | .inl t, s, hs => h₁ t s hs
-  | .inr t, s, hs => h₂ t s hs
 
 section BadEventBound
 

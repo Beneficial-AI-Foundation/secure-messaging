@@ -10,6 +10,7 @@ import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
 import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
+import ToVCVio.OracleComp.SimSemantics.StateT.QueryImplAdd
 
 /-!
 # Trace invariants and instrumentation erasure
@@ -25,27 +26,6 @@ open ErasureCodePayload.Streaming
 namespace MLKEMBraid.NoAuth
 
 variable {P : Parameters ProbComp}
-
-/-- Query-wise projection equalities combine over a sum of oracle implementations. -/
-theorem queryMap_add {ι₁ ι₂ : Type} {spec₁ : OracleSpec ι₁} {spec₂ : OracleSpec ι₂}
-    {σ τ : Type} (proj : σ → τ)
-    {i₁ : QueryImpl spec₁ (StateT σ ProbComp)} {i₂ : QueryImpl spec₂ (StateT σ ProbComp)}
-    {j₁ : QueryImpl spec₁ (StateT τ ProbComp)} {j₂ : QueryImpl spec₂ (StateT τ ProbComp)}
-    (h₁ : ∀ t s, Prod.map id proj <$> (i₁ t).run s = (j₁ t).run (proj s))
-    (h₂ : ∀ t s, Prod.map id proj <$> (i₂ t).run s = (j₂ t).run (proj s)) :
-    ∀ t s, Prod.map id proj <$> ((i₁ + i₂) t).run s = ((j₁ + j₂) t).run (proj s)
-  | .inl t, s => h₁ t s
-  | .inr t, s => h₂ t s
-
-/-- Query-wise equalities on states satisfying `Inv` combine over a sum of implementations. -/
-theorem queryEq_add {ι₁ ι₂ : Type} {spec₁ : OracleSpec ι₁} {spec₂ : OracleSpec ι₂} {σ : Type}
-    (Inv : σ → Prop) {i₁ j₁ : QueryImpl spec₁ (StateT σ ProbComp)}
-    {i₂ j₂ : QueryImpl spec₂ (StateT σ ProbComp)}
-    (h₁ : ∀ t s, Inv s → (i₁ t).run s = (j₁ t).run s)
-    (h₂ : ∀ t s, Inv s → (i₂ t).run s = (j₂ t).run s) :
-    ∀ t s, Inv s → ((i₁ + i₂) t).run s = ((j₁ + j₂) t).run s
-  | .inl t, s, hs => h₁ t s hs
-  | .inr t, s, hs => h₂ t s hs
 
 /-- The invariant of a trace game: in the repaired game, or before the bad event in the real game,
 the repaired transcript invariant holds, with decapsulation agreement in the real game; exposed and

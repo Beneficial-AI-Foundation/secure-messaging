@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.SCKA.MLKEMBraid.Security.Trace
 import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
+import ToVCVio.OracleComp.SimSemantics.StateT.QueryImplAdd
 
 /-!
 # Numerical-epoch hybrid endpoints
@@ -22,21 +23,6 @@ open ErasureCodePayload.Streaming
 namespace MLKEMBraid.NoAuth
 
 variable {P : Parameters ProbComp}
-
-/-- Query-wise counter bounds combine over a sum of implementations: the counter never decreases,
-and it increases by at most one exactly on the queries selected by `Sum.elim p₁ p₂`. -/
-theorem countStep_add {ι₁ ι₂ : Type} {spec₁ : OracleSpec ι₁} {spec₂ : OracleSpec ι₂} {σ : Type}
-    (count : σ → ℕ)
-    {i₁ : QueryImpl spec₁ (StateT σ ProbComp)} {i₂ : QueryImpl spec₂ (StateT σ ProbComp)}
-    (p₁ : ι₁ → Bool) (p₂ : ι₂ → Bool)
-    (h₁ : ∀ t s z, z ∈ support ((i₁ t).run s) →
-      count s ≤ count z.2 ∧ count z.2 ≤ count s + if p₁ t then 1 else 0)
-    (h₂ : ∀ t s z, z ∈ support ((i₂ t).run s) →
-      count s ≤ count z.2 ∧ count z.2 ≤ count s + if p₂ t then 1 else 0) :
-    ∀ t s z, z ∈ support (((i₁ + i₂) t).run s) →
-      count s ≤ count z.2 ∧ count z.2 ≤ count s + if Sum.elim p₁ p₂ t then 1 else 0
-  | .inl t, s, z, hz => h₁ t s z hz
-  | .inr t, s, z, hz => h₂ t s z hz
 
 section Endpoints
 
