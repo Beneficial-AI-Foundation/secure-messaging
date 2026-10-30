@@ -280,8 +280,8 @@ private theorem traceImpl_count (repair : Bool) (mode : ℕ → Mode) :
           exact traceSend_count hMac irl hw))
         (hzero _ (traceReceive_frame hMac irl repair true)))
         (hzero _ (traceReceive_frame hMac irl repair false)))
-        (hone _ fun _ s z hz => by exact traceSend_count hMac irl hz))
-        (hone _ fun _ s z hz => by exact traceSend_count hMac irl hz))
+        (hone _ fun _ s z hz => traceSend_count hMac irl hz))
+        (hone _ fun _ s z hz => traceSend_count hMac irl hz))
         (hzero _ (traceChallenge_frame mode)))
         (hzero _ traceCorruptA_frame))
         (hzero _ traceCorruptB_frame) t s z hz
