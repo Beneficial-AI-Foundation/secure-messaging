@@ -8,8 +8,7 @@ import SecureMessaging.SCKA.MLKEMBraid.Authenticator
 import SecureMessaging.SCKA.MLKEMBraid.Basic
 import SecureMessaging.SCKA.MLKEMBraid.Construction
 import SecureMessaging.SCKA.MLKEMBraid.Correctness
-import SecureMessaging.SCKA.MLKEMBraid.Security.Bounded
-import SecureMessaging.SCKA.MLKEMBraid.Security.Native
+import SecureMessaging.SCKA.MLKEMBraid.Security
 
 /-! # Blueprint chapter: ML-KEM Braid -/
 
@@ -334,7 +333,7 @@ theorem correctness_error_le
 :::defTitle "mlkem_braid_noauth_experiment" "Braid without authentication"
 :::
 
-::::definition "mlkem_braid_noauth_experiment" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.Bounded.parameters, MLKEMBraid.NoAuth.auth, MLKEMBraid.NoAuth.nativeExposure, SCKAScheme.securityExp") (uses := "mlkem_braid_spec, scka_oracles, erasure_code_correctness")
+::::definition "mlkem_braid_noauth_experiment" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.Bounded.parameters, MLKEMBraid.NoAuth.auth, MLKEMBraid.NoAuth.nativeExposure, SCKAScheme.securityExp, MLKEMBraid.NoAuth.securityGame_equiv_native, MLKEMBraid.NoAuth.deltaExposure, MLKEMBraid.NoAuth.sendExposure_eq_delta, MLKEMBraid.NoAuth.securityGame_equiv_delta") (uses := "mlkem_braid_spec, scka_oracles, erasure_code_correctness")
 Fix an ML-KEM parameter set and ring and primitive operations. Write
 $`\mathsf K=(\mathsf{Gen},\mathsf{Enc},\mathsf{Dec})` for the resulting KEM, with
 shared-secret space $`\mathcal K`. Let $`\mathcal I` be an epoch-key space with
@@ -374,12 +373,16 @@ $$`\operatorname{Adv}^{\mathrm{guess}}_{\Pi}(A)
 
 A send budget $`q` bounds, on every query path, the total number of ordinary and
 randomness-revealing send requests to both parties, including refused requests.
+
+On every send that the protocol can produce, the randomness row of the table exposes exactly
+the epochs that the local state after the send exposes and the state before it does not. The
+experiment that uses this rule for sends has the same guessing advantage.
 ::::
 
 :::defTitle "mlkem_braid_noauth_reductions" "Epoch reductions"
 :::
 
-::::definition "mlkem_braid_noauth_reductions" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.NoAuth.repairedRecv, MLKEMBraid.NoAuth.kemReduction, MLKEMBraid.NoAuth.kdfReduction, MLKEMBraid.NoAuth.kdfExp") (uses := "mlkem_braid_noauth_experiment, incremental_kem_scheme")
+::::definition "mlkem_braid_noauth_reductions" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.NoAuth.repairedRecv, MLKEMBraid.NoAuth.kemReduction, MLKEMBraid.NoAuth.kdfReduction, MLKEMBraid.NoAuth.kdfExp, MLKEMBraid.NoAuth.kemMixReduction, MLKEMBraid.NoAuth.KDFContextAdversary, MLKEMBraid.NoAuth.kdfContextExp, MLKEMBraid.NoAuth.kdfAdvantage, MLKEMBraid.NoAuth.kdfMixReduction") (uses := "mlkem_braid_noauth_experiment, incremental_kem_scheme")
 The repaired experiment records the shared secret $`k_e` of each epoch's encapsulation.
 In the phase awaiting the second ciphertext component, a well-formed current-epoch message
 that completes its decoder yields $`F(k_e,e)` when that encapsulation is recorded, and the
@@ -394,38 +397,101 @@ For each $`e\geq1`, construct reductions $`B_e` and $`D_e` from $`A`:
   challenge at $`e` with $`x`, earlier challenges with independent samples from $`\mu`, and
   later challenges with their real keys.
 
-Both return $`A`'s bit, or $`0` if epoch $`e` becomes exposed. Let
-$`(pk,sk)\sample\mathsf{Gen}()` and $`(c,k)\sample\mathsf{Enc}(pk)`. Define
+Both return $`A`'s bit, or $`0` if epoch $`e` becomes exposed.
+
+For a send budget $`q`, the reduction $`B` draws $`e` uniformly from $`\{1,\dots,q\}` and then
+runs $`B_e`; the reduction $`D` draws $`e` in the same way, announces it, and then runs $`D_e`.
+Let $`(pk,sk)\sample\mathsf{Gen}()` and $`(c,k)\sample\mathsf{Enc}(pk)`. Define
 
 $$`\begin{aligned}
-\alpha_e&=\left|\Pr[B_e(pk,c,k)=1]-\Pr[B_e(pk,c,U_{\mathcal K})=1]\right|,\\
-\beta_e&=\left|\Pr[D_e(F(U_{\mathcal K},e))=1]-\Pr[D_e(U_{\mathcal I})=1]\right|,\\
+\alpha&=\left|\Pr[B(pk,c,k)=1]-\Pr[B(pk,c,U_{\mathcal K})=1]\right|,\\
+\beta&=\left|\Pr[D(F(U_{\mathcal K},e))=1]-\Pr[D(U_{\mathcal I})=1]\right|,\\
 \varepsilon&=1-\Pr[\mathsf{Dec}(sk,c)\text{ returns }k].
 \end{aligned}`
 
 $`U_{\mathcal K}` is an independent uniform shared secret and $`U_{\mathcal I}` an independent
-sample from $`\mu`. Probabilities include all algorithm and simulation randomness; a failed
-decapsulation contributes no success probability.
+sample from $`\mu`. In $`\beta`, $`e` is the epoch that $`D` announces, before
+$`U_{\mathcal K}` is sampled. So $`\alpha` is an IND-CPA advantage against $`\mathsf K`, and
+$`\beta` is the advantage of a distinguisher between $`F(U_{\mathcal K},e)` and a sample from
+$`\mu` for a label $`e` of its choice. Probabilities include all algorithm and simulation
+randomness; a failed decapsulation contributes no success probability.
 ::::
 
-:::defTitle "mlkem_braid_noauth_security" "Security without authentication"
+:::defTitle "mlkem_braid_noauth_security" "Security without internal authentication"
 :::
 
-::::theorem "mlkem_braid_noauth_security" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.NoAuth.security_le_native, MLKEMBraid.mlkemBraidScheme_noAuth_security_le_native, MLKEMBraid.mlkemBraidBounded_noAuth_security_le_native") (tags := "gh-244") (uses := "mlkem_braid_noauth_experiment, mlkem_braid_noauth_reductions")
+::::theorem "mlkem_braid_noauth_security" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.security, MLKEMBraid.NoAuth.security") (tags := "gh-244") (uses := "mlkem_braid_spec, scka_security, incremental_kem_scheme, mlkem_braid_noauth_experiment, mlkem_braid_noauth_reductions")
 For every adversary $`A` with send budget $`q`, the {uses "mlkem_braid_noauth_experiment"}[protocol $`\Pi`] satisfies
 
 $$`\operatorname{Adv}^{\mathrm{guess}}_{\Pi}(A)
-\leq\frac12\sum_{e=1}^{q}(\alpha_e+\beta_e)+q\varepsilon,`
+\leq\frac q2(\alpha+\beta)+q\varepsilon,`
 
-where $`\alpha_e,\beta_e,\varepsilon` are defined by the {uses "mlkem_braid_noauth_reductions"}[epoch reductions].
-::::
+where $`\alpha,\beta,\varepsilon` are defined by the {uses "mlkem_braid_noauth_reductions"}[epoch reductions].
 
-:::defTitle "mlkem_braid_security" "ML-KEM Braid security"
+The network is passive: $`A` can delay and reorder messages but not modify them, and the
+internal authenticator is off. Nothing is assumed about $`F`. The Braid specification derives
+epoch keys with HKDF, and $`\beta` measures how well a distinguisher tells
+$`F(U_{\mathcal K},e)` from a sample of $`\mu`.
+
+The second statement below gives the same bound for any KEM with incremental encapsulation and
+any correct erasure codes for the four streams.
+
+:::leanPillCaption "security"
 :::
 
-::::theorem "mlkem_braid_security" (parent := "cka_protocols_mlkem_braid") (tags := "gh-244") (uses := "mlkem_braid_spec, scka_security, incremental_kem_scheme")
-$`\todo`
+```anchor security (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security)
+theorem MLKEMBraid.security
+    (p : MLKEM.ParameterSet) (ring : MLKEM.NTTRingOps)
+    (prims : MLKEM.Primitives (MLKEM.ParameterSet.params p)
+      (MLKEM.Concrete.concreteEncoding (MLKEM.ParameterSet.params p)))
+    {EpochKey : Type} [SampleableType EpochKey] [DecidableEq EpochKey]
+    (kdfOK : MLKEM.SharedSecret → ℕ → EpochKey) :
+    let P := MLKEMBraid.Bounded.parameters p ring prims kdfOK
+    letI : SampleableType (MLKEMBraid.Bounded.parameters p ring prims kdfOK).K :=
+      inferInstanceAs (SampleableType MLKEM.SharedSecret)
+    letI : SampleableType (MLKEMBraid.Bounded.parameters p ring prims kdfOK).EpochKey :=
+      inferInstanceAs (SampleableType EpochKey)
+    letI : DecidableEq (MLKEMBraid.Bounded.parameters p ring prims kdfOK).EpochKey :=
+      inferInstanceAs (DecidableEq EpochKey)
+    letI : DecidableEq (MLKEMBraid.Bounded.parameters p ring prims kdfOK).Sym :=
+      inferInstanceAs (DecidableEq
+        (ErasureCode.SPQRReedSolomon.Chunk ErasureCode.SPQRReedSolomon.GF16))
+    let irl := MLKEM.incrementalRandLeak ring
+      (MLKEM.Bounded.encoding (MLKEM.ParameterSet.params p))
+      (MLKEM.Bounded.primitives (MLKEM.ParameterSet.params p) prims)
+    ∀ (A : MLKEMBraid.NoAuth.Adversary P irl) (q : ℕ),
+      MLKEMBraid.NoAuth.SendQueryBound A q →
+      let ℬ := MLKEM.Bounded.liftAdversary p ring prims
+        (MLKEMBraid.NoAuth.kemMixReduction P (Eq.refl Unit) irl A q)
+      let 𝒞 := MLKEMBraid.NoAuth.kdfMixReduction P (Eq.refl Unit) irl A q
+      let ε := ((MLKEM.mlkemScheme p ring prims).correctnessError
+        ProbCompRuntime.probComp).toReal
+      SCKAScheme.sckaGuessAdvantage
+        (MLKEMBraid.NoAuth.scheme P (Eq.refl Unit) irl) A
+        (MLKEMBraid.NoAuth.nativeExposure P irl)
+        (MLKEMBraid.NoAuth.nativeExposure P irl) ≤
+        (q / 2 : ℝ) *
+          (((MLKEM.mlkemScheme p ring prims).IND_CPA_Advantage ProbCompRuntime.probComp ℬ).toReal +
+            MLKEMBraid.NoAuth.kdfAdvantage P 𝒞) + q * ε
+```
 
-:::leanPill "missing"
+:::leanPillCaption "security for an abstract KEM and abstract codes"
 :::
+
+```anchor genericSecurity (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security)
+theorem MLKEMBraid.NoAuth.security (P : Parameters ProbComp)
+    [SampleableType P.K] [SampleableType P.EpochKey]
+    [DecidableEq P.K] [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
+    (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
+    (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct)
+    (A : Adversary P irl) (q : ℕ) (hq : SendQueryBound A q) :
+    let ℬ := kemMixReduction P hMac irl A q
+    let 𝒞 := kdfMixReduction P hMac irl A q
+    let ε := (P.kem.correctnessError ProbCompRuntime.probComp).toReal
+    SCKAScheme.sckaGuessAdvantage (scheme P hMac irl) A
+        (nativeExposure P irl) (nativeExposure P irl) ≤
+      (q / 2 : ℝ) * ((P.kem.IND_CPA_Advantage ProbCompRuntime.probComp ℬ).toReal +
+        kdfAdvantage P 𝒞) + q * ε
+```
 ::::
