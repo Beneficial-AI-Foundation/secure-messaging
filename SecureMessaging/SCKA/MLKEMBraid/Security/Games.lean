@@ -212,13 +212,13 @@ def traceSend (P : Parameters ProbComp) [DecidableEq P.EpochKey]
       (Option (ℕ × Option ℕ × Message P.Sym × SendRand irl.KeygenRand irl.Encaps1Rand)) :=
   fun s => (fun w : (SendResult P Unit × SendRand irl.KeygenRand irl.Encaps1Rand) ×
       (ℕ → EpochTranscript P) × Bool =>
-    if leaking && decide ((exposure P irl).send (s.game.stateAt party) w.1.1.state w.1.2 ∩
-        s.game.challenged ≠ ∅) then (none, s)
-    else (some (w.1.1.sendingEpoch, w.1.1.outputKey.map Prod.fst, w.1.1.msg, w.1.2),
-      { game := { MLKEMBraid.sendUpdate s.game party w.1.1 with
-          exposed := if leaking then
-            s.game.exposed ∪ (exposure P irl).send (s.game.stateAt party) w.1.1.state w.1.2
-          else s.game.exposed },
+    let result := w.1.1
+    let coins := w.1.2
+    let leaked := (exposure P irl).send (s.game.stateAt party) result.state coins
+    if leaking && decide (leaked ∩ s.game.challenged ≠ ∅) then (none, s)
+    else (some (result.sendingEpoch, result.outputKey.map Prod.fst, result.msg, coins),
+      { game := { MLKEMBraid.sendUpdate s.game party result with
+          exposed := if leaking then s.game.exposed ∪ leaked else s.game.exposed },
         transcript := w.2.1, bad := w.2.2 })) <$> sampledSend P hMac irl s party
 
 /-- The receive algorithm of the trace game. With `repair`, a well-formed `ct₂` message completing
