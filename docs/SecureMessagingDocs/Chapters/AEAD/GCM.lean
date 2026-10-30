@@ -52,8 +52,8 @@ GCM.
 GCM uses the following building blocks. A block is a bitstring of length 128, and
 $`\bit^*` is the set of bitstrings.
 
-- Block multiplication $`\bullet : \bit^{128} \times \bit^{128} \to \bit^{128}`.
 - The counter increment $`\mathsf{inc}_{32} : \bit^{128} \to \bit^{128}`.
+- Block multiplication $`\bullet : \bit^{128} \times \bit^{128} \to \bit^{128}`.
 - The hash function $`\mathsf{GHASH}_H : (\bit^{128})^* \to \bit^{128}` under a hash key
   $`H \in \bit^{128}`. Its input $`X = X_1 \concat \cdots \concat X_m` is a sequence of
   blocks.
@@ -81,6 +81,21 @@ $`\mathsf{CIPH}_K = \mathsf{perm}(K, \cdot)` is the forward permutation of a
 :::::::
 
 :::::::gameGrid
+::::::gameCell "\\mathsf{inc}_{32}(X)" (kind := "compact") (state := "\\textsf{Section 6.2}")
+$`\begin{array}{l}
+c \gets \mathrm{int}(\mathsf{LSB}_{32}(X)) + 1 \bmod 2^{32}; \\
+\Return \mathsf{MSB}_{96}(X) \concat [c]_{32}
+\end{array}`
+
+:::leanPillCaption "$`\\mathsf{inc}_{32}`"
+:::
+
+```anchor inc32 (project := ".") (module := SecureMessaging.AEAD.GCM)
+def inc32 (x : BitVec 128) : BitVec 128 :=
+  x.extractLsb' 32 96 ++ (x.extractLsb' 0 32 + 1)
+```
+::::::
+
 ::::::gameCell "X \\bullet Y" (kind := "compact") (state := "\\textsf{Algorithm 1}")
 $`\begin{array}{l}
 Z_0 \gets 0^{128};\quad V_0 \gets Y; \\
@@ -110,6 +125,23 @@ def gfmul (x y : BitVec 128) : BitVec 128 :=
 ```
 ::::::
 
+::::::gameCell "\\mathsf{GHASH}_H(X)" (kind := "compact") (state := "\\textsf{Algorithm 2}")
+$`\begin{array}{l}
+Y_0 \gets 0^{128}; \\
+\mathsf{for}\; i = 1, \ldots, m \\
+\quad Y_i \gets (Y_{i-1} \oplus X_i) \bullet H; \\
+\Return Y_m
+\end{array}`
+
+:::leanPillCaption "$`\\mathsf{GHASH}_H`"
+:::
+
+```anchor ghash (project := ".") (module := SecureMessaging.AEAD.GCM)
+def ghash (h : BitVec 128) (blocks : List (BitVec 128)) : BitVec 128 :=
+  blocks.foldl (fun y x => gfmul (y ^^^ x) h) 0
+```
+::::::
+
 ::::::gameCell "\\mathsf{GCTR}_K(\\mathit{ICB}, X)" (kind := "compact") (state := "\\textsf{Algorithm 3}")
 $`\begin{array}{l}
 \pif\;|X| = 0\;\pthen\;\Return X; \\
@@ -132,38 +164,6 @@ Y_n^* \gets X_n^* \oplus \mathsf{MSB}_{|X_n^*|}(\mathsf{CIPH}_K(\mathit{CB}_n));
 def gctr {K : Type} (ciph : K → BitVec 128 → BitVec 128) (k : K) (icb : BitVec 128)
     {p : ℕ} (x : BitVec p) : BitVec p :=
   x ^^^ keystream ((counterChain icb ((p + 127) / 128)).map (ciph k)) p
-```
-::::::
-
-::::::gameCell "\\mathsf{inc}_{32}(X)" (kind := "compact") (state := "\\textsf{Section 6.2}")
-$`\begin{array}{l}
-c \gets \mathrm{int}(\mathsf{LSB}_{32}(X)) + 1 \bmod 2^{32}; \\
-\Return \mathsf{MSB}_{96}(X) \concat [c]_{32}
-\end{array}`
-
-:::leanPillCaption "$`\\mathsf{inc}_{32}`"
-:::
-
-```anchor inc32 (project := ".") (module := SecureMessaging.AEAD.GCM)
-def inc32 (x : BitVec 128) : BitVec 128 :=
-  x.extractLsb' 32 96 ++ (x.extractLsb' 0 32 + 1)
-```
-::::::
-
-::::::gameCell "\\mathsf{GHASH}_H(X)" (kind := "compact") (state := "\\textsf{Algorithm 2}")
-$`\begin{array}{l}
-Y_0 \gets 0^{128}; \\
-\mathsf{for}\; i = 1, \ldots, m \\
-\quad Y_i \gets (Y_{i-1} \oplus X_i) \bullet H; \\
-\Return Y_m
-\end{array}`
-
-:::leanPillCaption "$`\\mathsf{GHASH}_H`"
-:::
-
-```anchor ghash (project := ".") (module := SecureMessaging.AEAD.GCM)
-def ghash (h : BitVec 128) (blocks : List (BitVec 128)) : BitVec 128 :=
-  blocks.foldl (fun y x => gfmul (y ^^^ x) h) 0
 ```
 ::::::
 :::::::
