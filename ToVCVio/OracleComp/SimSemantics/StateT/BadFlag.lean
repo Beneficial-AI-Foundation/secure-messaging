@@ -22,11 +22,16 @@ flag is set, or `Inv s` holds and `s` is not bad.
 
 **Results.**
 
+- `trackedImpl_run`: one tracked query is the ordinary query followed by the flag update;
 - `tracked_run_project`: forgetting the flag after a tracked run gives the run of `impl`;
+- `trackedInv_of_flag_false`: a tracked state with the flag clear satisfies `Inv` and is not bad;
+- `trackedImpl_preserves_flag`: once set, the flag stays set;
 - `trackedImpl_preserves`: if every query preserves `Inv` from states that are not bad, the
   tracked implementation preserves `trackedInv Inv bad`;
 - `tracked_bad_probability_le_score`: the probability that the flag is set is at most the
   expected value of any score that is at least `1` on flagged states;
+- `trackedImpl_wp_flag_le`: from a flagged state, one query keeps the expected
+  value of any score that is constant on flagged states within that constant plus any allowance;
 - `tracked_bad_le_of_score_step`: if a query raises the expected score by at most `ε` when it
   satisfies `p` and not at all otherwise, then after a computation making at most `q` queries
   satisfying `p` the flag is set with probability at most `score (s₀, false) + q · ε`;
@@ -55,6 +60,21 @@ def trackedImpl (impl : QueryImpl spec (StateT σ ProbComp)) (bad : σ → Bool)
 def trackedInv (Inv : σ → Prop) (bad : σ → Bool) (p : σ × Bool) : Prop :=
   p.2 = true ∨ (Inv p.1 ∧ bad p.1 = false)
 
+/-- One tracked query is the ordinary query followed by the flag update. -/
+theorem trackedImpl_run (impl : QueryImpl spec (StateT σ ProbComp)) (bad : σ → Bool)
+    (t : ι) (p : σ × Bool) :
+    ((trackedImpl impl bad) t).run p =
+      (impl t).run p.1 >>= fun z => pure (z.1, (z.2, p.2 || bad z.2)) :=
+  rfl
+
+/-- A tracked state with the flag clear satisfies the invariant and is not bad. -/
+theorem trackedInv_of_flag_false {Inv : σ → Prop} {bad : σ → Bool} {p : σ × Bool}
+    (hp : trackedInv Inv bad p) (h : p.2 = false) : Inv p.1 ∧ bad p.1 = false := by
+  rcases hp with hflag | hgood
+  · rw [h] at hflag
+    cases hflag
+  · exact hgood
+
 /-- Forgetting the flag after one tracked query gives the ordinary query. -/
 theorem trackedImpl_project (impl : QueryImpl spec (StateT σ ProbComp)) (bad : σ → Bool)
     (t : ι) (p : σ × Bool) :
@@ -73,6 +93,16 @@ theorem tracked_run_project (impl : QueryImpl spec (StateT σ ProbComp)) (bad : 
       (simulateQ impl oa).run p.1 :=
   map_run_simulateQ_eq_of_query_map_eq (trackedImpl impl bad) impl Prod.fst
     (trackedImpl_project impl bad) oa p
+
+/-- Once the flag is set, every tracked successor has it set. -/
+theorem trackedImpl_preserves_flag (impl : QueryImpl spec (StateT σ ProbComp)) (bad : σ → Bool) :
+    QueryImpl.PreservesInv (trackedImpl impl bad) (fun p => p.2 = true) := by
+  intro t p hp z hz
+  rw [trackedImpl_run, mem_support_bind_iff] at hz
+  obtain ⟨y, -, hz⟩ := hz
+  simp only [mem_support_pure_iff] at hz
+  subst hz
+  simp [hp]
 
 /-- One-step preservation of `Inv` from states that are not bad lifts to the tracked
 invariant. -/
@@ -104,6 +134,23 @@ theorem tracked_bad_probability_le_score {α : Type} (score : σ × Bool → ℝ
     (hscore : ∀ p : σ × Bool, p.2 = true → 1 ≤ score p) (oa : ProbComp (α × (σ × Bool))) :
     Pr{let z ← oa}[z.2.2 = true] ≤ wp oa (fun z => score z.2) :=
   prEvent_le_wp oa _ _ fun z hz => hscore z.2 hz
+
+/-- From a flagged state, one tracked query keeps the expected score within
+`score (s, true) + ε` for every allowance `ε`, for any score that is constant on flagged
+states: the flag stays set. -/
+theorem trackedImpl_wp_flag_le (impl : QueryImpl spec (StateT σ ProbComp))
+    (bad : σ → Bool) (score : σ × Bool → ℝ≥0∞) (c : ℝ≥0∞) (hc : ∀ s, score (s, true) = c)
+    (t : ι) (s : σ) (ε : ℝ≥0∞) :
+    wp (((trackedImpl impl bad) t).run (s, true)) (fun z => score z.2) ≤
+      score (s, true) + ε := by
+  refine le_add_right ?_
+  refine wp_le_const_of_support _ ?_
+  intro z hz
+  rw [trackedImpl_run, mem_support_bind_iff] at hz
+  obtain ⟨y, -, hz⟩ := hz
+  simp only [mem_support_pure_iff] at hz
+  subst hz
+  simp [hc]
 
 /-- Per-query expected-score bounds, with an allowance of `ε` on queries satisfying `p` only,
 give a bound `score (s₀, false) + q · ε` on the probability that the flag is set after a

@@ -72,6 +72,11 @@ state.
   `impl`, whose state spaces are related by a map `f`: if `right` answers each query from `f u` as
   `left` does from `u`, then `left` from `s` and `right` from `f s` accept with the same
   probability. The agreement is needed only at states satisfying an invariant of `left`.
+- `prEvent_optionRun_eq_of_state_map_some`: the same transport when only the answers
+  `a ≠ ⊥` and their successors are compared; an answer `⊥` contributes its mass alone, so the
+  states at which the runs stop need not be related by `f`. `evalDist_stopped_map_of_base`
+  derives its per-query hypothesis from a base-level state map when `stop` is invariant
+  under `f`.
 - `prEvent_stoppedRun_eq_of_inv`: stopping has no effect when an invariant of `base` keeps
   `stop` false; the stopped and ordinary runs accept with the same probability.
 - `signed_gap_stoppedRun_eq`: if two oracles `left` and `right` of the type of `base` answer
@@ -427,5 +432,113 @@ theorem signed_gap_stoppedRun_eq
   rw [ENNReal.toReal_add (by simp) (by simp),
     ENNReal.toReal_add (by simp) (by simp)] at h
   linarith
+
+end OracleComp
+
+namespace OracleComp
+
+variable {ι σ : Type} {spec : OracleSpec ι}
+
+/-! ### State-map transport with unrelated stopped states -/
+
+/-- Let `left` and `right` be oracle implementations with state spaces `σ` and `τ`, `f : σ → τ`
+a state map, and `Inv : σ → Prop` an invariant. Assume that for every query `t` and state `s`
+satisfying `Inv s`:
+
+- every `(some a, s')` in the support of `((left t).run).run s` satisfies `Inv s'`;
+- the distribution of the answer paired with the next state on `some` answers, with the next
+  state of `left` mapped through `f`, agrees under `right` from `f s` and under `left` from `s`;
+  a `none` answer contributes only its mass, and its state is not compared.
+
+Then, for every Boolean computation `oa` and state `s` satisfying `Inv s`,
+`optionRun right oa (f s)` and `optionRun left oa s` return `true` with equal probability. This
+weakens `prEvent_optionRun_eq_of_state_map` to runs whose stopped states need not be related
+by `f`. -/
+theorem prEvent_optionRun_eq_of_state_map_some {τ : Type}
+    (left : QueryImpl spec (OptionT (StateT σ ProbComp)))
+    (right : QueryImpl spec (OptionT (StateT τ ProbComp)))
+    (f : σ → τ) (Inv : σ → Prop)
+    (hpres : ∀ t s, Inv s → ∀ z ∈ support (((left t).run).run s),
+      z.1.isSome → Inv z.2)
+    (hstep : ∀ t s, Inv s →
+      ((fun z => z.1.map fun a => (a, z.2)) <$> ((right t).run).run (f s)) =ᵈ
+        ((fun z => z.1.map fun a => (a, f z.2)) <$> ((left t).run).run s))
+    (oa : OracleComp spec Bool) (s : σ) (hs : Inv s) :
+    Pr{let x ← optionRun right oa (f s)}[x = true] = Pr{let x ← optionRun left oa s}[x = true] := by
+  induction oa using OracleComp.inductionOn generalizing s with
+  | pure b => simp [optionRun_pure]
+  | query_bind t cont ih =>
+    rw [optionRun_query_bind, optionRun_query_bind]
+    trans Pr{let x ← (do
+      let w ← (fun z : Option (spec.Range t) × σ => z.1.map fun a => (a, f z.2)) <$>
+        ((left t).run).run s
+      match w with
+      | none => pure false
+      | some (a, s') => optionRun right (cont a) s')}[x = true]
+    · trans Pr{let x ← (do
+        let w ← (fun z : Option (spec.Range t) × τ => z.1.map fun a => (a, z.2)) <$>
+          ((right t).run).run (f s)
+        match w with
+        | none => pure false
+        | some (a, s') => optionRun right (cont a) s')}[x = true]
+      · have h : (do
+            let z ← ((right t).run).run (f s)
+            match z.1 with
+            | none => pure false
+            | some a => optionRun right (cont a) z.2) = (do
+            let w ← (fun z : Option (spec.Range t) × τ => z.1.map fun a => (a, z.2)) <$>
+              ((right t).run).run (f s)
+            match w with
+            | none => pure false
+            | some (a, s') => optionRun right (cont a) s') := by
+          simp only [bind_map_left]
+          refine bind_congr fun z => ?_
+          rcases z with ⟨_ | a, s'⟩ <;> rfl
+        rw [h]
+      · exact ((hstep t s hs).bind_left _).prEvent_eq _
+    · simp only [bind_map_left]
+      rw [map_bind, map_bind]
+      refine prEvent_bind_congr_of_support _ _ _ fun z hz => ?_
+      rcases z with ⟨_ | a, s'⟩
+      · rfl
+      · exact ih a s' (hpres t s hs (some a, s') hz rfl)
+
+end OracleComp
+
+namespace OracleComp
+
+variable {ι σ τ : Type} {spec : OracleSpec ι}
+
+/-! ### Lifting a base-level state map to stopped answers -/
+
+/-- If `right` from `f s` has the distribution of `left` from `s` with the successor mapped,
+and `stop` is invariant under `f`, then the stopped answers paired with their successors agree
+as `prEvent_optionRun_eq_of_state_map_some` requires. -/
+lemma evalDist_stopped_map_of_base (left : QueryImpl spec (StateT σ ProbComp))
+    (right : QueryImpl spec (StateT τ ProbComp)) (f : σ → τ) (stop : σ → Bool)
+    (stop' : τ → Bool) (hstop : ∀ u, stop' (f u) = stop u) (q : spec.Domain) (s : σ)
+    (h : (right q).run (f s) =ᵈ Prod.map id f <$> (left q).run s) :
+    ((fun z => z.1.map fun a => (a, z.2)) <$> ((stopOnState right stop' q).run).run (f s)) =ᵈ
+      ((fun z => z.1.map fun a => (a, f z.2)) <$> ((stopOnState left stop q).run).run s) := by
+  have hL : (fun z : Option (spec.Range q) × σ => z.1.map fun a => (a, f z.2)) <$>
+      ((stopOnState left stop q).run).run s =
+      (fun z : spec.Range q × σ => if stop z.2 then none else some (z.1, f z.2)) <$>
+        (left q).run s := by
+    simp only [stopOnState, OptionT.run_mk, StateT.run, map_eq_bind_pure_comp, bind_assoc,
+      pure_bind]
+    refine bind_congr fun z => ?_
+    by_cases hz : stop z.2 = true <;> simp [hz]
+  have hR : (fun z : Option (spec.Range q) × τ => z.1.map fun a => (a, z.2)) <$>
+      ((stopOnState right stop' q).run).run (f s) =
+      (fun z : spec.Range q × τ => if stop' z.2 then none else some (z.1, z.2)) <$>
+        (right q).run (f s) := by
+    simp only [stopOnState, OptionT.run_mk, StateT.run, map_eq_bind_pure_comp, bind_assoc,
+      pure_bind]
+    refine bind_congr fun z => ?_
+    by_cases hz : stop' z.2 = true <;> simp [hz]
+  rw [hL, hR]
+  refine (h.map _).trans ?_
+  simp only [Functor.map_map, Prod.map_fst, Prod.map_snd, id_eq, hstop]
+  exact EvalDistEq.refl _
 
 end OracleComp

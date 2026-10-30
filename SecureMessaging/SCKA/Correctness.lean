@@ -424,3 +424,16 @@ theorem correctness_error_le_of_potential [DecidableEq I]
   exact hrun ik hik stA hA stB hB
 
 end SCKAScheme
+
+/-! ### Running the uniform-sampling oracle -/
+
+namespace SCKAScheme
+
+/-- The uniform-sampling oracle keeps the state. -/
+lemma oracleUnif_run_eq {StA StB I Rho : Type} (n : ℕ) (s : GameState StA StB I Rho) :
+    (SCKAScheme.oracleUnif StA StB I Rho n).run s =
+      (fun x => (x, s)) <$> ((QueryImpl.ofLift unifSpec ProbComp) n) := by
+  simp [SCKAScheme.oracleUnif, QueryImpl.liftTarget, StateT.run_monadLift,
+    map_eq_bind_pure_comp]
+
+end SCKAScheme

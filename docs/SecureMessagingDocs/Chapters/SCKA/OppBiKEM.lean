@@ -5,6 +5,7 @@ import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessagingDocs.Bibliography
 import SecureMessaging.SCKA.OppBiKEM.Correctness
+import SecureMessaging.SCKA.OppBiKEM.Security
 
 /-! # Blueprint chapter: Opp-BiKEM-CKA -/
 
@@ -461,9 +462,68 @@ theorem correctness_true_ge
 :::defTitle "opp_bikem_cka_security" "Opp-BiKEM-CKA security"
 :::
 
-::::theorem "opp_bikem_cka_security" (parent := "cka_protocols_opp_bikem_cka") (tags := "gh-111") (uses := "opp_bikem_cka_spec, scka_security, erasure_code_scheme")
-$`\todo`
+::::::::theorem "opp_bikem_cka_security" (parent := "cka_protocols_opp_bikem_cka") (lean := "oppBiKemCKA.security") (tags := "gh-111") (uses := "opp_bikem_cka_spec, scka_security, scka_oracles, erasure_code_correctness")
+Let $`\Pi` be the Opp-BiKEM protocol ({bpref "opp_bikem_cka_spec"}[]) such that:
 
-:::leanPill "missing"
+* the underlying KEM $`\Gamma` has deterministic decapsulation;
+* the underlying erasure codes, for public keys and for ciphertexts, are correct
+  ({bpref "erasure_code_correctness"}[]).
+
+Then for every SCKA adversary $`\mathcal A` against $`\Pi` making at most $`q` ordinary or
+leaking send oracle queries, the IND-CPA adversary $`\mathcal B` against $`\Gamma`, constructed
+from $`\mathcal A` and $`q`, satisfies
+
+$$`\mathsf{Adv}^{\mathsf{guess}}_{\mathsf{SCKA},\Pi}(\mathcal A)
+\le q\varepsilon+q\,
+\mathsf{Adv}^{\mathsf{IND\text{-}CPA}}_{\mathsf{KEM},\Gamma}(\mathcal B),`
+
+where:
+
+* $`\mathsf{Adv}^{\mathsf{guess}}_{\mathsf{SCKA},\Pi}` is the guessing advantage of
+  {bpref "scka_security"}[] with the exposure functions of {bpref "opp_bikem_cka_spec"}[]:
+  a corruption exposes the epochs of $`\mathsf{st}_P.\mathsf{vuln}`, and a randomness leak
+  exposes the epochs of the key pair generated and the encapsulation performed by that send;
+* $`\mathsf{Adv}^{\mathsf{IND\text{-}CPA}}_{\mathsf{KEM},\Gamma}(\mathcal B)` is the
+  advantage of $`\mathcal B` against $`\Gamma` in the KEM IND-CPA security game;
+* $`\varepsilon` is the correctness error of $`\Gamma`.
+
+:::leanPillCaption "security"
 :::
-::::
+
+```anchor security (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Security)
+theorem security (adv : SecurityAdversary leak Sym) (q : ℕ)
+    (hq : SecuritySendQueryBound adv q) :
+    SCKAScheme.sckaGuessAdvantage (scheme kem hDet ecEk ecCt leak) adv
+        (exposure .A leak) (exposure .B leak) ≤
+      (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal +
+      (q : ℝ) * (kem.IND_CPA_Advantage ProbCompRuntime.probComp
+        (securityReduction kem hDet ecEk ecCt leak adv q)).toReal
+```
+
+The adversary $`\mathcal B` is built as follows. For $`q>0`, it chooses one target epoch $`t`
+uniformly from $`1,\dots,2q`, independently of the KEM material, and stores it with the
+challenge public key $`pk^*`. On receiving the challenge $`(c^*,k^*)`, it runs $`\mathcal A`
+once against a simulation of the security game in which:
+
+* the key pair generated for epoch $`t` is replaced by $`pk^*` with a placeholder secret key;
+* the encapsulation for epoch $`t` is replaced by $`(c^*,k^*)`;
+* every receive looks up the peer's recorded key instead of decapsulating;
+* challenges at epochs below $`t` are answered with uniform keys;
+* the challenge at epoch $`t` is answered with $`k^*`.
+
+It outputs the guess of $`\mathcal A`, or $`0` if $`\mathcal A` exposes epoch $`t` by a
+corruption or a randomness leak. For $`q=0`, it chooses target $`1`, and the security bound is
+zero.
+
+
+:::leanPillCaption "The constructed KEM adversary $`\\mathcal B`"
+:::
+
+```anchor securityReduction (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Security.Defs)
+def securityReduction (adv : SecurityAdversary leak Sym) (q : ℕ) : kem.IND_CPA_Adversary where
+  State := PK × ℕ
+  preChallenge pk := do pure (pk, ← securityTargetChoice (2 * q))
+  postChallenge st c k := reductionRun kem hDet ecEk ecCt leak adv st.2 st.1 c k
+```
+
+::::::::

@@ -23,6 +23,8 @@ challenges.
 
 - **Individual oracles:** possible results of challenge, corruption, and leaking-send queries;
   challenge oracles that record challenges (`RecordsChallenges`).
+- **Epoch-dependent challenges:** the challenge oracle `oracleChallOn`, whose query at epoch
+  `t` is the fixed-bit challenge with bit `random t`.
 - **Expected scores:** ordinary-send bounds extend to leaking sends.
 - **Send distributions:** rejection and stopping of leaking sends with a fixed exposure set;
   equal local-send distributions give equal query distributions.
@@ -115,6 +117,21 @@ theorem oracleChall_support (b : Bool) (s : GameState StA StB I Rho) (t : ℕ)
     rw [oracleChall_unavailable b s t hA hB] at hz
     exact Or.inl ⟨(mem_support_pure_iff _ _).mp hz, Or.inr ⟨hA, hB⟩⟩
 
+/-- Two challenge bits give the same query computation at epoch `t` from `s` whenever they
+agree if `t` is eligible in `s`: not exposed, not already challenged, and keyed in one of the
+game's tables. On an ineligible epoch both bits return `none` and leave `s` unchanged. -/
+theorem oracleChall_run_eq_of_eligible_imp (b b' : Bool) (s : GameState StA StB I Rho) (t : ℕ)
+    (h : ¬(t ∈ s.exposed ∨ t ∈ s.challenged) →
+      ((s.keyA t).isSome = true ∨ (s.keyB t).isSome = true) → b = b') :
+    (oracleChall b StA StB I Rho t).run s = (oracleChall b' StA StB I Rho t).run s := by
+  by_cases hrej : t ∈ s.exposed ∨ t ∈ s.challenged
+  · rw [oracleChall_rejected b s t hrej, oracleChall_rejected b' s t hrej]
+  by_cases hkey : (s.keyA t).isSome = true ∨ (s.keyB t).isSome = true
+  · rw [h hrej hkey]
+  · have hA : s.keyA t = none := by cases hA : s.keyA t <;> simp_all
+    have hB : s.keyB t = none := by cases hB : s.keyB t <;> simp_all
+    rw [oracleChall_unavailable b s t hA hB, oracleChall_unavailable b' s t hA hB]
+
 /-- An eligible challenge `t` puts `t` into `challenged` in every possible successor. -/
 theorem oracleChall_adds_challenged (b : Bool) (s : GameState StA StB I Rho) (t : ℕ)
     (helig : ¬(t ∈ s.exposed ∨ t ∈ s.challenged))
@@ -193,6 +210,206 @@ theorem oracleChall_preservesInv [SampleableType I] (b : Bool)
     (hbook : ∀ s challenged, Inv s → Inv { s with challenged := challenged }) :
     QueryImpl.PreservesInv (oracleChall b StA StB I Rho) Inv :=
   (challOf_recordsChallenges (fun _ => b)).preservesInv Inv hbook
+
+/-! ### Epoch-dependent challenge -/
+
+section ChallengeOn
+
+variable [SampleableType I]
+
+/-- The challenge oracle whose eligible answers are random exactly at the epochs selected by
+`random`: the query at epoch `t` is `oracleChall (random t)` at `t`, with the same guards and
+bookkeeping. -/
+def oracleChallOn (random : ℕ → Bool) (StA StB I Rho : Type) [SampleableType I] :
+    QueryImpl (ℕ →ₒ Option I) (StateT (GameState StA StB I Rho) ProbComp) :=
+  fun t => oracleChall (random t) StA StB I Rho t
+
+@[simp]
+lemma oracleChallOn_apply (random : ℕ → Bool) (t : ℕ) :
+    oracleChallOn random StA StB I Rho t = oracleChall (random t) StA StB I Rho t := rfl
+
+/-- A constant selection is the fixed-bit challenge oracle. -/
+lemma oracleChallOn_const (b : Bool) :
+    oracleChallOn (fun _ => b) StA StB I Rho = oracleChall b StA StB I Rho := rfl
+
+/-- `oracleChallOn` preserves every predicate on game states that is insensitive to
+`challenged`. -/
+theorem oracleChallOn_preservesInv (random : ℕ → Bool)
+    (Inv : GameState StA StB I Rho → Prop)
+    (hbook : ∀ s challenged, Inv s → Inv { s with challenged := challenged }) :
+    QueryImpl.PreservesInv (oracleChallOn random StA StB I Rho) Inv :=
+  fun t => oracleChall_preservesInv (random t) Inv hbook t
+
+end ChallengeOn
+
+/-! ### Challenge with an arbitrary answer function -/
+
+/-- The challenge oracle whose eligible answer at epoch `t` with recorded key `k` is drawn from
+`answer t k`: the same guards and bookkeeping as `oracleChall`, which is the instance
+`answer t k = if b then $ᵗ I else pure k`. -/
+def oracleChallWith (answer : ℕ → I → ProbComp I) (StA StB Rho : Type) :
+    QueryImpl (ℕ →ₒ Option I) (StateT (GameState StA StB I Rho) ProbComp) :=
+  fun (t : ℕ) => do
+    let state ← get
+    if t ∈ state.exposed ∨ t ∈ state.challenged then pure none
+    else
+      let key? := match state.keyA t with
+        | some k => some k
+        | none => state.keyB t
+      match key? with
+      | none => pure none
+      | some k =>
+        let outK ← liftM (answer t k)
+        set { state with challenged := insert t state.challenged }
+        return some outK
+
+section ChallengeWith
+
+variable (answer : ℕ → I → ProbComp I)
+
+/-- Challenging an exposed or previously challenged epoch returns `none` and keeps the state. -/
+lemma oracleChallWith_rejected (s : GameState StA StB I Rho) (t : ℕ)
+    (h : t ∈ s.exposed ∨ t ∈ s.challenged) :
+    (oracleChallWith answer StA StB Rho t).run s = pure (none, s) := by
+  simp [oracleChallWith, h]
+
+/-- Challenging an epoch without a recorded key returns `none` and keeps the state. -/
+lemma oracleChallWith_unavailable (s : GameState StA StB I Rho) (t : ℕ)
+    (hA : s.keyA t = none) (hB : s.keyB t = none) :
+    (oracleChallWith answer StA StB Rho t).run s = pure (none, s) := by
+  by_cases h : t ∈ s.exposed ∨ t ∈ s.challenged
+  · exact oracleChallWith_rejected answer s t h
+  · simp [oracleChallWith, h, hA, hB]
+
+/-- The eligible challenge at epoch `t` from `s`, with recorded key `k` (A's table first): draw
+the answer, record the challenge, return the answer. -/
+lemma oracleChallWith_eligible (s : GameState StA StB I Rho) (t : ℕ)
+    (h : ¬(t ∈ s.exposed ∨ t ∈ s.challenged)) (k : I)
+    (hk : s.keyA t = some k ∨ (s.keyA t = none ∧ s.keyB t = some k)) :
+    (oracleChallWith answer StA StB Rho t).run s = (do
+      let outK ← answer t k
+      pure (some outK, { s with challenged := insert t s.challenged })) := by
+  rcases hk with hA | ⟨hA, hB⟩
+  · simp [oracleChallWith, h, hA, StateT.run_bind, StateT.run_set, StateT.run_monadLift,
+      monadLift_self]
+  · simp [oracleChallWith, h, hA, hB, StateT.run_bind, StateT.run_set, StateT.run_monadLift,
+      monadLift_self]
+
+/-- Every result of `oracleChallWith` at epoch `t` from `s` is a rejection, with `t` exposed,
+challenged or unkeyed and the state kept, or an accepted challenge with `t` added to the
+challenged set. -/
+lemma oracleChallWith_support (s : GameState StA StB I Rho) (t : ℕ)
+    (z : Option I × GameState StA StB I Rho)
+    (hz : z ∈ support ((oracleChallWith answer StA StB Rho t).run s)) :
+    (z = (none, s) ∧
+      ((t ∈ s.exposed ∨ t ∈ s.challenged) ∨
+        (s.keyA t = none ∧ s.keyB t = none))) ∨
+    (¬(t ∈ s.exposed ∨ t ∈ s.challenged) ∧
+      ((s.keyA t).isSome ∨ (s.keyB t).isSome) ∧
+      z.2 = { s with challenged := insert t s.challenged }) := by
+  by_cases h : t ∈ s.exposed ∨ t ∈ s.challenged
+  · rw [oracleChallWith_rejected answer s t h] at hz
+    exact Or.inl ⟨(mem_support_pure_iff _ _).mp hz, Or.inl h⟩
+  by_cases hkey : (s.keyA t).isSome ∨ (s.keyB t).isSome
+  · refine Or.inr ⟨h, hkey, ?_⟩
+    have hk : ∃ k, s.keyA t = some k ∨ (s.keyA t = none ∧ s.keyB t = some k) := by
+      cases hA : s.keyA t with
+      | some k => exact ⟨k, Or.inl rfl⟩
+      | none =>
+        cases hB : s.keyB t with
+        | some k => exact ⟨k, Or.inr ⟨rfl, rfl⟩⟩
+        | none => simp [hA, hB] at hkey
+    obtain ⟨k, hk⟩ := hk
+    rw [oracleChallWith_eligible answer s t h k hk, mem_support_bind_iff] at hz
+    obtain ⟨outK, -, hz⟩ := hz
+    rw [(mem_support_pure_iff _ _).mp hz]
+  · have hA : s.keyA t = none := by cases hA : s.keyA t <;> simp_all
+    have hB : s.keyB t = none := by cases hB : s.keyB t <;> simp_all
+    rw [oracleChallWith_unavailable answer s t hA hB] at hz
+    exact Or.inl ⟨(mem_support_pure_iff _ _).mp hz, Or.inr ⟨hA, hB⟩⟩
+
+/-- Two answer functions give the same query computation at epoch `t` from `s` whenever they
+agree at `t` on every key if `t` is eligible in `s`. -/
+lemma oracleChallWith_run_eq_of_eligible_imp (answer' : ℕ → I → ProbComp I)
+    (s : GameState StA StB I Rho) (t : ℕ)
+    (h : ¬(t ∈ s.exposed ∨ t ∈ s.challenged) →
+      ((s.keyA t).isSome = true ∨ (s.keyB t).isSome = true) → ∀ k, answer t k = answer' t k) :
+    (oracleChallWith answer StA StB Rho t).run s =
+      (oracleChallWith answer' StA StB Rho t).run s := by
+  by_cases hrej : t ∈ s.exposed ∨ t ∈ s.challenged
+  · rw [oracleChallWith_rejected answer s t hrej, oracleChallWith_rejected answer' s t hrej]
+  by_cases hkey : (s.keyA t).isSome = true ∨ (s.keyB t).isSome = true
+  · have hk : ∃ k, s.keyA t = some k ∨ (s.keyA t = none ∧ s.keyB t = some k) := by
+      cases hA : s.keyA t with
+      | some k => exact ⟨k, Or.inl rfl⟩
+      | none =>
+        cases hB : s.keyB t with
+        | some k => exact ⟨k, Or.inr ⟨rfl, rfl⟩⟩
+        | none => simp [hA, hB] at hkey
+    obtain ⟨k, hk⟩ := hk
+    rw [oracleChallWith_eligible answer s t hrej k hk,
+      oracleChallWith_eligible answer' s t hrej k hk, h hrej hkey k]
+  · have hA : s.keyA t = none := by cases hA : s.keyA t <;> simp_all
+    have hB : s.keyB t = none := by cases hB : s.keyB t <;> simp_all
+    rw [oracleChallWith_unavailable answer s t hA hB,
+      oracleChallWith_unavailable answer' s t hA hB]
+
+/-- Drawing a value first and answering an eligible challenge with it is answering the
+challenge with the draw. -/
+lemma oracleChallWith_bind_eq_of_eligible {τ : Type} (sample : ProbComp τ)
+    (answerOf : τ → ℕ → I → ProbComp I) (f : τ → I)
+    (s : GameState StA StB I Rho) (t : ℕ)
+    (h : ¬(t ∈ s.exposed ∨ t ∈ s.challenged))
+    (hkey : (s.keyA t).isSome = true ∨ (s.keyB t).isSome = true)
+    (hans : ∀ a k, answerOf a t k = pure (f a)) :
+    (do let a ← sample; (oracleChallWith (answerOf a) StA StB Rho t).run s) =
+      (oracleChallWith (fun _ _ => f <$> sample) StA StB Rho t).run s := by
+  have hk : ∃ k, s.keyA t = some k ∨ (s.keyA t = none ∧ s.keyB t = some k) := by
+    cases hA : s.keyA t with
+    | some k => exact ⟨k, Or.inl rfl⟩
+    | none =>
+      cases hB : s.keyB t with
+      | some k => exact ⟨k, Or.inr ⟨rfl, rfl⟩⟩
+      | none => simp [hA, hB] at hkey
+  obtain ⟨k, hk⟩ := hk
+  rw [oracleChallWith_eligible _ s t h k hk]
+  simp only [oracleChallWith_eligible _ s t h k hk, hans, pure_bind, map_eq_bind_pure_comp,
+    bind_assoc, Function.comp]
+
+/-- The fixed-bit challenge oracle computes as the instance of `oracleChallWith` that answers
+a random key if the bit is set and the recorded key otherwise. -/
+lemma oracleChall_run_eq_oracleChallWith [SampleableType I] (b : Bool)
+    (s : GameState StA StB I Rho) (t : ℕ) :
+    (oracleChall b StA StB I Rho t).run s =
+      (oracleChallWith (fun _ k => if b then ($ᵗ I : ProbComp I) else pure k) StA StB Rho
+        t).run s := by
+  by_cases h : t ∈ s.exposed ∨ t ∈ s.challenged
+  · rw [oracleChall_rejected b s t h, oracleChallWith_rejected _ s t h]
+  cases hA : s.keyA t with
+  | some k =>
+    rw [oracleChallWith_eligible _ s t h k (Or.inl hA)]
+    cases b <;> simp [oracleChall, h, hA, StateT.run_bind, StateT.run_get, StateT.run_monadLift,
+      StateT.run_set, monadLift_self]
+  | none =>
+    cases hB : s.keyB t with
+    | some k =>
+      rw [oracleChallWith_eligible _ s t h k (Or.inr ⟨hA, hB⟩)]
+      cases b <;> simp [oracleChall, h, hA, hB, StateT.run_bind, StateT.run_get,
+        StateT.run_monadLift, StateT.run_set, monadLift_self]
+    | none => rw [oracleChall_unavailable b s t hA hB, oracleChallWith_unavailable _ s t hA hB]
+
+/-- The selection-indexed challenge oracle computes as the instance of `oracleChallWith` that
+answers a random key at the selected epochs and the recorded key otherwise. -/
+lemma oracleChallOn_run_eq_oracleChallWith [SampleableType I] (random : ℕ → Bool)
+    (s : GameState StA StB I Rho) (t : ℕ) :
+    (oracleChallOn random StA StB I Rho t).run s =
+      (oracleChallWith (fun t k => if random t then ($ᵗ I : ProbComp I) else pure k)
+        StA StB Rho t).run s := by
+  rw [oracleChallOn_apply, oracleChall_run_eq_oracleChallWith]
+  exact oracleChallWith_run_eq_of_eligible_imp _ _ s t (fun _ _ _ => rfl)
+
+end ChallengeWith
+
 
 /-! ### Corruption -/
 
@@ -578,6 +795,68 @@ theorem oracleSendBrleak_preservesInv_at
       rw [← hm]
       exact (mem_support_bind_iff _ _ _).mpr ⟨_, hout, by simp⟩
 
+/-- Bookkeeping of A's leaking-send query from `s`: the challenged set is unchanged, and the
+exposed set grows by a set disjoint from the challenged set (empty on rejection). -/
+theorem oracleSendArleak_bookkeeping
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (leak : StA → Rand → Finset ℕ)
+    (s : GameState StA StB I Rho)
+    (z : Option (ℕ × Option ℕ × Rho × Rand) × GameState StA StB I Rho)
+    (hz : z ∈ support ((oracleSendArleak leak scka ()).run s)) :
+    z.2.challenged = s.challenged ∧
+      ∃ E : Finset ℕ, E ∩ s.challenged = ∅ ∧ z.2.exposed = s.exposed ∪ E := by
+  simp only [oracleSendArleak, StateT.run_bind, StateT.run_get, pure_bind,
+    StateT.run_monadLift, monadLift_self, bind_assoc] at hz
+  rw [mem_support_bind_iff] at hz
+  obtain ⟨out, -, hz⟩ := hz
+  cases out with
+  | none =>
+      obtain rfl : z = (none, s) := by simpa using (mem_support_pure_iff _ _).mp hz
+      exact ⟨rfl, ∅, by simp, by simp⟩
+  | some out =>
+      rcases out with ⟨key, msg, epoch, state, coins⟩
+      dsimp only at hz
+      split at hz
+      · obtain rfl : z = (none, s) := by simpa using (mem_support_pure_iff _ _).mp hz
+        exact ⟨rfl, ∅, by simp, by simp⟩
+      · rename_i hvuln
+        cases key <;>
+          simp only [StateT.run_bind, StateT.run_set, pure_bind,
+            StateT.run_pure, mem_support_pure_iff] at hz
+        all_goals
+          obtain rfl := hz
+          exact ⟨rfl, leak s.stA coins, not_not.mp hvuln, rfl⟩
+
+/-- The version of `oracleSendArleak_bookkeeping` for B. -/
+theorem oracleSendBrleak_bookkeeping
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (leak : StB → Rand → Finset ℕ)
+    (s : GameState StA StB I Rho)
+    (z : Option (ℕ × Option ℕ × Rho × Rand) × GameState StA StB I Rho)
+    (hz : z ∈ support ((oracleSendBrleak leak scka ()).run s)) :
+    z.2.challenged = s.challenged ∧
+      ∃ E : Finset ℕ, E ∩ s.challenged = ∅ ∧ z.2.exposed = s.exposed ∪ E := by
+  simp only [oracleSendBrleak, StateT.run_bind, StateT.run_get, pure_bind,
+    StateT.run_monadLift, monadLift_self, bind_assoc] at hz
+  rw [mem_support_bind_iff] at hz
+  obtain ⟨out, -, hz⟩ := hz
+  cases out with
+  | none =>
+      obtain rfl : z = (none, s) := by simpa using (mem_support_pure_iff _ _).mp hz
+      exact ⟨rfl, ∅, by simp, by simp⟩
+  | some out =>
+      rcases out with ⟨key, msg, epoch, state, coins⟩
+      dsimp only at hz
+      split at hz
+      · obtain rfl : z = (none, s) := by simpa using (mem_support_pure_iff _ _).mp hz
+        exact ⟨rfl, ∅, by simp, by simp⟩
+      · rename_i hvuln
+        cases key <;>
+          simp only [StateT.run_bind, StateT.run_set, pure_bind,
+            StateT.run_pure, mem_support_pure_iff] at hz
+        all_goals
+          obtain rfl := hz
+          exact ⟨rfl, leak s.stB coins, not_not.mp hvuln, rfl⟩
 end LeakingSend
 
 /-! ## Expected scores of leaking sends -/
@@ -688,6 +967,42 @@ theorem oracleSendBrleak_wp_le
     · have hz : Pr{let x ← scka.sendBrleak s.stB}[x = out] = 0 := by
         exact (prEvent_eq_zero_of_not_mem_support _) hout
       simp only [hz, zero_mul]
+
+omit [DecidableEq I] in
+/-- A challenge query does not raise any score that is insensitive to `challenged`. -/
+theorem oracleChall_wp_le [SampleableType I] (b : Bool) (t : ℕ)
+    (s : GameState StA StB I Rho) (score : GameState StA StB I Rho → ℝ≥0∞)
+    (hbook : ∀ state challenged, score { state with challenged := challenged } = score state) :
+    wp ((oracleChall b StA StB I Rho t).run s) (fun z => score z.2) ≤ score s := by
+  refine wp_le_const_of_support _ ?_
+  intro z hz
+  rcases oracleChall_support b s t z hz with ⟨h, -⟩ | ⟨-, -, h⟩
+  · simp [h]
+  · simp [h, hbook]
+
+omit [DecidableEq I] in
+/-- Corrupting A does not raise any score that is insensitive to `exposed`. -/
+theorem oracleCorruptA_wp_le (vuln : StA → Finset ℕ)
+    (s : GameState StA StB I Rho) (score : GameState StA StB I Rho → ℝ≥0∞)
+    (hbook : ∀ state exposed, score { state with exposed := exposed } = score state) :
+    wp ((oracleCorruptA vuln StB I Rho ()).run s) (fun z => score z.2) ≤ score s := by
+  refine wp_le_const_of_support _ ?_
+  intro z hz
+  rcases oracleCorruptA_support vuln s z hz with h | ⟨-, h⟩
+  · simp [h]
+  · simp [h, hbook]
+
+omit [DecidableEq I] in
+/-- Corrupting B does not raise any score that is insensitive to `exposed`. -/
+theorem oracleCorruptB_wp_le (vuln : StB → Finset ℕ)
+    (s : GameState StA StB I Rho) (score : GameState StA StB I Rho → ℝ≥0∞)
+    (hbook : ∀ state exposed, score { state with exposed := exposed } = score state) :
+    wp ((oracleCorruptB vuln StA I Rho ()).run s) (fun z => score z.2) ≤ score s := by
+  refine wp_le_const_of_support _ ?_
+  intro z hz
+  rcases oracleCorruptB_support vuln s z hz with h | ⟨-, h⟩
+  · simp [h]
+  · simp [h, hbook]
 
 end ExpectedScores
 
@@ -1008,6 +1323,31 @@ theorem securityImplOf_preserves_at_of_book (Inv : GameState StA StB I Rho → P
     (fun z hz => oracleCorruptA_preservesInv vulnA.corrupt Inv hexp () s hs z hz)
     (fun z hz => oracleCorruptB_preservesInv vulnB.corrupt Inv hexp () s hs z hz) t z hz
 
+/-- The special case of `securityImplOf_preserves_at_of_book` for `sckaSecurityImpl`. Its
+ordinary sends are correctness queries, so the two send hypotheses are instances of `hbase`. -/
+theorem sckaSecurityImpl_preserves_at_of_book [SampleableType I] (b : Bool)
+    (Inv : GameState StA StB I Rho → Prop)
+    (hbook : ∀ s exposed challenged, Inv s →
+      Inv { s with exposed := exposed, challenged := challenged })
+    (hmA : ∀ st, (do
+      let out ← scka.sendArleak st
+      pure (out.map fun (key, msg, epoch, state, _) => (key, msg, epoch, state))) =
+        scka.sendA st)
+    (hmB : ∀ st, (do
+      let out ← scka.sendBrleak st
+      pure (out.map fun (key, msg, epoch, state, _) => (key, msg, epoch, state))) =
+        scka.sendB st)
+    (s : GameState StA StB I Rho) (hs : Inv s)
+    (hbase : ∀ t z, z ∈ support ((sckaCorrectnessImpl scka t).run s) → Inv z.2)
+    (hchall : ∀ (t : ℕ) z, z ∈ support ((oracleChall b StA StB I Rho t).run s) → Inv z.2)
+    (t : (sckaSecuritySpec StA StB I Rho Rand).Domain)
+    (z : (sckaSecuritySpec StA StB I Rho Rand).Range t × GameState StA StB I Rho)
+    (hz : z ∈ support ((sckaSecurityImpl b vulnA vulnB scka t).run s)) :
+    Inv z.2 :=
+  securityImplOf_preserves_at_of_book (sckaCorrectnessImpl scka) (oracleChall b StA StB I Rho)
+    vulnA vulnB scka Inv hbook hmA hmB s hs hbase hchall
+    (hbase sckaCorrectnessSpec.OSendA) (hbase sckaCorrectnessSpec.OSendB) t z hz
+
 /-- If dropping the coins of each leaking send gives the ordinary send and `chall` records
 challenges, the family preserves every `Inv` preserved by `base`, both ordinary sends, and
 arbitrary changes to `exposed` and `challenged`. -/
@@ -1129,6 +1469,51 @@ theorem securityImplOf_run_eq
   · exact hchall t
   · rfl
   · rfl
+
+
+/-- Bookkeeping of one assembled security query from `s`. Assume that base queries from `s` keep
+both `exposed` and `challenged`, and that challenge queries from `s` keep `exposed` and do not
+shrink `challenged`. Then the query shrinks neither set, and every newly exposed epoch was not
+challenged in `s`. -/
+theorem securityImplOf_bookkeeping (s : GameState StA StB I Rho)
+    (hbase : ∀ t z, z ∈ support ((base t).run s) →
+      z.2.exposed = s.exposed ∧ z.2.challenged = s.challenged)
+    (hchall : ∀ (t : ℕ) z, z ∈ support ((chall t).run s) →
+      z.2.exposed = s.exposed ∧ s.challenged ⊆ z.2.challenged)
+    (t : (sckaSecuritySpec StA StB I Rho Rand).Domain)
+    (z : (sckaSecuritySpec StA StB I Rho Rand).Range t × GameState StA StB I Rho)
+    (hz : z ∈ support ((securityImplOf base chall vulnA vulnB scka t).run s)) :
+    s.exposed ⊆ z.2.exposed ∧ s.challenged ⊆ z.2.challenged ∧
+      ∀ e ∈ z.2.exposed, e ∉ s.exposed → e ∉ s.challenged := by
+  have hgrow : ∀ (E : Finset ℕ) (u : GameState StA StB I Rho), E ∩ s.challenged = ∅ →
+      u.challenged = s.challenged → u.exposed = s.exposed ∪ E →
+      s.exposed ⊆ u.exposed ∧ s.challenged ⊆ u.challenged ∧
+        ∀ e ∈ u.exposed, e ∉ s.exposed → e ∉ s.challenged := by
+    intro E u hE hc he
+    refine ⟨by rw [he]; exact Finset.subset_union_left, by rw [hc], fun e he' hnot hchal => ?_⟩
+    rw [he, Finset.mem_union] at he'
+    have hmem : e ∈ E ∩ s.challenged := Finset.mem_inter.2 ⟨he'.resolve_left hnot, hchal⟩
+    rw [hE] at hmem
+    exact Finset.notMem_empty e hmem
+  rcases t with (((((t | u) | u) | t) | u) | u)
+  · obtain ⟨he, hc⟩ := hbase t z hz
+    exact hgrow ∅ z.2 (by simp) hc (by rw [he, Finset.union_empty])
+  · cases u
+    obtain ⟨hc, E, hE, he⟩ := oracleSendArleak_bookkeeping scka vulnA.rleak s z hz
+    exact hgrow E z.2 hE hc he
+  · cases u
+    obtain ⟨hc, E, hE, he⟩ := oracleSendBrleak_bookkeeping scka vulnB.rleak s z hz
+    exact hgrow E z.2 hE hc he
+  · obtain ⟨he, hc⟩ := hchall t z hz
+    exact ⟨by rw [he], hc, fun e he' hnot => by rw [he] at he'; exact absurd he' hnot⟩
+  · cases u
+    rcases oracleCorruptA_support vulnA.corrupt s z hz with h | ⟨hE, h⟩
+    · rw [h]; exact hgrow ∅ s (by simp) rfl (by simp)
+    · rw [h]; exact hgrow _ _ hE rfl rfl
+  · cases u
+    rcases oracleCorruptB_support vulnB.corrupt s z hz with h | ⟨hE, h⟩
+    · rw [h]; exact hgrow ∅ s (by simp) rfl (by simp)
+    · rw [h]; exact hgrow _ _ hE rfl rfl
 
 end SecurityFamily
 
