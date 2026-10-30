@@ -412,10 +412,10 @@ def RatchetSimulatable (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.
 ```
 :::::::
 
-:::defTitle "rkem_security_experiment" "RKEM Security Experiment"
+:::defTitle "rkem_security" "RKEM (forward-secure)-IND-CPA"
 :::
 
-:::::::definition "rkem_security_experiment" (parent := "rkem") (lean := "RKEMScheme.securityExpA, RKEMScheme.FSINDCPAAdversary, RKEMScheme.INDCPAAdversary") (uses := "rkem_scheme")
+:::::::definition "rkem_security" (parent := "rkem") (lean := "RKEMScheme.FSINDCPAAdversary, RKEMScheme.INDCPAAdversary, RKEMScheme.securityExpA, RKEMScheme.fsIndCpaAdvantageA, RKEMScheme.indCpaAdvantageA, RKEMScheme.indCpaAdvantageB, RKEMScheme.fsIndCpaAdvantage, RKEMScheme.indCpaAdvantage, RKEMScheme.FSINDCPASecure, RKEMScheme.INDCPASecure") (tags := "gh-178, gh-375") (uses := "rkem_scheme")
 Adapted from {Informal.citet TR25}[], Definition 5.4 and the remark following it.
 
 The FS-IND-CPA experiment for party $`\A` is shown below, next to the IND-CPA experiment for non-forward-secure RKEMs, which is the same experiment with $`\dkh{A}` withheld from the adversary. The experiments for party $`\B` are symmetric, with the roles of $`\A` and $`\B` swapped.
@@ -430,9 +430,17 @@ b\sample\{0,1\},\;K_1\sample\mathcal{K} \\
 b'\sample\adv(\ekA,\ekh{A},\ekh{B},\ct_\B,\dkh{A},K_b)\pcomment{\dkh{A}\text{ given}} \\
 \Return(b=b')
 \end{array}`
+
+:::leanPillCaption "FS-IND-CPA Adversary"
+:::
+```anchor FSINDCPAAdversary (project := ".") (module := SecureMessaging.RKEM.Defs)
+abbrev FSINDCPAAdversary (Par EK DK CT K : Type) : Type :=
+  (par : Par) → (ekP ekPHat ekPeerHat : EK) → (ctPeer : CT) → (dkPHat : DK) → (kb : K) →
+    ProbComp Bool
+```
+
 :::leanPillCaption "Experiment"
 :::
-
 ```anchor securityExpA (project := ".") (module := SecureMessaging.RKEM.Defs)
 def securityExpA (rkem : RKEMScheme ProbComp Par EK DK CT K)
     (adversary : FSINDCPAAdversary Par EK DK CT K) [SampleableType K] : ProbComp Bool := do
@@ -457,30 +465,17 @@ b\sample\{0,1\},\;K_1\sample\mathcal{K} \\
 b'\sample\adv(\ekA,\ekh{A},\ekh{B},\ct_\B,K_b)\pcomment{\dkh{A}\text{ withheld}} \\
 \Return(b=b')
 \end{array}`
-:::::
-::::::
 
-The IND-CPA experiment is the FS-IND-CPA experiment run against an adversary that ignores $`\dkh{P}`.
-
-::::leanCompare "Adversary, which differs only by the $`\\dkh{P}` argument, $`\\texttt{dkPHat : DK}`" (left := "FS-IND-CPA") (right := "IND-CPA")
-```anchor FSINDCPAAdversary (project := ".") (module := SecureMessaging.RKEM.Defs)
-abbrev FSINDCPAAdversary (Par EK DK CT K : Type) : Type :=
-  (par : Par) → (ekP ekPHat ekPeerHat : EK) → (ctPeer : CT) → (dkPHat : DK) → (kb : K) →
-    ProbComp Bool
-```
-
+:::leanPillCaption "IND-CPA Adversary"
+:::
 ```anchor INDCPAAdversary (project := ".") (module := SecureMessaging.RKEM.Defs)
 abbrev INDCPAAdversary (Par EK CT K : Type) : Type :=
   (par : Par) → (ekP ekPHat ekPeerHat : EK) → (ctPeer : CT) → (kb : K) →
     ProbComp Bool
 ```
-::::
-:::::::
+:::::
+::::::
 
-:::defTitle "rkem_guess_advantage" "RKEM Guess Advantage"
-:::
-
-:::::definition "rkem_guess_advantage" (parent := "rkem") (lean := "RKEMScheme.fsIndCpaAdvantageA, RKEMScheme.indCpaAdvantageA, RKEMScheme.indCpaAdvantageB, RKEMScheme.fsIndCpaAdvantage, RKEMScheme.indCpaAdvantage") (uses := "rkem_security_experiment")
 For $`\mathsf{X}\in\{\mathsf{FS\text{-}IND\text{-}CPA},\mathsf{IND\text{-}CPA}\}`, the advantage of an adversary $`\adv` against party $`\mathsf{P}\in\{\A,\B\}` is
 
 $$`\mathsf{Adv}^{\mathsf{X}\text{-}\mathsf{P}}(\adv)=\left|\Pr\left[\mathsf{Exp}^{\mathsf{X}\text{-}\mathsf{P}}(\adv)=1\right]-\tfrac12\right|`
@@ -517,12 +512,7 @@ noncomputable def indCpaAdvantage (rkem : RKEMScheme ProbComp Par EK DK CT K)
   max (rkem.indCpaAdvantageA adversaryA) (rkem.indCpaAdvantageB adversaryB)
 ```
 ::::
-:::::
 
-:::defTitle "rkem_security" "RKEM (forward secure)-IND-CPA"
-:::
-
-:::::definition "rkem_security" (parent := "rkem") (lean := "RKEMScheme.FSINDCPASecure, RKEMScheme.INDCPASecure") (tags := "gh-178, gh-375") (uses := "rkem_guess_advantage")
 An RKEM is $`\varepsilon`-FS-IND-CPA secure when $`\mathsf{Adv}^{\mathsf{FS\text{-}IND\text{-}CPA}}(\adv_\A,\adv_\B)\le\varepsilon`, and a non-forward-secure RKEM is $`\varepsilon`-IND-CPA secure when $`\mathsf{Adv}^{\mathsf{IND\text{-}CPA}}(\adv_\A,\adv_\B)\le\varepsilon`.
 
 ::::leanCompare "Security" (left := "FS-IND-CPA") (right := "IND-CPA")
@@ -540,7 +530,7 @@ def INDCPASecure (rkem : RKEMScheme ProbComp Par EK DK CT K)
   rkem.indCpaAdvantage adversaryA adversaryB ≤ epsilon
 ```
 ::::
-:::::
+:::::::
 
 :::defTitle "rkem_correctness" "RKEM correctness"
 :::
