@@ -4,7 +4,6 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.EvalDist.BoolDist
 import ToVCVio.OracleComp.Constructions.EpochChoice
 import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.KEM
 import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.KDF
@@ -43,32 +42,12 @@ variable (P : Parameters ProbComp) [SampleableType P.K] [SampleableType P.EpochK
 def kemMixReduction (A : Adversary P irl) (q : ℕ) : P.kem.IND_CPA_Adversary where
   State := P.PK × ℕ
   preChallenge pk := do pure (pk, ← epochChoice q)
-  postChallenge st c k :=
-    match st.2 with
-    | 0 => pure false
-    | e + 1 => stoppedRun
-        (simImpl P hMac irl (e + 1) ⟨st.1, (P.inc.splitC c).1, (P.inc.splitC c).2, k⟩)
+  postChallenge
+    | (_, 0), _, _ => pure false
+    | (pk, e + 1), c, k => stoppedRun
+        (simImpl P hMac irl (e + 1)
+          { pk, ct1 := (P.inc.splitC c).1, ct2 := (P.inc.splitC c).2, key := k })
         (simStop (e + 1)) A (simInit P hMac)
-
-/-- A key-derivation distinguisher that first chooses the epoch label. -/
-structure KDFContextAdversary (P : Parameters ProbComp) where
-  /-- The information kept between choosing the label and guessing. -/
-  State : Type
-  /-- Choose the epoch label and the kept information. -/
-  context : ProbComp (ℕ × State)
-  /-- Guess from the kept information and the epoch key received. -/
-  guess : State → P.EpochKey → ProbComp Bool
-
-/-- Key-derivation game. The label `e` is chosen first; then `kdfExp` runs the fixed-epoch game at
-`e`: with `derived = true` the distinguisher receives `kdfOK u e` for uniform `u`, with `false` a
-uniform epoch key. -/
-def kdfContextExp (C : KDFContextAdversary P) (derived : Bool) : ProbComp Bool := do
-  let c ← C.context
-  kdfExp P c.1 (C.guess c.2) derived
-
-/-- Distinguishing advantage of a key-derivation adversary. -/
-noncomputable def kdfAdvantage (C : KDFContextAdversary P) : ℝ :=
-  (𝒟[kdfContextExp P C true].boolDist 𝒟[kdfContextExp P C false]).toReal
 
 /-- The key-derivation adversary that draws `e ∈ {1, …, q}` and runs `kdfReduction` at `e`. -/
 def kdfMixReduction (A : Adversary P irl) (q : ℕ) : KDFContextAdversary P where

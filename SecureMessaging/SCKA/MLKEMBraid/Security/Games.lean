@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.SCKA.MLKEMBraid.Security.NoAuth
 import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
+import ToVCVio.EvalDist.BoolDist
 
 /-!
 # No-authentication Braid security games
@@ -381,5 +382,27 @@ def kdfExp (P : Parameters ProbComp)
   else do
     let x ← $ᵗ P.EpochKey
     D x
+
+/-- A key-derivation distinguisher that first chooses the epoch label. -/
+structure KDFContextAdversary (P : Parameters ProbComp) where
+  /-- The information kept between choosing the label and guessing. -/
+  State : Type
+  /-- Choose the epoch label and the kept information. -/
+  context : ProbComp (ℕ × State)
+  /-- Guess from the kept information and the epoch key received. -/
+  guess : State → P.EpochKey → ProbComp Bool
+
+/-- Key-derivation game. The label `e` is chosen first; then `kdfExp` runs the fixed-epoch game at
+`e`: with `derived = true` the distinguisher receives `kdfOK u e` for uniform `u`, with `false` a
+uniform epoch key. -/
+def kdfContextExp (P : Parameters ProbComp) [SampleableType P.K] [SampleableType P.EpochKey]
+    (C : KDFContextAdversary P) (derived : Bool) : ProbComp Bool := do
+  let (e, st) ← C.context
+  kdfExp P e (C.guess st) derived
+
+/-- Distinguishing advantage of a key-derivation adversary. -/
+noncomputable def kdfAdvantage (P : Parameters ProbComp) [SampleableType P.K]
+    [SampleableType P.EpochKey] (C : KDFContextAdversary P) : ℝ :=
+  (𝒟[kdfContextExp P C true].boolDist 𝒟[kdfContextExp P C false]).toReal
 
 end MLKEMBraid.NoAuth
