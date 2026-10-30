@@ -8,11 +8,12 @@ import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.ProjectionBasic
 import SecureMessaging.SCKA.MLKEMBraid.Security.Invariant.Receive
 
 /-!
-# Receive projections of the masked simulator
+# Receives of the simulator
 
-The masked receive preserves the repaired receive's joint output/state behavior. Local payload
-facts identify the retained second ciphertext component; repaired completion uses the derived
-test key without assuming that actual decapsulation succeeds.
+The receive of a masked state gives the same output and next state as the repaired receive of the
+state it hides. The payload invariant identifies the second ciphertext component that the state
+keeps. The repaired completion outputs the test key, and the proof does not assume that
+decapsulation succeeds.
 -/
 
 open OracleSpec OracleComp ENNReal

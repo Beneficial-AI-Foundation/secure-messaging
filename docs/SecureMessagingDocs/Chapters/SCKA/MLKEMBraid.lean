@@ -511,15 +511,15 @@ structure KDFContextAdversary (P : Parameters ProbComp) where
   /-- Guess from the kept information and the epoch key received. -/
   guess : State → P.EpochKey → ProbComp Bool
 
-/-- Key-derivation game. The label `e` is chosen first; then `kdfExp` runs the fixed-epoch game at
-`e`: with `derived = true` the distinguisher receives `kdfOK u e` for uniform `u`, with `false` a
-uniform epoch key. -/
+/-- The key-derivation game with a chosen label. The distinguisher `C` first chooses the label
+`e`, and then `kdfExp` runs the game at `e`. -/
 def kdfContextExp (P : Parameters ProbComp) [SampleableType P.K] [SampleableType P.EpochKey]
     (C : KDFContextAdversary P) (derived : Bool) : ProbComp Bool := do
   let (e, st) ← C.context
   kdfExp P e (C.guess st) derived
 
-/-- Distinguishing advantage of a key-derivation adversary. -/
+/-- The advantage of `C` in the key-derivation game: the distance between its output
+distributions for derived and for uniform keys. -/
 noncomputable def kdfAdvantage (P : Parameters ProbComp) [SampleableType P.K]
     [SampleableType P.EpochKey] (C : KDFContextAdversary P) : ℝ :=
   (𝒟[kdfContextExp P C true].boolDist 𝒟[kdfContextExp P C false]).toReal

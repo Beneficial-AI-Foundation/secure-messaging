@@ -9,11 +9,13 @@ import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.Send
 import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Trace
 
 /-!
-# Query-wise simulator correspondence
+# The simulator and the installed trace game
 
-With both selected samples installed, the repaired invariant identifies ciphertext and output
-keys needed by the receive and challenge comparisons. Joint per-query projections then lift to
-equality of stopped acceptance probabilities through the existing state-map theorem.
+With the key pair and the first-stage encapsulation of `e` installed, the repaired invariant
+determines the ciphertext and the output keys that the simulator needs for receives and
+challenges. So each query of the simulator agrees with the query of the installed trace game on
+the simulator view of the state. The ToVCVio result `prEvent_optionRun_eq_of_state_map` on runs
+and maps of states then gives the same acceptance probability for the stopped runs.
 -/
 
 open OracleSpec OracleComp ENNReal

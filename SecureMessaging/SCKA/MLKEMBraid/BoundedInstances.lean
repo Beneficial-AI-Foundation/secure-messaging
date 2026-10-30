@@ -14,8 +14,8 @@ import SecureMessaging.SCKA.MLKEMBraid.Construction
 /-!
 # Bounded ML-KEM Braid parameters
 
-The four payloads use reversible byte representations and the existing abstract SPQR code.
-Their roundtrips hold for every bounded payload, without canonical-encoding restrictions.
+The four payloads use bijective byte representations and the abstract SPQR Reed–Solomon code.
+Decoding inverts encoding for every bounded payload, with no condition of canonical encoding.
 -/
 
 namespace MLKEMBraid.Bounded
@@ -75,14 +75,15 @@ noncomputable def ct2Payload (p : MLKEM.ParameterSet) :
       (by cases p <;> decide) (by cases p <;> decide))
     ((Equiv.prodPUnit _).trans (byteBlocksEquiv (MLKEM.ParameterSet.params p).dv))
 
-/-- Each of the four payload codes has the existing SPQR reconstruction guarantee. -/
+/-- The four payload codes are correct erasure codes. -/
 theorem payloads_correct (p : MLKEM.ParameterSet) :
     headerPayload.ec.Correct ∧ (publicKeyPayload p).ec.Correct ∧
       (ct1Payload p).ec.Correct ∧ (ct2Payload p).ec.Correct := by
   exact ⟨erasureCode_correct _ _ _, erasureCode_correct _ _ _,
     erasureCode_correct _ _ _, erasureCode_correct _ _ _⟩
 
-/-- Assemble bounded ML-KEM with finite-symbol payloads, retaining the original key samplers. -/
+/-- The Braid parameters for bounded ML-KEM and the four Reed–Solomon payload codes. The KEM
+samples its keys and messages as ML-KEM does. -/
 noncomputable def parameters (p : MLKEM.ParameterSet) (ring : MLKEM.NTTRingOps)
     (prims : MLKEM.Primitives (MLKEM.ParameterSet.params p)
       (MLKEM.Concrete.concreteEncoding (MLKEM.ParameterSet.params p)))

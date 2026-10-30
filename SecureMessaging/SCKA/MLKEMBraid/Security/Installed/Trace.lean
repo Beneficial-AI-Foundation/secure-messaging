@@ -10,11 +10,11 @@ import SecureMessaging.SCKA.MLKEMBraid.Security.Trace
 import ToVCVio.OracleComp.SimSemantics.StateT.QueryImplAdd
 
 /-!
-# Installed transcript preservation
+# Records of the installed trace games
 
-An installed query records at most one sample, and at the selected epoch records the supplied
-sample. The repaired trace invariant and these recording facts give the invariant used by
-once-only key-generation and first-stage installation arguments.
+A query of an installed game records at most one sample, and at the selected epoch it records the
+installed sample. With the repaired trace invariant, these facts give the invariant `InstInv`
+that the installation results of `Installed.Sampling` use.
 -/
 
 open OracleSpec OracleComp ENNReal

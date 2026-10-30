@@ -11,10 +11,10 @@ import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
 /-!
 # Fixed-length byte representations of ML-KEM
 
-Encoding outputs are packaged as the existing array-backed byte vectors, and decoding first
-forgets that length evidence without altering bytes. Primitive functions are the supplied raw
-functions composed only with this forgetting map. Raw admissibility checks exact lengths, not
-canonicality, hashes or membership in the key-generation image.
+The encoding `encoding` returns byte vectors of fixed length (`Bytes n`). Decoding first forgets
+the length and keeps the bytes. The primitive functions are the supplied raw functions composed
+with this forgetful map. A raw input is admissible if it has the exact length. Admissibility does
+not check canonical encoding, hashes or membership in the image of key generation.
 -/
 
 open OracleComp KEMScheme
@@ -69,7 +69,7 @@ instance decidableEqEncodedV (params : Params) :
     DecidableEq (encoding params).EncodedV :=
   inferInstanceAs (DecidableEq (Bytes (32 * params.dv)))
 
-/-- The supplied raw primitives, with exact forgetting at their encoded-byte inputs. -/
+/-- The supplied raw primitives, composed with the forgetful map on their encoded inputs. -/
 def primitives (params : Params)
     (prims : Primitives params (Concrete.concreteEncoding params)) :
     Primitives params (encoding params) where
@@ -81,7 +81,8 @@ def primitives (params : Params)
   hEncapsulationKey v r := prims.hEncapsulationKey (Concrete.vectorToByteArray v) r
   jReject z u v := prims.jReject z (Concrete.vectorToByteArray u) (Concrete.vectorToByteArray v)
 
-/-- The unchanged internal ML-KEM algorithms using the bounded representation adapter. -/
+/-- ML-KEM with the fixed-length encoding `encoding`. The internal algorithms are those of
+ML-KEM. -/
 def scheme (p : ParameterSet) (ring : NTTRingOps)
     (prims : Primitives (ParameterSet.params p)
       (Concrete.concreteEncoding (ParameterSet.params p))) :
@@ -92,11 +93,11 @@ def scheme (p : ParameterSet) (ring : NTTRingOps)
   asKEMScheme ring (encoding (ParameterSet.params p))
     (primitives (ParameterSet.params p) prims)
 
-/-- Read every byte string of exactly the requested length, rejecting every other length. -/
+/-- Read a byte string of length `n`, and reject every other length. -/
 def readBytes (n : ℕ) (b : ByteArray) : Option (Bytes n) :=
   if h : b.size = n then some ⟨b.data, h⟩ else none
 
-/-- Successful parsing is exactly inverse to the existing byte-array forgetting map. -/
+/-- Reading succeeds exactly on the image of the forgetful map, and inverts it. -/
 theorem readBytes_eq_some_iff {n : ℕ} {b : ByteArray} {v : Bytes n} :
     readBytes n b = some v ↔ Concrete.vectorToByteArray v = b := by
   constructor
@@ -112,13 +113,13 @@ theorem readBytes_eq_some_iff {n : ℕ} {b : ByteArray} {v : Bytes n} :
     rcases v with ⟨a, ha⟩
     simp [readBytes, Concrete.vectorToByteArray, ByteArray.size, ha]
 
-/-- Forget only the public-vector length evidence, preserving the public seed. -/
+/-- Forget the length of the public vector and keep the public seed. -/
 def toRawPK (params : Params) :
     EncapsulationKey params (encoding params) →
       EncapsulationKey params (Concrete.concreteEncoding params) :=
   fun pk => { tHatEncoded := Concrete.vectorToByteArray pk.tHatEncoded, rho := pk.rho }
 
-/-- Forget the two encoded secret/public vectors, preserving hash and rejection seed. -/
+/-- Forget the lengths of the two encoded vectors and keep the hash and the rejection seed. -/
 def toRawSK (params : Params) :
     DecapsulationKey params (encoding params) →
       DecapsulationKey params (Concrete.concreteEncoding params) :=
@@ -136,7 +137,7 @@ def toRawC (params : Params) :
     { uEncoded := Concrete.vectorToByteArray c.uEncoded
       vEncoded := Concrete.vectorToByteArray c.vEncoded }
 
-/-- Check only the exact raw public-vector length, preserving the public seed. -/
+/-- Check that the raw public vector has the exact length, and keep the public seed. -/
 def readPK (params : Params) :
     EncapsulationKey params (Concrete.concreteEncoding params) →
       Option (EncapsulationKey params (encoding params)) :=
@@ -144,7 +145,7 @@ def readPK (params : Params) :
     let v ← readBytes (384 * params.k) pk.tHatEncoded
     pure { tHatEncoded := v, rho := pk.rho }
 
-/-- Check both exact raw ciphertext component lengths; reject either mismatch. -/
+/-- Check that both raw ciphertext components have the exact lengths. -/
 def readC (params : Params) :
     Ciphertext params (Concrete.concreteEncoding params) →
       Option (Ciphertext params (encoding params)) :=
@@ -153,7 +154,7 @@ def readC (params : Params) :
     let v ← readBytes (32 * params.dv) c.vEncoded
     pure { uEncoded := u, vEncoded := v }
 
-/-- Raw public-key parsing succeeds exactly on the image of byte forgetting. -/
+/-- Reading a raw public key succeeds exactly on the image of the forgetful map. -/
 theorem readPK_eq_some_iff (params : Params)
     (raw : EncapsulationKey params (Concrete.concreteEncoding params))
     (bounded : EncapsulationKey params (encoding params)) :
@@ -180,7 +181,7 @@ theorem readPK_eq_some_iff (params : Params)
       some (KPKE.PublicKey.mk vec rho')
     rw [hrho]
 
-/-- Raw ciphertext parsing succeeds exactly on the image of byte forgetting. -/
+/-- Reading a raw ciphertext succeeds exactly on the image of the forgetful map. -/
 theorem readC_eq_some_iff (params : Params)
     (raw : Ciphertext params (Concrete.concreteEncoding params))
     (bounded : Ciphertext params (encoding params)) :
@@ -224,14 +225,14 @@ variable (p : ParameterSet) (ring : NTTRingOps)
     (prims : Primitives (ParameterSet.params p)
       (Concrete.concreteEncoding (ParameterSet.params p)))
 
-/-- Key generation preserves the complete public/secret pair and its original samplers. -/
+/-- Key generation followed by the forgetful map is raw key generation. -/
 theorem keygen_refines :
     Prod.map (toRawPK (ParameterSet.params p)) (toRawSK (ParameterSet.params p)) <$>
       (scheme p ring prims).keygen = (mlkemScheme p ring prims).keygen := by
   simp only [scheme, mlkemScheme, asKEMScheme, keygen, map_bind, map_pure]
   congr 1
 
-/-- Encapsulation preserves ciphertext bytes, shared secret and the message sampler. -/
+/-- Encapsulation followed by the forgetful map is raw encapsulation of the raw public key. -/
 theorem encaps_refines
     (pk : EncapsulationKey (ParameterSet.params p) (encoding (ParameterSet.params p))) :
     Prod.map (toRawC (ParameterSet.params p)) id <$> (scheme p ring prims).encaps pk =
@@ -267,7 +268,7 @@ theorem decaps_refines
   simp only [hinj.eq_iff]
   rfl
 
-/-- The honest correctness experiments agree as terms, without a correctness premise. -/
+/-- The correctness experiments of bounded and raw ML-KEM are equal. -/
 theorem correctExp_eq :
     (scheme p ring prims).correctnessExperiment =
       (mlkemScheme p ring prims).correctnessExperiment := by
@@ -282,14 +283,14 @@ theorem correctExp_eq :
   funext out
   rw [decaps_refines]
 
-/-- Missing success mass is unchanged by the byte representation. -/
+/-- The correctness errors of bounded and raw ML-KEM are equal. -/
 theorem correctnessError_eq :
     (scheme p ring prims).correctnessError ProbCompRuntime.probComp =
       (mlkemScheme p ring prims).correctnessError ProbCompRuntime.probComp := by
   unfold KEMScheme.correctnessError
   rw [correctExp_eq]
 
-/-- Run a bounded adversary on raw inputs, rejecting only inadmissible raw lengths. -/
+/-- Run a bounded adversary on raw inputs. If a raw input has the wrong length, output `false`. -/
 def liftAdversary (A : (scheme p ring prims).IND_CPA_Adversary) :
     (mlkemScheme p ring prims).IND_CPA_Adversary where
   State := Option A.State
@@ -302,7 +303,8 @@ def liftAdversary (A : (scheme p ring prims).IND_CPA_Adversary) :
     | some s, some c => A.postChallenge s c key
     | _, _ => pure false
 
-/-- Generated raw keys and ciphertexts always parse; both fixed-bit experiments agree. -/
+/-- The raw keys and ciphertexts that ML-KEM generates can always be read, so the two IND-CPA
+experiments with a fixed bit are equal. -/
 theorem indCPAExp_lift (A : (scheme p ring prims).IND_CPA_Adversary) (b : Bool) :
     IND_CPA_Experiment (kem := mlkemScheme p ring prims) ProbCompRuntime.probComp
       (liftAdversary p ring prims A) b =
@@ -324,7 +326,8 @@ theorem indCPAExp_lift (A : (scheme p ring prims).IND_CPA_Adversary) (b : Bool) 
   rw [← encaps_refines p ring prims pair.1]
   simp only [bind_map_left, Prod.map, id_eq, hc]
 
-/-- The raw reduction has exactly the bounded adversary's canonical IND-CPA advantage. -/
+/-- The lifted adversary has the same IND-CPA advantage against raw ML-KEM as `A` against bounded
+ML-KEM. -/
 theorem indCPAAdvantage_lift (A : (scheme p ring prims).IND_CPA_Adversary) :
     (mlkemScheme p ring prims).IND_CPA_Advantage ProbCompRuntime.probComp
       (liftAdversary p ring prims A) =

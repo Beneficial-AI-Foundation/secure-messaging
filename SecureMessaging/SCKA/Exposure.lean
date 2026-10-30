@@ -45,7 +45,7 @@ def ofDelta {St Rand : Type} (V : St → Finset ℕ) :
   corrupt := V
   send := fun st st' _ => V st' \ V st
 
-/-- A's leaking send, refusing a proposal whose exposed epochs intersect the challenges. -/
+/-- A's leaking send. It refuses a send whose exposed epochs meet the challenged epochs. -/
 -- ANCHOR: oracleSendArleak
 def oracleSendArleak [DecidableEq I] (leakA : StA → StA → Rand → Finset ℕ)
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) :
@@ -86,7 +86,7 @@ def oracleSendArleak [DecidableEq I] (leakA : StA → StA → Rand → Finset �
           return some (tsnd, some tI, ρ, rand)
 -- ANCHOR_END: oracleSendArleak
 
-/-- B's leaking send, with the same proposal refusal and rollback rule as A's. -/
+/-- B's leaking send, with the same refusal rule as A's. -/
 -- ANCHOR: oracleSendBrleak
 def oracleSendBrleak [DecidableEq I] (leakB : StB → StB → Rand → Finset ℕ)
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) :
@@ -126,7 +126,7 @@ def oracleSendBrleak [DecidableEq I] (leakB : StB → StB → Rand → Finset �
           return some (tsnd, some tI, ρ, rand)
 -- ANCHOR_END: oracleSendBrleak
 
-/-- The full security oracle implementation with explicit send and corruption policies. -/
+/-- The security oracles with the exposure policies `exposureA` and `exposureB`. -/
 -- ANCHOR: sckaSecurityImpl
 def sckaSecurityImpl (isRandom : Bool) (exposureA : ExposurePolicy StA Rand)
     (exposureB : ExposurePolicy StB Rand)

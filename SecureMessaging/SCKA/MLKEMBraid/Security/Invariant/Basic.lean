@@ -10,9 +10,10 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
 /-!
 # The repaired transcript invariant
 
-`RepairInv` records control, payload and output-key consistency without assuming actual
-agreement of retained decapsulations. `DecapsGood` supplies precisely that missing condition.
-The frame and peer facts here depend on neither sampling nor analytical bad-event bounds.
+`RepairInv` states that the control states, the payloads and the output keys agree with the
+transcript. It does not require that decapsulation of a recorded encapsulation gives its key.
+`DecapsGood` is this extra condition. The module also proves that the invariant ignores the
+exposed and challenged epochs, and facts about the peer of a party.
 -/
 
 open OracleSpec OracleComp

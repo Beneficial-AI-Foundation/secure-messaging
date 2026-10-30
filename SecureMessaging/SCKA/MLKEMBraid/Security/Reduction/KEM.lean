@@ -9,12 +9,12 @@ import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Sampling
 import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
 
 /-!
-# Primitive KEM experiments of the masked reduction
+# The IND-CPA experiments of the KEM reduction
 
-The real and random KEM branches correspond to the stopped repaired experiments with both
-selected samples installed. Once-only installation removes those samples, and the signed-gap
-stop identifies the difference between the two branches with the difference between adjacent
-hybrids (`kem_signed_gap_eq`).
+The real-key and the random-key IND-CPA experiments of `kemReduction A e` are the stopped repaired
+games with the key pair and the first-stage encapsulation of `e` installed. Installing each sample
+once removes it again. Stopping at the exposure of `e` then identifies the difference between the
+two experiments with the difference between adjacent hybrids (`kem_signed_gap_eq`).
 -/
 
 open OracleSpec OracleComp ENNReal

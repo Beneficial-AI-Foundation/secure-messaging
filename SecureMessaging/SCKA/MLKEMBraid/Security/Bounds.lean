@@ -10,10 +10,11 @@ import SecureMessaging.SCKA.MLKEMBraid.Security.Games
 /-!
 # The native exposure functions
 
-`nativeExposure` states the exposure rules of the security game as the generic SCKA interface
-expects them: from the state before a send and the coins of that send. With these functions the
-generic security game is the same computation as the explicit-policy game, for either bit and
-every query (`securityImpl_eq_native`, `fixed_eq_native`, `securityGame_equiv_native`).
+`nativeExposure` gives the exposure rules of `exposure` in the form that the SCKA security game
+of `SCKA.Defs` expects: as functions of the state before a send and of the coins of that send.
+With these functions, the SCKA security game and the game with the policy `exposure` are the same
+computation, for either bit and every query (`securityImpl_eq_native`, `fixed_eq_native`,
+`securityGame_equiv_native`).
 -/
 
 open OracleSpec OracleComp ENNReal
@@ -22,7 +23,8 @@ namespace MLKEMBraid.NoAuth
 
 variable {P : Parameters ProbComp}
 
-/-- Native state-corruption and send-coin exposure for the unit-authenticator instance. -/
+/-- The exposure functions of Braid without authentication: `vuln` for corruption and
+`sendExposure` for a send that reveals its coins. -/
 -- ANCHOR: nativeExposure
 def nativeExposure (P : Parameters ProbComp)
     (irl : P.kem.IncrementalRandLeak P.inc) :
@@ -32,7 +34,7 @@ def nativeExposure (P : Parameters ProbComp)
   rleak := fun st coins => sendExposure st st coins
 -- ANCHOR_END: nativeExposure
 
-/-- Equality of the complete security interpreter for either bit and every query. -/
+/-- For either bit, the security oracles with `exposure` and with `nativeExposure` are equal. -/
 theorem securityImpl_eq_native
     (P : Parameters ProbComp)
     [SampleableType P.EpochKey] [DecidableEq P.EpochKey] [DecidableEq P.Sym]
@@ -43,7 +45,7 @@ theorem securityImpl_eq_native
         (nativeExposure P irl) (nativeExposure P irl) (scheme P hMac irl) := by
   rfl
 
-/-- Equality of the joint response and complete final-state computation from any initial state. -/
+/-- From any initial state, the two security games give the same answers and final states. -/
 theorem security_run_eq_native
     (P : Parameters ProbComp)
     [SampleableType P.EpochKey] [DecidableEq P.EpochKey] [DecidableEq P.Sym]
@@ -56,7 +58,8 @@ theorem security_run_eq_native
       (scheme P hMac irl)) A).run s := by
   rw [securityImpl_eq_native P hMac irl b]
 
-/-- The initialized fixed-bit native experiment returns the adversary's raw guess. -/
+/-- `fixed A b` is the SCKA security experiment with the bit fixed to `b` and the functions
+`nativeExposure`. -/
 theorem fixed_eq_native
     (P : Parameters ProbComp)
     [SampleableType P.EpochKey] [DecidableEq P.EpochKey] [DecidableEq P.Sym]
@@ -75,7 +78,8 @@ theorem fixed_eq_native
   simp only [fixed, StateT.run'_eq, map_eq_bind_pure_comp]
   rfl
 
-/-- Initialized sampled-bit experiment and guessing-advantage transport. -/
+/-- The games with `exposure` and with `nativeExposure` give the same experiment and the same
+guessing advantage. -/
 theorem securityGame_equiv_native
     (P : Parameters ProbComp)
     [SampleableType P.EpochKey] [DecidableEq P.EpochKey] [DecidableEq P.Sym]

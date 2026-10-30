@@ -42,7 +42,8 @@ end ErasureCode
 
 namespace ErasureCodePayload
 
-/-- Transport payloads reversibly to the source blocks of an existing erasure code. -/
+/-- The payload code that sends a payload through the bijection `e` to the source blocks of the
+erasure code `ec`. -/
 def ofEquiv {M Sym : Type} (ec : ErasureCode Sym) (e : M ≃ (Fin ec.nchunk → Sym)) :
     ErasureCodePayload M Sym where
   ec := ec

@@ -12,11 +12,13 @@ import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 import ToVCVio.OracleComp.SimSemantics.StateT.QueryImplAdd
 
 /-!
-# Exposure stopping and once-used challenge installation
+# Stopping at exposure and installing the challenge value
 
-Exposure and challenge flags are monotone, and a challenged epoch is never newly exposed.
-The signed-gap stopping argument and installed challenge comparison use those operational
-facts without a repaired transcript invariant or an analytical bad-event bound.
+The sets of exposed and challenged epochs only grow, and a challenged epoch is never exposed
+later. From these facts alone, this module proves two results. Stopping two games at the first
+exposure of `e` keeps the difference of their acceptance probabilities (`signedGap_stop`).
+Sampling the challenge value of `e` once before the run gives the same distribution as sampling
+it at the challenge (`stoppedRun_chalSample`).
 -/
 
 open OracleSpec OracleComp ENNReal

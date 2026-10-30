@@ -7,23 +7,24 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Stopping
 
 /-!
-# The uniform-input KDF reduction
+# The key-derivation reduction
 
-Adjacent numerical-epoch hybrids differ at the selected challenge. Stopping and once-used
-challenge installation identify the difference between their acceptance probabilities with the
-difference between the acceptance probabilities of the KDF distinguisher on a derived key and on a
-uniform key (`kdf_signed_gap_eq`).
-No codec-correctness hypothesis is needed for this equality.
+The hybrids `rawHybrid A e` and `hybrid A e` differ only at a challenge of `e`. Stopping both at
+the first exposure of `e` and installing the challenge value identify the difference between
+their acceptance probabilities with the difference between the acceptance probabilities of
+`kdfReduction A e` on a derived key and on a uniform key (`kdf_signed_gap_eq`). This equality
+does not need correct erasure codes.
 -/
 
 open OracleSpec OracleComp
 
 namespace MLKEMBraid.NoAuth
 
-/-- **`kdfReduction`**: the uniform-input KDF distinguisher for epoch `e`. For `e = 0` it returns
-`false`. Otherwise it runs the repaired game of `A` once, stopped with `false` when `e` becomes
-exposed, sampling all KEM material itself; an eligible challenge of `e` is answered with the test
-value `x`, earlier epochs with uniform keys and later epochs with their real keys. -/
+/-- **`kdfReduction`**: the key-derivation distinguisher for epoch `e`. For `e = 0` it returns
+`false`. Otherwise it samples all KEM material itself and runs the repaired game of `A` once. It
+answers an eligible challenge of `e` with the test value `x`, challenges of earlier epochs with
+uniform keys and challenges of later epochs with their real keys. It returns `A`'s bit, or
+`false` when `e` becomes exposed. -/
 def kdfReduction (P : Parameters ProbComp) [SampleableType P.K] [SampleableType P.EpochKey]
     [DecidableEq P.EpochKey] [DecidableEq P.Sym]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)

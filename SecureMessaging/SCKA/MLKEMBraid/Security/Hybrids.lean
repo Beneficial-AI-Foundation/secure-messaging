@@ -9,11 +9,13 @@ import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
 import ToVCVio.OracleComp.SimSemantics.StateT.QueryImplAdd
 
 /-!
-# Numerical-epoch hybrid endpoints
+# Endpoints of the hybrids
 
-Every available challenge key belongs to a positive recorded encapsulation epoch. The
-produced-epoch invariant bounds it by accepted sends, and the pathwise budget bounds those
-sends along adaptive runs. This identifies the repaired endpoint distributions.
+The hybrid `hybrid A i` gives uniform keys to the epochs `1, …, i`. Under the send budget `qS`,
+the hybrid with `i = 0` is the repaired game with real keys, and the hybrid with `i = qS` is the
+repaired game with uniform keys (`hybrid_endpoints`). Indeed, every key that a challenge can
+return is for a positive epoch with a recorded encapsulation. That epoch is at most the number of
+accepted sends, and the send budget bounds this number on every path.
 -/
 
 open OracleSpec OracleComp ENNReal
@@ -65,7 +67,7 @@ private theorem keysAt_of_lookupKey {g : MLKEMBraid.GameState P Unit} {e : ℕ}
       refine ⟨false, ?_⟩
       simpa [lookupKey, GameState.keysAt, hA] using hk
 
-/-- The uniform-randomness query keeps the ghost records and the send counters. -/
+/-- The uniform-randomness query keeps the records and the send counters. -/
 private theorem traceUnif_frame : ∀ t s z, z ∈ support ((traceUnif P t).run s) →
     z.2.transcript = s.transcript ∧ sendCount z.2 = sendCount s := by
   intro t s z hz
@@ -75,7 +77,7 @@ private theorem traceUnif_frame : ∀ t s z, z ∈ support ((traceUnif P t).run 
     SCKAScheme.oracleUnif_preservesInv (fun g => g = s.game) t s.game rfl w hw
   exact ⟨rfl, by simp only [sendCount, hw']⟩
 
-/-- A corruption of A keeps the ghost records and the send counters. -/
+/-- A corruption of A keeps the records and the send counters. -/
 private theorem traceCorruptA_frame : ∀ t s z, z ∈ support ((traceCorruptA P t).run s) →
     z.2.transcript = s.transcript ∧ sendCount z.2 = sendCount s := by
   intro t s z hz
@@ -85,7 +87,7 @@ private theorem traceCorruptA_frame : ∀ t s z, z ∈ support ((traceCorruptA P
   refine ⟨rfl, ?_⟩
   rcases mem_support_oracleCorruptA hw with hw | ⟨-, hw⟩ <;> simp only [sendCount, hw]
 
-/-- A corruption of B keeps the ghost records and the send counters. -/
+/-- A corruption of B keeps the records and the send counters. -/
 private theorem traceCorruptB_frame : ∀ t s z, z ∈ support ((traceCorruptB P t).run s) →
     z.2.transcript = s.transcript ∧ sendCount z.2 = sendCount s := by
   intro t s z hz
@@ -95,7 +97,7 @@ private theorem traceCorruptB_frame : ∀ t s z, z ∈ support ((traceCorruptB P
   refine ⟨rfl, ?_⟩
   rcases mem_support_oracleCorruptB hw with hw | ⟨-, hw⟩ <;> simp only [sendCount, hw]
 
-/-- A challenge keeps the ghost records and the send counters. -/
+/-- A challenge keeps the records and the send counters. -/
 private theorem traceChallenge_frame [SampleableType P.K] [SampleableType P.EpochKey]
     (mode : ℕ → Mode) : ∀ e s z, z ∈ support ((traceChallenge P mode e).run s) →
       z.2.transcript = s.transcript ∧ sendCount z.2 = sendCount s := by
@@ -198,7 +200,7 @@ private theorem traceSend_sendBound (party leaking : Bool) (s : TraceState P)
 
 variable [DecidableEq P.Sym]
 
-/-- A trace receive keeps the ghost records and the send counters. -/
+/-- A trace receive keeps the records and the send counters. -/
 private theorem traceReceive_frame (repair party : Bool) :
     ∀ n s z, z ∈ support ((traceReceive P hMac irl repair party n).run s) →
       z.2.transcript = s.transcript ∧ sendCount z.2 = sendCount s := by

@@ -11,11 +11,13 @@ import VCVio.ProgramLogic.Relational.Quantitative
 import ToVCVio.OracleComp.EvalDist
 
 /-!
-# Once-used key-generation and first-stage samples
+# Sampling the key pair and the first-stage encapsulation once
 
-Joint send equations compare lazy and installed sampling, including leaking refusals and
-exposure stopping. The run comparisons discharge the canonical one-use installation obligations
-from transcript preservation and the first-hit recording facts.
+The key pair and the first-stage encapsulation of epoch `e` can be sampled lazily, when a send
+needs them, or once before the run and then installed. This module first compares the two kinds
+of send, including refused leaking sends and stopping at the exposure of `e`. The comparison of
+whole runs then follows from the one-use installation result of ToVCVio, because a query keeps
+the records and the first use of a sample records it.
 -/
 
 open OracleSpec OracleComp ENNReal

@@ -8,11 +8,12 @@ import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.ProjectionBasic
 import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Basic
 
 /-!
-# Joint send projections of the masked simulator
+# Sends of the simulator
 
-Target key generation and first-stage encapsulation use the supplied challenge. Other sends
-preserve the ordinary projection, and masked sends retain their observable chunks. The equalities
-compare entire response/state distributions before deriving stopped-query comparisons.
+At epoch `e`, the key generation and the first-stage encapsulation of the simulator use the
+challenge. Other sends of an ordinary state agree with the trace send on the simulator view, and a
+masked state sends the same chunks. Each equality compares the joint distribution of the answer
+and the next state.
 -/
 
 open OracleSpec OracleComp

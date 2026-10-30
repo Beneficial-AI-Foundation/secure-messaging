@@ -93,7 +93,7 @@ private theorem payoff_le_of_support {α : Type} (X : ProbComp (α × TraceState
 variable (hMac : P.Mac = Unit) [DecidableEq P.EpochKey] (irl : P.kem.IncrementalRandLeak P.inc)
 
 omit [DecidableEq P.K] in
-/-- The coin tag and ghost records of a key-generation sample. -/
+/-- The coin tag and records of a key-generation sample. -/
 private theorem obs_sampledSend_keysUnsampled (s : TraceState P) (party : Bool) {e : ℕ}
     {a : Unit} (hst : s.game.stateAt party = .keysUnsampled e a) :
     (fun w => (w.1.2, w.2)) <$> sampledSend P hMac irl s party =
@@ -103,7 +103,7 @@ private theorem obs_sampledSend_keysUnsampled (s : TraceState P) (party : Bool) 
   rw [sampledSend_eq_keygen hMac irl s party hst, Functor.map_map]
 
 omit [DecidableEq P.K] in
-/-- The coin tag, ghost records and bad flag of a first-stage encapsulation sample. -/
+/-- The coin tag, records and bad flag of a first-stage encapsulation sample. -/
 private theorem obs_sampledSend_headerReceived (s : TraceState P) (party : Bool) {e : ℕ}
     {a : Unit} {hdr : P.inc.PKheader} {dec : DecoderState P.inc.PKvector P.Sym}
     (hst : s.game.stateAt party = .headerReceived e a hdr dec) :
@@ -118,7 +118,7 @@ private theorem obs_sampledSend_headerReceived (s : TraceState P) (party : Bool)
   rfl
 
 omit [DecidableEq P.K] in
-/-- A send that samples nothing keeps the ghost records and the bad flag. -/
+/-- A send that samples nothing keeps the records and the bad flag. -/
 private theorem obs_sampledSend_steady (s : TraceState P) (party : Bool)
     (hsteady : (s.game.stateAt party).SendsNoSample) :
     ∀ w ∈ support (sampledSend P hMac irl s party), w.2 = (s.transcript, s.bad) := by

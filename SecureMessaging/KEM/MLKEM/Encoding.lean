@@ -9,9 +9,9 @@ import LatticeCrypto.MLKEM.Concrete.Encoding
 /-!
 # Output lengths of concrete ML-KEM encodings
 
-These shape facts hold for every semantic input, including zero widths or vector lengths.
-They use the supplied concrete encoder's output directly, without ring laws, canonical-input
-conditions or primitive correctness assumptions.
+These lengths hold for every input, including zero widths and zero vector lengths. The proofs
+read the output of the concrete encoder directly. They use no ring laws, no conditions on
+canonical inputs and no correctness of the primitives.
 -/
 
 namespace MLKEM.Concrete

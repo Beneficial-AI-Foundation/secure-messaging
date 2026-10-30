@@ -12,8 +12,8 @@ import SecureMessaging.SCKA.Security
 /-!
 # Joint sampling and elementary trace transitions
 
-The normalization equations retain send results, leaked coins, transcript updates and bad
-flags together.
+This module rewrites the sends of the trace game for each kind of sample. Each equation keeps the
+send result, the leaked coins, the records and the bad flag together.
 -/
 
 open OracleSpec OracleComp
@@ -35,7 +35,7 @@ theorem map_game_liftGame {α : Type} (c : StateT (MLKEMBraid.GameState P Unit) 
   rw [liftGame_run, Functor.map_map]
   exact id_map (c.run s.game)
 
-/-- Outcomes of a lifted game oracle keep the ghost records and bad flag. -/
+/-- The outcomes of a lifted game oracle keep the records and the bad flag. -/
 theorem mem_support_liftGame {α : Type} {c : StateT (MLKEMBraid.GameState P Unit) ProbComp α}
     {s : TraceState P} {z : α × TraceState P} (hz : z ∈ support ((liftGame c).run s)) :
     ∃ w ∈ support (c.run s.game), z = (w.1, { s with game := w.2 }) := by

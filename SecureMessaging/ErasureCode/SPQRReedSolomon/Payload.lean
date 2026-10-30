@@ -13,8 +13,9 @@ public import Mathlib.Logic.Equiv.Fin.Basic
 /-!
 # Byte blocks over the abstract SPQR field
 
-Pairs are little-endian indices in the existing field enumeration. This reversible mathematical
-representation does not identify that enumeration with SPQR's runtime `u16` representation.
+A pair of bytes is the little-endian index of a field element in the enumeration of the field.
+This bijection is a mathematical representation. It does not claim that this enumeration is the
+`u16` representation that SPQR uses at runtime.
 -/
 
 public section

@@ -11,11 +11,12 @@ import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 import ToVCVio.OracleComp.EvalDist
 
 /-!
-# Simulator views and elementary query projections
+# The simulator view of a trace state
 
-The view masks the selected secret positions, relabels its epoch key and erases its ghost
-records. Step comparisons retain the joint response and successor state, including answers
-dropped by exposure stopping. No analytical bad-event estimate is needed here.
+The simulator view of a trace state hides the secrets in the states of epoch `e`, replaces the key
+of `e` by the test key and erases the records of `e`. This module compares one query of the
+simulator with one query of the trace game on this view. The comparison covers the answer and the
+next state, and allows for the answers that stopping at the exposure of `e` drops.
 -/
 
 open OracleSpec OracleComp ENNReal
@@ -34,7 +35,7 @@ def relabelKey (e : ℕ) (v : P.EpochKey) : Option (ℕ × P.EpochKey) → Optio
 def relabel (e : ℕ) (v : P.EpochKey) (keys : ℕ → Option P.EpochKey) : ℕ → Option P.EpochKey :=
   fun t => if t = e then (keys t).map fun _ => v else keys t
 
-/-- Ghost records with the records of the selected epoch `e` erased. -/
+/-- The records with those of the selected epoch `e` erased. -/
 def eraseAt (e : ℕ) (T : ℕ → EpochTranscript P) : ℕ → EpochTranscript P :=
   fun t => if t = e then { keypair := none, encaps1 := none } else T t
 
@@ -509,7 +510,7 @@ theorem sendStep_masked (e : ℕ) (v : P.EpochKey) (ch : Challenge P) (kp : Opti
     Option.map_none]
   cases party <;> rfl
 
-/-- The ghost sample of an ordinary state is the trace sample with `e` erased. -/
+/-- The sample of an ordinary state is the trace sample with the records of `e` erased. -/
 theorem ghostSample_eq (e : ℕ) (s : TraceState P) (party : Bool)
     (h1 : ∀ a, s.game.stateAt party ≠ .keysUnsampled e a)
     (h2 : ∀ a hdr dec, s.game.stateAt party ≠ .headerReceived e a hdr dec) :

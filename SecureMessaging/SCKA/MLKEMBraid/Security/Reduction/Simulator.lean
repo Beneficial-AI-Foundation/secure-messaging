@@ -8,10 +8,12 @@ import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
 import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 
 /-!
-# Executable masked KEM reduction
+# The simulator of the KEM reduction
 
-The simulator retains observable fields while omitting the selected decapsulation key and
-encapsulation state. This module defines its operations and the adversary.
+The IND-CPA reduction `kemReduction` runs the repaired game through a simulator. At the selected
+epoch `e` the simulator does not know the decapsulation key or the encapsulation state. So it
+keeps the states of `e` without them (masked states). This module defines the simulator and the
+reduction.
 -/
 
 open OracleSpec OracleComp
@@ -288,9 +290,9 @@ def targetSend (P : Parameters ProbComp) (hMac : P.Mac = Unit) (e : ℕ) (ch : C
   | _ => none
 
 /-- A send of `party` in the simulator. A masked state sends its next chunk. An ordinary state of
-the selected epoch that samples uses the installed challenge (`targetSend`); its leaking send is
-refused as in the trace game, or else accepted only to expose `e`, without coins. Every other
-send is the trace send with its records, without a bad flag. -/
+the selected epoch that samples uses the installed challenge (`targetSend`). Its leaking send is
+refused as in the trace game, or else it only exposes `e` and reveals no coins. Every other send
+is the trace send with its records, without a bad flag. -/
 def simSend (P : Parameters ProbComp) (hMac : P.Mac = Unit)
     (irl : P.kem.IncrementalRandLeak P.inc) (e : ℕ) (ch : Challenge P) (party leaking : Bool) :
     StateT (SimState P) ProbComp
@@ -420,7 +422,7 @@ def simStop (e : ℕ) (s : SimState P) : Bool :=
 /-- **`kemReduction`**: the IND-CPA adversary for epoch `e`. For `e = 0` it returns `false`.
 Otherwise its first phase keeps the challenge public key, and its second phase runs `A` once
 against the masked simulation `simImpl` of the stopped repaired game, with the challenge public
-key, ciphertext parts and test key installed at epoch `e`; it returns `A`'s bit, or `false` when
+key, ciphertext parts and test key installed at epoch `e`. It returns `A`'s bit, or `false` when
 `e` becomes exposed. -/
 def kemReduction (P : Parameters ProbComp) [SampleableType P.K] [SampleableType P.EpochKey]
     [DecidableEq P.Sym]

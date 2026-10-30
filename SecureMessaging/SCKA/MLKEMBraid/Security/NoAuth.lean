@@ -20,7 +20,7 @@ open OracleComp
 
 namespace MLKEMBraid.NoAuth
 
-/-- The unit-state authenticator with constantly accepting verification. -/
+/-- The authenticator with unit state and unit tags that accepts every tag. -/
 -- ANCHOR: noAuthAuthenticator
 def auth (P : Parameters ProbComp) (hMac : P.Mac = Unit) :
     RatchetedAuthenticator Unit P.EpochKey Unit
@@ -35,25 +35,29 @@ def auth (P : Parameters ProbComp) (hMac : P.Mac = Unit) :
   verifyCiphertext_correct := fun _ _ _ => rfl
 -- ANCHOR_END: noAuthAuthenticator
 
-/-- The literal unit-authenticator instance of the existing Braid scheme. -/
+/-- The Braid scheme with the authenticator `auth`. -/
 def scheme (P : Parameters ProbComp) [DecidableEq P.Sym]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc) :=
   MLKEMBraid.scheme P (auth P hMac) irl (pure ())
 
-/-- Epochs conservatively exposed by a local-state snapshot. -/
+/-- The epochs that revealing the local state exposes: none before key generation, while
+awaiting a header, or after receiving a header and before first-stage encapsulation. Otherwise
+the current epoch. -/
 def vuln {P : Parameters ProbComp} (st : State P Unit) : Finset ℕ :=
   match st with
   | .keysUnsampled .. | .noHeaderReceived .. | .headerReceived .. => ∅
   | _ => {st.epoch}
 
-/-- Exposure from the actual Braid send-coin tag. The proposed new state is unused. -/
+/-- The epochs that a send exposes when it reveals its coins: the current epoch for the coins of
+key generation or of first-stage encapsulation, and none otherwise. The new state is not used. -/
 def sendExposure {P : Parameters ProbComp} {KeygenRand Encaps1Rand : Type}
     (st _st' : State P Unit) (coins : SendRand KeygenRand Encaps1Rand) : Finset ℕ :=
   match coins with
   | .none => ∅
   | .keygen _ | .encaps1 _ => {st.epoch}
 
-/-- The explicit snapshot-and-send exposure policy for this instance. -/
+/-- The exposure policy of Braid without authentication: `vuln` for corruption and
+`sendExposure` for a send that reveals its coins. -/
 def exposure (P : Parameters ProbComp) (irl : P.kem.IncrementalRandLeak P.inc) :
     SCKAScheme.ExposurePolicy (State P Unit)
       (SendRand irl.KeygenRand irl.Encaps1Rand) where
@@ -66,7 +70,8 @@ def deltaExposure (P : Parameters ProbComp) (irl : P.kem.IncrementalRandLeak P.i
       (SendRand irl.KeygenRand irl.Encaps1Rand) :=
   SCKAScheme.ExposurePolicy.ofDelta vuln
 
-/-- On supported joint Braid send outputs, the explicit coin footprint equals the delta rule. -/
+/-- On every output that the leaking send can produce, `sendExposure` equals the rule
+`vuln st' \ vuln st`. -/
 theorem sendExposure_eq_delta
     (P : Parameters ProbComp) (hMac : P.Mac = Unit)
     (irl : P.kem.IncrementalRandLeak P.inc)

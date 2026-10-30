@@ -11,9 +11,10 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.SendPayload
 /-!
 # Sends preserve the repaired invariant
 
-Sampling branches extend the transcript while retaining only the decapsulation obligations
-actually available in repaired executions. Steady sends reuse local payload preservation;
-all branches consume the common joint sampling equations.
+A send that generates a key pair or runs the first stage of encapsulation adds its sample to
+the transcript. A send that samples nothing keeps the transcript and uses the facts of
+`Correctness.SendPayload`. The repaired invariant holds after every send. Decapsulation agreement
+holds after the send while the bad flag stays false.
 -/
 
 open OracleSpec OracleComp

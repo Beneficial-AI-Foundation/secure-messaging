@@ -7,11 +7,12 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
 
 /-!
-# Installed trace operations and their elementary equations
+# Trace games with installed samples
 
-Installed key-generation and first-stage samples retain the original send outcomes, transcript
-updates and refusal/exposure convention. This module contains their executable operations and
-joint run equations.
+An installed trace game uses a given key pair, first-stage encapsulation or challenge value at the
+selected epoch `e` instead of sampling it. A send that uses an installed sample has the same
+outcome, the same records and the same refusal and exposure rule as a send that samples. This
+module defines these games and proves their equations for one query.
 -/
 
 open OracleSpec OracleComp
@@ -37,8 +38,8 @@ def Committed (e : ℕ) (s : TraceState P) : Prop :=
   e ∈ s.game.challenged ∧ e ∉ s.game.exposed
 
 /-- The installed sample of `party`: a key generation of epoch `e` with an installed key pair, or
-a first-stage encapsulation of epoch `e` with an installed sample, with its ghost records and the
-bad flag of the same sample. -/
+a first-stage encapsulation of epoch `e` with an installed sample, with its records and the bad
+flag of the same sample. -/
 def installedSample (P : Parameters ProbComp) [DecidableEq P.EpochKey] (hMac : P.Mac = Unit)
     (e : ℕ) (kp : Option (P.PK × P.SK)) (ec : Option (P.inc.St × P.inc.C₁ × P.K))
     (s : TraceState P) (party : Bool) :
@@ -60,9 +61,9 @@ theorem installedSample_none [DecidableEq P.EpochKey] (hMac : P.Mac = Unit) (e :
     (s : TraceState P) (party : Bool) : installedSample P hMac e none none s party = none := by
   rcases hst : s.game.stateAt party <;> simp [installedSample, hst]
 
-/-- A send of `party` in the installed trace game. An installed sample replaces sampling; a leaking
-installed sample is refused as in `traceSend`, or else accepted only to expose `e`, without coins.
-Every other send is `traceSend`. -/
+/-- A send of `party` in the installed trace game. An installed sample replaces sampling. A
+leaking send with an installed sample is refused as in `traceSend`, or else it only exposes `e`
+and reveals no coins. Every other send is `traceSend`. -/
 def traceSendAt (P : Parameters ProbComp) [DecidableEq P.EpochKey] (hMac : P.Mac = Unit)
     (irl : P.kem.IncrementalRandLeak P.inc) (e : ℕ) (kp : Option (P.PK × P.SK))
     (ec : Option (P.inc.St × P.inc.C₁ × P.K)) (party leaking : Bool) :

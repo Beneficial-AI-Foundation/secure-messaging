@@ -17,8 +17,7 @@ The security game with the exposure policy `exposure` and the game with the rule
 protocol can produce. It uses neither correctness nor any property of the adversary.
 
 The trace game `traceImpl` runs the same security interface on a `TraceState`: the actual game
-state, ghost records of the key-generation and first-stage encapsulation samples, and a virtual
-bad flag.
+state, records of the sampled key pairs and first-stage encapsulations, and a bad flag.
 -/
 
 open OracleSpec OracleComp
@@ -36,7 +35,8 @@ abbrev Adversary (P : Parameters ProbComp)
     (irl : P.kem.IncrementalRandLeak P.inc) :=
   OracleComp (Spec P irl) Bool
 
-/-- Select all four send indices, including ordinary and leaking sends of both parties. -/
+/-- Whether a query is one of the four send queries: an ordinary or a leaking send of either
+party. -/
 def isSendQuery {P : Parameters ProbComp}
     {irl : P.kem.IncrementalRandLeak P.inc} : (Spec P irl).Domain → Bool
   | .inl (.inl (.inl (.inl (.inl t)))) =>
@@ -45,13 +45,14 @@ def isSendQuery {P : Parameters ProbComp}
   | .inl (.inl (.inl (.inr _))) => true
   | _ => false
 
-/-- A pathwise bound on all four security-interface send query indices combined. -/
+/-- On every path of oracle answers, `A` makes at most `qS` send queries in total, counting all
+four send queries. -/
 def SendQueryBound {P : Parameters ProbComp}
     {irl : P.kem.IncrementalRandLeak P.inc}
     (A : Adversary P irl) (qS : ℕ) : Prop :=
   A.IsQueryBoundP (fun t => isSendQuery (P := P) (irl := irl) t = true) qS
 
-/-- The replacement rule at a successful epoch challenge. -/
+/-- How the challenge oracle answers a successful challenge of an epoch. -/
 inductive Mode where
   /-- Return the recorded epoch key. -/
   | real
@@ -60,13 +61,14 @@ inductive Mode where
   /-- Derive an epoch key from a fresh uniform raw KEM key. -/
   | derivedUniform
 
-/-- Security game state with ghost sampling records and an absorbing virtual bad flag. -/
+/-- The state of the security game with records of the sampled values and a bad flag that stays
+set once it is set. -/
 structure TraceState (P : Parameters ProbComp) where
-  /-- The actual oracle-visible security-game state. -/
+  /-- The state of the security game that the oracles use. -/
   game : MLKEMBraid.GameState P Unit
-  /-- Actual key-generation and first-stage encapsulation samples, never disclosed as ghost data. -/
+  /-- The sampled key pairs and first-stage encapsulations. The adversary never sees them. -/
   transcript : ℕ → MLKEMBraid.EpochTranscript P
-  /-- A derived-key decapsulation discrepancy recorded at first-stage encapsulation. -/
+  /-- Set at a first-stage encapsulation when decapsulation would not give the derived key. -/
   bad : Bool
 
 private theorem oracleSendArleak_eq_delta
@@ -149,14 +151,14 @@ theorem securityGame_equiv_delta
 
 open ErasureCodePayload.Streaming
 
-/-- Run a game-state oracle on the `game` field, keeping the ghost records and bad flag. -/
+/-- Run a game-state oracle on the `game` field, and keep the records and the bad flag. -/
 def liftGame {P : Parameters ProbComp} {α : Type}
     (c : StateT (MLKEMBraid.GameState P Unit) ProbComp α) :
     StateT (TraceState P) ProbComp α :=
   fun s => (fun z => (z.1, { s with game := z.2 })) <$> c.run s.game
 
-/-- The actual joint send sample of `party`, with the ghost record of a key-generation or
-first-stage encapsulation sample and the bad flag after its virtual decapsulation test. -/
+/-- The leaking send of `party` with its records. It also records a sampled key pair or
+first-stage encapsulation, and updates the bad flag by testing decapsulation. -/
 def sampledSend (P : Parameters ProbComp) [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (s : TraceState P) (party : Bool) :
@@ -192,7 +194,7 @@ def sampledSend (P : Parameters ProbComp) [DecidableEq P.EpochKey]
   | st => (fun out => (out, s.transcript, s.bad)) <$>
       MLKEMBraid.sendRleak P irl (auth P hMac) st
 
-/-- Discarding the ghost records of `sampledSend` gives the actual leaking send. -/
+/-- Forgetting the records of `sampledSend` gives the leaking send. -/
 theorem sampledSend_erase (P : Parameters ProbComp) [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (s : TraceState P) (party : Bool) :
@@ -201,8 +203,9 @@ theorem sampledSend_erase (P : Parameters ProbComp) [DecidableEq P.EpochKey]
   cases hst : s.game.stateAt party <;>
     simp [sampledSend, hst, MLKEMBraid.sendRleak]
 
-/-- A send of `party`, leaking its coins if `leaking`. A refused leaking proposal commits neither
-the game state nor its ghost records; otherwise the game update is `MLKEMBraid.sendUpdate`. -/
+/-- A send of `party` that reveals its coins if `leaking`. If the game refuses a leaking send, it
+keeps neither the new game state nor the new records. Otherwise it updates the game state with
+`MLKEMBraid.sendUpdate`. -/
 def traceSend (P : Parameters ProbComp) [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (party leaking : Bool) :
@@ -220,8 +223,8 @@ def traceSend (P : Parameters ProbComp) [DecidableEq P.EpochKey]
         transcript := w.2.1, bad := w.2.2 })) <$> sampledSend P hMac irl s party
 
 /-- The receive algorithm of the trace game. With `repair`, a well-formed `ct₂` message completing
-the decoder of `ekSentCt1Received e` outputs the transcript's derived key of epoch `e` in place of
-decapsulation; every other input runs `recvSCKA`. -/
+the decoder of `ekSentCt1Received e` outputs the recorded derived key of epoch `e` instead of
+decapsulating. Every other input runs `recvSCKA`. -/
 def repairedRecv (P : Parameters ProbComp) [DecidableEq P.Sym]
     (hMac : P.Mac = Unit) (repair : Bool) (T : ℕ → EpochTranscript P)
     (st : State P Unit) (msg : Message P.Sym) :
@@ -306,12 +309,12 @@ def traceLeak (P : Parameters ProbComp) [DecidableEq P.EpochKey]
       SendRand irl.KeygenRand irl.Encaps1Rand)) (StateT (TraceState P) ProbComp) :=
   fun _ => traceSend P hMac irl party true
 
-/-- The corruption oracle of A in the trace game; it never discloses ghost records. -/
+/-- The corruption oracle of A in the trace game. It never reveals the records. -/
 def traceCorruptA (P : Parameters ProbComp) :
     QueryImpl (Unit →ₒ Option (State P Unit)) (StateT (TraceState P) ProbComp) :=
   fun t => liftGame ((SCKAScheme.oracleCorruptA vuln (State P Unit) P.EpochKey (Message P.Sym)) t)
 
-/-- The corruption oracle of B in the trace game; it never discloses ghost records. -/
+/-- The corruption oracle of B in the trace game. It never reveals the records. -/
 def traceCorruptB (P : Parameters ProbComp) :
     QueryImpl (Unit →ₒ Option (State P Unit)) (StateT (TraceState P) ProbComp) :=
   fun t => liftGame ((SCKAScheme.oracleCorruptB vuln (State P Unit) P.EpochKey (Message P.Sym)) t)
@@ -328,7 +331,8 @@ def traceImpl (P : Parameters ProbComp)
     traceLeak P hMac irl true + traceLeak P hMac irl false + traceChallenge P mode +
     traceCorruptA P + traceCorruptB P
 
-/-- Simulate the adversary from the literal initial game and empty ghost transcript. -/
+/-- Run the adversary in the trace game from the initial game state, with empty records and the
+bad flag false. -/
 def run (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
     [DecidableEq P.EpochKey] [DecidableEq P.Sym]
@@ -341,7 +345,7 @@ def run (P : Parameters ProbComp)
       transcript := fun _ => { keypair := none, encaps1 := none }
       bad := false }
 
-/-- The actual explicit-policy fixed-bit game, without ghost repair. -/
+/-- The security game with the exposure policy `exposure` and the challenge bit fixed to `b`. -/
 def fixed (P : Parameters ProbComp)
     [SampleableType P.EpochKey] [DecidableEq P.EpochKey] [DecidableEq P.Sym]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
@@ -351,7 +355,7 @@ def fixed (P : Parameters ProbComp)
       (SCKAScheme.initGameState (MLKEMBraid.initA P (auth P hMac) ())
         (MLKEMBraid.initB P (auth P hMac) ()))
 
-/-- Repaired numerical-epoch hybrid: uniform output keys through epoch j. -/
+/-- The repaired hybrid with uniform keys at the epochs `1, …, j` and real keys after them. -/
 def hybrid (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
     [DecidableEq P.EpochKey] [DecidableEq P.Sym]
@@ -360,7 +364,8 @@ def hybrid (P : Parameters ProbComp)
   Prod.fst <$> run P hMac irl true
     (fun t => if t ≤ j then .uniform else .real) A
 
-/-- Repaired adjacent hybrid with a uniformly sampled raw key at the selected epoch. -/
+/-- The repaired hybrid with uniform keys at the epochs before `e`, the key `kdfOK u e` for a
+uniform shared secret `u` at `e`, and real keys after `e`. -/
 def rawHybrid (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
     [DecidableEq P.EpochKey] [DecidableEq P.Sym]
@@ -370,7 +375,9 @@ def rawHybrid (P : Parameters ProbComp)
     (fun t => if t < e then .uniform
       else if t = e then .derivedUniform else .real) A
 
-/-- The uniform-input key-derivation experiment, independent of protocol correctness. -/
+/-- The key-derivation game at the label `e`. With `derived = true` the distinguisher `D`
+receives `kdfOK u e` for a uniform shared secret `u`, and with `derived = false` a uniform epoch
+key. -/
 -- ANCHOR: kdfGame
 def kdfExp (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
@@ -391,15 +398,15 @@ structure KDFContextAdversary (P : Parameters ProbComp) where
   /-- Guess from the kept information and the epoch key received. -/
   guess : State → P.EpochKey → ProbComp Bool
 
-/-- Key-derivation game. The label `e` is chosen first; then `kdfExp` runs the fixed-epoch game at
-`e`: with `derived = true` the distinguisher receives `kdfOK u e` for uniform `u`, with `false` a
-uniform epoch key. -/
+/-- The key-derivation game with a chosen label. The distinguisher `C` first chooses the label
+`e`, and then `kdfExp` runs the game at `e`. -/
 def kdfContextExp (P : Parameters ProbComp) [SampleableType P.K] [SampleableType P.EpochKey]
     (C : KDFContextAdversary P) (derived : Bool) : ProbComp Bool := do
   let (e, st) ← C.context
   kdfExp P e (C.guess st) derived
 
-/-- Distinguishing advantage of a key-derivation adversary. -/
+/-- The advantage of `C` in the key-derivation game: the distance between its output
+distributions for derived and for uniform keys. -/
 noncomputable def kdfAdvantage (P : Parameters ProbComp) [SampleableType P.K]
     [SampleableType P.EpochKey] (C : KDFContextAdversary P) : ℝ :=
   (𝒟[kdfContextExp P C true].boolDist 𝒟[kdfContextExp P C false]).toReal

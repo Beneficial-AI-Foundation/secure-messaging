@@ -11,9 +11,10 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.ReceiveInvariant
 /-!
 # Receives preserve the repaired invariant
 
-Honest recorded payloads either advance a receive without producing a key or complete the
-generator's second-ciphertext decoder. The latter case proves control and key-prefix
-preservation directly for repaired completion; it does not assume real decapsulation succeeds.
+A recorded message either advances a receive without an output key, or completes the decoder of
+the second ciphertext component at the key generator. In the second case the repaired receive
+outputs the recorded key. The invariant holds after both kinds of receive. The proof of the
+second case does not assume that decapsulation succeeds.
 -/
 
 open OracleSpec OracleComp
@@ -564,7 +565,7 @@ theorem traceReceive_run (repair party : Bool) (n : ℕ) (s : TraceState P) :
   rfl
 
 /-- Under the repaired invariant, and decapsulation agreement for the real receive, the real and
-repaired trace receives coincide, keep the ghost records and keep the invariant. -/
+repaired trace receives are equal, keep the records and keep the invariant. -/
 theorem traceReceive_outcome
     (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
     (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct)

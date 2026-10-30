@@ -13,11 +13,12 @@ import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
 import ToVCVio.OracleComp.SimSemantics.StateT.QueryImplAdd
 
 /-!
-# Trace invariants and instrumentation erasure
+# The trace invariant and the real game
 
-The trace invariant separates repaired payload consistency from actual decapsulation agreement.
-Real and repaired queries agree before the absorbing bad event. Erasing real instrumentation
-gives the unchanged explicit-policy game as a term equality, with no codec-correctness premise.
+The trace invariant `TraceInv` keeps the repaired invariant apart from decapsulation agreement.
+Before the bad event, the real and the repaired trace games answer every query in the same way.
+Forgetting the records and the bad flag of the real trace game gives the security game `fixed`
+(`run_erase`). This needs no assumption on the erasure codes.
 -/
 
 open OracleSpec OracleComp ENNReal
@@ -28,8 +29,8 @@ namespace MLKEMBraid.NoAuth
 variable {P : Parameters ProbComp}
 
 /-- The invariant of a trace game: in the repaired game, or before the bad event in the real game,
-the repaired transcript invariant holds, with decapsulation agreement in the real game; exposed and
-challenged epochs stay disjoint. -/
+the repaired transcript invariant holds, with decapsulation agreement in the real game. The
+exposed and challenged epochs are disjoint. -/
 def TraceInv (hMac : P.Mac = Unit) (repair : Bool) (s : TraceState P) : Prop :=
   ((repair = true ∨ s.bad = false) →
     RepairInv hMac s.transcript s.game ∧ (repair = false → DecapsGood s.transcript)) ∧
@@ -440,9 +441,9 @@ theorem run_erase (P : Parameters ProbComp)
   OracleComp.map_run_simulateQ_eq_of_query_map_eq _ _ TraceState.game
     (traceImpl_real_map hMac irl b) A _
 
-/-- **`repaired_trace_invariant`**: every supported result of a repaired trace run satisfies the
-fields of `TranscriptConsistent` for its own transcript, with only the final actual-decapsulation
-implication of `encaps` removed, together with exposure/challenge disjointness. -/
+/-- **`repaired_trace_invariant`**: every result in the support of a repaired trace run satisfies
+the fields of `TranscriptConsistent` for its own transcript, except the condition in `encaps` that
+decapsulation gives the recorded key. Its exposed and challenged epochs are disjoint. -/
 theorem repaired_trace_invariant (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
     [DecidableEq P.EpochKey] [DecidableEq P.Sym]
@@ -475,9 +476,9 @@ theorem repaired_trace_invariant (P : Parameters ProbComp)
   exact ⟨h.correct, h.control, h.statePair, h.keypair_zero, h.encaps_zero, h.keypair, h.encaps,
     h.localA, h.localB, h.messages, h.keys, hinv.2⟩
 
-/-- **`real_trace_before_bad`**: every supported result of a real trace run whose bad flag is
-false is transcript consistent, keeps exposure/challenge disjointness, and decapsulates every
-recorded encapsulation to its derived key. -/
+/-- **`real_trace_before_bad`**: every result in the support of a real trace run whose bad flag
+is false is transcript consistent, has disjoint exposed and challenged epochs, and decapsulates
+every recorded encapsulation to its derived key. -/
 theorem real_trace_before_bad (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
     [DecidableEq P.EpochKey] [DecidableEq P.Sym]
@@ -498,8 +499,8 @@ theorem real_trace_before_bad (P : Parameters ProbComp)
   obtain ⟨hR, hG⟩ := hinv.1 (Or.inr hbad)
   exact ⟨hR.transcriptConsistent (hG rfl), hinv.2, hG rfl⟩
 
-/-- **`fixed_repaired_gap_le`**: the actual explicit-policy game of a fixed bit and the repaired
-trace game of the same bit differ by at most the probability of the bad event. -/
+/-- **`fixed_repaired_gap_le`**: the security game `fixed A b` and the repaired trace game of the
+same bit differ by at most the probability of the bad event. -/
 theorem fixed_repaired_gap_le (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
     [DecidableEq P.EpochKey] [DecidableEq P.Sym]

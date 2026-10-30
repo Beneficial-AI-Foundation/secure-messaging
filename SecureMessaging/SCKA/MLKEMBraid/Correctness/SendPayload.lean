@@ -9,9 +9,9 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
 /-!
 # Payload preservation for sends without sampling
 
-A send outside the key-generation and first-encapsulation branches preserves its local
-payload invariant and epochs, outputs no key, and emits an honestly encoded payload. These
-facts require only the local invariant, so they also apply to repaired security executions.
+A send that neither generates a key pair nor runs the first stage of encapsulation keeps the
+local payload invariant and the epochs, outputs no key, and emits an honestly encoded payload.
+The proofs use only the local invariant, so they also apply to the repaired security game.
 -/
 
 open ErasureCodePayload.Streaming
