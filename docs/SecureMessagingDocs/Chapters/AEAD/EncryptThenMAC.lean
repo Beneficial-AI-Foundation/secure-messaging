@@ -350,29 +350,25 @@ theorem etmAEAD_correct (se : DetSEAlg K_e M C_e)
 :::
 
 :::::theorem "aead_etm_security" (parent := "aead_encrypt_then_mac") (lean := "EtM.etmAEAD_security, EtM.prfReduction, EtM.encReduction") (tags := "gh-26") (uses := "aead_etm_spec, aead_etm_det_se, aead_etm_det_se_ots, prf, aead_security_exp, aead_dist_advantage, aead_decrypt_query_bound, aead_oracles")
-Adapted from {Informal.citet NRS14}[], Theorem 1 for scheme A5 (bound of Figure 9), for
-one-time keys without a nonce.
+Adapted from {Informal.citet NRS14}[], Theorem 1.
 
-Let $`\mathsf{SE}` be a deterministic symmetric encryption scheme, $`F` a PRF with a finite
-range $`\mathcal T`, and $`\adv` a one-time IND-CCA adversary against
-$`\mathsf{EtM}[\mathsf{SE}, F]` that makes at most $`q_d`
-queries to the decryption oracle $`\Odec` of the {bpref "aead_oracles"}[one-time IND-CCA game].
-Then there exist a PRF adversary $`\mathcal B` against $`F` and a one-time secrecy adversary
-$`\mathcal D` against $`\mathsf{SE}`, constructed from $`\adv` as in
-{Informal.citet NRS14}[], Lemma 3, such that
+Let $`\mathsf{SE}` be a deterministic symmetric encryption scheme with ciphertext space
+$`\mathcal C_e`, let $`F` be a PRF with domain $`\mathcal{AD} \times \mathcal C_e` and finite
+range $`\mathcal T`, and let $`\adv` be an adversary in the
+{bpref "aead_security_exp"}[one-time IND-CCA game] of $`\mathsf{EtM}[\mathsf{SE}, F]` that makes
+at most $`q_d` queries to the decryption oracle $`\Odec`. Then there are a PRF adversary
+$`\mathcal B` against $`F` and a one-time secrecy adversary $`\mathcal D` against
+$`\mathsf{SE}`, built from $`\adv`, such that $`\mathcal D` makes at most one encryption
+query and
 
 $$`\mathsf{Adv}^{\textsf{dist}}_{\mathsf{EtM}[\mathsf{SE}, F]}(\adv)
   \le \mathsf{Adv}^{\textsf{prf}}_{F}(\mathcal B)
   + \frac{q_d}{|\mathcal T|}
-  + \mathsf{Adv}^{\textsf{ots}}_{\textsf{SE}}(\mathcal D)`
+  + \mathsf{Adv}^{\textsf{ots}}_{\textsf{SE}}(\mathcal D).`
 
-where $`\mathsf{Adv}^{\textsf{dist}}` is the {bpref "aead_dist_advantage"}[distinguishing
-advantage] in the {bpref "aead_security_exp"}[one-time IND-CCA game]. In Figure 9 the middle
-term is $`q_d / 2^\tau` for $`\tau`-bit tags.
-
-$`\mathcal D` makes at most one encryption query, because it forwards only the challenge
-encryption of $`\adv`. So the bound needs one-time secrecy of $`\mathsf{SE}` only against
-adversaries that make one query, although the game allows any number of queries.
+Here $`\mathsf{Adv}^{\textsf{dist}}` is the {bpref "aead_dist_advantage"}[distinguishing
+advantage], $`\mathsf{Adv}^{\textsf{prf}}` the {bpref "prf"}[PRF advantage] and
+$`\mathsf{Adv}^{\textsf{ots}}` the {bpref "aead_etm_det_se_ots"}[one-time secrecy advantage].
 
 :::leanPillCaption "security theorem"
 :::
