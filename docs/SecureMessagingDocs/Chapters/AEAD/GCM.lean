@@ -81,7 +81,7 @@ $`\mathsf{CIPH}_K = \mathsf{perm}(K, \cdot)` is the forward permutation of a
 :::::::
 
 :::::::gameGrid
-::::::gameCell "\\mathsf{inc}_{32}(X)" (kind := "compact") (state := "\\textsf{Section 6.2}")
+::::::gameCell "\\mathsf{inc}_{32}(X)" (kind := "compact")
 $`\begin{array}{l}
 c \gets \mathrm{int}(\mathsf{LSB}_{32}(X)) + 1 \bmod 2^{32}; \\
 \Return \mathsf{MSB}_{96}(X) \concat [c]_{32}
@@ -96,7 +96,7 @@ def inc32 (x : BitVec 128) : BitVec 128 :=
 ```
 ::::::
 
-::::::gameCell "X \\bullet Y" (kind := "compact") (state := "\\textsf{Algorithm 1}")
+::::::gameCell "X \\bullet Y" (kind := "compact")
 $`\begin{array}{l}
 Z_0 \gets 0^{128};\quad V_0 \gets Y; \\
 \mathsf{for}\; i = 0, \ldots, 127 \\
@@ -125,7 +125,7 @@ def gfmul (x y : BitVec 128) : BitVec 128 :=
 ```
 ::::::
 
-::::::gameCell "\\mathsf{GHASH}_H(X)" (kind := "compact") (state := "\\textsf{Algorithm 2}")
+::::::gameCell "\\mathsf{GHASH}_H(X)" (kind := "compact")
 $`\begin{array}{l}
 Y_0 \gets 0^{128}; \\
 \mathsf{for}\; i = 1, \ldots, m \\
@@ -142,7 +142,7 @@ def ghash (h : BitVec 128) (blocks : List (BitVec 128)) : BitVec 128 :=
 ```
 ::::::
 
-::::::gameCell "\\mathsf{GCTR}_K(\\mathit{ICB}, X)" (kind := "compact") (state := "\\textsf{Algorithm 3}")
+::::::gameCell "\\mathsf{GCTR}_K(\\mathit{ICB}, X)" (kind := "compact")
 $`\begin{array}{l}
 \pif\;|X| = 0\;\pthen\;\Return X; \\
 n \gets \lceil |X| / 128 \rceil; \\
