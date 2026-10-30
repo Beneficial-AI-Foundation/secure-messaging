@@ -5,6 +5,7 @@ import SecureMessagingDocs.Bibliography
 import SecureMessagingDocs.Visuals.Notation
 import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
+import SecureMessagingDocs.Visuals.FSAEADKeyChain
 import SecureMessaging.FSAEAD.FromAEADPRG.Construction
 
 /-! # Blueprint chapter: FS-AEAD from AEAD and PRG -/
@@ -41,26 +42,11 @@ FS-AEAD from AEAD and PRG.
 ::::::::definition "fs_aead_from_aead_prg_spec" (parent := "fs_aead_fs_aead_from_aead_prg") (lean := "FSAEADScheme.fromAEADPRG, FSAEADScheme.FromAEADPRG.SendState, FSAEADScheme.FromAEADPRG.RecvState, FSAEADScheme.FromAEADPRG.initS, FSAEADScheme.FromAEADPRG.initR, FSAEADScheme.FromAEADPRG.send, FSAEADScheme.FromAEADPRG.rcv, FSAEADScheme.FromAEADPRG.trySkipped, FSAEADScheme.FromAEADPRG.skip, FSAEADScheme.FromAEADPRG.skipSteps") (tags := "gh-31") (uses := "fs_aead_scheme, aead, prg")
 Adapted from {Informal.citet ACD19}[], §4.2.2, Figure 6.
 
-Let $`\mathsf{AE} = (\Enc, \Dec)` be an {bpref "aead"}[AEAD] scheme with key space
-$`\mathcal K`, whose associated data are pairs $`h = (i, a)` of an index $`i` and the
-associated data $`a` of the FS-AEAD scheme. Let $`\mathcal W` be a set of seeds, and let
-$`G : \mathcal W \to \mathcal W \times \mathcal K` be a {bpref "prg"}[PRG]: from a seed, it
-outputs a new seed and an AEAD key. The construction is an
-{bpref "fs_aead_scheme"}[FS-AEAD scheme] with key space $`\mathcal W`.
-
-A and B share a key $`k \in \mathcal W`. Starting from $`k`, both apply $`G` again and again,
-so they derive the same sequence of seeds and keys, the chain:
-
-$$`w_0 = k, \qquad (w_j, K_j) \gets G(w_{j-1}) \text{ for } j \ge 1.`
-
-Each step overwrites the seed. From its current seed, a party can compute the later keys.
-Let $`k` be uniform and $`G` a secure PRG. Then, over a bounded number of steps, the
-earlier keys look uniform to a party that knows only a later seed. To send its $`i`-th message $`m` with
-associated data $`a`, A encrypts $`m` under $`K_i` with the AEAD associated data
-$`(i, a)`, and sends $`i` with the ciphertext. B keeps its
-position $`i_\B` in the chain, its current seed $`w_{i_\B}`, and a dictionary $`D`
-of the keys of the indices that it skipped and has not received yet. The construction does
-not use the key generation of $`\mathsf{AE}`, because $`G` derives the keys.
+Let $`\mathsf{AE} = (\mathsf{KeyGen}, \Enc, \Dec)` be an {bpref "aead"}[AEAD] scheme with key space
+$`\mathcal K`. Let $`\mathcal W` be a set, and let
+$`G : \mathcal W \to \mathcal W \times \mathcal K` be a {bpref "prg"}[PRG] with seed space
+$`\mathcal S = \mathcal W` and output space $`\mathcal R = \mathcal W \times \mathcal K`. The {bpref "fs_aead_scheme"}[FS-AEAD scheme] below has key space
+$`\mathcal W`. The state of each party consists of the variables set by its initialisation.
 
 :::::::gameGrid
 ::::::gameCell "\\mathsf{Init}\\text{-}\\A(k)" (kind := "compact")
@@ -233,6 +219,10 @@ Ambiguity resolved: Figure 6 initialises $`D[\cdot] \gets \lambda`, but
 $`\mathsf{try\text{-}skipped}` and $`\mathsf{FS\text{-}Rcv}` use $`\bot` for an empty
 entry. We write $`\bot` for both.
 
+Key generation: {Informal.citet ACD19}[] write $`\mathsf{AE} = (\Enc, \Dec)`. Our AEAD
+definition adds $`\mathsf{KeyGen}`, but the construction does not call it, because $`G`
+derives the keys.
+
 Rollback: when $`\mathsf{FS\text{-}Rcv}` raises $`\mathsf{error}`, B's state goes back to
 what it was before the call, as {Informal.citet ACD19}[] specify in the prose before
 Figure 6. So a failed $`\Dec` puts back the key that $`\mathsf{try\text{-}skipped}` removed,
@@ -240,6 +230,19 @@ and the honest message at that index can still arrive.
 ::::::
 :::::::
 ::::::::
+
+:::::::gameGrid
+::::::gameCell "\\textsf{Illustration: the key chain}" (kind := "scheme")
+:::fsAeadKeyChainIllustration
+:::
+
+Each step of $`G` turns a seed into the next seed and an AEAD key: $`w_0 = k` and
+$`(w_j, K_j) \gets G(w_{j-1})`. A encrypts its $`j`-th message under $`K_j`. The diagram shows
+B after message 3 arrives first, before messages 1 and 2. B runs $`\mathsf{skip}(3)`: it stores $`K_1` and $`K_2` in $`D`,
+decrypts with $`K_3`, and keeps only the seed $`w_3`. If message 1 or 2 arrives later, B takes
+its key from $`D`.
+::::::
+:::::::
 
 :::defTitle "fs_aead_from_aead_prg_correctness" "FS-AEAD from AEAD and PRG correctness"
 :::
