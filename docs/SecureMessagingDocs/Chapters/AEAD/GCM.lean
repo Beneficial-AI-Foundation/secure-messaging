@@ -434,13 +434,11 @@ Let $`P` be a PRP scheme on 128-bit blocks, $`L` a supported message length,
 $`n = \lceil L / 128 \rceil`, and $`\adv` an adversary in the
 {bpref "aead_security_exp"}[one-time IND-CCA game] of $`\mathsf{GCM}[P, \mathit{IV}, L]`. Let
 $`\mathcal B` be the PRF adversary against $`P` built from $`\adv`, which queries its function
-oracle on $`n + 2` distinct blocks. Then
+oracle on $`n + 2` distinct blocks. Then the {bpref "prf"}[PRF advantage] and the
+{bpref "prp"}[PRP advantage] of $`\mathcal B` satisfy
 
 $$`\mathsf{Adv}^{\textsf{prf}}_{P}(\mathcal B)
   \le \mathsf{Adv}^{\textsf{prp}}_{P}(\mathcal B) + \frac{(n + 2)(n + 1)}{2^{129}}.`
-
-Here $`\mathsf{Adv}^{\textsf{prf}}` is the {bpref "prf"}[PRF advantage] and
-$`\mathsf{Adv}^{\textsf{prp}}` the {bpref "prp"}[PRP advantage].
 
 :::leanPillCaption "switching bound"
 :::
@@ -469,14 +467,14 @@ message length, $`\varepsilon` a non-negative real such that GHASH is
 adversary in the {bpref "aead_security_exp"}[one-time IND-CCA game] of
 $`\mathsf{GCM}[P, \mathit{IV}, L]` that makes at most $`q_d` queries to the decryption oracle
 $`\Odec`. Let $`\mathcal B` be the PRF adversary of
-{bpref "aead_gcm_prp_switching"}[PRP/PRF switching]. Then
+{bpref "aead_gcm_prp_switching"}[PRP/PRF switching]. Then the
+{bpref "aead_dist_advantage"}[distinguishing advantage] of $`\adv` and the
+{bpref "prf"}[PRF advantage] of $`\mathcal B` satisfy
 
 $$`\mathsf{Adv}^{\textsf{dist}}_{\textsf{GCM}}(\adv)
   \le \mathsf{Adv}^{\textsf{prf}}_{P}(\mathcal B) + q_d \cdot \varepsilon.`
 
-Here $`\mathsf{Adv}^{\textsf{dist}}` is the {bpref "aead_dist_advantage"}[distinguishing
-advantage] and $`\mathsf{Adv}^{\textsf{prf}}` the {bpref "prf"}[PRF advantage]. There is no
-separate tag-guessing term, because $`\varepsilon \ge 2^{-128}` for every AXU bound of GHASH.
+There is no separate tag-guessing term, because $`\varepsilon \ge 2^{-128}` for every AXU bound of GHASH.
 
 :::leanPillCaption "security theorem for any AXU bound"
 :::
@@ -515,16 +513,16 @@ Let $`P` be a PRP scheme on 128-bit blocks, $`\mathit{IV}` a 96-bit IV, $`L` a s
 message length, $`n = \lceil L / 128 \rceil`, and $`\adv` an adversary in the
 {bpref "aead_security_exp"}[one-time IND-CCA game] of $`\mathsf{GCM}[P, \mathit{IV}, L]` that
 makes at most $`q_d` queries to the decryption oracle $`\Odec`. Let $`\mathcal B` be the
-adversary of {bpref "aead_gcm_prp_switching"}[PRP/PRF switching]. Then
+adversary of {bpref "aead_gcm_prp_switching"}[PRP/PRF switching]. Then the
+{bpref "aead_dist_advantage"}[distinguishing advantage] of $`\adv` and the
+{bpref "prp"}[PRP advantage] of $`\mathcal B` satisfy
 
 $$`\mathsf{Adv}^{\textsf{dist}}_{\textsf{GCM}}(\adv)
   \le \mathsf{Adv}^{\textsf{prp}}_{P}(\mathcal B)
   + \frac{(n+2)(n+1)}{2^{129}}
   + q_d \cdot \frac{2^{57} + n + 1}{2^{128}}.`
 
-Here $`\mathsf{Adv}^{\textsf{dist}}` is the {bpref "aead_dist_advantage"}[distinguishing
-advantage] and $`\mathsf{Adv}^{\textsf{prp}}` the {bpref "prp"}[PRP advantage]. The second term
-is the switching bound, and the third is $`q_d` times the GHASH AXU bound.
+The second term is the switching bound, and the third is $`q_d` times the GHASH AXU bound.
 
 :::leanPillCaption "security theorem"
 :::

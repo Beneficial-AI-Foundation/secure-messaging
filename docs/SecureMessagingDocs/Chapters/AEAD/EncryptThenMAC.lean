@@ -356,19 +356,16 @@ Let $`\mathsf{SE}` be a deterministic symmetric encryption scheme with ciphertex
 $`\mathcal C_e`, let $`F` be a PRF with domain $`\mathcal{AD} \times \mathcal C_e` and finite
 range $`\mathcal T`, and let $`\adv` be an adversary in the
 {bpref "aead_security_exp"}[one-time IND-CCA game] of $`\mathsf{EtM}[\mathsf{SE}, F]` that makes
-at most $`q_d` queries to the decryption oracle $`\Odec`. Then there are a PRF adversary
-$`\mathcal B` against $`F` and a one-time secrecy adversary $`\mathcal D` against
-$`\mathsf{SE}`, built from $`\adv`, such that $`\mathcal D` makes at most one encryption
-query and
+at most $`q_d` queries to the decryption oracle $`\Odec`. Then there are a
+{bpref "prf"}[PRF adversary] $`\mathcal B` against $`F` and a
+{bpref "aead_etm_det_se_ots"}[one-time secrecy adversary] $`\mathcal D` against
+$`\mathsf{SE}`, built from $`\adv`, such that $`\mathcal D` makes at most one encryption query
+and the {bpref "aead_dist_advantage"}[distinguishing advantage] of $`\adv` satisfies
 
 $$`\mathsf{Adv}^{\textsf{dist}}_{\mathsf{EtM}[\mathsf{SE}, F]}(\adv)
   \le \mathsf{Adv}^{\textsf{prf}}_{F}(\mathcal B)
   + \frac{q_d}{|\mathcal T|}
   + \mathsf{Adv}^{\textsf{ots}}_{\textsf{SE}}(\mathcal D).`
-
-Here $`\mathsf{Adv}^{\textsf{dist}}` is the {bpref "aead_dist_advantage"}[distinguishing
-advantage], $`\mathsf{Adv}^{\textsf{prf}}` the {bpref "prf"}[PRF advantage] and
-$`\mathsf{Adv}^{\textsf{ots}}` the {bpref "aead_etm_det_se_ots"}[one-time secrecy advantage].
 
 :::leanPillCaption "security theorem"
 :::
