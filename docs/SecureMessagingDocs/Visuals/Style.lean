@@ -33,11 +33,8 @@ def smDocsCss : String := r#"
    full source via `anchor` blocks or external-code pills (see `smDocsJs`). */
 .bp_code_panel_wrapper { display: none !important; }
 
-.bp_wrapper[title^="mlkem_braid_noauth"] .bp_heading_title_row_statement {
-  grid-template-columns: auto max-content minmax(0, 1fr);
-}
-.bp_wrapper[title^="mlkem_braid_noauth"] .bp-heading-display-title { white-space: normal; }
-.bp_wrapper[title^="mlkem_braid_noauth"] .bp_math.display {
+/* A display formula wider than its block scrolls inside the block. */
+.bp_math.display {
   display: block;
   max-width: 100%;
   overflow-x: auto;
