@@ -334,25 +334,27 @@ theorem correctness_error_le
 :::
 
 ::::definition "mlkem_braid_noauth_experiment" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.Bounded.parameters, MLKEMBraid.NoAuth.auth, MLKEMBraid.NoAuth.nativeExposure, SCKAScheme.securityExp, MLKEMBraid.NoAuth.securityGame_equiv_native, MLKEMBraid.NoAuth.deltaExposure, MLKEMBraid.NoAuth.sendExposure_eq_delta, MLKEMBraid.NoAuth.securityGame_equiv_delta") (uses := "mlkem_braid_spec, scka_oracles, erasure_code_correctness")
-Fix an ML-KEM parameter set and ring and primitive operations. Write
+Fix an ML-KEM parameter set, ring operations and primitive operations. Write
 $`\mathsf K=(\mathsf{Gen},\mathsf{Enc},\mathsf{Dec})` for the resulting KEM, with
 shared-secret space $`\mathcal K`. Let $`\mathcal I` be an epoch-key space with
-sampling distribution $`\mu`, and fix
-$`F:\mathcal K\times\mathbb N\to\mathcal I`.
+sampling distribution $`\mu`, and fix a key-derivation function
+$`F:\mathcal K\times\mathbb N\to\mathcal I`. The key of epoch $`e` with shared secret $`k` is
+$`F(k,e)`.
 
-Let $`\Pi` be the {uses "mlkem_braid_spec"}[Braid construction] with these algorithms,
-prescribed-length byte encodings, and Reed–Solomon codes for its header, public-key-vector
-and two ciphertext streams. The initial shared value and authentication tag are fixed;
-the authenticator retains no state and accepts every tag.
+Let $`\Pi` be the {uses "mlkem_braid_spec"}[Braid construction] with these algorithms, byte
+encodings of the prescribed lengths, and Reed–Solomon codes for its four streams: the header, the
+public-key vector and the two ciphertext components. The initial shared value and the
+authentication tag are fixed. The authenticator keeps no state and accepts every tag.
 
 A classical adversary $`A` adaptively requests sends, deliveries of recorded messages,
-local-state corruptions, sends with their randomness, and epoch-key challenges. Deliveries identify
-previously sent messages; they cannot supply replacement contents.
+corruptions of a local state, sends that reveal their randomness, and challenges of epoch keys.
+A delivery names a message that was sent before. It cannot supply new contents.
 
-The experiment samples $`b\sample\{0,1\}` and maintains exposed and challenged epoch sets
-$`E,C`, initially empty. A challenge of $`e` requires $`e\notin E\cup C` and a stored key.
-It returns Alice's key (Bob's if Alice has none) when $`b=0`, or an independent sample from
-$`\mu` when $`b=1`, and adds $`e` to $`C`.
+The experiment samples $`b\sample\{0,1\}` and keeps two sets of epochs: the exposed epochs
+$`E` and the challenged epochs $`C`, both empty at the start. A challenge of $`e` requires
+$`e\notin E\cup C` and a stored key for $`e`. If $`b=0`, it returns Alice's key of epoch $`e`, or
+Bob's key if Alice has none. If $`b=1`, it returns an independent sample from $`\mu`. In both
+cases it adds $`e` to $`C`.
 
 :::table
 * * Revelation
@@ -365,43 +367,89 @@ $`\mu` when $`b=1`, and adds $`e` to $`C`.
     none otherwise.
 :::
 
-A revelation intersecting $`C` is refused; otherwise its epochs are added to $`E`.
-A refused randomness-revealing send commits no proposed state. If $`A` outputs $`b'`, define
+A revelation that would expose an epoch in $`C` is refused. Otherwise its epochs are added to
+$`E`. A refused send that reveals its randomness keeps no new state. If $`A` outputs $`b'`, define
 
 $$`\operatorname{Adv}^{\mathrm{guess}}_{\Pi}(A)
 =\left|\Pr[b'=b]-\frac12\right|.`
 
-A send budget $`q` bounds, on every query path, the total number of ordinary and
-randomness-revealing send requests to both parties, including refused requests.
+A send budget $`q` bounds the total number of send requests to both parties on every path of
+oracle answers. The count includes ordinary sends, sends that reveal their randomness, and
+refused requests.
 
-On every send that the protocol can produce, the randomness row of the table exposes exactly
-the epochs that the local state after the send exposes and the state before it does not. The
-experiment that uses this rule for sends has the same guessing advantage.
+On every send that the protocol can produce, the randomness row of the table exposes exactly the
+epochs that the local state after the send exposes and the state before it does not. This is the
+rule of {Informal.citet SCKA25}[], Figure 1. The experiment that uses this rule for sends has the
+same guessing advantage.
+
+:::leanPillCaption "authenticator that keeps no state"
+:::
+
+```anchor noAuthAuthenticator (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security.NoAuth)
+def auth (P : Parameters ProbComp) (hMac : P.Mac = Unit) :
+    RatchetedAuthenticator Unit P.EpochKey Unit
+      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac where
+  init := fun _ _ => ()
+  update := fun _ _ _ => ()
+  macHeader := fun _ _ _ => hMac.symm ▸ ()
+  macCiphertext := fun _ _ _ => hMac.symm ▸ ()
+  verifyHeader := fun _ _ _ _ => true
+  verifyCiphertext := fun _ _ _ _ => true
+  verifyHeader_correct := fun _ _ _ => rfl
+  verifyCiphertext_correct := fun _ _ _ => rfl
+```
+
+:::leanPillCaption "exposure functions of the experiment"
+:::
+
+```anchor nativeExposure (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security.Bounds)
+def nativeExposure (P : Parameters ProbComp)
+    (irl : P.kem.IncrementalRandLeak P.inc) :
+    SCKAScheme.VulnerableEpochs (State P Unit)
+      (SendRand irl.KeygenRand irl.Encaps1Rand) where
+  corrupt := vuln
+  rleak := fun st coins => sendExposure st st coins
+```
 ::::
 
 :::defTitle "mlkem_braid_noauth_reductions" "Epoch reductions"
 :::
 
 ::::definition "mlkem_braid_noauth_reductions" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.NoAuth.repairedRecv, MLKEMBraid.NoAuth.kemReduction, MLKEMBraid.NoAuth.kdfReduction, MLKEMBraid.NoAuth.kdfExp, MLKEMBraid.NoAuth.kemMixReduction, MLKEMBraid.NoAuth.KDFContextAdversary, MLKEMBraid.NoAuth.kdfContextExp, MLKEMBraid.NoAuth.kdfAdvantage, MLKEMBraid.NoAuth.kdfMixReduction") (uses := "mlkem_braid_noauth_experiment, incremental_kem_scheme")
-The repaired experiment records the shared secret $`k_e` of each epoch's encapsulation.
-In the phase awaiting the second ciphertext component, a well-formed current-epoch message
-that completes its decoder yields $`F(k_e,e)` when that encapsulation is recorded, and the
-receiver enters the next epoch. All other receive cases are unchanged.
+We use the KEM $`\mathsf K`, the shared-secret space $`\mathcal K`, the epoch-key distribution
+$`\mu` and the key-derivation function $`F` of the
+{uses "mlkem_braid_noauth_experiment"}[experiment].
 
-For each $`e\geq1`, construct reductions $`B_e` and $`D_e` from $`A`:
+The repaired experiment records the shared secret $`k_e` of the encapsulation of each epoch
+$`e`. Suppose that a receiver awaits the second ciphertext component of epoch $`e`, and that a
+well-formed message of epoch $`e` completes its decoder. If $`k_e` is recorded, the receiver
+outputs $`F(k_e,e)` instead of decapsulating, and enters the next epoch. All other receives are
+unchanged.
 
-- $`B_e(pk,c,x)` runs the repaired experiment with the challenge public key and ciphertext
-  installed at epoch $`e`, using $`x` as its shared secret. Earlier epoch challenges receive
-  independent samples from $`\mu`; later challenges receive their real keys.
-- $`D_e(x)` samples the KEM material itself and runs the repaired experiment, answering the
-  challenge at $`e` with $`x`, earlier challenges with independent samples from $`\mu`, and
-  later challenges with their real keys.
+For each $`e\geq1`, we construct two reductions $`B_e` and $`D_e` from $`A`:
 
-Both return $`A`'s bit, or $`0` if epoch $`e` becomes exposed.
+- $`B_e` is an IND-CPA adversary against $`\mathsf K`. Its input $`(pk,c,x)` is a public key, a
+  ciphertext, and a key $`x` that is either the shared secret encapsulated in $`c` or an
+  independent uniform shared secret. $`B_e` runs the repaired experiment with $`pk`, $`c` and
+  $`x` installed at epoch $`e`: they take the place of the key pair, the encapsulation and the
+  shared secret that the protocol would sample in epoch $`e`.
+- $`D_e` is a key-derivation distinguisher. Its input $`x` is either $`F(u,e)` for a uniform
+  $`u\in\mathcal K` or a sample from $`\mu`. $`D_e` samples all KEM material itself, runs the
+  repaired experiment, and answers the challenge of $`e` with $`x`.
 
-For a send budget $`q`, the reduction $`B` draws $`e` uniformly from $`\{1,\dots,q\}` and then
-runs $`B_e`; the reduction $`D` draws $`e` in the same way, announces it, and then runs $`D_e`.
-Let $`(pk,sk)\sample\mathsf{Gen}()` and $`(c,k)\sample\mathsf{Enc}(pk)`. Define
+In both reductions, challenges of epochs before $`e` receive independent samples from $`\mu`, and
+challenges of epochs after $`e` receive their real keys. Both return $`A`'s bit, or $`0` if epoch
+$`e` becomes exposed. Together, $`B_e` and $`D_e` lead from the hybrid in which the epochs before
+$`e` get uniform keys to the hybrid in which the epochs up to $`e` get uniform keys. This is why
+the averaged reductions $`B` and $`D` below give the factor $`q` in the bound.
+
+Let $`q` be a send budget. For $`q>0`, the reduction $`B` draws $`e` uniformly from
+$`\{1,\dots,q\}` and then runs $`B_e`. The reduction $`D` draws $`e` in the same way, announces
+it, and then runs $`D_e`. For $`q=0`, both reductions use $`e=1`.
+
+Let $`(pk,sk)\sample\mathsf{Gen}()` and $`(c,k)\sample\mathsf{Enc}(pk)`. Let $`U_{\mathcal K}`
+be an independent uniform shared secret and $`U_{\mathcal I}` an independent sample from
+$`\mu`. Define
 
 $$`\begin{aligned}
 \alpha&=\left|\Pr[B(pk,c,k)=1]-\Pr[B(pk,c,U_{\mathcal K})=1]\right|,\\
@@ -409,12 +457,73 @@ $$`\begin{aligned}
 \varepsilon&=1-\Pr[\mathsf{Dec}(sk,c)\text{ returns }k].
 \end{aligned}`
 
-$`U_{\mathcal K}` is an independent uniform shared secret and $`U_{\mathcal I}` an independent
-sample from $`\mu`. In $`\beta`, $`e` is the epoch that $`D` announces, before
-$`U_{\mathcal K}` is sampled. So $`\alpha` is an IND-CPA advantage against $`\mathsf K`, and
-$`\beta` is the advantage of a distinguisher between $`F(U_{\mathcal K},e)` and a sample from
-$`\mu` for a label $`e` of its choice. Probabilities include all algorithm and simulation
-randomness; a failed decapsulation contributes no success probability.
+In $`\beta`, $`e` is the epoch that $`D` announces before $`U_{\mathcal K}` is sampled. So
+$`\alpha` is an IND-CPA advantage against $`\mathsf K`, and $`\beta` is the advantage of a
+distinguisher between $`F(U_{\mathcal K},e)` and a sample from $`\mu`, for a label $`e` of its
+choice. The probabilities include all randomness of the algorithms and of the simulation. A
+decapsulation that fails does not return $`k`.
+
+:::leanPillCaption "IND-CPA reduction with a random epoch"
+:::
+
+```anchor kemMixReduction (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.Average)
+def kemMixReduction (A : Adversary P irl) (q : ℕ) : P.kem.IND_CPA_Adversary where
+  State := P.PK × ℕ
+  preChallenge pk := do pure (pk, ← epochChoice q)
+  postChallenge
+    | (_, 0), _, _ => pure false
+    | (pk, e + 1), c, k => stoppedRun
+        (simImpl P hMac irl (e + 1)
+          { pk, ct1 := (P.inc.splitC c).1, ct2 := (P.inc.splitC c).2, key := k })
+        (simStop (e + 1)) A (simInit P hMac)
+```
+
+:::leanPillCaption "key-derivation reduction with a random epoch"
+:::
+
+```anchor kdfMixReduction (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.Average)
+def kdfMixReduction (A : Adversary P irl) (q : ℕ) : KDFContextAdversary P where
+  State := ℕ
+  context := do let e ← epochChoice q; pure (e, e)
+  guess e x := kdfReduction P hMac irl A e x
+```
+
+:::leanPillCaption "key-derivation game and advantage"
+:::
+
+```anchor kdfGame (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security.Games)
+def kdfExp (P : Parameters ProbComp)
+    [SampleableType P.K] [SampleableType P.EpochKey]
+    (e : ℕ) (D : P.EpochKey → ProbComp Bool) (derived : Bool) : ProbComp Bool :=
+  if derived then do
+    let u ← $ᵗ P.K
+    D (P.kdfOK u e)
+  else do
+    let x ← $ᵗ P.EpochKey
+    D x
+
+/-- A key-derivation distinguisher that first chooses the epoch label. -/
+structure KDFContextAdversary (P : Parameters ProbComp) where
+  /-- The information kept between choosing the label and guessing. -/
+  State : Type
+  /-- Choose the epoch label and the kept information. -/
+  context : ProbComp (ℕ × State)
+  /-- Guess from the kept information and the epoch key received. -/
+  guess : State → P.EpochKey → ProbComp Bool
+
+/-- Key-derivation game. The label `e` is chosen first; then `kdfExp` runs the fixed-epoch game at
+`e`: with `derived = true` the distinguisher receives `kdfOK u e` for uniform `u`, with `false` a
+uniform epoch key. -/
+def kdfContextExp (P : Parameters ProbComp) [SampleableType P.K] [SampleableType P.EpochKey]
+    (C : KDFContextAdversary P) (derived : Bool) : ProbComp Bool := do
+  let (e, st) ← C.context
+  kdfExp P e (C.guess st) derived
+
+/-- Distinguishing advantage of a key-derivation adversary. -/
+noncomputable def kdfAdvantage (P : Parameters ProbComp) [SampleableType P.K]
+    [SampleableType P.EpochKey] (C : KDFContextAdversary P) : ℝ :=
+  (𝒟[kdfContextExp P C true].boolDist 𝒟[kdfContextExp P C false]).toReal
+```
 ::::
 
 :::defTitle "mlkem_braid_noauth_security" "Security without internal authentication"
@@ -428,10 +537,10 @@ $$`\operatorname{Adv}^{\mathrm{guess}}_{\Pi}(A)
 
 where $`\alpha,\beta,\varepsilon` are defined by the {uses "mlkem_braid_noauth_reductions"}[epoch reductions].
 
-The network is passive: $`A` can delay and reorder messages but not modify them, and the
-internal authenticator is off. Nothing is assumed about $`F`. The Braid specification derives
-epoch keys with HKDF, and $`\beta` measures how well a distinguisher tells
-$`F(U_{\mathcal K},e)` from a sample of $`\mu`.
+The network is passive: $`A` can delay and reorder messages but cannot change them. The internal
+authenticator is off. Nothing is assumed about $`F`. The Braid specification derives epoch keys
+with HKDF, and $`\beta` measures how well a distinguisher tells $`F(U_{\mathcal K},e)` from a
+sample of $`\mu`.
 
 The second statement below gives the same bound for any KEM with incremental encapsulation and
 any correct erasure codes for the four streams.
@@ -447,27 +556,18 @@ theorem MLKEMBraid.security
     {EpochKey : Type} [SampleableType EpochKey] [DecidableEq EpochKey]
     (kdfOK : MLKEM.SharedSecret → ℕ → EpochKey) :
     let P := MLKEMBraid.Bounded.parameters p ring prims kdfOK
-    letI : SampleableType (MLKEMBraid.Bounded.parameters p ring prims kdfOK).K :=
-      inferInstanceAs (SampleableType MLKEM.SharedSecret)
-    letI : SampleableType (MLKEMBraid.Bounded.parameters p ring prims kdfOK).EpochKey :=
-      inferInstanceAs (SampleableType EpochKey)
-    letI : DecidableEq (MLKEMBraid.Bounded.parameters p ring prims kdfOK).EpochKey :=
-      inferInstanceAs (DecidableEq EpochKey)
-    letI : DecidableEq (MLKEMBraid.Bounded.parameters p ring prims kdfOK).Sym :=
-      inferInstanceAs (DecidableEq
-        (ErasureCode.SPQRReedSolomon.Chunk ErasureCode.SPQRReedSolomon.GF16))
     let irl := MLKEM.incrementalRandLeak ring
       (MLKEM.Bounded.encoding (MLKEM.ParameterSet.params p))
       (MLKEM.Bounded.primitives (MLKEM.ParameterSet.params p) prims)
     ∀ (A : MLKEMBraid.NoAuth.Adversary P irl) (q : ℕ),
       MLKEMBraid.NoAuth.SendQueryBound A q →
       let ℬ := MLKEM.Bounded.liftAdversary p ring prims
-        (MLKEMBraid.NoAuth.kemMixReduction P (Eq.refl Unit) irl A q)
-      let 𝒞 := MLKEMBraid.NoAuth.kdfMixReduction P (Eq.refl Unit) irl A q
+        (MLKEMBraid.NoAuth.kemMixReduction P rfl irl A q)
+      let 𝒞 := MLKEMBraid.NoAuth.kdfMixReduction P rfl irl A q
       let ε := ((MLKEM.mlkemScheme p ring prims).correctnessError
         ProbCompRuntime.probComp).toReal
       SCKAScheme.sckaGuessAdvantage
-        (MLKEMBraid.NoAuth.scheme P (Eq.refl Unit) irl) A
+        (MLKEMBraid.NoAuth.scheme P rfl irl) A
         (MLKEMBraid.NoAuth.nativeExposure P irl)
         (MLKEMBraid.NoAuth.nativeExposure P irl) ≤
         (q / 2 : ℝ) *

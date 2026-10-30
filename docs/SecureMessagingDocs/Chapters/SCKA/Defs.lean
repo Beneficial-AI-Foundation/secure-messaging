@@ -150,11 +150,11 @@ Game state and oracles adapted from {Informal.citet SCKA25}[], Figure 1.
 We extend the vulnerable-epoch model to randomness leakage and modify the leaking-send
 oracles accordingly. The changes are boxed.
 
-A leaking proposal intersecting a challenged epoch is refused without committing its state
-or bookkeeping. The paper instead uses the delta convention
-$`\mathsf{vuln}_P(\mathsf{st}')\setminus\mathsf{vuln}_P(\mathsf{st})`.
-That convention remains expressible through the separate explicit-policy interface's
-`ExposurePolicy.ofDelta`; it is not a universal identity for native coin exposure.
+If a leaking send would expose a challenged epoch, the game refuses it and keeps neither the new
+state nor its bookkeeping. {Informal.citet SCKA25}[], Figure 1, instead lets a leaking send expose
+$`\mathsf{vuln}_P(\mathsf{st}')\setminus\mathsf{vuln}_P(\mathsf{st})`, the epochs that the
+new state exposes and the old state does not. `ExposurePolicy.ofDelta` expresses this rule, so a
+protocol proof can compare it with the exposure functions of this game.
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Vulnerable epochs}" (kind := "scheme")

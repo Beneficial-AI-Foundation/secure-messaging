@@ -73,6 +73,7 @@ def incrementalEncaps2 {params : Params} {encoding : Encoding params} (ring : NT
 -- ANCHOR_END: incrementalEncaps2
 
 /-- Incremental ML-KEM for the byte encoding `encoding`. -/
+-- ANCHOR: incrementalStructure
 def incrementalStructure {params : Params} (ring : NTTRingOps)
     (encoding : Encoding params) (prims : Primitives params encoding)
     [DecidableEq encoding.EncodedTHat]
@@ -107,6 +108,7 @@ def incrementalStructure {params : Params} (ring : NTTRingOps)
     intro ek
     simp only [asKEMScheme, Equiv.coe_fn_symm_mk, bind_assoc, pure_bind]
     rfl
+-- ANCHOR_END: incrementalStructure
 
 /-- The second stage samples no randomness. -/
 def incrementalDeterministicEncaps2 {params : Params} (ring : NTTRingOps)
@@ -127,6 +129,7 @@ def incrementalDeterministicDecaps {params : Params} (ring : NTTRingOps)
   decaps_eq := fun _sk _c => rfl
 
 /-- The three incremental operations with their outputs and the coins they sample. -/
+-- ANCHOR: incrementalRandLeak
 def incrementalRandLeak {params : Params} (ring : NTTRingOps)
     (encoding : Encoding params) (prims : Primitives params encoding)
     [DecidableEq encoding.EncodedTHat]
@@ -151,5 +154,6 @@ def incrementalRandLeak {params : Params} (ring : NTTRingOps)
     simp only [incrementalStructure, bind_assoc, pure_bind]
   encaps2_fst := fun _st _hdr _vec => by
     simp only [incrementalStructure, pure_bind]
+-- ANCHOR_END: incrementalRandLeak
 
 end MLKEM

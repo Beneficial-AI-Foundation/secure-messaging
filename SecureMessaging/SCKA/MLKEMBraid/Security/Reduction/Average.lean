@@ -37,6 +37,7 @@ variable (P : Parameters ProbComp) [SampleableType P.K] [SampleableType P.EpochK
 
 /-- The IND-CPA adversary against `P.kem` that draws `e ← epochChoice q` and runs `kemReduction` at
 `e`. The epoch `e` is uniform on `{1, …, q}` when `q > 0`, and `e = 1` when `q = 0`. -/
+-- ANCHOR: kemMixReduction
 def kemMixReduction (A : Adversary P irl) (q : ℕ) : P.kem.IND_CPA_Adversary where
   State := P.PK × ℕ
   preChallenge pk := do pure (pk, ← epochChoice q)
@@ -46,14 +47,17 @@ def kemMixReduction (A : Adversary P irl) (q : ℕ) : P.kem.IND_CPA_Adversary wh
         (simImpl P hMac irl (e + 1)
           { pk, ct1 := (P.inc.splitC c).1, ct2 := (P.inc.splitC c).2, key := k })
         (simStop (e + 1)) A (simInit P hMac)
+-- ANCHOR_END: kemMixReduction
 
 /-- The key-derivation adversary that draws `e ← epochChoice q`, announces `e` as its label and
 runs `kdfReduction` at `e`. The epoch `e` is uniform on `{1, …, q}` when `q > 0`, and `e = 1` when
 `q = 0`. -/
+-- ANCHOR: kdfMixReduction
 def kdfMixReduction (A : Adversary P irl) (q : ℕ) : KDFContextAdversary P where
   State := ℕ
   context := do let e ← epochChoice q; pure (e, e)
   guess e x := kdfReduction P hMac irl A e x
+-- ANCHOR_END: kdfMixReduction
 
 /-! ## Averaging over the epoch -/
 

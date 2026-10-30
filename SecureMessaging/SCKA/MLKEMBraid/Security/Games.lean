@@ -371,6 +371,7 @@ def rawHybrid (P : Parameters ProbComp)
       else if t = e then .derivedUniform else .real) A
 
 /-- The uniform-input key-derivation experiment, independent of protocol correctness. -/
+-- ANCHOR: kdfGame
 def kdfExp (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
     (e : ℕ) (D : P.EpochKey → ProbComp Bool) (derived : Bool) : ProbComp Bool :=
@@ -402,5 +403,6 @@ def kdfContextExp (P : Parameters ProbComp) [SampleableType P.K] [SampleableType
 noncomputable def kdfAdvantage (P : Parameters ProbComp) [SampleableType P.K]
     [SampleableType P.EpochKey] (C : KDFContextAdversary P) : ℝ :=
   (𝒟[kdfContextExp P C true].boolDist 𝒟[kdfContextExp P C false]).toReal
+-- ANCHOR_END: kdfGame
 
 end MLKEMBraid.NoAuth

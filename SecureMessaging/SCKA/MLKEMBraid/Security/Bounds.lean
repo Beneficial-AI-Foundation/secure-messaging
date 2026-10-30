@@ -23,12 +23,14 @@ namespace MLKEMBraid.NoAuth
 variable {P : Parameters ProbComp}
 
 /-- Native state-corruption and send-coin exposure for the unit-authenticator instance. -/
+-- ANCHOR: nativeExposure
 def nativeExposure (P : Parameters ProbComp)
     (irl : P.kem.IncrementalRandLeak P.inc) :
     SCKAScheme.VulnerableEpochs (State P Unit)
       (SendRand irl.KeygenRand irl.Encaps1Rand) where
   corrupt := vuln
   rleak := fun st coins => sendExposure st st coins
+-- ANCHOR_END: nativeExposure
 
 /-- Equality of the complete security interpreter for either bit and every query. -/
 theorem securityImpl_eq_native

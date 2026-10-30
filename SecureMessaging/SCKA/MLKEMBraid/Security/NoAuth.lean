@@ -21,6 +21,7 @@ open OracleComp
 namespace MLKEMBraid.NoAuth
 
 /-- The unit-state authenticator with constantly accepting verification. -/
+-- ANCHOR: noAuthAuthenticator
 def auth (P : Parameters ProbComp) (hMac : P.Mac = Unit) :
     RatchetedAuthenticator Unit P.EpochKey Unit
       P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac where
@@ -32,6 +33,7 @@ def auth (P : Parameters ProbComp) (hMac : P.Mac = Unit) :
   verifyCiphertext := fun _ _ _ _ => true
   verifyHeader_correct := fun _ _ _ => rfl
   verifyCiphertext_correct := fun _ _ _ => rfl
+-- ANCHOR_END: noAuthAuthenticator
 
 /-- The literal unit-authenticator instance of the existing Braid scheme. -/
 def scheme (P : Parameters ProbComp) [DecidableEq P.Sym]
