@@ -125,18 +125,6 @@ private theorem securityImpl_eq_delta
   rw [oracleSendArleak_eq_delta P hMac irl, oracleSendBrleak_eq_delta P hMac irl]
   rfl
 
-/-- Full joint output/final-state fidelity to the baseline delta game, from any initial state. -/
-theorem security_run_eq_delta
-    (P : Parameters ProbComp)
-    [SampleableType P.EpochKey] [DecidableEq P.EpochKey] [DecidableEq P.Sym]
-    (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
-    (b : Bool) (A : Adversary P irl) (s : MLKEMBraid.GameState P Unit) :
-    (simulateQ (SCKAScheme.ExposurePolicy.sckaSecurityImpl b
-      (exposure P irl) (exposure P irl) (scheme P hMac irl)) A).run s =ᵈ
-          (simulateQ (SCKAScheme.ExposurePolicy.sckaSecurityImpl b
-        (deltaExposure P irl) (deltaExposure P irl) (scheme P hMac irl)) A).run s := by
-  rw [securityImpl_eq_delta P hMac irl b]
-
 /-- Sampled-bit experiment and guessing advantage fidelity to the frozen baseline game. -/
 theorem securityGame_equiv_delta
     (P : Parameters ProbComp)

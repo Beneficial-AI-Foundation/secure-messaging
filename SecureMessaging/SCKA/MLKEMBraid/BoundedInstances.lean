@@ -4,7 +4,8 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.IncrementalKEM.FromBoundedMLKEM
+import SecureMessaging.KEM.MLKEM.Bounded
+import SecureMessaging.KEM.IncrementalKEM.MLKEM
 import SecureMessaging.ErasureCode.SPQRReedSolomon.Payload
 import SecureMessaging.ErasureCode.SPQRReedSolomon.Correctness
 import SecureMessaging.ErasureCode.Payload

@@ -30,15 +30,6 @@ def nativeExposure (P : Parameters ProbComp)
   corrupt := vuln
   rleak := fun st coins => sendExposure st st coins
 
-/-- The explicit send policy ignores its poststate, on all inputs. -/
-theorem nativeExposure_eq_exposure
-    (P : Parameters ProbComp) (irl : P.kem.IncrementalRandLeak P.inc) :
-    (nativeExposure P irl).corrupt = (exposure P irl).corrupt ∧
-      (fun (st _st' : State P Unit)
-        (coins : SendRand irl.KeygenRand irl.Encaps1Rand) =>
-          (nativeExposure P irl).rleak st coins) = (exposure P irl).send := by
-  exact ⟨rfl, rfl⟩
-
 /-- Equality of the complete security interpreter for either bit and every query. -/
 theorem securityImpl_eq_native
     (P : Parameters ProbComp)
