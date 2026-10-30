@@ -7,6 +7,7 @@ import SecureMessagingDocs.Bibliography
 import SecureMessaging.RKEM.FromDDHNonFS.Construction
 import SecureMessaging.RKEM.FromDDHNonFS.Correctness
 import SecureMessaging.RKEM.FromDDHNonFS.RatchetSimulatability
+import SecureMessaging.RKEM.FromDDHNonFS.Security
 
 /-! # Blueprint chapter: RKEM from DDH (non-FS) -/
 
@@ -52,7 +53,7 @@ K=g^{xy}\in G & \text{shared key, for key pairs }(g^x,x)\text{ and }(g^y,y)
 
 Ciphertexts are empty: the sender's public value $`g^x` doubles as the KEM ciphertext and as its encapsulation key, which the generic CKA construction transmits alongside the ciphertext and $`\RDec\text{-}\mathsf{P}` receives as $`\ek_{\mathsf{\bar P}}`. Used in the generic CKA construction, this RKEM yields the Double Ratchet CKA of {Informal.citet ACD19}[] (see {bpref "cka_from_ddh"}[CKA from DDH]).
 
-The scheme is the non-forward-secure special case of an {bpref "rkem_scheme"}[RKEM]: $`\REnc\text{-}\mathsf{P}` returns its input $`\dk_\mathsf{P}` unchanged as the updated decapsulation key, and $`\RDec\text{-}\mathsf{P}` returns its input $`\ek_{\mathsf{\bar P}}` unchanged as the peer's updated encapsulation key. In particular, it is not FS-IND-CPA secure, since the {bpref "rkem_forward_security"}[forward-security game] hands the adversary $`\dkh{A}=x` together with $`\ekh{B}=Y`, from which it recomputes $`K=Y^x`; the paper only claims plain IND-CPA security under DDH (Theorem A.4).
+The scheme is the non-forward-secure special case of an {bpref "rkem_scheme"}[RKEM]: $`\REnc\text{-}\mathsf{P}` returns its input $`\dk_\mathsf{P}` unchanged as the updated decapsulation key, and $`\RDec\text{-}\mathsf{P}` returns its input $`\ek_{\mathsf{\bar P}}` unchanged as the peer's updated encapsulation key. In particular, it is not FS-IND-CPA secure, since the {bpref "rkem_security"}[forward-security game] hands the adversary $`\dkh{A}=x` together with $`\ekh{B}=Y`, from which it recomputes $`K=Y^x`; the paper only claims plain IND-CPA security under DDH (Theorem A.4).
 
 Both parties run the same algorithms, shown below for one round in each direction, with $`\A`'s key pair $`(g^x,x)` on the left and $`\B`'s key pair $`(g^y,y)` on the right. In Lean, the group is modelled additively as a module over the scalar field $`F` (playing $`\mathbb{Z}_q`) with a fixed generator $`\mathsf{gen}`, given as a parameter of the construction: $`g^x` is `x • gen` and $`Y^x` is `x • Y`.
 
@@ -230,6 +231,69 @@ theorem deltaCorrect [DecidableEq G] (gen : G) :
     RKEMScheme.deltaCorrect (scheme (F := F) gen) ProbCompRuntime.probComp 0 0
 ```
 ::::
+
+:::defTitle "rkem_from_ddh_nonfs_ind_cpa" "RKEM from DDH non-FS IND-CPA security"
+:::
+
+:::::::theorem "rkem_from_ddh_nonfs_ind_cpa" (parent := "rkem_rkem_from_ddh_non_fs") (lean := "ddhRKEM.ddhReduction, ddhRKEM.indCpaAdvantageA_eq, ddhRKEM.indCpaAdvantageB_eq, ddhRKEM.INDCPASecure") (tags := "gh-375") (uses := "rkem_from_ddh_nonfs_spec, rkem_scheme, rkem_security")
+Adapted from {Informal.citet TR25}[], Theorem A.4.
+
+Let $`G=\langle g\rangle` be of prime order $`q`, so that $`x\mapsto g^x` is a bijection $`\mathbb{Z}_q\to G`.
+
+:::leanPillCaption "Generator hypothesis"
+:::
+
+```anchor bijectiveGenerator (project := ".") (module := SecureMessaging.RKEM.FromDDHNonFS.Security)
+    (hg : Function.Bijective (· • gen : F → G))
+```
+
+For each party $`\mathsf{P}\in\{\A,\B\}` and every IND-CPA adversary $`\adv` against the non-forward-secure RKEM from DDH, the DDH adversary $`\mathcal{B}` below satisfies
+
+$$`\mathsf{Adv}^{\mathsf{IND\text{-}CPA}\text{-}\mathsf{P}}(\adv)=\tfrac12\,\mathsf{Adv}^{\mathsf{DDH}}(\mathcal{B}),`
+
+with $`\mathsf{Adv}^{\mathsf{DDH}}(\mathcal{B})=|\Pr[\mathcal{B}\text{ outputs }1\text{ on a real triple}]-\Pr[\mathcal{B}\text{ outputs }1\text{ on a random triple}]|` the distinguishing advantage. The factor $`\tfrac12` only converts this distinguishing advantage into the bias advantage $`|\Pr[\cdot]-\tfrac12|` of the IND-CPA game; the reduction is tight.
+
+Consequently, if every DDH adversary has advantage at most $`\varepsilon`, the scheme is $`\tfrac{\varepsilon}{2}`-IND-CPA secure in the sense of {bpref "rkem_security"}[RKEM IND-CPA].
+
+::::::gameGrid
+:::::gameCell "\\mathcal{B}(g,X,Y,T)" (kind := "compact")
+$`\begin{array}{l}
+b'\sample\adv(X,X,Y,(),T)\pcomment{\ekA=\ekh{A}=X,\ \ekh{B}=Y,\ \ct_\B=()} \\
+\Return b'
+\end{array}`
+:::::
+::::::
+
+:::leanPillCaption "DDH reduction"
+:::
+
+```anchor ddhReduction (project := ".") (module := SecureMessaging.RKEM.FromDDHNonFS.Security)
+def ddhReduction (adversary : RKEMScheme.INDCPAAdversary Unit G Unit G) :
+    DiffieHellman.DDHAdversary F G :=
+  fun _gen ekA ekBHat key => adversary () ekA ekA ekBHat () key
+```
+
+:::leanPillCaption "Tight reduction, party A"
+:::
+
+```anchor indCpaAdvantageA_eq (project := ".") (module := SecureMessaging.RKEM.FromDDHNonFS.Security)
+theorem indCpaAdvantageA_eq (gen : G)
+    (hg : Function.Bijective (· • gen : F → G))
+    (adversary : RKEMScheme.INDCPAAdversary Unit G Unit G) :
+    (scheme (F := F) gen).indCpaAdvantageA adversary =
+      (ddhAdvantage gen (ddhReduction (F := F) adversary)).toReal / 2
+```
+
+:::leanPillCaption "IND-CPA security"
+:::
+
+```anchor INDCPASecure (project := ".") (module := SecureMessaging.RKEM.FromDDHNonFS.Security)
+theorem INDCPASecure (gen : G) (hg : Function.Bijective (· • gen : F → G)) (ε : ℝ)
+    (hddh : ∀ adversary : DDHAdversary F G, (ddhAdvantage gen adversary).toReal ≤ ε)
+    (adversaryA adversaryB : RKEMScheme.INDCPAAdversary Unit G Unit G) :
+    (scheme (F := F) gen).INDCPASecure adversaryA adversaryB (ε / 2)
+```
+:::::::
 
 :::defTitle "rkem_from_ddh_nonfs_ratchet_sim" "RKEM from DDH non-FS ratchet simulatability"
 :::
