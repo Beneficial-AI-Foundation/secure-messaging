@@ -4,14 +4,14 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.EvalDist.BoolDist
 import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Stopping
 
 /-!
 # The uniform-input KDF reduction
 
 Adjacent numerical-epoch hybrids differ at the selected challenge. Stopping and once-used
-challenge installation identify their gap with the supplied KDF distinguisher's advantage.
+challenge installation identify the difference between their acceptance probabilities with the
+difference between the two outcomes of the supplied KDF distinguisher (`kdf_signed_gap_eq`).
 No codec-correctness hypothesis is needed for this equality.
 -/
 
@@ -33,18 +33,20 @@ def kdfReduction (P : Parameters ProbComp) [SampleableType P.K] [SampleableType 
         (fun t => if t < e + 1 then .uniform else .real)) (targetStop (e + 1)) A
         (initTrace P hMac)
 
-/-- **`kdf_gap_eq`**: for a positive epoch `e`, the gap between the hybrid with the derived
-uniform key at `e` and the hybrid with a uniform key at `e` is the uniform-input KDF advantage of
-`kdfReduction` at `e`. No code-correctness assumption is used. -/
-theorem kdf_gap_eq (P : Parameters ProbComp)
+/-- **`kdf_signed_gap_eq`**: for every `n`, the probability that `kdfReduction` at epoch `n + 1`
+outputs `true` on a derived key `kdfOK u (n + 1)` with `u` uniform, minus the same probability on
+a uniform epoch key, is the acceptance probability of the hybrid with a derived uniform key at
+epoch `n + 1` minus that of the hybrid with uniform keys through epoch `n + 1`. No
+code-correctness assumption is used. -/
+theorem kdf_signed_gap_eq (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
     [DecidableEq P.EpochKey] [DecidableEq P.Sym]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
-    (A : Adversary P irl) (e : ℕ) (he : 0 < e) :
-    (𝒟[rawHybrid P hMac irl A e].boolDist 𝒟[hybrid P hMac irl A e]).toReal =
-      (𝒟[kdfExp P e (kdfReduction P hMac irl A e) true].boolDist
-          𝒟[kdfExp P e (kdfReduction P hMac irl A e) false]).toReal := by
-  obtain ⟨n, rfl⟩ : ∃ n, e = n + 1 := ⟨e - 1, by omega⟩
+    (A : Adversary P irl) (n : ℕ) :
+    (Pr{let x ← kdfExp P (n + 1) (kdfReduction P hMac irl A (n + 1)) true}[x = true]).toReal -
+      (Pr{let x ← kdfExp P (n + 1) (kdfReduction P hMac irl A (n + 1)) false}[x = true]).toReal =
+    (Pr{let x ← rawHybrid P hMac irl A (n + 1)}[x = true]).toReal -
+      (Pr{let x ← hybrid P hMac irl A (n + 1)}[x = true]).toReal := by
   have hJH : ∀ t, t ≠ n + 1 →
       (if t < n + 1 then Mode.uniform else if t = n + 1 then Mode.derivedUniform else Mode.real) =
         (if t ≤ n + 1 then Mode.uniform else Mode.real) := by
@@ -85,7 +87,6 @@ theorem kdf_gap_eq (P : Parameters ProbComp)
       ($ᵗ P.EpochKey) (fun k => by simp [challengeValue])]
     simp only [kdfExp, kdfReduction, Bool.false_eq_true, ↓reduceIte, map_bind,
       traceImplAt_congr hMac irl (n + 1) none none _ _ _ hHD]
-  rw [ToVCVio.toReal_boolDist_evalDist, ToVCVio.toReal_boolDist_evalDist]
   unfold rawHybrid hybrid
   rw [hgap, hJ, hH]
 

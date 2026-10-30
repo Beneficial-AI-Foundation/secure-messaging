@@ -4,7 +4,6 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.EvalDist.BoolDist
 import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.Projection
 import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Sampling
 import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
@@ -14,7 +13,8 @@ import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
 
 The real and random KEM branches correspond to the stopped repaired experiments with both
 selected samples installed. Once-only installation removes those samples, and the signed-gap
-stop identifies the unchanged IND-CPA normalization with the adjacent numerical-epoch gap.
+stop identifies the difference between the two branches with the difference between adjacent
+hybrids (`kem_signed_gap_eq`).
 -/
 
 open OracleSpec OracleComp ENNReal
@@ -120,27 +120,31 @@ theorem kem_rand_side (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.
 
 end KEMGap
 
-/-- **`kem_gap_eq`**: for a positive epoch `e`, the gap between the hybrid with uniform keys
-before `e` and the hybrid with a derived uniform key at `e` is the IND-CPA advantage of
-`kemReduction` at `e`. -/
-theorem kem_gap_eq (P : Parameters ProbComp)
+/-- **`kem_signed_gap_eq`**: for every `n`, the probability that `kemReduction` at epoch `n + 1`
+outputs `true` on the real key, minus the same probability on a uniform key, is the acceptance
+probability of the hybrid with uniform keys through epoch `n` minus that of the hybrid with a
+derived uniform key at epoch `n + 1`. -/
+theorem kem_signed_gap_eq (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
     [DecidableEq P.EpochKey] [DecidableEq P.Sym]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
     (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct)
-    (A : Adversary P irl) (e : ℕ) (he : 0 < e) :
-    (𝒟[hybrid P hMac irl A (e - 1)].boolDist 𝒟[rawHybrid P hMac irl A e]).toReal =
-      (P.kem.IND_CPA_Advantage ProbCompRuntime.probComp (kemReduction P hMac irl A e)).toReal := by
-  obtain ⟨n, rfl⟩ : ∃ n, e = n + 1 := ⟨e - 1, by omega⟩
-  have hHD : (fun t => if t ≤ n + 1 - 1 then Mode.uniform else Mode.real) =
+    (A : Adversary P irl) (n : ℕ) :
+    (Pr{let x ← (P.kem.IND_CPA_Experiment ProbCompRuntime.probComp
+        (kemReduction P hMac irl A (n + 1)) true)}[x = true]).toReal -
+      (Pr{let x ← (P.kem.IND_CPA_Experiment ProbCompRuntime.probComp
+        (kemReduction P hMac irl A (n + 1)) false)}[x = true]).toReal =
+    (Pr{let x ← hybrid P hMac irl A n}[x = true]).toReal -
+      (Pr{let x ← rawHybrid P hMac irl A (n + 1)}[x = true]).toReal := by
+  have hHD : (fun t => if t ≤ n then Mode.uniform else Mode.real) =
       fun t => if t < n + 1 then Mode.uniform else Mode.real := by
     funext t
     by_cases h : t < n + 1
     · rw [ite_eq_left (by omega), ite_eq_left h]
     · rw [ite_eq_right (by omega), ite_eq_right h]
   have hHJ : ∀ t, t ≠ n + 1 →
-      (if t ≤ n + 1 - 1 then Mode.uniform else Mode.real) =
+      (if t ≤ n then Mode.uniform else Mode.real) =
         (if t < n + 1 then Mode.uniform else if t = n + 1 then Mode.derivedUniform
           else Mode.real) := by
     intro t ht
@@ -155,11 +159,11 @@ theorem kem_gap_eq (P : Parameters ProbComp)
     · rw [ite_eq_left h, ite_eq_left h]
     · rw [ite_eq_right h, ite_eq_right ht, ite_eq_right h]
   have hgap := signedGap_stop hMac irl
-    (fun t => if t ≤ n + 1 - 1 then .uniform else .real)
+    (fun t => if t ≤ n then .uniform else .real)
     (fun t => if t < n + 1 then .uniform else if t = n + 1 then .derivedUniform else .real)
     (n + 1) hHJ A
   have hH : Pr{let x ← (stoppedRun (traceImpl P hMac irl true
-        (fun t => if t ≤ n + 1 - 1 then .uniform else .real)) (targetStop (n + 1)) A
+        (fun t => if t ≤ n then .uniform else .real)) (targetStop (n + 1)) A
         (initTrace P hMac))}[x = true] =
       Pr{let x ← (P.kem.IND_CPA_Experiment ProbCompRuntime.probComp
         (kemReduction P hMac irl A (n + 1)) true)}[x = true] := by
@@ -179,9 +183,7 @@ theorem kem_gap_eq (P : Parameters ProbComp)
         ((fun u => P.kdfOK u (n + 1)) <$> ($ᵗ P.K)) (fun k => by simp [challengeValue]),
       bind_map_left]
     simp only [traceImplAt_congr hMac irl (n + 1) none none _ _ _ hJD]
-  rw [ToVCVio.toReal_boolDist_evalDist]
   unfold hybrid rawHybrid
-  rw [hgap, hH, hJ, KEMScheme.IND_CPA_Advantage_eq_fixed_branch_dist,
-    ENNReal.absDiff_toReal (prEvent_ne_top _) (prEvent_ne_top _)]
+  rw [hgap, hH, hJ]
 
 end MLKEMBraid.NoAuth

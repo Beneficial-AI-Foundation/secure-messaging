@@ -4,14 +4,14 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Security.BadEvent
 import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.KEM
 import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.KDF
+import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.Average
 
 /-!
-# Compatibility imports for the explicit KEM and KDF reductions
+# The KEM and key-derivation reductions
 
-The executable masked simulator is below analytical bad-event bounds. Its correspondence,
-installed-sample arguments and primitive-game comparisons are implemented in their respective
-modules. This façade retains the historical transitive import interface and supported names.
+`Reduction.KEM` and `Reduction.KDF` relate the reductions for one fixed epoch to adjacent hybrids.
+`Reduction.Average` builds the reductions that draw the epoch uniformly from `{1, …, q}` and
+telescopes their gaps over the hybrids.
 -/
