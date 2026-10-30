@@ -7,7 +7,7 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.SCKA.MLKEMBraid.Security.Bounds
 import SecureMessaging.SCKA.MLKEMBraid.Security.Hybrids
 import SecureMessaging.SCKA.MLKEMBraid.Security.Risk
-import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction
+import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.Average
 import SecureMessaging.SCKA.MLKEMBraid.BoundedInstances
 
 /-!

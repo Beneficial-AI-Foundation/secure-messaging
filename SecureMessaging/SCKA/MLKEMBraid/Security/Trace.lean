@@ -5,7 +5,8 @@ Authors: Beneficial AI Foundation
 -/
 
 import ToVCVio.EvalDist.BoolDist
-import SecureMessaging.SCKA.MLKEMBraid.Security.Invariant
+import SecureMessaging.SCKA.MLKEMBraid.Security.Invariant.Send
+import SecureMessaging.SCKA.MLKEMBraid.Security.Invariant.Receive
 import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
 import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
