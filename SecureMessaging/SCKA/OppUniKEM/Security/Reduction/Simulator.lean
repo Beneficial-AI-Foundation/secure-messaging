@@ -384,12 +384,7 @@ theorem securityReduction_acceptance_average
     (q : ℝ)⁻¹ * ∑ i : Fin q,
       (Pr{let x ← (fixedBranch
           kem onoff ecEk ecCt0 ecCt1 leak adv (i.val + 1) b)}[x = true]).toReal := by
-  rw [securityReduction_probOutput]
-  let : NeZero q := ⟨hq⟩
-  simp only [epochChoice, hq, ↓reduceDIte, bind_map_left, (prEvent_bind_eq_sum_fintype _),
-    SampleableType.prEvent_uniformSample_eq_singleton, Fintype.card_fin, ← Finset.mul_sum]
-  rw [ENNReal.toReal_mul, ENNReal.toReal_inv, ENNReal.toReal_natCast,
-    ENNReal.toReal_sum (fun _ _ => (prEvent_ne_top _))]
+  rw [securityReduction_probOutput, toReal_prEvent_epochChoice_bind q hq]
 
 /-- For `q ≠ 0`, the difference in acceptance probability between the real (`true`) and random
 (`false`) IND-CPA branches of `securityReduction … adv q` equals the average over `e ∈ {1, …, q}`

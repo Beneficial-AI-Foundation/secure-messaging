@@ -7,12 +7,15 @@ Authors: Beneficial AI Foundation
 module
 
 public import VCVio.OracleComp.Constructions.SampleableType
+public import VCVio.OracleComp.Constructions.SampleableType.Measure
 
 /-!
 # Uniform choice of an index in `{1, …, q}`
 
 Hybrid arguments over `q` steps often build one reduction that first picks a step uniformly at
-random and then runs the reduction for that step. `epochChoice q` is this random choice.
+random and then runs the reduction for that step. `epochChoice q` is this random choice. For
+`q > 0`, the probability of an event of such a reduction is the average over `i ∈ {1, …, q}` of
+its probability for step `i` (`toReal_prEvent_epochChoice_bind`).
 -/
 
 @[expose] public section
@@ -25,5 +28,17 @@ def epochChoice (q : ℕ) : ProbComp ℕ :=
   else
     letI : NeZero q := ⟨hq⟩
     (fun i : Fin q => i.val + 1) <$> ($ᵗ (Fin q) : ProbComp (Fin q))
+
+/-- For `q ≠ 0`, the probability of an event after `e ← epochChoice q; X e` is the average of its
+probabilities for `X 1, …, X q`. -/
+theorem toReal_prEvent_epochChoice_bind {α : Type} (q : ℕ) (hq : q ≠ 0) (X : ℕ → ProbComp α)
+    (p : α → Prop) :
+    (Pr{let x ← epochChoice q >>= X}[p x]).toReal =
+      (q : ℝ)⁻¹ * ∑ i : Fin q, (Pr{let x ← X (i.val + 1)}[p x]).toReal := by
+  let : NeZero q := ⟨hq⟩
+  simp only [epochChoice, hq, ↓reduceDIte, bind_map_left, (prEvent_bind_eq_sum_fintype _),
+    SampleableType.prEvent_uniformSample_eq_singleton, Fintype.card_fin, ← Finset.mul_sum]
+  rw [ENNReal.toReal_mul, ENNReal.toReal_inv, ENNReal.toReal_natCast,
+    ENNReal.toReal_sum (fun _ _ => prEvent_ne_top _)]
 
 end ToVCVio

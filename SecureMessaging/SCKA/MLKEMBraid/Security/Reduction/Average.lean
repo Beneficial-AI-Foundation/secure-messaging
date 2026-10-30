@@ -113,12 +113,7 @@ theorem kemMixReduction_signed_gap (A : Adversary P irl) (q : ℕ) (hq : q ≠ 0
       refine (OracleComp.EvalDistEq.bind_bind_swap P.kem.keygen (epochChoice q) _).trans ?_
       refine EvalDistEq.bind_right _ fun e => ?_
       rcases e with _ | e <;> simp only [kemReduction, pure_bind] <;> exact EvalDistEq.rfl
-    rw [hswap]
-    let : NeZero q := ⟨hq⟩
-    simp only [epochChoice, hq, ↓reduceDIte, bind_map_left, (prEvent_bind_eq_sum_fintype _),
-      SampleableType.prEvent_uniformSample_eq_singleton, Fintype.card_fin, ← Finset.mul_sum]
-    rw [ENNReal.toReal_mul, ENNReal.toReal_inv, ENNReal.toReal_natCast,
-      ENNReal.toReal_sum (fun _ _ => (prEvent_ne_top _))]
+    rw [hswap, toReal_prEvent_epochChoice_bind q hq]
   rw [hb true, hb false, Finset.sum_sub_distrib, mul_sub]
 
 /-- For `q ≠ 0`, the probability that `kdfMixReduction A q` outputs `true` in `kdfContextExp` on a
@@ -138,12 +133,8 @@ theorem kdfMixReduction_signed_gap (A : Adversary P irl) (q : ℕ) (hq : q ≠ 0
         (Pr{let x ← (kdfExp P (i.val + 1)
           (kdfReduction P hMac irl A (i.val + 1)) derived)}[x = true]).toReal := by
     intro derived
-    let : NeZero q := ⟨hq⟩
-    simp only [kdfContextExp, kdfMixReduction, bind_assoc, pure_bind, epochChoice, hq,
-      ↓reduceDIte, bind_map_left, (prEvent_bind_eq_sum_fintype _),
-      SampleableType.prEvent_uniformSample_eq_singleton, Fintype.card_fin, ← Finset.mul_sum]
-    rw [ENNReal.toReal_mul, ENNReal.toReal_inv, ENNReal.toReal_natCast,
-      ENNReal.toReal_sum (fun _ _ => (prEvent_ne_top _))]
+    simp only [kdfContextExp, kdfMixReduction, bind_assoc, pure_bind]
+    exact toReal_prEvent_epochChoice_bind q hq _ _
   rw [hd true, hd false, Finset.sum_sub_distrib, mul_sub]
 
 /-! ## Telescoping over the hybrids -/
