@@ -351,7 +351,7 @@ theorem gcmOneTimeAEAD_correct {K : Type} (prp : PRPScheme K (BitVec 128))
 :::defTitle "aead_gcm_axu" "Almost-XOR-universal hash"
 :::
 
-::::definition "aead_gcm_axu" (parent := "aead_gcm") (lean := "UniversalHash.IsAlmostXorUniversal, GCM.gcmEncode, GCM.GhashIsAXU") (uses := "aead_gcm_components, aead_gcm_spec")
+::::definition "aead_gcm_axu" (parent := "aead_gcm") (lean := "UniversalHash.IsAlmostXorUniversal")
 Let $`\mathcal K` be a finite nonempty key space, $`\mathcal D` an input domain and
 $`t` an output length in bits. A keyed hash
 $`h : \mathcal K \times \mathcal D \to \bit^t` is $`\varepsilon`-almost-XOR-universal
@@ -359,11 +359,24 @@ $`h : \mathcal K \times \mathcal D \to \bit^t` is $`\varepsilon`-almost-XOR-univ
 
 $$`\Pr_{k \sample \mathcal K}\bigl[\, h(k, x) \oplus h(k, y) = \Delta \,\bigr] \le \varepsilon`
 
-where $`\oplus` is bitwise XOR. GHASH is $`\varepsilon`-AXU for $`L`-bit ciphertexts if
-$`(H, (a, c)) \mapsto \mathsf{GHASH}_H(\mathsf{encode}(a, c))` is $`\varepsilon`-AXU on
-supported associated data $`a` and $`c \in \bit^L`. Here the hash key $`H` is uniform in
-$`\bit^{128}`. In GCM, $`H = \mathsf{CIPH}_K(0^{128})`, and the security proof replaces it
-by a uniform block before it uses this property.
+where $`\oplus` is bitwise XOR.
+::::
+
+:::defTitle "aead_gcm_ghash_hash" "GHASH as a keyed hash"
+:::
+
+::::definition "aead_gcm_ghash_hash" (parent := "aead_gcm") (lean := "GCM.gcmEncode, GCM.GhashIsAXU") (uses := "aead_gcm_axu, aead_gcm_components, aead_gcm_spec")
+GHASH is $`\varepsilon`-AXU for $`L`-bit ciphertexts if
+$`(H, (a, c)) \mapsto \mathsf{GHASH}_H(\mathsf{encode}(a, c))` is
+{bpref "aead_gcm_axu"}[$`\varepsilon`-AXU] on supported associated data $`a` and
+$`c \in \bit^L`. Here the hash key $`H` is uniform in $`\bit^{128}`. In GCM,
+$`H = \mathsf{CIPH}_K(0^{128})`, and the security proof replaces it by a uniform block before
+it uses this property.
+
+Let $`n = \lceil L / 128 \rceil`. Then $`\mathsf{encode}(a, c)` has at most $`2^{57} + n + 1`
+blocks, for every supported $`a`. The longest supported associated data has $`2^{64} - 8`
+bits, which is $`2^{57}` blocks after zero-padding. The ciphertext is $`n` blocks after
+zero-padding, and one block holds the two lengths.
 
 :::leanPillCaption "GHASH input $`\\mathsf{encode}(a, c)`"
 :::
@@ -386,23 +399,13 @@ def GhashIsAXU (L : ℕ) (ε : ℝ≥0∞) : Prop :=
 :::defTitle "aead_gcm_ghash_axu" "GHASH is almost-XOR-universal"
 :::
 
-::::theorem "aead_gcm_ghash_axu" (parent := "aead_gcm") (lean := "GCM.ghash_isAXU_unconditional, GCM.nistPoly_irreducible") (uses := "aead_gcm_axu")
+::::theorem "aead_gcm_ghash_axu" (parent := "aead_gcm") (lean := "GCM.ghash_isAXU_unconditional, GCM.nistPoly_irreducible") (uses := "aead_gcm_ghash_hash")
 Adapted from {Informal.citet IOM12}[], Corollary 4.
 
 Let $`L` be a supported message length and $`n = \lceil L / 128 \rceil`. Then GHASH is
-{bpref "aead_gcm_axu"}[$`\varepsilon`-AXU] for $`L`-bit ciphertexts, with
+{bpref "aead_gcm_ghash_hash"}[$`\varepsilon`-AXU for $`L`-bit ciphertexts], with
 
 $$`\varepsilon = \frac{2^{57} + n + 1}{2^{128}}`
-
-The numerator bounds the number of blocks of $`\mathsf{encode}(a, c)`. The longest supported
-associated data has $`2^{64} - 8` bits, which is $`2^{57}` blocks after zero-padding. The
-ciphertext is $`n` blocks after zero-padding, and one block holds the two lengths. The bound
-uses the longest supported associated data for every query, so it does not improve for
-shorter associated data, and $`\varepsilon \approx 2^{-71}`.
-
-The bound needs $`x^{128} + x^7 + x^2 + x + 1` to be irreducible over $`\mathrm{GF}(2)`, so
-that $`\bullet` is multiplication in a field. This is the second statement below. It is
-proved, not assumed.
 
 :::leanPillCaption "AXU bound of GHASH"
 :::
@@ -456,13 +459,13 @@ theorem prfAdvantage_le_prpAdvantage_switching {K : Type}
 :::defTitle "aead_gcm_security_of_axu" "AEAD-GCM security for any AXU bound"
 :::
 
-:::::theorem "aead_gcm_security_of_axu" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_security_of_axu, GCM.prfReduction") (uses := "aead_gcm_spec, aead_gcm_axu, prf, aead_security_exp, aead_dist_advantage, aead_decrypt_query_bound, aead_oracles")
+:::::theorem "aead_gcm_security_of_axu" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_security_of_axu, GCM.prfReduction") (uses := "aead_gcm_spec, aead_gcm_ghash_hash, prf, aead_security_exp, aead_dist_advantage, aead_decrypt_query_bound, aead_oracles")
 Adapted from {Informal.citet IOM12}[], Corollaries 3 and 4, with one encryption query and an
 abstract AXU bound $`\varepsilon` in place of the GHASH bound.
 
 Let $`P` be a PRP scheme on 128-bit blocks, $`\mathit{IV}` a 96-bit IV, $`L` a supported
 message length, $`\varepsilon` a non-negative real such that GHASH is
-{bpref "aead_gcm_axu"}[$`\varepsilon`-AXU] for $`L`-bit ciphertexts, and $`\adv` an
+{bpref "aead_gcm_ghash_hash"}[$`\varepsilon`-AXU for $`L`-bit ciphertexts], and $`\adv` an
 adversary in the {bpref "aead_security_exp"}[one-time IND-CCA game] of
 $`\mathsf{GCM}[P, \mathit{IV}, L]` that makes at most $`q_d` queries to the decryption oracle
 $`\Odec`. Let $`\mathcal B` be the PRF adversary of
