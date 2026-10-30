@@ -43,11 +43,6 @@ theorem of_transcriptConsistent (h : TranscriptConsistent (auth P hMac) () T s) 
     RepairInv hMac T s :=
   h.mono _ _ fun _ _ _ _ _ _ _ _ _ => trivial
 
-/-- With decapsulation agreement the repaired invariant is transcript consistency. -/
-theorem transcriptConsistent (h : RepairInv hMac T s) (hgood : DecapsGood T) :
-    TranscriptConsistent (auth P hMac) () T s :=
-  h.mono _ _ fun e pk sk es ct1 key hkp hc _ => hgood e pk sk es ct1 key hkp hc
-
 /-- The invariant reads neither the exposed nor the challenged epochs. -/
 theorem setFlags (h : RepairInv hMac T s) (X Y : Finset ℕ) :
     RepairInv hMac T { s with exposed := X, challenged := Y } :=

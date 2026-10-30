@@ -442,29 +442,6 @@ theorem run_erase (P : Parameters ProbComp)
   OracleComp.map_run_simulateQ_eq_of_query_map_eq _ _ TraceState.game
     (traceImpl_real_map hMac irl b) A _
 
-/-- **`real_trace_before_bad`**: every result in the support of a real trace run whose bad flag
-is false is transcript consistent, has disjoint exposed and challenged epochs, and decapsulates
-every recorded encapsulation to its derived key. -/
-theorem real_trace_before_bad (P : Parameters ProbComp)
-    [SampleableType P.K] [SampleableType P.EpochKey]
-    [DecidableEq P.EpochKey] [DecidableEq P.Sym]
-    (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
-    (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct)
-    (mode : ℕ → Mode) (A : Adversary P irl)
-    (z : Bool × TraceState P) (hz : z ∈ support (run P hMac irl false mode A))
-    (hbad : z.2.bad = false) :
-    TranscriptConsistent (auth P hMac) () z.2.transcript z.2.game ∧
-      z.2.game.exposed ∩ z.2.game.challenged = ∅ ∧
-      ∀ e pk sk encapsState ct1 key, (z.2.transcript e).keypair = some (pk, sk) →
-        (z.2.transcript e).encaps1 = some (encapsState, ct1, key) →
-        decapsEpochKey e pk sk encapsState ct1 = some (P.kdfOK key e) := by
-  have hinv := simulateQ_run_preservesInv (traceImpl P hMac irl false mode) (TraceInv hMac false)
-    (traceImpl_preservesInv hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct false mode)
-    A _ (traceInv_init hMac false) z hz
-  obtain ⟨hR, hG⟩ := hinv.1 (Or.inr hbad)
-  exact ⟨hR.transcriptConsistent (hG rfl), hinv.2, hG rfl⟩
-
 /-- **`fixed_repaired_gap_le`**: the security game `fixed A b` and the repaired trace game of the
 same bit differ by at most the probability of the bad event. -/
 theorem fixed_repaired_gap_le (P : Parameters ProbComp)

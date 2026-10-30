@@ -391,24 +391,4 @@ theorem badEvent_le (P : Parameters ProbComp)
     _ = (qS : ℝ≥0∞) * P.kem.correctnessError ProbCompRuntime.probComp := by
         rw [h0, zero_add]
 
-/-- **`security_correctness_error_le`**: on the full security interface of either bit, the
-correctness flag fails with probability at most `qS` times the KEM correctness error. -/
-theorem security_correctness_error_le (P : Parameters ProbComp)
-    [SampleableType P.K] [SampleableType P.EpochKey]
-    [DecidableEq P.K] [DecidableEq P.EpochKey] [DecidableEq P.Sym]
-    (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
-    (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct)
-    (A : Adversary P irl) (qS : ℕ) (hqS : SendQueryBound A qS) (b : Bool) :
-    Pr{let z ← run P hMac irl false (fun _ => if b then .uniform else
-        .real) A}[z.2.game.correct = false] ≤
-      (qS : ℝ≥0∞) * P.kem.correctnessError ProbCompRuntime.probComp := by
-  refine le_trans (prEvent_mono_of_support _ _ _ fun z hz hc => ?_)
-    (badEvent_le P hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct A qS hqS b)
-  by_contra hb
-  have hcor := (real_trace_before_bad P hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct
-    _ A z hz (by simpa using hb)).1.correct
-  rw [hc] at hcor
-  cases hcor
-
 end MLKEMBraid.NoAuth
