@@ -36,8 +36,8 @@ details{border:1px solid var(--line);border-radius:8px;padding:14px 17px;backgro
 <header class="hero">
   <div class="eyebrow">Secure messaging · Opp-BiKEM · the whole security proof</div>
   <h1>Proving Opp-BiKEM Secure</h1>
-  <p class="lead">This chapter tells the complete story of a machine-checked security proof. An adversary plays a game against the Opp-BiKEM key-agreement protocol, corrupting parties, watching coins, and asking to tell a real session key from a random one. We bound its advantage by two quantities it is reasonable to assume small: the correctness error of the underlying KEM and the IND-CPA advantage of explicit KEM distinguishers built from the adversary. The proof is a chain of games, each hop annotated with its justification. The exposition follows the style of Mike Rosulek's <em>The Joy of Cryptography</em>: security is defined by a library the adversary links to, games are related by small changes whose effect on any caller is understood, and each hop is justified either by a bad event whose probability is paid or by a reduction to an assumption. Every claim here is a theorem in Lean.</p>
-  <p class="meta">Snapshot: 28 October 2026. The proof is complete and every declaration it depends on uses only Lean's standard axioms.</p>
+  <p class="lead">This chapter tells the complete story of a machine-checked security proof. An adversary plays a game against the Opp-BiKEM key-agreement protocol, corrupting parties, watching coins, and asking to tell a real session key from a random one. We bound its advantage by two quantities it is reasonable to assume small: the correctness error of the underlying KEM and the IND-CPA advantage of one explicit KEM distinguisher built from the adversary. The proof is a chain of games, each hop annotated with its justification. The exposition follows the style of Mike Rosulek's <em>The Joy of Cryptography</em>: security is defined by a library the adversary links to, games are related by small changes whose effect on any caller is understood, and each hop is justified either by a bad event whose probability is paid or by a reduction to an assumption. Every claim here is a theorem in Lean.</p>
+  <p class="meta">Snapshot: 30 October 2026. The proof is complete and every declaration it depends on uses only Lean's standard axioms.</p>
 </header>
 <div class="layout">
 <nav class="rail" aria-label="Chapter sections">
@@ -48,7 +48,7 @@ details{border:1px solid var(--line);border-radius:8px;padding:14px 17px;backgro
   <a href="#s4">4 · Real to ideal</a>
   <a href="#s5">5 · One epoch at a time</a>
   <a href="#s6">6 · One hop, one distinguisher</a>
-  <a href="#s7">7 · The whole chain</a>
+  <a href="#s7">7 · One sampled target</a>
   <a href="#s8">8 · What it says and doesn't</a>
   <a href="#s9">9 · Reading the Lean</a>
   <a href="#ex">Exercises</a>
@@ -100,17 +100,18 @@ Pr[win] − ½ = ½ · (P₁ − P₀)</code></pre>
   <pre><code>Adv_IND-CPA(R)  =  | Pr[R outputs 1 | real k*] − Pr[R outputs 1 | uniform k*] |
                 =  | Pr[S_t^real = 1] − Pr[S_t^random = 1] |
                 =  | Pr[A outputs 1 in H_t] − Pr[A outputs 1 in H_(t+1)] |</code></pre>
-  <p>so "<code>A</code> distinguishes the hybrids with advantage <code>x</code>" and "<code>R</code> distinguishes real from uniform with advantage <code>x</code>" are the same statement, certified by <code>hybrid_hop_eq_reduction</code>. This is why the final bound contains the reductions' advantages themselves, with no loss. One caution on the word "distinguishes": it means that <code>A</code>'s output probabilities in the two hybrids differ by <code>x</code>, not that <code>A</code> knows which hybrid it is in. <code>A</code> plays one game and outputs a bit; the hybrids exist only in the analysis.</p></div>
+  <p>so "<code>A</code> distinguishes the hybrids with advantage <code>x</code>" and "<code>R</code> distinguishes real from uniform with advantage <code>x</code>" are the same statement, certified by <code>hybrid_hop_eq_reduction</code>. This is why the final bound contains the advantage of a reduction built from <code>A</code> itself, with no loss. One caution on the word "distinguishes": it means that <code>A</code>'s output probabilities in the two hybrids differ by <code>x</code>, not that <code>A</code> knows which hybrid it is in. <code>A</code> plays one game and outputs a bit; the hybrids exist only in the analysis.</p></div>
   <p>Each hop below is annotated with a sentence saying why the change is invisible to the calling program, or what it costs, and with the name of the Lean theorem that certifies it.</p>
 </section>
 
 <section id="s3">
   <div class="chapter-num">Section 3</div>
   <h2>The theorem</h2>
-  <div class="formula proved">Adv<sub>SCKA</sub>(A) ≤ q · ε<sub>cor</sub> + ½ Σ<sub>i &lt; 2q</sub> Adv<sup>IND-CPA</sup><sub>KEM</sub>(reduction<sub>i+1</sub>(A))
-    <small><code>security_positive</code>. Here <code>ε<sub>cor</sub></code> is the KEM's correctness error, <code>q</code> bounds the adversary's ordinary and leaking sends, and <code>reduction<sub>t</sub>(A)</code> is the explicit IND-CPA adversary built from <code>A</code> for target epoch <code>t</code>. Two corollaries: <code>security</code> sums over <code>t ≤ 2q</code> including the harmless non-negative term at zero, and <code>security_uniform</code> reads <code>q · ε<sub>cor</sub> + q · δ</code> when each positive-target reduction has advantage at most <code>δ</code>.</small>
+  <div class="formula proved">Adv<sub>SCKA</sub>(A) ≤ q · ε<sub>cor</sub> + q · Adv<sup>IND-CPA</sup><sub>KEM</sub>(B)
+    <small><code>security</code>, with <code>B := securityReduction … A q</code>. Here <code>ε<sub>cor</sub></code> is the KEM's correctness error and <code>q</code> bounds ordinary and leaking sends. For a positive budget, <code>B</code> draws one target uniformly from <code>1, …, 2q</code> and runs that target's reduction. At zero sends, the bound is zero.</small>
   </div>
-  <p>Read it term by term. The first summand is paid once per send, because each send may trigger one decapsulation that can fail. The sum has <code>2q</code> terms because an adversary with <code>q</code> sends can push the protocol through at most <code>2q</code> epochs. Each term is not an abstract "KEM advantage" but the advantage of a named computable adversary against the KEM, so the theorem is a concrete reduction in the strict sense.</p>
+  <p>The first term pays for KEM correctness failures. The second is the actual IND-CPA advantage of a named adversary. <code>B</code> runs one simulation of <code>A</code>, with one extra target draw. There is no separate premise bounding the advantages of all the target-specific reductions. For a concrete KEM, its security must supply a useful bound on <code>B</code>'s advantage.</p>
+  <p>The proof also gives <code>security_positive</code>, the family bound <code>q · ε<sub>cor</sub> + ½ Σ<sub>1 ≤ t ≤ 2q</sub> Adv<sub>KEM</sub>(R<sub>t</sub>)</code>. <code>security_sum</code> includes the nonnegative target-zero term, while <code>security_uniform</code> gives <code>q · ε<sub>cor</sub> + q · δ</code> when every positive-target reduction has advantage at most <code>δ</code>. These are useful when separate bounds are available for different targets.</p>
   <div class="table-wrap"><table>
     <caption>Hypotheses of the theorem, and what each one buys</caption>
     <thead><tr><th>Hypothesis</th><th>Why it is there</th></tr></thead>
@@ -121,7 +122,7 @@ Pr[win] − ½ = ½ · (P₁ − P₀)</code></pre>
       <tr><td>A package of leaking KEM operations</td><td>Key generation and encapsulation that also return their coins, with two laws: discarding the coins gives the honest operations, as computations. This defines what a leaking send reveals; the theorem holds for every such package, and nothing is assumed about what the coins are or whether they let one reconstruct secrets.</td></tr>
     </tbody>
   </table></div>
-  <p>No perfect correctness, no IND-CCA, no bound on the adversary's running time, and no assumption about the reduction's advantage appear. The theorem simply names the reductions; a user instantiating a concrete KEM must bound them.</p>
+  <p>No perfect correctness, no IND-CCA, no bound on the adversary's running time, and no assumption about the reduction's advantage appear. The theorem names the combined reduction; a user instantiating a concrete KEM must bound its advantage.</p>
 </section>
 
 <section id="s4">
@@ -177,15 +178,20 @@ key[me, t] := k</code></pre></div>
 
 <section id="s7">
   <div class="chapter-num">Section 7</div>
-  <h2>The whole chain</h2>
-  <p>Putting the sections together, for an adversary with at most <code>q</code> sends:</p>
-  <div class="formula proved">Adv<sub>SCKA</sub>(A) = ½ |Real<sub>1</sub> − Real<sub>0</sub>|
-    ≤ q · ε<sub>cor</sub> + ½ |Ideal<sub>1</sub> − Ideal<sub>0</sub>|
-    ≤ q · ε<sub>cor</sub> + ½ Σ<sub>t ≤ 2q</sub> |H<sub>t+1</sub> − H<sub>t</sub>|
-    = q · ε<sub>cor</sub> + ½ Σ<sub>1 ≤ t ≤ 2q</sub> Adv<sup>IND-CPA</sup><sub>KEM</sub>(reduction<sub>t</sub>(A))
-    <small>The first equality is Definition 1.1. The first inequality is Section 4. The second is Section 5. The last equality is Section 6 at every positive target, with the exact hop at zero dropping out.</small>
+  <h2>The final step: one sampled target</h2>
+  <p>The target-specific proofs preserve a signed difference: with <code>p<sub>T</sub> := Pr[H<sub>T</sub> = true]</code>, <code>R<sub>t</sub></code>'s real-minus-random KEM gap is <code>p<sub>t</sub> − p<sub>t+1</sub></code>. The combined adversary <code>B</code> draws <code>t</code> uniformly from <code>1, …, 2q</code> before the KEM challenge, stores it with the public key, and then runs <code>R<sub>t</sub></code> once. Both KEM branches use the same target distribution.</p>
+  <div class="formula proved">Pr[B<sub>real</sub> = true] − Pr[B<sub>random</sub> = true]
+    = (1 / 2q) Σ<sub>t=1</sub><sup>2q</sup> (p<sub>t</sub> − p<sub>t+1</sub>)
+    = (p<sub>1</sub> − p<sub>2q+1</sub>) / 2q
+    <small>For <code>q &gt; 0</code>, certified by <code>securityReduction_signed_gap_eq</code>. The intermediate terms cancel before the absolute value is taken.</small>
   </div>
-  <p>Every hop is an equality except two: the bad-event step, which pays the correctness error, and the telescoping step, which is the triangle inequality. The reductions are computable: each is the simulator of Section 6 with the adversary inlined, and a reader can extract it from the Lean definition <code>reduction</code>.</p>
+  <p>The lower endpoint <code>H<sub>1</sub></code> has the real-key ideal game's acceptance probability, and <code>H<sub>2q+1</sub></code> has the random-key ideal game's. Taking the absolute value turns the preceding identity into <code>|Ideal<sub>1</sub> − Ideal<sub>0</sub>| = 2q · Adv<sub>KEM</sub>(B)</code>.</p>
+  <div class="formula proved">Adv<sub>SCKA</sub>(A) = ½ |Real<sub>1</sub> − Real<sub>0</sub>|<br>
+    ≤ q · ε<sub>cor</sub> + ½ |Ideal<sub>1</sub> − Ideal<sub>0</sub>|<br>
+    = q · ε<sub>cor</sub> + q · Adv<sup>IND-CPA</sup><sub>KEM</sub>(B)
+    <small>The inequality is the real-to-ideal correctness bound. The last equality uses the signed average. At <code>q = 0</code>, the existing family bound has an empty sum and proves the result directly.</small>
+  </div>
+  <p>Taking the absolute value separately at each target instead gives the family bound from Section 3. That route applies the triangle inequality and loses cancellation between positive and negative gaps. The sampled reduction uses signed telescoping to retain the endpoint difference.</p>
 </section>
 
 <section id="s8">
@@ -211,7 +217,7 @@ key[me, t] := k</code></pre></div>
     <tbody>
       <tr><td>The game, the oracles, the advantage</td><td><code>SCKA/Defs.lean</code>, <code>SCKA/Security.lean</code></td><td><code>securityExp</code>, <code>sckaGuessAdvantage</code>, <code>oracleChall</code></td></tr>
       <tr><td>The scheme and its exposure rule</td><td><code>OppBiKEM/Construction.lean</code>, <code>Security/Defs.lean</code></td><td><code>sendWith</code>, <code>recv</code>, <code>exposure</code></td></tr>
-      <tr><td>Every definition the theorem's statement depends on</td><td><code>Security/Defs.lean</code></td><td><code>SecurityAdversary</code>, <code>exposure</code>, <code>reduction</code></td></tr>
+      <tr><td>Every definition the theorem's statement depends on</td><td><code>Security/Defs.lean</code></td><td><code>SecurityAdversary</code>, <code>exposure</code>, <code>reduction</code>, <code>securityReduction</code></td></tr>
       <tr><td>Leaks are honest sends</td><td><code>Security/Basic.lean</code></td><td><code>sendWith_rleak_forget</code></td></tr>
       <tr><td>Invariant and failure budget</td><td><code>Security/Tracked.lean</code>, <code>Security/BadEvent.lean</code></td><td><code>security_kemFailure_le</code></td></tr>
       <tr><td>Ideal receive and real-to-ideal</td><td><code>Security/IdealReceive.lean</code>, <code>Security/Endpoints.lean</code></td><td><code>security_ideal_endpoint_le</code></td></tr>
@@ -221,7 +227,8 @@ key[me, t] := k</code></pre></div>
       <tr><td>Injected-state invariant</td><td><code>Security/Injected.lean</code></td><td><code>injectedSecurityImpl_preservesInv_continuing</code></td></tr>
       <tr><td>Eager sampling</td><td><code>Security/Eager.lean</code></td><td><code>prEvent_stoppedHybridExp_eq_eager</code></td></tr>
       <tr><td>State map</td><td><code>Security/Simulation.lean</code></td><td><code>prEvent_stoppedEagerExp_eq_reductionRun</code></td></tr>
-      <tr><td>The theorem, and its proof</td><td><code>OppBiKEM/Security.lean</code>, <code>Security/Proofs.lean</code></td><td><code>security_positive</code>, <code>security</code>, <code>security_uniform</code></td></tr>
+      <tr><td>Signed averaging</td><td><code>Security/Proofs.lean</code></td><td><code>reduction_signed_gap</code>, <code>securityReduction_signed_gap_eq</code></td></tr>
+      <tr><td>The theorem, and its proof</td><td><code>OppBiKEM/Security.lean</code>, <code>Security/Proofs.lean</code></td><td><code>security</code>, <code>security_positive</code>, <code>security_sum</code>, <code>security_uniform</code></td></tr>
       <tr><td>Generic tools</td><td><code>ToVCVio/…/Stop.lean</code>, <code>…/OneUseSampling.lean</code>, <code>…/IdenticalUntilBadInvariant.lean</code></td><td>signed gap, one-use sampling, state-map transport, identical-until-bad</td></tr>
     </tbody>
   </table></div>
@@ -231,13 +238,14 @@ key[me, t] := k</code></pre></div>
 <section id="ex">
   <div class="chapter-num">Exercises</div>
   <h2>Check your understanding</h2>
-  <details><summary>1. Why does the bound have the factor ½ in front of the sum but not in front of <code>q · ε<sub>cor</sub></code>?</summary><p>The guess advantage is half the real distinguishing distance. The triangle inequality through the ideal games pays <code>q · ε<sub>cor</sub></code> twice, once per fixed bit, and the half turns that into <code>q · ε<sub>cor</sub></code>. The hybrid sum is paid once, and the half stays.</p></details>
+  <details><summary>1. Where does the coefficient <code>q</code> on the combined KEM advantage come from?</summary><p>The combined KEM advantage is the absolute endpoint hybrid gap divided by <code>2q</code>. The SCKA guessing advantage pays half the ideal-game branch distance. Thus <code>½ · 2q = q</code>. The two real-to-ideal error terms are also multiplied by one half, leaving <code>q · ε<sub>cor</sub></code>.</p></details>
   <details><summary>2. Where would the proof break if the real receive were kept at the target epoch?</summary><p>In the renaming step. The simulator stores a placeholder secret at the target epoch; a real receive would decapsulate with it and produce a wrong key, and the state map could not relate the two games. The ideal receive looks the secret up only to check it exists, then copies the peer's table entry.</p></details>
-  <details><summary>3. Why is the sum over <code>2q</code> epochs and not over the epochs the run actually reaches?</summary><p>The hybrids are indexed by a threshold the adversary does not control, and the top endpoint must be identified with the random-key ideal game for a threshold independent of the run. The epoch count shows that <code>2q</code> suffices for every run with at most <code>q</code> sends.</p></details>
+  <details><summary>3. Why does the target sampler range over <code>2q</code> epochs?</summary><p>The sampler needs a fixed range independent of the run. The epoch bound puts every challengeable epoch in <code>1, …, 2q</code> on every path with at most <code>q</code> sends. The simulation also handles targets the run never reaches.</p></details>
   <details><summary>4. How does the proof handle a leaking send that exposes the target?</summary><p>Both hybrids stop with output 0 before the adversary receives the answer. Exposure of the target prevents later challenges of it, and an accepted challenge prevents later exposure. Thus stopping removes equal contributions to acceptance. The simulator therefore need not provide the target's leaked coins. The exposure policy applies without assuming that those coins reconstruct a secret key.</p></details>
   <details><summary>5. Why three applications of the one-use sampling theorem rather than one?</summary><p>The samples have three distinct query sites and three different "already used" predicates. Each sample is consumed at most once, and the encapsulation depends on the public key drawn by the first. Each application removes one sample while the outer ones are held fixed.</p></details>
-  <details><summary>6. ⋆ Could <code>security_uniform</code> be derived from <code>security</code>?</summary><p>No. The sum in <code>security</code> includes the reduction at target zero, which no hypothesis bounds. The uniform corollary is derived from the positive-target form, which exists because the hop at target zero is exact.</p></details>
-  <details><summary>7. ⋆ What would change in the proof for an active network adversary?</summary><p>The invariant that ties table entries to honest transcripts would fail, since a decoded public key might not be the owner's. The reduction's injection relies on the peer encapsulating against the injected public key. A different definition and a different proof would be needed.</p></details>
+  <details><summary>6. ⋆ Could <code>security_uniform</code> be derived from <code>security_sum</code>?</summary><p>No. The sum in <code>security_sum</code> includes the reduction at target zero, which no hypothesis bounds. The uniform corollary is derived from the positive-target form, which exists because the hop at target zero is exact.</p></details>
+  <details><summary>7. Why must the gaps be signed before averaging?</summary><p>The gap of a mixture is the average of its branch differences, which can have either sign. Taking absolute values first removes the cancellation needed for telescoping. For gaps <code>+0.6</code> and <code>−0.4</code>, the absolute average is <code>0.1</code>, while the average absolute gap is <code>0.5</code>.</p></details>
+  <details><summary>8. ⋆ What would change in the proof for an active network adversary?</summary><p>The invariant that ties table entries to honest transcripts would fail, since a decoded public key might not be the owner's. The reduction's injection relies on the peer encapsulating against the injected public key. A different definition and a different proof would be needed.</p></details>
 </section>
 
 <footer id="notes">

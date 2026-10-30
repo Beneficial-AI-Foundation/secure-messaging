@@ -462,7 +462,7 @@ theorem correctness_true_ge
 :::defTitle "opp_bikem_cka_security" "Opp-BiKEM-CKA security"
 :::
 
-::::::::theorem "opp_bikem_cka_security" (parent := "cka_protocols_opp_bikem_cka") (lean := "oppBiKemCKA.security_positive") (tags := "gh-111") (uses := "opp_bikem_cka_spec, scka_security, scka_oracles, erasure_code_correctness")
+::::::::theorem "opp_bikem_cka_security" (parent := "cka_protocols_opp_bikem_cka") (lean := "oppBiKemCKA.security") (tags := "gh-111") (uses := "opp_bikem_cka_spec, scka_security, scka_oracles, erasure_code_correctness")
 Let $`\Pi` be the Opp-BiKEM protocol ({bpref "opp_bikem_cka_spec"}[]) such that:
 
 * the underlying KEM $`\Gamma` has deterministic decapsulation;
@@ -470,12 +470,12 @@ Let $`\Pi` be the Opp-BiKEM protocol ({bpref "opp_bikem_cka_spec"}[]) such that:
   ({bpref "erasure_code_correctness"}[]).
 
 Then for every SCKA adversary $`\mathcal A` against $`\Pi` making at most $`q` ordinary or
-leaking send oracle queries, the IND-CPA adversaries $`\mathcal R_1,\dots,\mathcal R_{2q}`
-against $`\Gamma`, constructed from $`\mathcal A`, satisfy
+leaking send oracle queries, the IND-CPA adversary $`\mathcal B` against $`\Gamma`, constructed
+from $`\mathcal A` and $`q`, satisfies
 
 $$`\mathsf{Adv}^{\mathsf{guess}}_{\mathsf{SCKA},\Pi}(\mathcal A)
-\le q\varepsilon+\frac12\sum_{t=1}^{2q}
-\mathsf{Adv}^{\mathsf{IND\text{-}CPA}}_{\mathsf{KEM},\Gamma}(\mathcal R_t),`
+\le q\varepsilon+q\,
+\mathsf{Adv}^{\mathsf{IND\text{-}CPA}}_{\mathsf{KEM},\Gamma}(\mathcal B),`
 
 where:
 
@@ -483,60 +483,47 @@ where:
   {bpref "scka_security"}[] with the exposure functions of {bpref "opp_bikem_cka_spec"}[]:
   a corruption exposes the epochs of $`\mathsf{st}_P.\mathsf{vuln}`, and a randomness leak
   exposes the epochs of the key pair generated and the encapsulation performed by that send;
-* $`\mathsf{Adv}^{\mathsf{IND\text{-}CPA}}_{\mathsf{KEM},\Gamma}(\mathcal R_t)` is the
-  advantage of $`\mathcal R_t` against $`\Gamma` in the KEM IND-CPA security game;
+* $`\mathsf{Adv}^{\mathsf{IND\text{-}CPA}}_{\mathsf{KEM},\Gamma}(\mathcal B)` is the
+  advantage of $`\mathcal B` against $`\Gamma` in the KEM IND-CPA security game;
 * $`\varepsilon` is the correctness error of $`\Gamma`.
 
-In particular, if every $`\mathcal R_t` has advantage at most $`\delta`, then
-$`\mathsf{Adv}^{\mathsf{guess}}_{\mathsf{SCKA},\Pi}(\mathcal A)\le q\varepsilon+q\delta`.
-
-The adversary $`\mathcal R_t` receives a public key $`pk^*` and a challenge $`(c^*,k^*)`, where
-$`k^*` is either the key encapsulated in $`c^*` or an independent uniform key. It runs
-$`\mathcal A` against a simulation of the security game in which the key pair generated for
-epoch $`t` is replaced by $`pk^*` with a placeholder secret key, the encapsulation for epoch
-$`t` is replaced by $`(c^*,k^*)`, every receive looks up the peer's recorded key instead of
-decapsulating, challenges at epochs below $`t` are answered with uniform keys, and the
-challenge at $`t` is answered with $`k^*`. It outputs the guess of $`\mathcal A`, or $`0` if
-$`\mathcal A` exposes epoch $`t` by a corruption or a randomness leak. The sum has $`2q`
-terms because an adversary making at most $`q` sends can establish keys for at most the
-epochs $`1,\dots,2q`.
-
-:::leanPillCaption "security_positive"
+:::leanPillCaption "security"
 :::
 
-```anchor securityPositive (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Security)
-theorem security_positive (adv : SecurityAdversary leak Sym) (q : ℕ)
+```anchor security (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Security)
+theorem security (adv : SecurityAdversary leak Sym) (q : ℕ)
     (hq : SecuritySendQueryBound adv q) :
     SCKAScheme.sckaGuessAdvantage (scheme kem hDet ecEk ecCt leak) adv
         (exposure .A leak) (exposure .B leak) ≤
       (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal +
-      (1 / 2 : ℝ) * ∑ i ∈ Finset.range (2 * q), (kem.IND_CPA_Advantage ProbCompRuntime.probComp
-        (reduction kem hDet ecEk ecCt leak adv (i + 1))).toReal
+      (q : ℝ) * (kem.IND_CPA_Advantage ProbCompRuntime.probComp
+        (securityReduction kem hDet ecEk ecCt leak adv q)).toReal
 ```
 
-:::leanPillCaption "security_uniform"
+The adversary $`\mathcal B` is built as follows. For $`q>0`, it chooses one target epoch $`t`
+uniformly from $`1,\dots,2q`, independently of the KEM material, and stores it with the
+challenge public key $`pk^*`. On receiving the challenge $`(c^*,k^*)`, it runs $`\mathcal A`
+once against a simulation of the security game in which:
+
+* the key pair generated for epoch $`t` is replaced by $`pk^*` with a placeholder secret key;
+* the encapsulation for epoch $`t` is replaced by $`(c^*,k^*)`;
+* every receive looks up the peer's recorded key instead of decapsulating;
+* challenges at epochs below $`t` are answered with uniform keys;
+* the challenge at epoch $`t` is answered with $`k^*`.
+
+It outputs the guess of $`\mathcal A`, or $`0` if $`\mathcal A` exposes epoch $`t` by a
+corruption or a randomness leak. For $`q=0`, it chooses target $`1`, and the security bound is
+zero.
+
+
+:::leanPillCaption "The constructed KEM adversary $`\\mathcal B`"
 :::
 
-```anchor securityUniform (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Security)
-theorem security_uniform (adv : SecurityAdversary leak Sym) (q : ℕ)
-    (hq : SecuritySendQueryBound adv q) (δ : ℝ)
-    (hδ : ∀ t, 0 < t → t ≤ 2 * q →
-      (kem.IND_CPA_Advantage ProbCompRuntime.probComp
-        (reduction kem hDet ecEk ecCt leak adv t)).toReal ≤ δ) :
-    SCKAScheme.sckaGuessAdvantage (scheme kem hDet ecEk ecCt leak) adv
-        (exposure .A leak) (exposure .B leak) ≤
-      (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal + (q : ℝ) * δ
+```anchor securityReduction (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Security.Defs)
+def securityReduction (adv : SecurityAdversary leak Sym) (q : ℕ) : kem.IND_CPA_Adversary where
+  State := PK × ℕ
+  preChallenge pk := do pure (pk, ← securityTargetChoice (2 * q))
+  postChallenge st c k := reductionRun kem hDet ecEk ecCt leak adv st.2 st.1 c k
 ```
 
-:::leanPillCaption "SecuritySendQueryBound"
-:::
-
-```anchor SecuritySendQueryBound (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Security.Defs)
-def SecuritySendQueryBound
-    {kem : KEMScheme ProbComp K PK SK C}
-    {leak : kem.RandLeak}
-    (adv : SecurityAdversary leak Sym) (q : ℕ) : Prop :=
-  adv.IsQueryBoundP
-    (fun t => SCKAScheme.sckaSecuritySpec.isSendQuery t = true) q
-```
 ::::::::

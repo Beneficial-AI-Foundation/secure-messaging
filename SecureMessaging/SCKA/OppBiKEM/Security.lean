@@ -20,7 +20,9 @@ import SecureMessaging.SCKA.OppBiKEM.Security.Proofs
   sends in total on every oracle-response path (`SecuritySendQueryBound adv q`);
 - for each *target epoch* `t`, the IND-CPA adversary against `kem`: `R_t := reduction … adv t`,
   constructed from `adv`, which embeds the KEM challenge in the key generation and encapsulation
-  of epoch `t` and runs `adv` (`Defs`, explained in `Reduction`).
+  of epoch `t` and runs `adv` (`Defs`, explained in `Reduction`);
+- the combined adversary `B := securityReduction … adv q`, which chooses one target uniformly
+  from `1, …, 2q` and runs its reduction; for `q = 0`, it chooses target `1`.
 
 **Security game and advantage functions.**
 
@@ -38,13 +40,15 @@ Let:
 - `ε` be the KEM correctness error (`kem.correctnessError`): the probability that an honest
   encapsulation `(c, k) ← Encaps(pk)` under `(pk, sk) ← KeyGen` does not decapsulate to `k`.
 
-**Theorem** (`security_positive`). For every `q : ℕ`,
+**Theorem** (`security`). For every `q : ℕ`,
 
+`AdvGuess_SCKA(scka, adv) ≤ q · ε + q · AdvINDCPA_KEM(kem, B)`.
+
+The family bound `security_positive` is
 `AdvGuess_SCKA(scka, adv) ≤ q · ε + (1/2) · Σ_{t=1}^{2q} AdvINDCPA_KEM(kem, R_t)`.
-
-Two corollaries: `security` sums over `0 ≤ t ≤ 2q`, since `AdvINDCPA_KEM(kem, R_0) ≥ 0`, and
-`security_uniform` reads `AdvGuess_SCKA(scka, adv) ≤ q · ε + q · δ` when every `R_t` with
-`1 ≤ t ≤ 2q` has advantage at most `δ`.
+Its corollary `security_sum` includes the nonnegative summand at zero, and `security_uniform`
+gives `q · ε + q · δ` when every positive-target reduction up to `2q` has advantage at most
+`δ`.
 
 The proofs are in `Proofs`, whose module docstring gives the proof structure; the theorems here
 delegate to the lemmas of the same name in the namespace `Proofs`. Together with `Defs`, this
@@ -84,6 +88,28 @@ include hEk hCt in
 * `ecEk` and `ecCt` are correct erasure codes;
 * `adv` makes at most `q` ordinary or leaking sends.
 
+Then `AdvGuess_SCKA(scka, adv) ≤ q · ε + q · AdvINDCPA_KEM(kem, B)`, where `ε` is the
+correctness error of `kem` and `B := securityReduction … adv q` chooses a positive target
+uniformly from `1, …, 2q` and runs its reduction. For `q = 0`, the bound is zero. -/
+-- ANCHOR: security
+theorem security (adv : SecurityAdversary leak Sym) (q : ℕ)
+    (hq : SecuritySendQueryBound adv q) :
+    SCKAScheme.sckaGuessAdvantage (scheme kem hDet ecEk ecCt leak) adv
+        (exposure .A leak) (exposure .B leak) ≤
+      (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal +
+      (q : ℝ) * (kem.IND_CPA_Advantage ProbCompRuntime.probComp
+        (securityReduction kem hDet ecEk ecCt leak adv q)).toReal
+-- ANCHOR_END: security
+    :=
+  Proofs.security kem hDet ecEk ecCt hEk hCt leak adv q hq
+
+include hEk hCt in
+/-- Assume:
+
+* `kem` has deterministic decapsulation;
+* `ecEk` and `ecCt` are correct erasure codes;
+* `adv` makes at most `q` ordinary or leaking sends.
+
 Then `AdvGuess_SCKA(scka, adv) ≤ q · ε + (1/2) · Σ_{t=1}^{2q} AdvINDCPA_KEM(kem, R_t)`, where `ε`
 is the correctness error of `kem` and `R_t := reduction … adv t`. -/
 -- ANCHOR: securityPositive
@@ -108,14 +134,15 @@ include hEk hCt in
 Then `AdvGuess_SCKA(scka, adv) ≤ q · ε + (1/2) · Σ_{t=0}^{2q} AdvINDCPA_KEM(kem, R_t)`, where `ε`
 is the correctness error of `kem` and `R_t := reduction … adv t`. The summand at `t = 0` only
 adds its non-negativity to `security_positive`. -/
-theorem security (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
+theorem security_sum (adv : SecurityAdversary leak Sym) (q : ℕ)
+    (hq : SecuritySendQueryBound adv q) :
     SCKAScheme.sckaGuessAdvantage (scheme kem hDet ecEk ecCt leak) adv
         (exposure .A leak) (exposure .B leak) ≤
       (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal +
       (1 / 2 : ℝ) * ∑ t ∈ Finset.range (2 * q + 1),
         (kem.IND_CPA_Advantage ProbCompRuntime.probComp
           (reduction kem hDet ecEk ecCt leak adv t)).toReal :=
-  Proofs.security kem hDet ecEk ecCt hEk hCt leak adv q hq
+  Proofs.security_sum kem hDet ecEk ecCt hEk hCt leak adv q hq
 
 include hEk hCt in
 /-- Assume:

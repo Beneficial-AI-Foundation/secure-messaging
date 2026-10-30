@@ -15,11 +15,11 @@ import VCVio.OracleComp.QueryTracking.QueryBound
 /-!
 # Opp-BiKEM — Security definitions
 
-**Frozen definitions.** The security theorems of Opp-BiKEM (`security_positive`, `security`,
-`security_uniform` in `Security`) are stated in terms of `scheme`, `exposure`,
-`SecurityAdversary`, `SecuritySendQueryBound` and `reduction`. This module holds every
-definition of the security modules that those statements depend on, transitively, so that
-changing any declaration here changes what the theorems say, while no declaration outside this
+**Frozen definitions.** The security theorems of Opp-BiKEM (`security`, `security_positive`,
+`security_sum`, `security_uniform` in `Security`) are stated in terms of `scheme`, `exposure`,
+`SecurityAdversary`, `SecuritySendQueryBound`, `reduction` and `securityReduction`. This module
+holds every definition of the security modules that those statements depend on, transitively.
+Changing any declaration here changes what the theorems say, while no declaration outside this
 module does. The proof modules import it and may be changed freely as long as the statements of
 their headline theorems are preserved; the proof-side games (`idealSecurityImpl`,
 `hybridSecurityImpl`, `eagerSecurityImpl`, …) and every lemma live there.
@@ -43,7 +43,10 @@ and the initial game state `initState` (`Correctness.Quantitative.Main`);
 - The KEM reduction: `sendGeneratesTarget`, `sendEncapsulatesTarget`, `TargetInjection`, the
   injected send and oracles (`injectedKeygen`, `injectedEncaps`, `injectedSend`,
   `injectedScheme`, `injectedCorrectnessImpl`, `injectedSecurityImpl`), `reductionRun` and
-  `reduction`. `Reduction` explains the reduction; `Security` explains how the theorem follows.
+  `reduction`.
+- The combined reduction: `securityTargetChoice` selects one positive target, and
+  `securityReduction` runs its reduction. `Reduction` explains both adversaries; `Security`
+  states their bounds.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -279,6 +282,24 @@ def reduction (adv : SecurityAdversary leak Sym) (t : ℕ) : kem.IND_CPA_Adversa
   State := PK
   preChallenge := pure
   postChallenge := fun pk c k => reductionRun kem hDet ecEk ecCt leak adv t pk c k
+
+/-- Choose uniformly from the positive epochs `1, …, n` when `n > 0`, and choose `1` when
+`n = 0`. The combined reduction calls this sampler with `n = 2 * q`. -/
+def securityTargetChoice (n : ℕ) : ProbComp ℕ :=
+  if hn : n = 0 then pure 1
+  else
+    letI : NeZero n := ⟨hn⟩
+    (fun i : Fin n => i.val + 1) <$> ($ᵗ (Fin n) : ProbComp (Fin n))
+
+/-- The combined IND-CPA reduction: choose a target uniformly from `1, …, 2q` before the
+challenge, retain it with the public key, and run that target's simulation on the challenge.
+For `q = 0`, the target is `1`. -/
+-- ANCHOR: securityReduction
+def securityReduction (adv : SecurityAdversary leak Sym) (q : ℕ) : kem.IND_CPA_Adversary where
+  State := PK × ℕ
+  preChallenge pk := do pure (pk, ← securityTargetChoice (2 * q))
+  postChallenge st c k := reductionRun kem hDet ecEk ecCt leak adv st.2 st.1 c k
+-- ANCHOR_END: securityReduction
 
 end Injected
 

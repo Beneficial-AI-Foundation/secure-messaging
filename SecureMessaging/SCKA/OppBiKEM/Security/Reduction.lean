@@ -40,6 +40,19 @@ are ideal, so the placeholder secret is never read. The same injected oracles wi
 secret and the encapsulated key describe the hybrids with eagerly drawn samples (`Eager`), and
 the simulation theorem relating them to `R_t` is `prEvent_stoppedEagerExp_eq_reductionRun`
 (`Simulation`). Every definition is computable.
+
+The combined adversary `B := securityReduction … adv q` draws one target uniformly from
+`1, …, 2q` using `securityTargetChoice`, stores it with `pkStar`, and runs the same simulation:
+
+```text
+B.pre(pkStar):            t ← securityTargetChoice (2q)
+                          return (pkStar, t)
+B.post((pkStar, t), c, k): run reductionRun … adv t pkStar c k
+```
+
+For `q = 0`, the target is `1`. The target draw is independent of the KEM material. Averaging
+its signed branch gaps telescopes to the endpoint hybrid gap divided by `2q` for `q > 0`
+(`securityReduction_signed_gap_eq`, `Proofs`), giving the single-adversary bound `security`.
 -/
 
 open OracleSpec OracleComp KEMScheme

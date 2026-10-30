@@ -113,21 +113,32 @@ assumes `(pk, sk) ∈ support kem.keygen` and `(c, k) ∈ support (kem.encaps pk
      `Pr[R_t^x = true] = E_{(pk, sk), (c, k), r} Pr[E_t^x(pk, sk, c, k, r) = true]`
      (`prEvent_indCPAExpProb_reduction_eq`), which is `Pr[S_t^x = true]` by step 4; with
      step 3, `|p_{t+1} − p_t| = AdvINDCPA_KEM(kem, R_t)` for `t > 0` (`hybrid_hop_eq_reduction`).
+   - The signed form is `Pr[R_t^real = true] − Pr[R_t^random = true] = p_t − p_{t+1}`
+     (`reduction_signed_gap`).
    - Substituting `δ t := AdvINDCPA_KEM(kem, R_t)` for `t > 0` and `δ 0 := 0` into step 2 gives
      `security_positive`.
 
-**Summary.** Writing `Δ_t^S := |Pr[S_t^random = true] − Pr[S_t^real = true]|` and
-`Δ_t^R := |Pr[R_t^random = true] − Pr[R_t^real = true]|`, the steps assemble as follows:
+7. *One combined reduction* (`Defs`, this module).
+   - `B := securityReduction … adv q` chooses `t` uniformly from `1, …, 2q` and runs `R_t`.
+     For `q > 0`, its fixed-branch acceptance probabilities are the corresponding averages
+     (`securityReduction_acceptance_average`). Averaging the signed identity in step 6
+     telescopes to `(p_1 − p_{2q+1}) / (2q)` (`securityReduction_signed_gap_eq`).
+   - Hence `|p_1 − p_{2q+1}| = 2q · AdvINDCPA_KEM(kem, B)`
+     (`securityReduction_hybrid_gap_eq`). The endpoints in step 2 and the bound in step 1 give
+     `security`. For `q = 0`, `security_positive` has an empty sum and gives the result.
+
+**Summary.** For `q > 0`, the single-adversary bound assembles as follows:
 
 ```text
 AdvGuess_SCKA(scka, adv)
-  = |Pr[G_true = true] − Pr[G_false = true]| / 2             (definition)
-  ≤ q · ε + |Pr[I_true = true] − Pr[I_false = true]| / 2     (step 1)
-  ≤ q · ε + (1/2) · Σ_{t=0}^{2q} |p_{t+1} − p_t|             (step 2)
-  = q · ε + (1/2) · Σ_{t=1}^{2q} Δ_t^S                        (step 3, and p_1 = p_0)
-  = q · ε + (1/2) · Σ_{t=1}^{2q} Δ_t^R                        (steps 4 to 6)
-  = q · ε + (1/2) · Σ_{t=1}^{2q} AdvINDCPA_KEM(kem, R_t)       (definition)
+  ≤ q · ε + |Pr[I_true = true] − Pr[I_false = true]| / 2    (step 1)
+  = q · ε + |p_1 − p_{2q+1}| / 2                           (step 2)
+  = q · ε + q · AdvINDCPA_KEM(kem, B)                      (steps 3 to 7)
 ```
+
+The family bound `security_positive` instead applies the triangle inequality to the hybrid
+chain and sums the absolute per-target gaps. Signed averaging proves the bound for `B`
+without that additional inequality.
 
 Supporting modules: `Defs` (every definition the statements of the theorems depend on),
 `Basic` (send budget), `Exposure` (exposure policy), `SCKA.Security` (generic oracle facts),
@@ -185,6 +196,96 @@ lemma prEvent_indCPAExpProb_reduction_eq (adv : SecurityAdversary leak Sym) (t :
     cases bb <;> rfl
   · exact (evalDistEq_bind_const_probComp _ _).prEvent_eq _
 
+include hEk hCt in
+/-- At every positive target, the real-minus-random IND-CPA acceptance gap is the
+lower-minus-upper hybrid gap: `Pr[R_t^real = true] − Pr[R_t^random = true] = p_t − p_{t+1}`. -/
+lemma reduction_signed_gap (adv : SecurityAdversary leak Sym) (t : ℕ) (ht : 0 < t) :
+    (Pr{let x ← (kem.IND_CPA_Experiment ProbCompRuntime.probComp
+      (reduction kem hDet ecEk ecCt leak adv t) true)}[x = true]).toReal -
+    (Pr{let x ← (kem.IND_CPA_Experiment ProbCompRuntime.probComp
+      (reduction kem hDet ecEk ecCt leak adv t) false)}[x = true]).toReal =
+    (Pr{let x ← hybridExp kem hDet ecEk ecCt leak t adv}[x = true]).toReal -
+    (Pr{let x ← hybridExp kem hDet ecEk ecCt leak (t + 1) adv}[x = true]).toReal := by
+  rw [← indCPAExpProb_prEvent_true_eq, ← indCPAExpProb_prEvent_true_eq]
+  have h1 := prEvent_stoppedHybridExp_eq_eager kem hDet ecEk ecCt hEk hCt leak adv t ht true
+  have h0 := prEvent_stoppedHybridExp_eq_eager kem hDet ecEk ecCt hEk hCt leak adv t ht false
+  simp only [Bool.toNat_true, Bool.toNat_false, add_zero] at h1 h0
+  rw [prEvent_indCPAExpProb_reduction_eq kem hDet ecEk ecCt hEk hCt leak adv t ht,
+    prEvent_indCPAExpProb_reduction_eq kem hDet ecEk ecCt hEk hCt leak adv t ht,
+    Bool.not_true, Bool.not_false, ← h0, ← h1]
+  have h := hybridExp_sub_eq_stopped_sub kem hDet ecEk ecCt leak adv t
+  linarith only [h]
+
+/-- Each fixed branch of the combined reduction is the mixture of that branch of the
+target-specific reductions under `securityTargetChoice (2 * q)`. -/
+lemma securityReduction_prEvent_eq (adv : SecurityAdversary leak Sym) (q : ℕ) (b : Bool) :
+    Pr{let x ← (kem.IND_CPA_Experiment ProbCompRuntime.probComp
+      (securityReduction kem hDet ecEk ecCt leak adv q) b)}[x = true] =
+    Pr{let x ← (do
+      let t ← securityTargetChoice (2 * q)
+      kem.IND_CPA_Experiment ProbCompRuntime.probComp
+        (reduction kem hDet ecEk ecCt leak adv t) b)}[x = true] := by
+  unfold KEMScheme.IND_CPA_Experiment
+  simp only [securityReduction, reduction, ProbCompRuntime.probComp, ProbCompRuntime.liftProbComp,
+    ProbCompLift.id, bind_assoc, pure_bind]
+  exact (OracleComp.EvalDistEq.bind_bind_swap kem.keygen
+    (securityTargetChoice (2 * q)) _).prEvent_eq _
+
+/-- For a positive send budget, each combined IND-CPA branch accepts with the average
+acceptance probability of its `2q` positive-target reductions. -/
+lemma securityReduction_acceptance_average (adv : SecurityAdversary leak Sym) (q : ℕ)
+    (hq : q ≠ 0) (b : Bool) :
+    (Pr{let x ← (kem.IND_CPA_Experiment ProbCompRuntime.probComp
+      (securityReduction kem hDet ecEk ecCt leak adv q) b)}[x = true]).toReal =
+    ((2 * q : ℕ) : ℝ)⁻¹ * ∑ i : Fin (2 * q),
+      (Pr{let x ← (kem.IND_CPA_Experiment ProbCompRuntime.probComp
+        (reduction kem hDet ecEk ecCt leak adv (i.val + 1)) b)}[x = true]).toReal := by
+  rw [securityReduction_prEvent_eq]
+  have hn : 2 * q ≠ 0 := Nat.mul_ne_zero (by decide) hq
+  let : NeZero (2 * q) := ⟨hn⟩
+  simp only [securityTargetChoice, hn, ↓reduceDIte, bind_map_left,
+    (prEvent_bind_eq_sum_fintype _), SampleableType.prEvent_uniformSample_eq_singleton,
+    Fintype.card_fin, ← Finset.mul_sum]
+  rw [ENNReal.toReal_mul, ENNReal.toReal_inv, ENNReal.toReal_natCast,
+    ENNReal.toReal_sum (fun _ _ => (prEvent_ne_top _))]
+
+include hEk hCt in
+/-- For `q > 0`, the combined reduction's real-minus-random IND-CPA acceptance gap is
+`(p_1 − p_{2q+1}) / (2q)`, where `p_T := Pr[hybridExp … T adv = true]`. -/
+lemma securityReduction_signed_gap_eq (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : q ≠ 0) :
+    (Pr{let x ← (kem.IND_CPA_Experiment ProbCompRuntime.probComp
+      (securityReduction kem hDet ecEk ecCt leak adv q) true)}[x = true]).toReal -
+    (Pr{let x ← (kem.IND_CPA_Experiment ProbCompRuntime.probComp
+      (securityReduction kem hDet ecEk ecCt leak adv q) false)}[x = true]).toReal =
+    ((2 * q : ℕ) : ℝ)⁻¹ *
+      ((Pr{let x ← hybridExp kem hDet ecEk ecCt leak 1 adv}[x = true]).toReal -
+       (Pr{let x ← hybridExp kem hDet ecEk ecCt leak (2 * q + 1) adv}[x = true]).toReal) := by
+  rw [securityReduction_acceptance_average kem hDet ecEk ecCt leak adv q hq true,
+    securityReduction_acceptance_average kem hDet ecEk ecCt leak adv q hq false,
+    ← mul_sub, ← Finset.sum_sub_distrib]
+  simp_rw [reduction_signed_gap kem hDet ecEk ecCt hEk hCt leak adv _ (Nat.succ_pos _)]
+  congr 1
+  rw [Fin.sum_univ_eq_sum_range (fun i : ℕ =>
+    (Pr{let x ← hybridExp kem hDet ecEk ecCt leak (i + 1) adv}[x = true]).toReal -
+    (Pr{let x ← hybridExp kem hDet ecEk ecCt leak (i + 1 + 1) adv}[x = true]).toReal) (2 * q),
+    Finset.sum_range_sub']
+
+include hEk hCt in
+/-- For `q > 0`, the distance between hybrids `1` and `2q + 1` is `2q` times the
+IND-CPA advantage of the combined reduction. -/
+lemma securityReduction_hybrid_gap_eq (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : q ≠ 0) :
+    |(Pr{let x ← hybridExp kem hDet ecEk ecCt leak 1 adv}[x = true]).toReal -
+      (Pr{let x ← hybridExp kem hDet ecEk ecCt leak (2 * q + 1) adv}[x = true]).toReal| =
+    ((2 * q : ℕ) : ℝ) * (kem.IND_CPA_Advantage ProbCompRuntime.probComp
+      (securityReduction kem hDet ecEk ecCt leak adv q)).toReal := by
+  have hn : 2 * q ≠ 0 := Nat.mul_ne_zero (by decide) hq
+  rw [IND_CPA_Advantage_eq_fixed_branch_dist,
+    ENNReal.absDiff_toReal (prEvent_ne_top _) (prEvent_ne_top _),
+    securityReduction_signed_gap_eq kem hDet ecEk ecCt hEk hCt leak adv q hq,
+    abs_mul, abs_inv,
+    abs_of_nonneg (show (0 : ℝ) ≤ ((2 * q : ℕ) : ℝ) from Nat.cast_nonneg _),
+    ← mul_assoc, mul_inv_cancel₀ (by exact_mod_cast hn), one_mul]
+
 namespace Proofs
 
 include hEk hCt in
@@ -195,14 +296,8 @@ lemma hybrid_hop_eq_reduction (adv : SecurityAdversary leak Sym) (t : ℕ) (ht :
       (kem.IND_CPA_Advantage ProbCompRuntime.probComp
         (reduction kem hDet ecEk ecCt leak adv t)).toReal := by
   rw [IND_CPA_Advantage_eq_fixed_branch_dist,
-    ENNReal.absDiff_toReal (prEvent_ne_top _) (prEvent_ne_top _), ← indCPAExpProb_prEvent_true_eq,
-    ← indCPAExpProb_prEvent_true_eq, hybridExp_sub_eq_stopped_sub]
-  have h1 := prEvent_stoppedHybridExp_eq_eager kem hDet ecEk ecCt hEk hCt leak adv t ht true
-  have h0 := prEvent_stoppedHybridExp_eq_eager kem hDet ecEk ecCt hEk hCt leak adv t ht false
-  simp only [Bool.toNat_true, Bool.toNat_false, add_zero] at h1 h0
-  rw [h1, h0, prEvent_indCPAExpProb_reduction_eq kem hDet ecEk ecCt hEk hCt leak adv t ht,
-    prEvent_indCPAExpProb_reduction_eq kem hDet ecEk ecCt hEk hCt leak adv t ht,
-    Bool.not_true, Bool.not_false, abs_sub_comm]
+    ENNReal.absDiff_toReal (prEvent_ne_top _) (prEvent_ne_top _),
+    reduction_signed_gap kem hDet ecEk ecCt hEk hCt leak adv t ht, abs_sub_comm]
 
 include hEk hCt in
 /-- The proof of `security_positive`, stated in `Security`. -/
@@ -229,8 +324,9 @@ lemma security_positive (adv : SecurityAdversary leak Sym) (q : ℕ)
   simpa only [Finset.sum_range_succ', hδ', Nat.succ_ne_zero, ↓reduceIte, add_zero] using hbound
 
 include hEk hCt in
-/-- The proof of `security`, stated in `Security`. -/
-lemma security (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
+/-- The proof of `security_sum`, stated in `Security`. -/
+lemma security_sum (adv : SecurityAdversary leak Sym) (q : ℕ)
+    (hq : SecuritySendQueryBound adv q) :
     SCKAScheme.sckaGuessAdvantage (scheme kem hDet ecEk ecCt leak) adv
         (exposure .A leak) (exposure .B leak) ≤
       (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal +
@@ -258,6 +354,29 @@ lemma security_uniform (adv : SecurityAdversary leak Sym) (q : ℕ)
     (fun i hi => hδ (i + 1) (Nat.succ_pos i) (Nat.succ_le_of_lt (Finset.mem_range.1 hi)))
   simp only [Finset.card_range, nsmul_eq_mul, Nat.cast_mul, Nat.cast_ofNat] at hsum
   linarith
+
+include hEk hCt in
+/-- The proof of `security`, stated in `Security`. -/
+lemma security (adv : SecurityAdversary leak Sym) (q : ℕ)
+    (hq : SecuritySendQueryBound adv q) :
+    SCKAScheme.sckaGuessAdvantage (scheme kem hDet ecEk ecCt leak) adv
+        (exposure .A leak) (exposure .B leak) ≤
+      (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal +
+      (q : ℝ) * (kem.IND_CPA_Advantage ProbCompRuntime.probComp
+        (securityReduction kem hDet ecEk ecCt leak adv q)).toReal := by
+  rcases Nat.eq_zero_or_pos q with rfl | hpos
+  · simpa using security_positive kem hDet ecEk ecCt hEk hCt leak adv 0 hq
+  have hb := sckaGuessAdvantage_le_ideal_term kem hDet ecEk ecCt leak hEk hCt adv q hq
+  have htop := prEvent_hybridExp_top kem hDet ecEk ecCt leak hEk hCt adv q hq
+    (2 * q + 1) (Nat.lt_succ_self _)
+  have hbottom := prEvent_hybridExp_one kem hDet ecEk ecCt leak hEk hCt adv
+  rw [hybridExp_zero] at hbottom
+  rw [← htop, ← hbottom] at hb
+  have hgap := securityReduction_hybrid_gap_eq kem hDet ecEk ecCt hEk hCt leak adv q hpos.ne'
+  rw [abs_sub_comm] at hgap
+  rw [hgap] at hb
+  simp only [Nat.cast_mul, Nat.cast_ofNat] at hb
+  nlinarith only [hb]
 
 end Proofs
 
