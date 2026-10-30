@@ -49,9 +49,23 @@ GCM.
 ::::::::definition "aead_gcm_components" (parent := "aead_gcm") (lean := "GCM.gfmul, GCM.ghash, GCM.inc32, GCM.gctr")
 {Informal.citet NIST_GCM}[], Sections 6.2 to 6.5.
 
+GCM uses the following building blocks. A block is a bitstring of length 128, and
+$`\bit^*` is the set of bitstrings.
+
+- Block multiplication $`\bullet : \bit^{128} \times \bit^{128} \to \bit^{128}`.
+- The counter increment $`\mathsf{inc}_{32} : \bit^{128} \to \bit^{128}`.
+- The hash function $`\mathsf{GHASH}_H : (\bit^{128})^* \to \bit^{128}` under a hash key
+  $`H \in \bit^{128}`. Its input $`X = X_1 \concat \cdots \concat X_m` is a sequence of
+  blocks.
+- The counter mode $`\mathsf{GCTR}_K : \bit^{128} \times \bit^* \to \bit^*` under a
+  block-cipher key $`K`. Its inputs are an initial counter block $`\mathit{ICB}` and a
+  bitstring $`X`, and $`|\mathsf{GCTR}_K(\mathit{ICB}, X)| = |X|`.
+
+The boxes below give their algorithms.
+
 :::::::gameGrid
 ::::::gameCell "\\textsf{Notation}" (kind := "scheme-notation")
-A block is a bitstring of length 128. For a bitstring $`X = x_0 x_1 \ldots x_{n-1}`:
+For a bitstring $`X = x_0 x_1 \ldots x_{n-1}`:
 
 - $`|X| = n` is the length of $`X`, and $`x_0` is its leftmost and most significant bit;
 - $`\mathsf{MSB}_s(X)` and $`\mathsf{LSB}_s(X)` are the leftmost and the rightmost $`s` bits
@@ -67,9 +81,8 @@ $`\mathsf{CIPH}_K = \mathsf{perm}(K, \cdot)` is the forward permutation of a
 :::::::
 
 :::::::gameGrid
-::::::gameCell "X \\bullet Y \\quad \\textsf{(Algorithm 1)}" (kind := "compact")
+::::::gameCell "X \\bullet Y" (kind := "compact") (state := "\\textsf{Algorithm 1}")
 $`\begin{array}{l}
-\bullet : \bit^{128} \times \bit^{128} \to \bit^{128} \\ \hline
 Z_0 \gets 0^{128};\quad V_0 \gets Y; \\
 \mathsf{for}\; i = 0, \ldots, 127 \\
 \quad \pif\;x_i = 0\;\pthen \\
@@ -97,10 +110,8 @@ def gfmul (x y : BitVec 128) : BitVec 128 :=
 ```
 ::::::
 
-::::::gameCell "\\mathsf{GCTR}_K(\\mathit{ICB}, X) \\quad \\textsf{(Algorithm 3)}" (kind := "compact")
+::::::gameCell "\\mathsf{GCTR}_K(\\mathit{ICB}, X)" (kind := "compact") (state := "\\textsf{Algorithm 3}")
 $`\begin{array}{l}
-\mathsf{GCTR}_K : \bit^{128} \times \bit^* \to \bit^* \\
-\pcommentline{|\mathsf{GCTR}_K(\mathit{ICB}, X)| = |X|} \\ \hline
 \pif\;|X| = 0\;\pthen\;\Return X; \\
 n \gets \lceil |X| / 128 \rceil; \\
 \pcommentline{\text{split } X = X_1 \concat \cdots \concat X_{n-1} \concat X_n^*} \\
@@ -124,9 +135,8 @@ def gctr {K : Type} (ciph : K → BitVec 128 → BitVec 128) (k : K) (icb : BitV
 ```
 ::::::
 
-::::::gameCell "\\mathsf{inc}_{32}(X) \\quad \\textsf{(Section 6.2)}" (kind := "compact")
+::::::gameCell "\\mathsf{inc}_{32}(X)" (kind := "compact") (state := "\\textsf{Section 6.2}")
 $`\begin{array}{l}
-\mathsf{inc}_{32} : \bit^{128} \to \bit^{128} \\ \hline
 c \gets \mathrm{int}(\mathsf{LSB}_{32}(X)) + 1 \bmod 2^{32}; \\
 \Return \mathsf{MSB}_{96}(X) \concat [c]_{32}
 \end{array}`
@@ -140,10 +150,8 @@ def inc32 (x : BitVec 128) : BitVec 128 :=
 ```
 ::::::
 
-::::::gameCell "\\mathsf{GHASH}_H(X) \\quad \\textsf{(Algorithm 2)}" (kind := "compact")
+::::::gameCell "\\mathsf{GHASH}_H(X)" (kind := "compact") (state := "\\textsf{Algorithm 2}")
 $`\begin{array}{l}
-\mathsf{GHASH}_H : (\bit^{128})^* \to \bit^{128} \\
-\pcommentline{X = X_1 \concat \cdots \concat X_m} \\ \hline
 Y_0 \gets 0^{128}; \\
 \mathsf{for}\; i = 1, \ldots, m \\
 \quad Y_i \gets (Y_{i-1} \oplus X_i) \bullet H; \\

@@ -28,7 +28,7 @@ open Lean
 /-- Arguments of a `gameCell`: its header `title`, optional `kind`
 (`game`/`oracle`/`challenge`/`corrupt`/`security`) selecting the box colour, an
 optional `state` (LaTeX) shown right-aligned in the header — the slice of game
-state the oracle reads/writes — and an optional `tag` that makes the cell a link
+state the oracle reads/writes, or a source such as an algorithm number — and an optional `tag` that makes the cell a link
 target for `{cellref "tag"}[…]`. -/
 structure GameCellConfig where
   title : String
