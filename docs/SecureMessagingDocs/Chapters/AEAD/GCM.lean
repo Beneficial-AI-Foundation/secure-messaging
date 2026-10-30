@@ -387,25 +387,18 @@ def GhashIsAXU (L : ℕ) (ε : ℝ≥0∞) : Prop :=
 :::
 
 ::::theorem "aead_gcm_ghash_axu" (parent := "aead_gcm") (lean := "GCM.ghash_isAXU_unconditional, GCM.nistPoly_irreducible") (uses := "aead_gcm_axu")
-Adapted from {Informal.citet IOM12}[], Corollary 4 and Appendix E. Appendix E first
-replaces the block cipher by a random function. It then uses a game in which every
-decryption query returns $`\bot`, and bounds the probability that one decryption query
-there has a valid tag by $`(\ell_A + 1) / 2^\tau`. A union bound over the $`q'` decryption
-queries gives the term $`q' (\ell_A + 1) / 2^\tau` of Corollary 4, next to a separate
-switching term. Here $`\ell_A` bounds the number of blocks of associated data and message or
-ciphertext in each encryption and decryption query, and $`\tau` is the tag length in bits.
+Adapted from {Informal.citet IOM12}[], Corollary 4.
 
 Let $`L` be a supported message length and $`n = \lceil L / 128 \rceil`. Then GHASH is
-$`\varepsilon`-AXU for $`L`-bit ciphertexts, with
+{bpref "aead_gcm_axu"}[$`\varepsilon`-AXU] for $`L`-bit ciphertexts, with
 
 $$`\varepsilon = \frac{2^{57} + n + 1}{2^{128}}`
 
 The numerator bounds the number of blocks of $`\mathsf{encode}(a, c)`. The longest supported
 associated data has $`2^{64} - 8` bits, which is $`2^{57}` blocks after zero-padding. The
-ciphertext is $`n` blocks after zero-padding, and one block holds the two lengths. In the notation of {Informal.citet IOM12}[],
-$`\tau = 128` and $`\ell_A = 2^{57} + n`. The bound uses the longest supported associated
-data for every query, so it does not improve for shorter associated data, and
-$`\varepsilon \approx 2^{-71}`.
+ciphertext is $`n` blocks after zero-padding, and one block holds the two lengths. The bound
+uses the longest supported associated data for every query, so it does not improve for
+shorter associated data, and $`\varepsilon \approx 2^{-71}`.
 
 The bound needs $`x^{128} + x^7 + x^2 + x + 1` to be irreducible over $`\mathrm{GF}(2)`, so
 that $`\bullet` is multiplication in a field. This is the second statement below. It is
@@ -435,15 +428,16 @@ theorem nistPoly_irreducible : Irreducible nistPoly
 Adapted from {Informal.citet BR06}[], the PRP/PRF switching lemma.
 
 Let $`P` be a PRP scheme on 128-bit blocks, $`L` a supported message length,
-$`n = \lceil L / 128 \rceil`, and $`\mathcal B` the reduction built from a one-time IND-CCA
-adversary $`\adv` against $`\mathsf{GCM}[P, \mathit{IV}, L]`. $`\mathcal B` queries its
-function oracle on $`0^{128}`, $`J_0` and the $`n` counter blocks
-$`\mathsf{inc}_{32}(J_0), \ldots, \mathsf{inc}_{32}^n(J_0)`, which are $`n + 2` distinct
-blocks. It then runs $`\adv` and answers all of its queries with these $`n + 2` outputs as
-$`H`, the tag mask and the keystream. Then
+$`n = \lceil L / 128 \rceil`, and $`\adv` an adversary in the
+{bpref "aead_security_exp"}[one-time IND-CCA game] of $`\mathsf{GCM}[P, \mathit{IV}, L]`. Let
+$`\mathcal B` be the PRF adversary against $`P` built from $`\adv`, which queries its function
+oracle on $`n + 2` distinct blocks. Then
 
 $$`\mathsf{Adv}^{\textsf{prf}}_{P}(\mathcal B)
-  \le \mathsf{Adv}^{\textsf{prp}}_{P}(\mathcal B) + \frac{(n + 2)(n + 1)}{2^{129}}`
+  \le \mathsf{Adv}^{\textsf{prp}}_{P}(\mathcal B) + \frac{(n + 2)(n + 1)}{2^{129}}.`
+
+Here $`\mathsf{Adv}^{\textsf{prf}}` is the {bpref "prf"}[PRF advantage] and
+$`\mathsf{Adv}^{\textsf{prp}}` the {bpref "prp"}[PRP advantage].
 
 :::leanPillCaption "switching bound"
 :::
@@ -467,22 +461,19 @@ Adapted from {Informal.citet IOM12}[], Corollaries 3 and 4, with one encryption 
 abstract AXU bound $`\varepsilon` in place of the GHASH bound.
 
 Let $`P` be a PRP scheme on 128-bit blocks, $`\mathit{IV}` a 96-bit IV, $`L` a supported
-message length such that GHASH is $`\varepsilon`-AXU for $`L`-bit ciphertexts with
-$`\varepsilon < \infty`, and $`\adv` a one-time IND-CCA adversary against
-$`\mathsf{GCM}[P, \mathit{IV}, L]` that makes at most $`q_d`
-queries to the decryption oracle $`\Odec` of the {bpref "aead_oracles"}[one-time IND-CCA game].
-Then there exists a PRF adversary $`\mathcal B` against $`P`, constructed from $`\adv`, such
-that
+message length, $`\varepsilon` a non-negative real such that GHASH is
+{bpref "aead_gcm_axu"}[$`\varepsilon`-AXU] for $`L`-bit ciphertexts, and $`\adv` an
+adversary in the {bpref "aead_security_exp"}[one-time IND-CCA game] of
+$`\mathsf{GCM}[P, \mathit{IV}, L]` that makes at most $`q_d` queries to the decryption oracle
+$`\Odec`. Let $`\mathcal B` be the PRF adversary of
+{bpref "aead_gcm_prp_switching"}[PRP/PRF switching]. Then
 
 $$`\mathsf{Adv}^{\textsf{dist}}_{\textsf{GCM}}(\adv)
-  \le \mathsf{Adv}^{\textsf{prf}}_{P}(\mathcal B) + q_d \cdot \varepsilon`
+  \le \mathsf{Adv}^{\textsf{prf}}_{P}(\mathcal B) + q_d \cdot \varepsilon.`
 
-where $`\mathsf{Adv}^{\textsf{dist}}` is the {bpref "aead_dist_advantage"}[distinguishing
-advantage] in the {bpref "aead_security_exp"}[one-time IND-CCA game]. $`\mathcal B` is the
-adversary of {bpref "aead_gcm_prp_switching"}[PRP/PRF switching].
-
-There is no separate tag-guessing term: $`\varepsilon \ge 2^{-128}` for every AXU bound of
-GHASH.
+Here $`\mathsf{Adv}^{\textsf{dist}}` is the {bpref "aead_dist_advantage"}[distinguishing
+advantage] and $`\mathsf{Adv}^{\textsf{prf}}` the {bpref "prf"}[PRF advantage]. There is no
+separate tag-guessing term, because $`\varepsilon \ge 2^{-128}` for every AXU bound of GHASH.
 
 :::leanPillCaption "security theorem for any AXU bound"
 :::
@@ -518,21 +509,19 @@ for 96-bit nonces, with one encryption query. We prove one bound for the one-tim
 game instead of two separate bounds.
 
 Let $`P` be a PRP scheme on 128-bit blocks, $`\mathit{IV}` a 96-bit IV, $`L` a supported
-message length, $`n = \lceil L / 128 \rceil`, and $`\adv` a one-time IND-CCA adversary
-against $`\mathsf{GCM}[P, \mathit{IV}, L]` that makes at most $`q_d`
-queries to the decryption oracle $`\Odec` of the {bpref "aead_oracles"}[one-time IND-CCA game].
-Then there exists a PRP adversary $`\mathcal B` against $`P`, constructed from $`\adv`, such
-that
+message length, $`n = \lceil L / 128 \rceil`, and $`\adv` an adversary in the
+{bpref "aead_security_exp"}[one-time IND-CCA game] of $`\mathsf{GCM}[P, \mathit{IV}, L]` that
+makes at most $`q_d` queries to the decryption oracle $`\Odec`. Let $`\mathcal B` be the
+adversary of {bpref "aead_gcm_prp_switching"}[PRP/PRF switching]. Then
 
 $$`\mathsf{Adv}^{\textsf{dist}}_{\textsf{GCM}}(\adv)
   \le \mathsf{Adv}^{\textsf{prp}}_{P}(\mathcal B)
   + \frac{(n+2)(n+1)}{2^{129}}
-  + q_d \cdot \frac{2^{57} + n + 1}{2^{128}}`
+  + q_d \cdot \frac{2^{57} + n + 1}{2^{128}}.`
 
-where $`\mathsf{Adv}^{\textsf{dist}}` is as in
-{bpref "aead_gcm_security_of_axu"}[AEAD-GCM security for any AXU bound], and
-$`\mathcal B` is the adversary of {bpref "aead_gcm_prp_switching"}[PRP/PRF switching]. The
-second term is the switching bound, and the third is $`q_d` times the GHASH AXU bound.
+Here $`\mathsf{Adv}^{\textsf{dist}}` is the {bpref "aead_dist_advantage"}[distinguishing
+advantage] and $`\mathsf{Adv}^{\textsf{prp}}` the {bpref "prp"}[PRP advantage]. The second term
+is the switching bound, and the third is $`q_d` times the GHASH AXU bound.
 
 :::leanPillCaption "security theorem"
 :::
