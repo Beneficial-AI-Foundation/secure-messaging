@@ -30,7 +30,7 @@ whole key pair — including the tag key, which sits idle on the random side —
 `game3` never generates it. That extra key generation leaves the output distribution unchanged
 because it cannot fail: every `OracleComp` is lossless. -/
 theorem game3_eq_rand
-    (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
+    (se : DetSymmEncAlg M K_e C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     Pr{let x ← game3 se adv}[x = true] =
       Pr{let x ← AEADScheme.securityExpFixedBit (etmAEAD se prf) adv true}[x = true] := by

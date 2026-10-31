@@ -30,7 +30,7 @@ queries gives `q_d/|T|`. The hypothesis `hqd` ties `q_d` to the adversary
 via `IsQueryBoundP`: `adv` makes at most `q_d` decrypt-oracle queries
 (structurally, on every execution path). -/
 theorem game1_game2_le_auth
-    (se : DetSEAlg K_e M C_e)
+    (se : DetSymmEncAlg M K_e C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
     (q_d : ℕ) [Fintype T]
     (hqd : AEADScheme.decryptQueryBound adv q_d) :

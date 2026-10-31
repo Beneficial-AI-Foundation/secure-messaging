@@ -34,7 +34,7 @@ sampling.
 
 | Symbol | Meaning |
 |---|---|
-| `se` | inner deterministic symmetric cipher (`DetSEAlg`) |
+| `se` | inner deterministic symmetric cipher (`DetSymmEncAlg`) |
 | `prf` | PRF used to compute the authentication tag (`PRFScheme`) |
 | `A` (`adv`) | the one-time IND-CCA adversary |
 | `q_d` | upper bound on `A`'s number of decryption queries (`decryptQueryBound`) |
@@ -128,7 +128,7 @@ The security proof adapts **Theorem 1** (for A5), with:
 | Lean definition | NRS14 reference |
 |---|---|
 | `etmAEAD` | Figure 2, scheme A5, adapted: no nonce, one-time keys |
-| `DetSEAlg` / `distAdvantage` | Section 2, ivE scheme / `Adv^ivE`; game: Ros26 Def. 5.3.2 |
+| `DetSymmEncAlg` / `distAdvantage` | Section 2, ivE scheme / `Adv^ivE`; game: Ros26 Def. 5.3.2 |
 | `PRFScheme` / `prfAdvantage` | Section 2, function family F / `Adv^prf` |
 | `decryptQueryBound` / `q_d` | `q_d` in Appendix A.2; `IsQueryBoundP` on decrypt index |
 | `game0` | Lemma 3 starting game (Figure 4 left: `Enc` + `Dec`) |
@@ -176,20 +176,20 @@ number of decryption queries (tied to `adv` via `decryptQueryBound`, i.e.
 
 `D` makes at most one encryption query, because it forwards only the challenge encryption of
 `adv`. So the bound needs one-time secrecy of `se` only against adversaries that make one query,
-although the game `DetSEAlg.distAdvantage` allows any number of queries.
+although the game `DetSymmEncAlg.distAdvantage` allows any number of queries.
 
 NRS14 Figure 9 bound: `Adv^nAE ≤ Adv^prf_F(B) + Adv^ivE_E(D₁) + q_d/2^τ`.
 Our one-time adaptation: `Adv^ivE → Adv^{ots}`, `2^τ → |T|`. -/
 -- ANCHOR: etmAEAD_security
 theorem etmAEAD_security
-    (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
+    (se : DetSymmEncAlg M K_e C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
     (q_d : ℕ) [Fintype T]
     (hqd : AEADScheme.decryptQueryBound adv q_d) :
     AEADScheme.distAdvantage (etmAEAD se prf) adv ≤
       (PRFScheme.prfAdvantage prf (prfReduction se adv)).toReal +
       ↑q_d * (Fintype.card T : ℝ)⁻¹ +
-      DetSEAlg.distAdvantage se (encReduction se adv)
+      DetSymmEncAlg.distAdvantage se (encReduction se adv)
 -- ANCHOR_END: etmAEAD_security
   := by
   -- NRS14 Theorem 1 / Figure 9: triangle inequality over the game sequence.
@@ -220,7 +220,7 @@ theorem etmAEAD_security
           linarith
     _ ≤ (PRFScheme.prfAdvantage prf (prfReduction se adv)).toReal +
         ↑q_d * (Fintype.card T : ℝ)⁻¹ +
-        DetSEAlg.distAdvantage se (encReduction se adv) :=
+        DetSymmEncAlg.distAdvantage se (encReduction se adv) :=
       add_le_add (add_le_add (game0_game1_le_prf se prf adv)
         (game1_game2_le_auth se adv q_d hqd)) (game2_game3_le_enc se adv)
 

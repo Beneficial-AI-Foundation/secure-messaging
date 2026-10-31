@@ -128,7 +128,7 @@ is disabled, and a one-time fresh RO query is uniform). -/
 
 NRS14 Lemma 3: starting game (real nAE experiment). -/
 noncomputable def game0
-    (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
+    (se : DetSymmEncAlg M K_e C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) : ProbComp Bool := do
   let km ← prf.keygen
   etmGameSkeleton (spec := unifSpec)
@@ -144,7 +144,7 @@ noncomputable def game0
 NRS14 Lemma 3, eq. (4): replace F^tag with random ρ.
 Deviation: single encryption query (q_e = 1). -/
 noncomputable def game1
-    (se : DetSEAlg K_e M C_e)
+    (se : DetSymmEncAlg M K_e C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) : ProbComp Bool :=
   etmGameSkeleton (spec := unifSpec)
     se.keygen se.decrypt ∅
@@ -162,7 +162,7 @@ NRS14 Appendix A.2: disable decryption by bounding forgery probability.
 Each decrypt query at a fresh random oracle point verifies with probability
 `1/|T|`; union bound over `q_d` queries gives `q_d/|T|`. -/
 noncomputable def game2
-    (se : DetSEAlg K_e M C_e)
+    (se : DetSymmEncAlg M K_e C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) : ProbComp Bool :=
   etmGameSkeleton (spec := unifSpec)
     se.keygen se.decrypt ∅
@@ -180,7 +180,7 @@ are equal as distributions (`game2'_eq_game2`, via the discarded-query brick).
 
 NRS14 Appendix A.2: the intermediate game used to couple `game1` and `game2`. -/
 noncomputable def game2'
-    (se : DetSEAlg K_e M C_e)
+    (se : DetSymmEncAlg M K_e C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) : ProbComp Bool :=
   etmGameSkeleton (spec := unifSpec)
     se.keygen se.decrypt ∅
@@ -199,7 +199,7 @@ Cache unused but present for type uniformity.
 NRS14 Figure 4, right column: `$` oracle (random bits) + `⊥` oracle
 (always reject). This is the ideal nAE experiment. -/
 noncomputable def game3
-    (se : DetSEAlg K_e M C_e)
+    (se : DetSymmEncAlg M K_e C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) : ProbComp Bool :=
   etmGameSkeleton (spec := unifSpec)
     se.keygen se.decrypt ∅
@@ -235,7 +235,7 @@ their queries to `OracleSpec.query (Sum.inr (ad, c))` — the PRF/random oracle
 provided by the experiment. -/
 -- ANCHOR: etmPrfReduction
 noncomputable def prfReduction
-    (se : DetSEAlg K_e M C_e)
+    (se : DetSymmEncAlg M K_e C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
     : PRFAdversary (AD × C_e) T
 -- ANCHOR_END: etmPrfReduction
@@ -283,9 +283,9 @@ the one-time secrecy oracle. -/
 @[nolint unusedArguments]
 -- ANCHOR: etmEncReduction
 noncomputable def encReduction
-    (_se : DetSEAlg K_e M C_e)
+    (_se : DetSymmEncAlg M K_e C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
-    : DetSEAlg.OTSAdversary M C_e
+    : DetSymmEncAlg.OTSAdversary M C_e
 -- ANCHOR_END: etmEncReduction
     :=
   let spec := unifSpec + (M →ₒ C_e)

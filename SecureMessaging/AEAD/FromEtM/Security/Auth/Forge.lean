@@ -34,7 +34,7 @@ reveals nothing, so removing it preserves the distribution
 (`OracleComp.evalDistEq_simulateQ_run'_discardRO`, the RO-mediated discarded-query brick), lifted
 through the skeleton. -/
 theorem game2'_eq_game2
-    (se : DetSEAlg K_e M C_e)
+    (se : DetSymmEncAlg M K_e C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     Pr{let x ← game2' se adv}[x = true] = Pr{let x ← game2 se adv}[x = true] := by
   -- Fold the skeleton tail `let (b', _) ← run; return b'` to `run'`.
@@ -125,7 +125,7 @@ omit [Inhabited C_e] [Inhabited T] [LenSampleable C_e] in
 /-- Dropping the write-only `forged` flag from `authInstImpl` yields the
 uninstrumented fixed-key auth handler, independently of the initial flag. -/
 lemma simulateQ_authInstImpl_run'_eq_authPlainImpl
-    (se : DetSEAlg K_e M C_e) (b : Bool) (ke : K_e)
+    (se : DetSymmEncAlg M K_e C_e) (b : Bool) (ke : K_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
     (s : EtmGameState AD C_e T) (forged : Bool) :
     (simulateQ (authInstImpl se b ke) adv).run' (s, forged) =
@@ -162,7 +162,7 @@ verify return when `ok = true`, which also sets the monotone `forged` flag), so 
 distance between them is at most the forge probability of the `b = true` simulation
 (the generic `measureTVDist_simulateQ_le_prEvent_output_bad_base` at `spec₂ := unifSpec`). -/
 theorem measureTVDist_authInst_le_probForge
-    (se : DetSEAlg K_e M C_e)
+    (se : DetSymmEncAlg M K_e C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) (ke : K_e) :
     measureTVDist ((simulateQ (authInstImpl se true ke) adv).run' ((none, ∅), false))
         ((simulateQ (authInstImpl se false ke) adv).run' ((none, ∅), false)) ≤
@@ -267,7 +267,7 @@ same adversary `adv`, then applies the generic coupling lemma
 `OracleComp.ProgramLogic.Relational.prEvent_le_of_relTriple_simulateQ_run` with a joint-state
 invariant (NRS14 App. A.2). -/
 theorem probForge_authInst_le_forgeReduction
-    (se : DetSEAlg K_e M C_e)
+    (se : DetSymmEncAlg M K_e C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) (ke : K_e) :
     (Pr{let z ← ((simulateQ (authInstImpl se true ke) adv).run
         ((none, ∅), false))}[z.2.2 = true]).toReal ≤
@@ -590,7 +590,7 @@ omit [Inhabited C_e] [Inhabited T] [LenSampleable C_e] in
 verify query in `forgeReduction`, so the reduction makes at most `q_d` verify queries whenever
 `adv` makes at most `q_d` decrypt queries. -/
 theorem forgeReduction_isQueryBoundP
-    (se : DetSEAlg K_e M C_e)
+    (se : DetSymmEncAlg M K_e C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) (ke : K_e)
     (q_d : ℕ) (hqd : AEADScheme.decryptQueryBound adv q_d) :
     (forgeReduction se adv ke).IsQueryBoundP

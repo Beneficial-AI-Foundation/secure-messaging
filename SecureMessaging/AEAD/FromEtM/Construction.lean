@@ -12,7 +12,7 @@ import VCVio.CryptoFoundations.PRF
 # Encrypt-then-MAC (EtM) Construction
 
 Constructs an `AEADScheme` from a deterministic symmetric encryption scheme
-(`DetSEAlg`) and a pseudorandom function (`PRFScheme`) using the
+(`DetSymmEncAlg`) and a pseudorandom function (`PRFScheme`) using the
 Encrypt-then-MAC paradigm.
 
 ## Paper References
@@ -49,7 +49,7 @@ NRS14 Figure 2, scheme A5 (outer-tag EtM), adapted: one-time, no nonce.
 - `decrypt(ke, km, ad, (c, t))`: if `t == prf.eval km (ad, c)` then `se.decrypt ke c` else `none`
 - `keygen`: independent `ke ← se.keygen; km ← prf.keygen` -/
 -- ANCHOR: etmAEAD
-def etmAEAD (se : DetSEAlg K_e M C_e)
+def etmAEAD (se : DetSymmEncAlg M K_e C_e)
     (prf : PRFScheme K_m (AD × C_e) T) :
     AEADScheme ProbComp M AD (K_e × K_m) (C_e × T) where
   keygen := do
@@ -70,7 +70,7 @@ omit [DecidableEq AD] [DecidableEq C_e] in
 /-- Let `se` be `LengthRegular` for `lenM`. Then `etmAEAD se prf` is `LengthRegular` for `lenM`:
 the length of `(c, t)` is the length of `c`. -/
 theorem etmAEAD_lengthRegular [LenSampleable C_e] [SampleableType T] {lenM : M → ℕ}
-    (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
+    (se : DetSymmEncAlg M K_e C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (hse : se.LengthRegular lenM) : (etmAEAD se prf).LengthRegular lenM :=
   fun k k' _ msg msg' h => hse k.1 k'.1 msg msg' h
 

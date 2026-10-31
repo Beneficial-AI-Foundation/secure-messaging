@@ -33,7 +33,7 @@ The skeleton's `(challenge, TagCache)` state projects via `Prod.fst` onto the AE
 `TagCache`.
 (Proof: swap the independent `km`/`ke` samples, then apply `run'_simulateQ_eq_of_query_map_eq`.) -/
 theorem game0_eq_real
-    (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
+    (se : DetSymmEncAlg M K_e C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     Pr{let x ← game0 se prf adv}[x = true] =
       Pr{let x ← AEADScheme.securityExpFixedBit (etmAEAD se prf) adv false}[x = true] := by
@@ -83,7 +83,7 @@ omit [Inhabited C_e] [Inhabited T] [LenSampleable C_e] in
 /-- Game 0 → real PRF experiment: the `game0` distribution equals the real PRF experiment run on
 `prfReduction`. The "real" half of NRS14 Lemma 3, eq. (4). -/
 theorem game0_eq_prfRealExperiment
-    (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
+    (se : DetSymmEncAlg M K_e C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     Pr{let x ← game0 se prf adv}[x = true] =
       Pr{let x ← prf.prfRealExperiment (prfReduction se adv)}[x = true] := by
@@ -140,7 +140,7 @@ omit [Inhabited C_e] [Inhabited T] [LenSampleable C_e] in
 on `prfReduction`. The "ideal" half of NRS14 Lemma 3, eq. (4); this is the heavier of the two
 halves, since it must relocate the outer lazy-RO cache into the (always-`∅`) inner `TagCache`. -/
 theorem game1_eq_prfIdealExperiment
-    (se : DetSEAlg K_e M C_e)
+    (se : DetSymmEncAlg M K_e C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     Pr{let x ← game1 se adv}[x = true] =
       Pr{let x ← PRFScheme.prfIdealExperiment (prfReduction se adv)}[x = true] := by
@@ -296,7 +296,7 @@ NRS14 Lemma 3, eq. (4): replace F^tag with random ρ. The two reduction-equals-e
 equalities `game0_eq_prfRealExperiment` and `game1_eq_prfIdealExperiment` combine here, since
 both sides share the same `prfAdvantage` shape. -/
 theorem game0_game1_le_prf
-    (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
+    (se : DetSymmEncAlg M K_e C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     |(Pr{let x ← game0 se prf adv}[x = true]).toReal -
      (Pr{let x ← game1 se adv}[x = true]).toReal| ≤

@@ -23,7 +23,7 @@ variable {K_e K_m M AD C_e T : Type}
   [LenSampleable C_e] [SampleableType T]
 
 /-- EtM game whose skeleton key slot is `()` and whose encryption answers with `enc m`. With
-`enc = DetSEAlg.oracleEncrypt se b`, it samples the cipher key inside the encryption query. -/
+`enc = DetSymmEncAlg.oracleEncrypt se b`, it samples the cipher key inside the encryption query. -/
 private noncomputable def lazyKeyGame (enc : M → ProbComp C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) : ProbComp Bool :=
   etmGameSkeleton (spec := unifSpec)
@@ -37,11 +37,11 @@ private noncomputable def lazyKeyGame (enc : M → ProbComp C_e)
 omit [Inhabited C_e] [Inhabited T] in
 /-- The one-time secrecy experiment of `encReduction` is the lazy-key game: the experiment
 answers the reduction's encryption query with `oracleEncrypt se b`. -/
-private theorem securityExpFixedBit_encReduction (se : DetSEAlg K_e M C_e) (b : Bool)
+private theorem securityExpFixedBit_encReduction (se : DetSymmEncAlg M K_e C_e) (b : Bool)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
-    DetSEAlg.securityExpFixedBit se (encReduction se adv) b =
-      lazyKeyGame (DetSEAlg.oracleEncrypt se b) adv := by
-  unfold DetSEAlg.securityExpFixedBit encReduction lazyKeyGame etmGameSkeleton
+    DetSymmEncAlg.securityExpFixedBit se (encReduction se adv) b =
+      lazyKeyGame (DetSymmEncAlg.oracleEncrypt se b) adv := by
+  unfold DetSymmEncAlg.securityExpFixedBit encReduction lazyKeyGame etmGameSkeleton
   simp only [pure_bind, bind_pure_comp, ← StateT.run'_eq,
     QueryImpl.simulateQ_mapStateTBase_run']
   refine run'_simulateQ_eq_of_query_map_eq_inv' _ _ (fun _ => True) id
@@ -49,26 +49,27 @@ private theorem securityExpFixedBit_encReduction (se : DetSEAlg K_e M C_e) (b : 
   intro t s _
   rw [Prod.map_id, id_map]
   obtain ⟨ch, qc⟩ := s
-  have hT0 : simulateQ (DetSEAlg.otsImpl se b)
+  have hT0 : simulateQ (DetSymmEncAlg.otsImpl se b)
       ((liftM ($ᵗ T : ProbComp T) :
-        StateT (TagCache AD C_e T) (OracleComp (DetSEAlg.otsSpec M C_e)) T).run qc) =
+        StateT (TagCache AD C_e T) (OracleComp (DetSymmEncAlg.otsSpec M C_e)) T).run qc) =
         (fun x => (x, qc)) <$> ($ᵗ T : ProbComp T) := by
     have hrun : (liftM ($ᵗ T : ProbComp T) :
-        StateT (TagCache AD C_e T) (OracleComp (DetSEAlg.otsSpec M C_e)) T).run qc =
+        StateT (TagCache AD C_e T) (OracleComp (DetSymmEncAlg.otsSpec M C_e)) T).run qc =
           (liftM ((fun x => (x, qc)) <$> ($ᵗ T : ProbComp T)) :
-            OracleComp (DetSEAlg.otsSpec M C_e) (T × TagCache AD C_e T)) := by
+            OracleComp (DetSymmEncAlg.otsSpec M C_e) (T × TagCache AD C_e T)) := by
       change (liftM (liftM ($ᵗ T : ProbComp T) : StateT (TagCache AD C_e T) ProbComp T) :
-        StateT (TagCache AD C_e T) (OracleComp (DetSEAlg.otsSpec M C_e)) T).run qc = _
+        StateT (TagCache AD C_e T) (OracleComp (DetSymmEncAlg.otsSpec M C_e)) T).run qc = _
       simp only [liftM_StateT_eq, StateT.run_monadLift, monadLift_self, bind_pure_comp,
           map_eq_bind_pure_comp, liftM_bind, Function.comp_apply, liftM_pure, StateT.run_mk]
-    rw [hrun, DetSEAlg.otsImpl, QueryImpl.simulateQ_add_liftM_left, DetSEAlg.oracleUnif,
+    rw [hrun, DetSymmEncAlg.otsImpl, QueryImpl.simulateQ_add_liftM_left, DetSymmEncAlg.oracleUnif,
       QueryImpl.simulateQ_toQueryImpl]
-  have hT : simulateQ (HasQuery.toQueryImpl + DetSEAlg.oracleEncrypt se b)
+  have hT : simulateQ (HasQuery.toQueryImpl + DetSymmEncAlg.oracleEncrypt se b)
       ((monadLift ($ᵗ T : ProbComp T) :
-        StateT (TagCache AD C_e T) (OracleComp (DetSEAlg.otsSpec M C_e)) T).run qc) =
+        StateT (TagCache AD C_e T) (OracleComp (DetSymmEncAlg.otsSpec M C_e)) T).run qc) =
         (fun x => (x, qc)) <$> ($ᵗ T : ProbComp T) := hT0
   rcases t with (n | ⟨ad, m⟩) | ⟨ad, c⟩ <;> cases ch <;>
-    simp only [add_apply_inl, QueryImpl.mapStateTBase, DetSEAlg.otsImpl, DetSEAlg.oracleUnif,
+    simp only [add_apply_inl, QueryImpl.mapStateTBase, DetSymmEncAlg.otsImpl,
+        DetSymmEncAlg.oracleUnif,
         ToVCVio.unifLiftStateT, liftM, StateT.run_monadLift, monadLift_self, bind_pure_comp,
         liftM_map, bind_map_left, Prod.mk.eta, beq_iff_eq, StateT.run_pure, liftM_pure, ite_self,
         pure_bind, QueryImpl.add_apply_inl, PFunctor.Handler.liftTarget_apply,
@@ -86,7 +87,7 @@ omit [Inhabited C_e] [Inhabited T] [LenSampleable C_e] in
 /-- Let `X k m` encrypt `m` under the cipher key `k`. Then the EtM game that samples `k` before
 the adversary runs, and rejects every decryption query, has the same output distribution as
 the lazy-key game that samples `k` inside the encryption query. -/
-private theorem keyFirst_evalDistEq_lazyKeyGame (se : DetSEAlg K_e M C_e)
+private theorem keyFirst_evalDistEq_lazyKeyGame (se : DetSymmEncAlg M K_e C_e)
     (X : K_e → M → ProbComp C_e) (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     (etmGameSkeleton (spec := unifSpec) se.keygen se.decrypt ∅
         (fun ke m => liftM (X ke m)) (fun _ => liftM ($ᵗ T : ProbComp T))
@@ -177,7 +178,7 @@ private theorem keyFirst_evalDistEq_lazyKeyGame (se : DetSEAlg K_e M C_e)
 
 omit [Inhabited C_e] [Inhabited T] [LenSampleable C_e] in
 /-- Probability form of `keyFirst_evalDistEq_lazyKeyGame`. -/
-private theorem prEvent_keyFirst_eq_lazyKeyGame (se : DetSEAlg K_e M C_e)
+private theorem prEvent_keyFirst_eq_lazyKeyGame (se : DetSymmEncAlg M K_e C_e)
     (X : K_e → M → ProbComp C_e) (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     Pr{let x ← (etmGameSkeleton (spec := unifSpec) se.keygen se.decrypt ∅
         (fun ke m => liftM (X ke m)) (fun _ => liftM ($ᵗ T : ProbComp T))
@@ -187,11 +188,11 @@ private theorem prEvent_keyFirst_eq_lazyKeyGame (se : DetSEAlg K_e M C_e)
 
 omit [Inhabited C_e] [Inhabited T] in
 theorem game2_game3_le_enc
-    (se : DetSEAlg K_e M C_e)
+    (se : DetSymmEncAlg M K_e C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     |(Pr{let x ← game2 se adv}[x = true]).toReal -
      (Pr{let x ← game3 se adv}[x = true]).toReal| ≤
-      DetSEAlg.distAdvantage se (encReduction se adv) := by
+      DetSymmEncAlg.distAdvantage se (encReduction se adv) := by
   -- NRS14 Lemma 3, privacy reduction D₁(A).
   -- `game2` and `game3` sample the cipher key before the adversary runs, and the one-time
   -- secrecy experiment of `encReduction` samples it inside the encryption query. Both games
@@ -200,12 +201,12 @@ theorem game2_game3_le_enc
   -- the lazy-key game, which `securityExpFixedBit_encReduction` identifies with the experiment.
   -- `game2` first needs its random-oracle tag replaced by a uniform one (`stepA`).
   have hg3 : Pr{let x ← game3 se adv}[x = true] =
-      Pr{let x ← DetSEAlg.securityExpFixedBit se (encReduction se adv) true}[x = true] := by
+      Pr{let x ← DetSymmEncAlg.securityExpFixedBit se (encReduction se adv) true}[x = true] := by
     rw [securityExpFixedBit_encReduction]
     exact prEvent_keyFirst_eq_lazyKeyGame se
       (fun k m => LenSampleable.unifSameLen (se.encrypt k m)) adv
   have hg2 : Pr{let x ← game2 se adv}[x = true] =
-      Pr{let x ← DetSEAlg.securityExpFixedBit se (encReduction se adv) false}[x = true] := by
+      Pr{let x ← DetSymmEncAlg.securityExpFixedBit se (encReduction se adv) false}[x = true] := by
     -- Step A (RO→uniform): replace game2's random-oracle tag with a fresh `$ᵗ T`. The cache is
     -- write-only (`verifyTag = pure false`) and the single encryption query hits a fresh point,
     -- so the tag is uniform; project the cache away (invariant `challenge = none → cache = ∅`).
@@ -297,11 +298,11 @@ theorem game2_game3_le_enc
     have stepB : Pr{let x ← (etmGameSkeleton (spec := unifSpec) se.keygen se.decrypt ∅
             (fun ke m => pure (se.encrypt ke m)) (fun _ => liftM ($ᵗ T : ProbComp T))
             (fun _ _ => pure false) gameUnifImpl adv : ProbComp Bool)}[x = true] =
-        Pr{let x ← DetSEAlg.securityExpFixedBit se (encReduction se adv) false}[x = true] := by
+        Pr{let x ← DetSymmEncAlg.securityExpFixedBit se (encReduction se adv) false}[x = true] := by
       rw [securityExpFixedBit_encReduction]
       exact prEvent_keyFirst_eq_lazyKeyGame se (fun k m => pure (se.encrypt k m)) adv
     rw [stepA, stepB]
-  unfold DetSEAlg.distAdvantage
+  unfold DetSymmEncAlg.distAdvantage
   rw [hg2, hg3]
   exact le_of_eq (abs_sub_comm _ _)
 

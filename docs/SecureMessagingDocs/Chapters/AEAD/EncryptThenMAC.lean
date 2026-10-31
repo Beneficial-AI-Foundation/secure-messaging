@@ -46,13 +46,7 @@ Encrypt-then-MAC.
 :::defTitle "aead_etm_det_se" "Deterministic symmetric encryption"
 :::
 
-:::::::definition "aead_etm_det_se" (parent := "aead_encrypt_then_mac") (lean := "DetSEAlg, DetSEAlg.Correct, DetSEAlg.LengthRegular")
-Adapted from {Informal.citet Ros26}[], Definitions 2.5.1 (syntax) and 2.5.2 (correctness).
-There, the key is uniform on the key space, $`\mathsf{Enc}` may be randomized, and
-$`\mathsf{Dec}` always returns a message. Here, $`\KeyGen` samples the key,
-$`\Enc` is deterministic, and $`\Dec` can return $`\bot`. Length
-regularity is from {Informal.citet NRS14}[], Section 2.
-
+:::::::definition "aead_etm_det_se" (parent := "aead_encrypt_then_mac") (lean := "DetSymmEncAlg, DetSymmEncAlg.PerfectlyCorrect, DetSymmEncAlg.LengthRegular")
 A deterministic symmetric encryption scheme $`\mathsf{SE}` is a tuple of algorithms
 $`(\KeyGen, \Enc, \Dec)` with key space $`\mathcal K`,
 message space $`\mathcal M` and ciphertext space $`\mathcal C`, where
@@ -63,40 +57,24 @@ message space $`\mathcal M` and ciphertext space $`\mathcal C`, where
 - $`\Dec` takes a key $`K` and a ciphertext $`c`, and produces a message
   $`m \gets \Dec(K, c)`, or $`\bot`.
 
-$`\Enc` and $`\Dec` are deterministic. Each ciphertext $`c` has a
-length $`|c|`, and the ciphertexts of each length form a finite nonempty set, so that the
-security game can sample from it uniformly. $`\mathsf{SE}` is correct if
-$`\Dec(K, \Enc(K, m)) = m` for all keys $`K` and messages $`m`. Let
-$`|m|` denote a fixed length function on messages ($`\mathit{lenM}` in Lean). $`\mathsf{SE}`
-is length-regular if $`|m| = |m'|` implies $`|\Enc(K, m)| = |\Enc(K', m')|`
-for all keys $`K, K'`.
+$`\Enc` and $`\Dec` are deterministic. $`\mathsf{SE}` is correct if
+$`\Dec(K, \Enc(K, m)) = m` for all keys $`K` and messages $`m`.
 
-:::leanPillCaption "deterministic symmetric encryption scheme"
-:::
+Each ciphertext $`c` has a length $`|c|`, and the ciphertexts of each length form a finite
+nonempty set, so that the security game can sample from it uniformly. Let $`|m|` denote a
+fixed length function on messages ($`\mathit{lenM}` in Lean). $`\mathsf{SE}` is
+length-regular if $`|m| = |m'|` implies $`|\Enc(K, m)| = |\Enc(K', m')|` for all keys
+$`K, K'` ({Informal.citet NRS14}[], Section 2).
 
-```anchor DetSEAlg (project := ".") (module := SecureMessaging.SymEnc.Defs)
-structure DetSEAlg (K M C : Type) where
-  /-- Sample a fresh symmetric key. -/
-  keygen : ProbComp K
-  /-- Deterministic encryption: `Enc(K, M) = C`. -/
-  encrypt : K → M → C
-  /-- Deterministic decryption: `Dec(K, C) = some M` or `none`. -/
-  decrypt : K → C → Option M
-```
-
-:::leanPillCaption "correctness"
-:::
-
-```anchor DetSEAlgCorrect (project := ".") (module := SecureMessaging.SymEnc.Defs)
-def Correct (se : DetSEAlg K M C) : Prop :=
-  ∀ (k : K) (m : M), se.decrypt k (se.encrypt k m) = some m
-```
+The Lean definitions of the scheme and of correctness are VCVio's `DetSymmEncAlg` and
+`DetSymmEncAlg.PerfectlyCorrect`. VCVio has no length regularity, so
+`DetSymmEncAlg.LengthRegular` is defined here.
 
 :::leanPillCaption "length regularity"
 :::
 
-```anchor DetSEAlgLengthRegular (project := ".") (module := SecureMessaging.SymEnc.Defs)
-def LengthRegular [LenSampleable C] (lenM : M → ℕ) (se : DetSEAlg K M C) : Prop :=
+```anchor DetSymmEncAlgLengthRegular (project := ".") (module := SecureMessaging.SymEnc.Defs)
+def LengthRegular [LenSampleable C] (lenM : M → ℕ) (se : DetSymmEncAlg M K C) : Prop :=
   ∀ (k k' : K) (m m' : M), lenM m = lenM m' →
     LenSampleable.len (se.encrypt k m) = LenSampleable.len (se.encrypt k' m')
 ```
@@ -105,7 +83,7 @@ def LengthRegular [LenSampleable C] (lenM : M → ℕ) (se : DetSEAlg K M C) : P
 :::defTitle "aead_etm_det_se_ots" "One-time secrecy"
 :::
 
-:::::::definition "aead_etm_det_se_ots" (parent := "aead_encrypt_then_mac") (lean := "DetSEAlg.oracleEncrypt, DetSEAlg.securityExpFixedBit, DetSEAlg.distAdvantage") (uses := "aead_etm_det_se")
+:::::::definition "aead_etm_det_se_ots" (parent := "aead_encrypt_then_mac") (lean := "DetSymmEncAlg.oracleEncrypt, DetSymmEncAlg.securityExpFixedBit, DetSymmEncAlg.distAdvantage") (uses := "aead_etm_det_se")
 Generalizes {Informal.citet Ros26}[], Definition 5.3.2 (computational one-time secrecy). There,
 the key is uniform on the key space, and the random ciphertext is uniform on $`\mathcal C`.
 Here, the key comes from $`\KeyGen`, and the random ciphertext is uniform among the
@@ -139,7 +117,7 @@ K \gets \KeyGen; \\
 :::
 
 ```anchor detSEOracleEncrypt (project := ".") (module := SecureMessaging.SymEnc.Defs)
-def oracleEncrypt [LenSampleable C] (se : DetSEAlg K M C) (b : Bool) :
+def oracleEncrypt [LenSampleable C] (se : DetSymmEncAlg M K C) (b : Bool) :
     QueryImpl (M →ₒ C) ProbComp :=
   fun m => do
     let k ← se.keygen
@@ -158,7 +136,7 @@ b' \gets \adv^{\Oenc}; \\
 :::
 
 ```anchor detSESecurityExpFixedBit (project := ".") (module := SecureMessaging.SymEnc.Defs)
-def securityExpFixedBit [LenSampleable C] (se : DetSEAlg K M C)
+def securityExpFixedBit [LenSampleable C] (se : DetSymmEncAlg M K C)
     (adversary : OTSAdversary M C) (b : Bool) : ProbComp Bool :=
   simulateQ (otsImpl se b) adversary
 ```
@@ -175,7 +153,7 @@ $$`\mathsf{Adv}^{\textsf{ots}}_{\textsf{SE}}(\adv)
 :::
 
 ```anchor detSEDistAdvantage (project := ".") (module := SecureMessaging.SymEnc.Defs)
-noncomputable def distAdvantage [LenSampleable C] (se : DetSEAlg K M C)
+noncomputable def distAdvantage [LenSampleable C] (se : DetSymmEncAlg M K C)
     (adversary : OTSAdversary M C) : ℝ :=
   |(Pr{let x ← securityExpFixedBit se adversary true}[x = true]).toReal -
    (Pr{let x ← securityExpFixedBit se adversary false}[x = true]).toReal|
@@ -308,7 +286,7 @@ $`\begin{array}{l}
 :::
 
 ```anchor etmAEAD (project := ".") (module := SecureMessaging.AEAD.FromEtM.Construction)
-def etmAEAD (se : DetSEAlg K_e M C_e)
+def etmAEAD (se : DetSymmEncAlg M K_e C_e)
     (prf : PRFScheme K_m (AD × C_e) T) :
     AEADScheme ProbComp M AD (K_e × K_m) (C_e × T) where
   keygen := do
@@ -340,8 +318,8 @@ Then $`\mathsf{EtM}[\mathsf{SE}, F]` is correct.
 :::
 
 ```anchor etmAEAD_correct (project := ".") (module := SecureMessaging.AEAD.FromEtM.Correctness)
-theorem etmAEAD_correct (se : DetSEAlg K_e M C_e)
-    (prf : PRFScheme K_m (AD × C_e) T) (hse : se.Correct) :
+theorem etmAEAD_correct (se : DetSymmEncAlg M K_e C_e)
+    (prf : PRFScheme K_m (AD × C_e) T) (hse : se.PerfectlyCorrect) :
     (etmAEAD se prf).Correct
 ```
 ::::
@@ -372,14 +350,14 @@ $$`\mathsf{Adv}^{\textsf{dist}}_{\mathsf{EtM}[\mathsf{SE}, F]}(\adv)
 
 ```anchor etmAEAD_security (project := ".") (module := SecureMessaging.AEAD.FromEtM.Security)
 theorem etmAEAD_security
-    (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
+    (se : DetSymmEncAlg M K_e C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
     (q_d : ℕ) [Fintype T]
     (hqd : AEADScheme.decryptQueryBound adv q_d) :
     AEADScheme.distAdvantage (etmAEAD se prf) adv ≤
       (PRFScheme.prfAdvantage prf (prfReduction se adv)).toReal +
       ↑q_d * (Fintype.card T : ℝ)⁻¹ +
-      DetSEAlg.distAdvantage se (encReduction se adv)
+      DetSymmEncAlg.distAdvantage se (encReduction se adv)
 ```
 
 :::leanPillCaption "PRF adversary $`\\mathcal B`"
@@ -387,7 +365,7 @@ theorem etmAEAD_security
 
 ```anchor etmPrfReduction (project := ".") (module := SecureMessaging.AEAD.FromEtM.Security.Games)
 noncomputable def prfReduction
-    (se : DetSEAlg K_e M C_e)
+    (se : DetSymmEncAlg M K_e C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
     : PRFAdversary (AD × C_e) T
 ```
@@ -397,8 +375,8 @@ noncomputable def prfReduction
 
 ```anchor etmEncReduction (project := ".") (module := SecureMessaging.AEAD.FromEtM.Security.Games)
 noncomputable def encReduction
-    (_se : DetSEAlg K_e M C_e)
+    (_se : DetSymmEncAlg M K_e C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
-    : DetSEAlg.OTSAdversary M C_e
+    : DetSymmEncAlg.OTSAdversary M C_e
 ```
 :::::

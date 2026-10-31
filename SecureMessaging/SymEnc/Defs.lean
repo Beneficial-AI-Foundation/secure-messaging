@@ -5,14 +5,15 @@ Authors: Beneficial AI Foundation
 -/
 
 import VCVio.CryptoFoundations.SecExp
+import VCVio.CryptoFoundations.SymmEncAlg.Deterministic
 import VCVio.OracleComp.Constructions.SampleableType
 import ToVCVio.OracleComp.Constructions.LenSampleable
 
 /-!
-# Deterministic Symmetric Encryption (Local Placeholder)
+# Deterministic Symmetric Encryption: Length Regularity and One-Time Secrecy
 
-Formalization of a deterministic symmetric encryption primitive with computational one-time
-secrecy, following:
+Length regularity and a computational one-time secrecy game for VCVio's deterministic
+symmetric encryption schemes `DetSymmEncAlg M K C`, following:
 
 - [Ros26] Rosulek. *The Joy of Cryptography.* Online edition, 2026.
   — Definition 5.3.2: computational one-time secrecy (OTS). Each encryption query uses a
@@ -24,10 +25,10 @@ secrecy, following:
   — Section 2: "ivE scheme" `E : K × {0,1}^η × M → {0,1}*`.
   We omit the IV parameter because each key encrypts one message (IV absorbed into key).
 
-VCVio's `SymmEncAlg` has monadic, possibly randomized `encrypt`/`decrypt`
-operations and information-theoretic perfect-secrecy notions. The EtM proof
-instead uses a deterministic cipher with a computational one-time secrecy
-assumption; `DetSEAlg` and its game below provide that interface.
+VCVio defines the scheme, its correctness `DetSymmEncAlg.PerfectlyCorrect`, and an IND$-CPA
+game whose random ciphertext is uniform on all of `C`. VCVio has no length regularity and no
+game that samples the random ciphertext by length. This file adds both in the namespace
+`DetSymmEncAlg`.
 
 ## Generalizations of Ros26
 
@@ -48,39 +49,18 @@ length.
 
 open OracleSpec OracleComp ENNReal
 
-/-- A deterministic symmetric encryption scheme with key space `K`, message
-space `M`, and ciphertext space `C`.
+namespace DetSymmEncAlg
 
-NRS14 Section 2: ivE scheme `E : K × {0,1}^η × M → {0,1}*`.
-Deviation: no IV parameter (each key encrypts one message). -/
--- ANCHOR: DetSEAlg
-structure DetSEAlg (K M C : Type) where
-  /-- Sample a fresh symmetric key. -/
-  keygen : ProbComp K
-  /-- Deterministic encryption: `Enc(K, M) = C`. -/
-  encrypt : K → M → C
-  /-- Deterministic decryption: `Dec(K, C) = some M` or `none`. -/
-  decrypt : K → C → Option M
--- ANCHOR_END: DetSEAlg
-
-namespace DetSEAlg
-
-variable {K M C : Type}
-
-/-- A `DetSEAlg` is correct if decryption always recovers the plaintext. -/
--- ANCHOR: DetSEAlgCorrect
-def Correct (se : DetSEAlg K M C) : Prop :=
-  ∀ (k : K) (m : M), se.decrypt k (se.encrypt k m) = some m
--- ANCHOR_END: DetSEAlgCorrect
+variable {M K C : Type}
 
 /-- Let `lenM : M → ℕ` be a message length. The ciphertext length of `se` depends only on the
 message length: `|m| = |m'|` implies `|Enc(K, m)| = |Enc(K', m')|` for all keys `K, K'`.
 NRS14 Section 2 requires this of every scheme. -/
--- ANCHOR: DetSEAlgLengthRegular
-def LengthRegular [LenSampleable C] (lenM : M → ℕ) (se : DetSEAlg K M C) : Prop :=
+-- ANCHOR: DetSymmEncAlgLengthRegular
+def LengthRegular [LenSampleable C] (lenM : M → ℕ) (se : DetSymmEncAlg M K C) : Prop :=
   ∀ (k k' : K) (m m' : M), lenM m = lenM m' →
     LenSampleable.len (se.encrypt k m) = LenSampleable.len (se.encrypt k' m')
--- ANCHOR_END: DetSEAlgLengthRegular
+-- ANCHOR_END: DetSymmEncAlgLengthRegular
 
 section OTS
 
@@ -123,7 +103,7 @@ def oracleUnif : QueryImpl unifSpec ProbComp :=
 `b = false`, it returns `se.encrypt k m`; if `b = true`, it returns a uniform ciphertext of the
 same length as `se.encrypt k m`. -/
 -- ANCHOR: detSEOracleEncrypt
-def oracleEncrypt [LenSampleable C] (se : DetSEAlg K M C) (b : Bool) :
+def oracleEncrypt [LenSampleable C] (se : DetSymmEncAlg M K C) (b : Bool) :
     QueryImpl (M →ₒ C) ProbComp :=
   fun m => do
     let k ← se.keygen
@@ -132,7 +112,7 @@ def oracleEncrypt [LenSampleable C] (se : DetSEAlg K M C) (b : Bool) :
 -- ANCHOR_END: detSEOracleEncrypt
 
 /-- Complete oracle set for the one-time secrecy game. -/
-def otsImpl [LenSampleable C] (se : DetSEAlg K M C) (b : Bool) :
+def otsImpl [LenSampleable C] (se : DetSymmEncAlg M K C) (b : Bool) :
     QueryImpl (otsSpec M C) ProbComp :=
   oracleUnif + oracleEncrypt se b
 
@@ -141,7 +121,7 @@ def otsImpl [LenSampleable C] (se : DetSEAlg K M C) (b : Bool) :
 /-- One-time secrecy experiment with a fixed challenge bit `b`. The branch `b = false` is
 `L_ots-real` of Ros26, and `b = true` is `L_ots-rand`. -/
 -- ANCHOR: detSESecurityExpFixedBit
-def securityExpFixedBit [LenSampleable C] (se : DetSEAlg K M C)
+def securityExpFixedBit [LenSampleable C] (se : DetSymmEncAlg M K C)
     (adversary : OTSAdversary M C) (b : Bool) : ProbComp Bool :=
   simulateQ (otsImpl se b) adversary
 -- ANCHOR_END: detSESecurityExpFixedBit
@@ -149,7 +129,7 @@ def securityExpFixedBit [LenSampleable C] (se : DetSEAlg K M C)
 /-- One-time secrecy distinguishing advantage:
 `|Pr[A^{L_ots-rand} = 1] - Pr[A^{L_ots-real} = 1]|`. -/
 -- ANCHOR: detSEDistAdvantage
-noncomputable def distAdvantage [LenSampleable C] (se : DetSEAlg K M C)
+noncomputable def distAdvantage [LenSampleable C] (se : DetSymmEncAlg M K C)
     (adversary : OTSAdversary M C) : ℝ :=
   |(Pr{let x ← securityExpFixedBit se adversary true}[x = true]).toReal -
    (Pr{let x ← securityExpFixedBit se adversary false}[x = true]).toReal|
@@ -157,4 +137,4 @@ noncomputable def distAdvantage [LenSampleable C] (se : DetSEAlg K M C)
 
 end OTS
 
-end DetSEAlg
+end DetSymmEncAlg
