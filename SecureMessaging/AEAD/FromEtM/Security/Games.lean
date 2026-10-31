@@ -193,17 +193,17 @@ noncomputable def game2'
     adv
 
 /-- Game 3: decrypt always rejects (random encrypt, random tag, no decryption).
-The random ciphertext is uniform among those of the same length as `Enc(ke, m)`.
+The random ciphertext is uniform among those of length `clen |m|`.
 Cache unused but present for type uniformity.
 
 NRS14 Figure 4, right column: `$` oracle (random bits) + `⊥` oracle
 (always reject). This is the ideal nAE experiment. -/
 noncomputable def game3
-    (se : DetSymmEncAlg M K_e C_e)
+    (se : DetSymmEncAlg M K_e C_e) (lenM : M → ℕ) (clen : ℕ → ℕ)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) : ProbComp Bool :=
   etmGameSkeleton (spec := unifSpec)
     se.keygen se.decrypt ∅
-    (fun ke m => liftM (LenSampleable.unifSameLen (se.encrypt ke m)))
+    (fun _ m => liftM (LenSampleable.unifOfLen (clen (lenM m))))
     (fun _ => liftM ($ᵗ T : ProbComp T))
     (fun _ _ => pure false)
     gameUnifImpl

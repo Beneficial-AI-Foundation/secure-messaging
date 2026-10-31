@@ -62,8 +62,12 @@ $`\Dec(K, \Enc(K, m)) = m` for all keys $`K` and messages $`m`.
 
 Each ciphertext $`c` has a length $`|c|`, and the ciphertexts of each length form a finite
 nonempty set, so that the security game can sample from it uniformly. Let $`|m|` denote a
-fixed length function on messages. $`\mathsf{SE}` is length-regular if $`|m| = |m'|` implies
-$`|\Enc(K, m)| = |\Enc(K', m')|` for all keys $`K, K'` ({Informal.citet NRS14}[], Section 2).
+fixed length function on messages, and let $`\mathit{clen} : \mathbb N \to \mathbb N` be a
+ciphertext length function. Let
+$`\mathcal C(\ell) = \{c \in \mathcal C : |c| = \mathit{clen}(\ell)\}`. $`\mathsf{SE}`
+is length-regular if $`|\Enc(K, m)| = \mathit{clen}(|m|)` for all keys $`K` and messages $`m`.
+Then the ciphertext length depends only on the message length
+({Informal.citet NRS14}[], Section 2).
 
 The Lean definitions of the scheme and of correctness are VCVio's `DetSymmEncAlg` and
 `DetSymmEncAlg.PerfectlyCorrect`. VCVio has no length regularity, so
@@ -75,9 +79,9 @@ each length.
 :::
 
 ```anchor DetSymmEncAlgLengthRegular (project := ".") (module := SecureMessaging.SymEnc.Defs)
-def LengthRegular [LenSampleable C] (lenM : M → ℕ) (se : DetSymmEncAlg M K C) : Prop :=
-  ∀ (k k' : K) (m m' : M), lenM m = lenM m' →
-    LenSampleable.len (se.encrypt k m) = LenSampleable.len (se.encrypt k' m')
+def LengthRegular [LenSampleable C] (lenM : M → ℕ) (clen : ℕ → ℕ)
+    (se : DetSymmEncAlg M K C) : Prop :=
+  ∀ (k : K) (m : M), LenSampleable.len (se.encrypt k m) = clen (lenM m)
 ```
 :::::::
 
@@ -86,17 +90,15 @@ def LengthRegular [LenSampleable C] (lenM : M → ℕ) (se : DetSymmEncAlg M K C
 
 :::::::definition "aead_etm_det_se_ots" (parent := "aead_encrypt_then_mac") (lean := "DetSymmEncAlg.oracleEncrypt, DetSymmEncAlg.securityExpFixedBit, DetSymmEncAlg.distAdvantage") (uses := "aead_etm_det_se")
 One-time secrecy ({Informal.citet Ros26}[], Definition 5.3.2), with the key drawn by
-$`\KeyGen` instead of uniformly from the key space, and the random ciphertext uniform among
-the ciphertexts of the same length as $`\Enc(K, m)`. For length-regular schemes, this is the
-uniform distribution on $`\mathcal C(|m|)`, the ciphertexts of messages of length $`|m|`
-({Informal.citet Ros26}[], Definition 8.1.1).
+$`\KeyGen` instead of uniformly from the key space, and the random ciphertext uniform on
+$`\mathcal C(|m|)`, as in {Informal.citet Ros26}[], Definition 8.1.1.
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Game state and notation}" (kind := "scheme-notation")
 There is one experiment $`\Exp{\textsf{ots}\text{-}b}{\textsf{SE}}` for each bit
 $`b \in \bit`. Each call to $`\Oenc` samples a fresh key $`K`. For $`b = 0`, $`\Oenc`
-encrypts the message under $`K`. For $`b = 1`, it returns a uniformly random ciphertext of the
-same length. The adversary can call $`\Oenc` any number of times.
+encrypts the message under $`K`. For $`b = 1`, it returns a uniformly random ciphertext in
+$`\mathcal C(|m|)`. The adversary can call $`\Oenc` any number of times.
 :::::
 ::::::
 
@@ -107,7 +109,7 @@ K \gets \KeyGen; \\
 \pif\;b = 0\;\pthen \\
 \quad c \gets \Enc(K, m); \\
 \pelse \\
-\quad c \sample \{c' \in \mathcal C : |c'| = |\Enc(K, m)|\}; \\
+\quad c \sample \mathcal C(|m|); \\
 \Return c
 \end{array}`
 
@@ -115,11 +117,11 @@ K \gets \KeyGen; \\
 :::
 
 ```anchor detSEOracleEncrypt (project := ".") (module := SecureMessaging.SymEnc.Defs)
-def oracleEncrypt [LenSampleable C] (se : DetSymmEncAlg M K C) (b : Bool) :
-    QueryImpl (M →ₒ C) ProbComp :=
+def oracleEncrypt [LenSampleable C] (se : DetSymmEncAlg M K C) (lenM : M → ℕ)
+    (clen : ℕ → ℕ) (b : Bool) : QueryImpl (M →ₒ C) ProbComp :=
   fun m => do
     let k ← se.keygen
-    if b then LenSampleable.unifSameLen (se.encrypt k m)
+    if b then LenSampleable.unifOfLen (clen (lenM m))
     else pure (se.encrypt k m)
 ```
 :::::
@@ -134,9 +136,9 @@ b' \gets \adv^{\Oenc}; \\
 :::
 
 ```anchor detSESecurityExpFixedBit (project := ".") (module := SecureMessaging.SymEnc.Defs)
-def securityExpFixedBit [LenSampleable C] (se : DetSymmEncAlg M K C)
-    (adversary : INDDollarAdversary M C) (b : Bool) : ProbComp Bool :=
-  simulateQ (otsImpl se b) adversary
+def securityExpFixedBit [LenSampleable C] (se : DetSymmEncAlg M K C) (lenM : M → ℕ)
+    (clen : ℕ → ℕ) (adversary : INDDollarAdversary M C) (b : Bool) : ProbComp Bool :=
+  simulateQ (otsImpl se lenM clen b) adversary
 ```
 :::::
 ::::::
@@ -151,10 +153,10 @@ $$`\mathsf{Adv}^{\textsf{ots}}_{\textsf{SE}}(\adv)
 :::
 
 ```anchor detSEDistAdvantage (project := ".") (module := SecureMessaging.SymEnc.Defs)
-noncomputable def distAdvantage [LenSampleable C] (se : DetSymmEncAlg M K C)
-    (adversary : INDDollarAdversary M C) : ℝ :=
-  |(Pr{let x ← securityExpFixedBit se adversary true}[x = true]).toReal -
-   (Pr{let x ← securityExpFixedBit se adversary false}[x = true]).toReal|
+noncomputable def distAdvantage [LenSampleable C] (se : DetSymmEncAlg M K C) (lenM : M → ℕ)
+    (clen : ℕ → ℕ) (adversary : INDDollarAdversary M C) : ℝ :=
+  |(Pr{let x ← securityExpFixedBit se lenM clen adversary true}[x = true]).toReal -
+   (Pr{let x ← securityExpFixedBit se lenM clen adversary false}[x = true]).toReal|
 ```
 
 ::::::gameGrid
@@ -217,10 +219,9 @@ padding is invalid.
 
 Let $`|m|` be the length of $`m` in bytes. Then $`m` becomes
 $`\ell = \lfloor |m| / 16 \rfloor + 1` blocks, so the ciphertext has $`128\ell` bits. Its
-length depends only on $`|m|`, so the scheme is length-regular. For $`b = 1`, $`\Oenc` returns
-a uniformly random string of $`128\ell` bits, the same length as the real ciphertext. The
-length depends only on $`|m|`, which the adversary chose, so it is the same for $`b = 0` and
-$`b = 1`.
+length depends only on $`|m|`, so the scheme is length-regular for
+$`\mathit{clen}(n) = 128(\lfloor n / 16 \rfloor + 1)`. For $`b = 1`, $`\Oenc` returns a
+uniformly random string of $`128\ell` bits, the same length as the real ciphertext.
 
 For $`\ell = 1`, let $`P` be the padded block. The map
 $`\mathit{iv} \mapsto \mathsf{AES}_k(P \oplus \mathit{iv})` is a bijection for every key $`k`,
@@ -253,7 +254,7 @@ $`\mathcal K_e \times \mathcal K_m`, ciphertext space $`\mathcal C_e \times \mat
 the algorithms below.
 
 The tag function $`F` must be a PRF (encrypt-then-PRF), not only a MAC, because the
-security game compares $`(c, t)` with a uniformly random ciphertext of the same length.
+security game compares $`(c, t)` with a uniformly random ciphertext.
 
 ::::::gameGrid
 :::::gameCell "\\mathsf{KeyGen}()" (kind := "compact-third")
@@ -343,19 +344,23 @@ $$`\mathsf{Adv}^{\textsf{dist}}_{\mathsf{EtM}[\mathsf{SE}, F]}(\adv)
   + \frac{q_d}{|\mathcal T|}
   + \mathsf{Adv}^{\textsf{ots}}_{\textsf{SE}}(\mathcal D).`
 
+Both games use the same message length $`|m|` and ciphertext length function
+$`\mathit{clen}`. The bound holds for every choice of the two.
+
 :::leanPillCaption "security theorem"
 :::
 
 ```anchor etmAEAD_security (project := ".") (module := SecureMessaging.AEAD.FromEtM.Security)
 theorem etmAEAD_security
     (se : DetSymmEncAlg M K_e C_e) (prf : PRFScheme K_m (AD × C_e) T)
+    (lenM : M → ℕ) (clen : ℕ → ℕ)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
     (q_d : ℕ) [Fintype T]
     (hqd : AEADScheme.decryptQueryBound adv q_d) :
-    AEADScheme.distAdvantage (etmAEAD se prf) adv ≤
+    AEADScheme.distAdvantage (etmAEAD se prf) lenM clen adv ≤
       (PRFScheme.prfAdvantage prf (prfReduction se adv)).toReal +
       ↑q_d * (Fintype.card T : ℝ)⁻¹ +
-      DetSymmEncAlg.distAdvantage se (encReduction se adv)
+      DetSymmEncAlg.distAdvantage se lenM clen (encReduction se adv)
 ```
 
 :::leanPillCaption "PRF adversary $`\\mathcal B`"

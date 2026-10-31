@@ -203,13 +203,13 @@ Adapted from IOM12, Corollaries 3 and 4, with one encryption query and an abstra
 `ε` in place of the GHASH bound. -/
 -- ANCHOR: gcmOneTimeAEAD_security_of_axu
 theorem gcmOneTimeAEAD_security_of_axu (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
-    (hL : ValidMsgLength L)
+    (hL : ValidMsgLength L) (lenM : BitVec L → ℕ) (clen : ℕ → ℕ)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
     (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d)
     {ε : ℝ≥0∞} (hε : ε ≠ ⊤) (haxu : GhashIsAXU L ε) :
     let reduction := prfReduction iv L adv
     let forgeryBound : ℝ := (q_d : ℝ) * ε.toReal
-    AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) adv ≤
+    AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) lenM clen adv ≤
       (PRFScheme.prfAdvantage prp.toPRFScheme reduction).toReal + forgeryBound
 -- ANCHOR_END: gcmOneTimeAEAD_security_of_axu
   := by
@@ -218,7 +218,7 @@ theorem gcmOneTimeAEAD_security_of_axu (prp : PRPScheme K (BitVec 128)) (iv : Bi
       Pr{let x ← game1 prp L hL adv}[x = true] = Pr{let x ← game2 prp L hL adv}[x = true] :=
     (game1_eq_game2 prp L hL adv).prEvent_eq _
   unfold AEADScheme.distAdvantage
-  rw [← game4_eq_rand prp iv L hL adv, ← game0_eq_real prp iv L hL adv,
+  rw [← game4_eq_rand prp iv L hL lenM clen adv, ← game0_eq_real prp iv L hL lenM clen adv,
     ← prEvent_game3_eq_game4 prp L hL adv]
   calc |(Pr{let x ← game3 prp L hL adv}[x = true]).toReal -
         (Pr{let x ← game0 prp iv L hL adv}[x = true]).toReal|
@@ -261,14 +261,14 @@ with one encryption query (`q = 1`) and `q' = q_d` decryption queries. IOM12 bou
 and authenticity separately; here one bound covers the one-time IND-CCA game. -/
 -- ANCHOR: gcmOneTimeAEAD_security
 theorem gcmOneTimeAEAD_security (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
-    (hL : ValidMsgLength L)
+    (hL : ValidMsgLength L) (lenM : BitVec L → ℕ) (clen : ℕ → ℕ)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
     (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d) :
     let blocks : ℕ := (L + 127) / 128
     let reduction := prfReduction iv L adv
     let switchingBound : ℝ := ((blocks : ℝ) + 2) * ((blocks : ℝ) + 1) / 2 ^ 129
     let forgeryBound : ℝ := (q_d : ℝ) * ((2 ^ 57 + (blocks : ℝ) + 1) / 2 ^ 128)
-    AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) adv ≤
+    AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) lenM clen adv ≤
       (PRPScheme.prpAdvantage prp reduction).toReal + switchingBound + forgeryBound
 -- ANCHOR_END: gcmOneTimeAEAD_security
   := by
@@ -277,7 +277,7 @@ theorem gcmOneTimeAEAD_security (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96
     simp only [maxBlocks, lenAMax_blocks]
     push_cast
     ring
-  have hprf := gcmOneTimeAEAD_security_of_axu prp iv L hL adv q_d hq
+  have hprf := gcmOneTimeAEAD_security_of_axu prp iv L hL lenM clen adv q_d hq
     (ENNReal.div_ne_top (ENNReal.natCast_ne_top _) (by positivity))
     (ghash_isAXU_unconditional L)
   dsimp only at hprf

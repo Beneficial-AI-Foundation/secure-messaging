@@ -24,7 +24,8 @@ variable {K_e K_m M AD C_e T : Type}
   [LenSampleable C_e] [SampleableType T]
 
 /-- EtM game whose skeleton key slot is `()` and whose encryption answers with `enc m`. With
-`enc = DetSymmEncAlg.oracleEncrypt se b`, it samples the cipher key inside the encryption query. -/
+`enc = DetSymmEncAlg.oracleEncrypt se lenM clen b`, it samples the cipher key inside the
+encryption query. -/
 private noncomputable def lazyKeyGame (enc : M → ProbComp C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) : ProbComp Bool :=
   etmGameSkeleton (spec := unifSpec)
@@ -38,10 +39,11 @@ private noncomputable def lazyKeyGame (enc : M → ProbComp C_e)
 omit [Inhabited C_e] [Inhabited T] in
 /-- The one-time secrecy experiment of `encReduction` is the lazy-key game: the experiment
 answers the reduction's encryption query with `oracleEncrypt se b`. -/
-private theorem securityExpFixedBit_encReduction (se : DetSymmEncAlg M K_e C_e) (b : Bool)
+private theorem securityExpFixedBit_encReduction (se : DetSymmEncAlg M K_e C_e)
+    (lenM : M → ℕ) (clen : ℕ → ℕ) (b : Bool)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
-    DetSymmEncAlg.securityExpFixedBit se (encReduction se adv) b =
-      lazyKeyGame (DetSymmEncAlg.oracleEncrypt se b) adv := by
+    DetSymmEncAlg.securityExpFixedBit se lenM clen (encReduction se adv) b =
+      lazyKeyGame (DetSymmEncAlg.oracleEncrypt se lenM clen b) adv := by
   unfold DetSymmEncAlg.securityExpFixedBit encReduction lazyKeyGame etmGameSkeleton
   simp only [pure_bind, bind_pure_comp, ← StateT.run'_eq,
     QueryImpl.simulateQ_mapStateTBase_run']
@@ -50,7 +52,7 @@ private theorem securityExpFixedBit_encReduction (se : DetSymmEncAlg M K_e C_e) 
   intro t s _
   rw [Prod.map_id, id_map]
   obtain ⟨ch, qc⟩ := s
-  have hT0 : simulateQ (DetSymmEncAlg.otsImpl se b)
+  have hT0 : simulateQ (DetSymmEncAlg.otsImpl se lenM clen b)
       ((liftM ($ᵗ T : ProbComp T) :
         StateT (TagCache AD C_e T) (OracleComp (INDDollarOracleSpec M C_e)) T).run qc) =
         (fun x => (x, qc)) <$> ($ᵗ T : ProbComp T) := by
@@ -64,7 +66,7 @@ private theorem securityExpFixedBit_encReduction (se : DetSymmEncAlg M K_e C_e) 
           map_eq_bind_pure_comp, liftM_bind, Function.comp_apply, liftM_pure, StateT.run_mk]
     rw [hrun, DetSymmEncAlg.otsImpl, QueryImpl.simulateQ_add_liftM_left, DetSymmEncAlg.oracleUnif,
       QueryImpl.simulateQ_toQueryImpl]
-  have hT : simulateQ (HasQuery.toQueryImpl + DetSymmEncAlg.oracleEncrypt se b)
+  have hT : simulateQ (HasQuery.toQueryImpl + DetSymmEncAlg.oracleEncrypt se lenM clen b)
       ((monadLift ($ᵗ T : ProbComp T) :
         StateT (TagCache AD C_e T) (OracleComp (INDDollarOracleSpec M C_e)) T).run qc) =
         (fun x => (x, qc)) <$> ($ᵗ T : ProbComp T) := hT0
@@ -189,11 +191,11 @@ private theorem prEvent_keyFirst_eq_lazyKeyGame (se : DetSymmEncAlg M K_e C_e)
 
 omit [Inhabited C_e] [Inhabited T] in
 theorem game2_game3_le_enc
-    (se : DetSymmEncAlg M K_e C_e)
+    (se : DetSymmEncAlg M K_e C_e) (lenM : M → ℕ) (clen : ℕ → ℕ)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     |(Pr{let x ← game2 se adv}[x = true]).toReal -
-     (Pr{let x ← game3 se adv}[x = true]).toReal| ≤
-      DetSymmEncAlg.distAdvantage se (encReduction se adv) := by
+     (Pr{let x ← game3 se lenM clen adv}[x = true]).toReal| ≤
+      DetSymmEncAlg.distAdvantage se lenM clen (encReduction se adv) := by
   -- NRS14 Lemma 3, privacy reduction D₁(A).
   -- `game2` and `game3` sample the cipher key before the adversary runs, and the one-time
   -- secrecy experiment of `encReduction` samples it inside the encryption query. Both games
@@ -201,13 +203,15 @@ theorem game2_game3_le_enc
   -- once, and `prEvent_keyFirst_eq_lazyKeyGame` moves its sample into that query. The result is
   -- the lazy-key game, which `securityExpFixedBit_encReduction` identifies with the experiment.
   -- `game2` first needs its random-oracle tag replaced by a uniform one (`stepA`).
-  have hg3 : Pr{let x ← game3 se adv}[x = true] =
-      Pr{let x ← DetSymmEncAlg.securityExpFixedBit se (encReduction se adv) true}[x = true] := by
+  have hg3 : Pr{let x ← game3 se lenM clen adv}[x = true] =
+      Pr{let x ←
+        DetSymmEncAlg.securityExpFixedBit se lenM clen (encReduction se adv) true}[x = true] := by
     rw [securityExpFixedBit_encReduction]
     exact prEvent_keyFirst_eq_lazyKeyGame se
-      (fun k m => LenSampleable.unifSameLen (se.encrypt k m)) adv
+      (fun _ m => LenSampleable.unifOfLen (clen (lenM m))) adv
   have hg2 : Pr{let x ← game2 se adv}[x = true] =
-      Pr{let x ← DetSymmEncAlg.securityExpFixedBit se (encReduction se adv) false}[x = true] := by
+      Pr{let x ←
+        DetSymmEncAlg.securityExpFixedBit se lenM clen (encReduction se adv) false}[x = true] := by
     -- Step A (RO→uniform): replace game2's random-oracle tag with a fresh `$ᵗ T`. The cache is
     -- write-only (`verifyTag = pure false`) and the single encryption query hits a fresh point,
     -- so the tag is uniform; project the cache away (invariant `challenge = none → cache = ∅`).
@@ -299,7 +303,8 @@ theorem game2_game3_le_enc
     have stepB : Pr{let x ← (etmGameSkeleton (spec := unifSpec) se.keygen se.decrypt ∅
             (fun ke m => pure (se.encrypt ke m)) (fun _ => liftM ($ᵗ T : ProbComp T))
             (fun _ _ => pure false) gameUnifImpl adv : ProbComp Bool)}[x = true] =
-        Pr{let x ← DetSymmEncAlg.securityExpFixedBit se (encReduction se adv) false}[x = true] := by
+        Pr{let x ← (DetSymmEncAlg.securityExpFixedBit se lenM clen
+          (encReduction se adv) false)}[x = true] := by
       rw [securityExpFixedBit_encReduction]
       exact prEvent_keyFirst_eq_lazyKeyGame se (fun k m => pure (se.encrypt k m)) adv
     rw [stepA, stepB]

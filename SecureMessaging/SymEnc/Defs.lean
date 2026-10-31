@@ -35,11 +35,12 @@ ciphertexts have one length. It differs in two places.
 
 - Key generation: Ros26 samples the key uniformly from the key space. The game here samples
   it with `keygen`, which can be any distribution.
-- Random ciphertexts by length: the random branch returns a uniform ciphertext of the
-  same length as the real one. The length and the uniform sample of each length come from
-  the class `LenSampleable C`. With one length (`LenSampleable.const C`), this is the sampling
-  of Ros26 Definition 5.3.2. For schemes that satisfy `LengthRegular`, it is the uniform
-  sample from `Σ.C(|M|)` of Ros26 Definition 8.1.1.
+- Random ciphertexts by length: the game takes a message length `lenM : M → ℕ` and a
+  ciphertext length `clen : ℕ → ℕ`. The random branch returns a uniform ciphertext of length
+  `clen |m|`. The length and the uniform sample of each length come from the class
+  `LenSampleable C`. This is the sample from `Σ.C(|M|)` of Ros26 Definition 8.1.1, with
+  `Σ.C(ℓ) = {c ∈ C : |c| = clen ℓ}`. With one length (`LenSampleable.const C`), it is the
+  sampling of Ros26 Definition 5.3.2.
 -/
 
 open OracleSpec OracleComp
@@ -48,13 +49,14 @@ namespace DetSymmEncAlg
 
 variable {M K C : Type}
 
-/-- Let `lenM : M → ℕ` be a length function on messages, and write `|m| = lenM m` and
-`|c| = LenSampleable.len c`. The scheme `se` is length-regular if `|m| = |m'|` implies
-`|Enc(K, m)| = |Enc(K', m')|` for all keys `K, K'` and messages `m, m'` [NRS14, Section 2]. -/
+/-- Let `lenM : M → ℕ` be a length function on messages and `clen : ℕ → ℕ` a ciphertext length,
+and write `|m| = lenM m` and `|c| = LenSampleable.len c`. The scheme `se` is length-regular for
+`lenM` and `clen` if `|Enc(K, m)| = clen |m|` for all keys `K` and messages `m`. Then the
+ciphertext length depends only on the message length [NRS14, Section 2]. -/
 -- ANCHOR: DetSymmEncAlgLengthRegular
-def LengthRegular [LenSampleable C] (lenM : M → ℕ) (se : DetSymmEncAlg M K C) : Prop :=
-  ∀ (k k' : K) (m m' : M), lenM m = lenM m' →
-    LenSampleable.len (se.encrypt k m) = LenSampleable.len (se.encrypt k' m')
+def LengthRegular [LenSampleable C] (lenM : M → ℕ) (clen : ℕ → ℕ)
+    (se : DetSymmEncAlg M K C) : Prop :=
+  ∀ (k : K) (m : M), LenSampleable.len (se.encrypt k m) = clen (lenM m)
 -- ANCHOR_END: DetSymmEncAlgLengthRegular
 
 section OTS
@@ -63,7 +65,7 @@ section OTS
 
 The adversary has two oracles: uniform randomness, and an encryption oracle. Each encryption
 query `m` samples a fresh key `K ← keygen`. With `b = false`, the oracle returns `Enc(K, m)`.
-With `b = true`, it returns a ciphertext uniform among those of length `|Enc(K, m)|`. The game
+With `b = true`, it returns a ciphertext uniform among those of length `clen |m|`. The game
 has no state.
 -/
 
@@ -75,39 +77,39 @@ def oracleUnif : QueryImpl unifSpec ProbComp :=
 
 /-- Encryption oracle for the one-time secrecy game. Each call samples a fresh key `k`. With
 `b = false`, it returns `se.encrypt k m`. With `b = true`, it returns a uniform ciphertext of
-the same length as `se.encrypt k m`. -/
+length `clen (lenM m)`. -/
 -- ANCHOR: detSEOracleEncrypt
-def oracleEncrypt [LenSampleable C] (se : DetSymmEncAlg M K C) (b : Bool) :
-    QueryImpl (M →ₒ C) ProbComp :=
+def oracleEncrypt [LenSampleable C] (se : DetSymmEncAlg M K C) (lenM : M → ℕ)
+    (clen : ℕ → ℕ) (b : Bool) : QueryImpl (M →ₒ C) ProbComp :=
   fun m => do
     let k ← se.keygen
-    if b then LenSampleable.unifSameLen (se.encrypt k m)
+    if b then LenSampleable.unifOfLen (clen (lenM m))
     else pure (se.encrypt k m)
 -- ANCHOR_END: detSEOracleEncrypt
 
 /-- Oracles of the one-time secrecy game: `oracleUnif` for uniform randomness and
-`oracleEncrypt se b` for encryption. -/
-def otsImpl [LenSampleable C] (se : DetSymmEncAlg M K C) (b : Bool) :
-    QueryImpl (INDDollarOracleSpec M C) ProbComp :=
-  oracleUnif + oracleEncrypt se b
+`oracleEncrypt se lenM clen b` for encryption. -/
+def otsImpl [LenSampleable C] (se : DetSymmEncAlg M K C) (lenM : M → ℕ) (clen : ℕ → ℕ)
+    (b : Bool) : QueryImpl (INDDollarOracleSpec M C) ProbComp :=
+  oracleUnif + oracleEncrypt se lenM clen b
 
 /-! ### Security experiment -/
 
 /-- One-time secrecy experiment with a fixed challenge bit `b`. The branch `b = false` is
 `L_ots-real` of Ros26, and `b = true` is `L_ots-rand`. -/
 -- ANCHOR: detSESecurityExpFixedBit
-def securityExpFixedBit [LenSampleable C] (se : DetSymmEncAlg M K C)
-    (adversary : INDDollarAdversary M C) (b : Bool) : ProbComp Bool :=
-  simulateQ (otsImpl se b) adversary
+def securityExpFixedBit [LenSampleable C] (se : DetSymmEncAlg M K C) (lenM : M → ℕ)
+    (clen : ℕ → ℕ) (adversary : INDDollarAdversary M C) (b : Bool) : ProbComp Bool :=
+  simulateQ (otsImpl se lenM clen b) adversary
 -- ANCHOR_END: detSESecurityExpFixedBit
 
 /-- One-time secrecy distinguishing advantage:
 `|Pr[A^{L_ots-rand} = 1] - Pr[A^{L_ots-real} = 1]|`. -/
 -- ANCHOR: detSEDistAdvantage
-noncomputable def distAdvantage [LenSampleable C] (se : DetSymmEncAlg M K C)
-    (adversary : INDDollarAdversary M C) : ℝ :=
-  |(Pr{let x ← securityExpFixedBit se adversary true}[x = true]).toReal -
-   (Pr{let x ← securityExpFixedBit se adversary false}[x = true]).toReal|
+noncomputable def distAdvantage [LenSampleable C] (se : DetSymmEncAlg M K C) (lenM : M → ℕ)
+    (clen : ℕ → ℕ) (adversary : INDDollarAdversary M C) : ℝ :=
+  |(Pr{let x ← securityExpFixedBit se lenM clen adversary true}[x = true]).toReal -
+   (Pr{let x ← securityExpFixedBit se lenM clen adversary false}[x = true]).toReal|
 -- ANCHOR_END: detSEDistAdvantage
 
 end OTS

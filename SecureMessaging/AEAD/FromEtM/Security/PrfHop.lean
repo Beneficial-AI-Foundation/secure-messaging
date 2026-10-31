@@ -33,10 +33,11 @@ The skeleton's `(challenge, TagCache)` state projects via `Prod.fst` onto the AE
 `TagCache`.
 (Proof: swap the independent `km`/`ke` samples, then apply `run'_simulateQ_eq_of_query_map_eq`.) -/
 theorem game0_eq_real
-    (se : DetSymmEncAlg M K_e C_e) (prf : PRFScheme K_m (AD × C_e) T)
+    (se : DetSymmEncAlg M K_e C_e) (prf : PRFScheme K_m (AD × C_e) T) (lenM : M → ℕ) (clen : ℕ → ℕ)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     Pr{let x ← game0 se prf adv}[x = true] =
-      Pr{let x ← AEADScheme.securityExpFixedBit (etmAEAD se prf) adv false}[x = true] := by
+      Pr{let x ←
+        AEADScheme.securityExpFixedBit (etmAEAD se prf) lenM clen adv false}[x = true] := by
   -- Tail helper: `(simulateQ impl adv).run s >>= take-fst = (simulateQ impl adv).run' s`.
   -- Unfold only `etmAEAD.keygen` (keep `aeadSecurityImpl` folded to match the RHS
   -- `securityExpFixedBit` impl).
@@ -54,7 +55,7 @@ theorem game0_eq_real
   refine prEvent_bind_congr prf.keygen _ _ _ _ (fun km => ?_)
   -- Inner: project away the invariant `TagCache` via `Prod.fst`.
   rw [run'_simulateQ_eq_of_query_map_eq _
-        (AEADScheme.aeadSecurityImpl (etmAEAD se prf) false (ke, km))
+        (AEADScheme.aeadSecurityImpl (etmAEAD se prf) lenM clen false (ke, km))
         Prod.fst ?hproj adv (none, ∅)]
   case hproj =>
     intro t s

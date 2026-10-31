@@ -25,10 +25,11 @@ advantage of `se`, and a tag-guessing term:
 where `B = prfReduction se A` and `D = encReduction se A`, and `q_d`
 upper-bounds the number of the adversary's decryption queries.
 
-Both advantages sample the ideal ciphertext by length (`LenSampleable C_e`). With the constant
-grading `LenSampleable.const C_e`, both samplers are uniform on the whole ciphertext type
-(`unifSameLen_const`, `unifSameLen_const_prod`), so the bound is the one for whole-space
-sampling.
+Both advantages take a message length `lenM` and a ciphertext length `clen`, and sample the
+ideal ciphertext uniformly among the ciphertexts of length `clen |m|` (`LenSampleable C_e`). The
+bound holds for every `lenM` and `clen`. With the constant grading `LenSampleable.const C_e`,
+both samplers are uniform on the whole ciphertext type (`unifOfLen_const`,
+`unifOfLen_const_prod`), so the bound is the one for whole-space sampling.
 
 ## Notation
 
@@ -71,11 +72,11 @@ game1   c = Enc_ke(m)       ρ(ad,c)         verify ρ, then Dec
 game2   c = Enc_ke(m)       ρ(ad,c)         ⊥ (always reject)
   │                                                           Adv^{ots}   (encReduction)
   ▼   replace the real ciphertext and tag with uniform samples
-game3   c ←$ C_e(ℓ)         t ←$ T          ⊥ (always reject)
+game3   c ←$ C_e(ℓ)         t ←$ T          ⊥ (always reject), ℓ = |m|
 
   game0 = real one-time IND-CCA experiment
   game3 = ideal experiment ($ ciphertext, ⊥ decryption)
-  C_e(ℓ) = ciphertexts of length ℓ = |Enc_ke(m)| (`LenSampleable.unifSameLen`)
+  C_e(ℓ) = ciphertexts of length clen ℓ (`LenSampleable.unifOfLen (clen ℓ)`)
 ```
 
 ## Tag queries
@@ -183,13 +184,14 @@ Our one-time adaptation: `Adv^ivE → Adv^{ots}`, `2^τ → |T|`. -/
 -- ANCHOR: etmAEAD_security
 theorem etmAEAD_security
     (se : DetSymmEncAlg M K_e C_e) (prf : PRFScheme K_m (AD × C_e) T)
+    (lenM : M → ℕ) (clen : ℕ → ℕ)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
     (q_d : ℕ) [Fintype T]
     (hqd : AEADScheme.decryptQueryBound adv q_d) :
-    AEADScheme.distAdvantage (etmAEAD se prf) adv ≤
+    AEADScheme.distAdvantage (etmAEAD se prf) lenM clen adv ≤
       (PRFScheme.prfAdvantage prf (prfReduction se adv)).toReal +
       ↑q_d * (Fintype.card T : ℝ)⁻¹ +
-      DetSymmEncAlg.distAdvantage se (encReduction se adv)
+      DetSymmEncAlg.distAdvantage se lenM clen (encReduction se adv)
 -- ANCHOR_END: etmAEAD_security
   := by
   -- NRS14 Theorem 1 / Figure 9: triangle inequality over the game sequence.
@@ -199,19 +201,19 @@ theorem etmAEAD_security
   --   |game3 - game0| ≤ |game0 - game1| + |game1 - game2| + |game2 - game3|
   -- Substituting the three hop bounds gives the result.
   unfold AEADScheme.distAdvantage
-  rw [← game3_eq_rand se prf adv, ← game0_eq_real se prf adv]
-  calc |(Pr{let x ← game3 se adv}[x = true]).toReal -
+  rw [← game3_eq_rand se prf lenM clen adv, ← game0_eq_real se prf lenM clen adv]
+  calc |(Pr{let x ← game3 se lenM clen adv}[x = true]).toReal -
         (Pr{let x ← game0 se prf adv}[x = true]).toReal|
     _ ≤ |(Pr{let x ← game0 se prf adv}[x = true]).toReal -
          (Pr{let x ← game1 se adv}[x = true]).toReal| +
         |(Pr{let x ← game1 se adv}[x = true]).toReal -
          (Pr{let x ← game2 se adv}[x = true]).toReal| +
         |(Pr{let x ← game2 se adv}[x = true]).toReal -
-         (Pr{let x ← game3 se adv}[x = true]).toReal| := by
+         (Pr{let x ← game3 se lenM clen adv}[x = true]).toReal| := by
           set g0 := (Pr{let x ← game0 se prf adv}[x = true]).toReal
           set g1 := (Pr{let x ← game1 se adv}[x = true]).toReal
           set g2 := (Pr{let x ← game2 se adv}[x = true]).toReal
-          set g3 := (Pr{let x ← game3 se adv}[x = true]).toReal
+          set g3 := (Pr{let x ← game3 se lenM clen adv}[x = true]).toReal
           have h1 := abs_sub_le g3 g2 g0
           have h2 := abs_sub_le g2 g1 g0
           have h3 : |g2 - g3| = |g3 - g2| := abs_sub_comm g2 g3
@@ -220,8 +222,8 @@ theorem etmAEAD_security
           linarith
     _ ≤ (PRFScheme.prfAdvantage prf (prfReduction se adv)).toReal +
         ↑q_d * (Fintype.card T : ℝ)⁻¹ +
-        DetSymmEncAlg.distAdvantage se (encReduction se adv) :=
+        DetSymmEncAlg.distAdvantage se lenM clen (encReduction se adv) :=
       add_le_add (add_le_add (game0_game1_le_prf se prf adv)
-        (game1_game2_le_auth se adv q_d hqd)) (game2_game3_le_enc se adv)
+        (game1_game2_le_auth se adv q_d hqd)) (game2_game3_le_enc se lenM clen adv)
 
 end EtM

@@ -71,6 +71,10 @@ grading, an ind$ game samples from the whole type. -/
 @[simp] lemma unifSameLen_const {C : Type} [SampleableType C] (c : C) :
     @unifSameLen C (const C) c = $ᵗ C := rfl
 
+/-- With the constant grading, the sampler for every length is `$ᵗ C`. -/
+@[simp] lemma unifOfLen_const {C : Type} [SampleableType C] (n : ℕ) :
+    @unifOfLen C (const C) n = $ᵗ C := rfl
+
 /-- `BitVec n` has one length, so its sampler is `$ᵗ BitVec n`. -/
 instance instBitVec (n : ℕ) : LenSampleable (BitVec n) := const (BitVec n)
 
@@ -106,6 +110,14 @@ instance instProd (C T : Type) [LenSampleable C] [SampleableType T] :
       let t' ← $ᵗ T
       pure (c', t')) := rfl
 
+/-- The sampler for pairs of length `n` draws the first component by length and the second
+uniformly. -/
+@[simp] lemma unifOfLen_prod {C T : Type} [LenSampleable C] [SampleableType T] (n : ℕ) :
+    (unifOfLen n : ProbComp (C × T)) = (do
+      let c' ← unifOfLen n
+      let t' ← $ᵗ T
+      pure (c', t')) := rfl
+
 /-- `BitVec n` has one length, so the sampler is `$ᵗ BitVec n`. -/
 @[simp] lemma unifSameLen_bitVec {n : ℕ} (x : BitVec n) : unifSameLen x = $ᵗ BitVec n := rfl
 
@@ -118,6 +130,18 @@ lemma unifSameLen_const_prod {C T : Type} [SampleableType C] [SampleableType T] 
 lemma unifSameLen_bitVec_prod {n : ℕ} {T : Type} [SampleableType T] (p : BitVec n × T) :
     unifSameLen p = $ᵗ (BitVec n × T) :=
   unifSameLen_const_prod p
+
+/-- With the constant grading on the first component, the sampler for pairs of every length is
+`$ᵗ (C × T)`. -/
+lemma unifOfLen_const_prod {C T : Type} [SampleableType C] [SampleableType T] (n : ℕ) :
+    @unifOfLen (C × T) (@instProd C T (const C) _) n = $ᵗ (C × T) :=
+  (SampleableType.uniformSample_prod_eq_bind C T).symm
+
+/-- A pair with a `BitVec n` first component has one length, so the sampler is `$ᵗ` for every
+length. -/
+lemma unifOfLen_bitVec_prod {n : ℕ} {T : Type} [SampleableType T] (ℓ : ℕ) :
+    (unifOfLen ℓ : ProbComp (BitVec n × T)) = $ᵗ (BitVec n × T) :=
+  unifOfLen_const_prod ℓ
 
 /-- Bit strings of every length: the length of `⟨n, x⟩` is `n`, and the sampler for length `n`
 draws `x ← $ᵗ BitVec n`. -/

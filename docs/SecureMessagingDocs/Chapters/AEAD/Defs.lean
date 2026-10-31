@@ -81,7 +81,10 @@ In the oracles, $`\req\varphi` means: if $`\varphi` is false, the oracle returns
 $`\bot` and the game state does not change.
 
 The ciphertext space has a length function $`|\cdot| : \mathcal C \to \mathbb N`, and
-$`|e|` is the length of the ciphertext $`e`.
+$`|e|` is the length of the ciphertext $`e`. The game also takes a message length
+$`|m|` ($`\mathit{lenM}` in Lean) and a ciphertext length function
+$`\mathit{clen} : \mathbb N \to \mathbb N`. Let
+$`\mathcal C(\ell) = \{e \in \mathcal C : |e| = \mathit{clen}(\ell)\}`.
 :::::
 
 :::::gameCell "\\textsf{Deviations}" (kind := "scheme-notation")
@@ -92,10 +95,9 @@ We change {Informal.citet ACD19}[], Figure 1, in two places, marked by boxes in 
    associated data is secure, and the FS-AEAD scheme of their Figure 6 built on it is
    insecure, which contradicts their Theorem 5. {Informal.citet Ros26}[], Definition 9.6.5,
    also keys decryption on the pair of associated data and ciphertext.
-2. With $`b = 1`, $`\Oenc` samples $`e^*` uniformly among the ciphertexts of length
-   $`|\Enc(K, a, m)|`, not from all of $`\mathcal C`. {Informal.citet Ros26}[],
-   Definition 9.6.5, also samples the random ciphertext by length, uniformly from
-   $`\mathcal C(|m|)`, the ciphertexts of messages of length $`|m|`.
+2. With $`b = 1`, $`\Oenc` samples $`e^*` uniformly from $`\mathcal C(|m|)`, not from all
+   of $`\mathcal C`, as in {Informal.citet Ros26}[], Definition 9.6.5. The random branch
+   reads only the message length $`|m|`.
 :::::
 ::::::
 
@@ -106,21 +108,21 @@ $`\begin{array}{l}
 \pif\;b = 0\;\pthen \\
 \quad e^* \gets \Enc(K, a, m); \\
 \pelse \\
-\quad \boxed{e^* \sample \{e \in \mathcal C : |e| = |\Enc(K, a, m)|\}}; \\
+\quad \boxed{e^* \sample \mathcal C(|m|)}; \\
 \boxed{a^* \gets a}; \\
 \Return e^*
 \end{array}`
 
 ```anchor oracleEncrypt (project := ".") (module := SecureMessaging.AEAD.Defs)
 def oracleEncrypt [LenSampleable C] (ae : AEADScheme ProbComp M AD K C)
-    (b : Bool) (k : K) :
+    (lenM : M → ℕ) (clen : ℕ → ℕ) (b : Bool) (k : K) :
     QueryImpl (AD × M →ₒ Option C) (StateT (Option (AD × C)) ProbComp) :=
   fun (a, m) => do
     match (← get) with
     | some _ => pure none
     | none =>
       let eStar ← if b
-        then liftM (LenSampleable.unifSameLen (ae.encrypt k a m))
+        then liftM (LenSampleable.unifOfLen (clen (lenM m)))
         else pure (ae.encrypt k a m)
       set (some (a, eStar))
       return some eStar
@@ -185,9 +187,9 @@ abbrev aeadOneTimeCCASpec (AD M C : Type) :=
 
 ```anchor aeadSecurityImpl (project := ".") (module := SecureMessaging.AEAD.Defs)
 def aeadSecurityImpl [LenSampleable C] [DecidableEq AD] [DecidableEq C]
-    (ae : AEADScheme ProbComp M AD K C) (b : Bool) (k : K) :
+    (ae : AEADScheme ProbComp M AD K C) (lenM : M → ℕ) (clen : ℕ → ℕ) (b : Bool) (k : K) :
     QueryImpl (aeadOneTimeCCASpec AD M C) (StateT (Option (AD × C)) ProbComp) :=
-  oracleUnif AD C + oracleEncrypt ae b k + oracleDecrypt ae b k
+  oracleUnif AD C + oracleEncrypt ae lenM clen b k + oracleDecrypt ae b k
 ```
 
 :::leanPillCaption "type of adversaries with oracle access"
@@ -237,11 +239,11 @@ b' \gets \adv^{\O}; \\
 
 ```anchor securityExp (project := ".") (module := SecureMessaging.AEAD.Defs)
 def securityExp [LenSampleable C] [DecidableEq AD] [DecidableEq C]
-    (ae : AEADScheme ProbComp M AD K C)
+    (ae : AEADScheme ProbComp M AD K C) (lenM : M → ℕ) (clen : ℕ → ℕ)
     (adversary : OneTimeCCAAdversary AD M C) : ProbComp Bool := do
   let k ← ae.keygen
   let b ← $ᵗ Bool
-  let (b', _) ← (simulateQ (aeadSecurityImpl ae b k) adversary).run none
+  let (b', _) ← (simulateQ (aeadSecurityImpl ae lenM clen b k) adversary).run none
   return (b == b')
 ```
 :::::
@@ -259,9 +261,9 @@ $$`\mathsf{Adv}^{\textsf{guess}}_{\textsf{AEAD}}(\adv)
 
 ```anchor guessAdvantage (project := ".") (module := SecureMessaging.AEAD.Defs)
 noncomputable def guessAdvantage [LenSampleable C] [DecidableEq AD] [DecidableEq C]
-    (ae : AEADScheme ProbComp M AD K C)
+    (ae : AEADScheme ProbComp M AD K C) (lenM : M → ℕ) (clen : ℕ → ℕ)
     (adversary : OneTimeCCAAdversary AD M C) : ℝ :=
-  |(Pr{let x ← securityExp ae adversary}[x = true]).toReal - 1 / 2|
+  |(Pr{let x ← securityExp ae lenM clen adversary}[x = true]).toReal - 1 / 2|
 ```
 :::
 
@@ -280,11 +282,11 @@ with $`b` fixed to $`0` and to $`1`, and each returns the guess $`b'`.
 
 ```anchor securityExpFixedBit (project := ".") (module := SecureMessaging.AEAD.Defs)
 def securityExpFixedBit [LenSampleable C] [DecidableEq AD] [DecidableEq C]
-    (ae : AEADScheme ProbComp M AD K C)
+    (ae : AEADScheme ProbComp M AD K C) (lenM : M → ℕ) (clen : ℕ → ℕ)
     (adversary : OneTimeCCAAdversary AD M C)
     (b : Bool) : ProbComp Bool := do
   let k ← ae.keygen
-  let (b', _) ← (simulateQ (aeadSecurityImpl ae b k) adversary).run none
+  let (b', _) ← (simulateQ (aeadSecurityImpl ae lenM clen b k) adversary).run none
   return b'
 ```
 
@@ -293,10 +295,10 @@ def securityExpFixedBit [LenSampleable C] [DecidableEq AD] [DecidableEq C]
 
 ```anchor distAdvantage (project := ".") (module := SecureMessaging.AEAD.Defs)
 noncomputable def distAdvantage [LenSampleable C] [DecidableEq AD] [DecidableEq C]
-    (ae : AEADScheme ProbComp M AD K C)
+    (ae : AEADScheme ProbComp M AD K C) (lenM : M → ℕ) (clen : ℕ → ℕ)
     (adversary : OneTimeCCAAdversary AD M C) : ℝ :=
-  |(Pr{let x ← securityExpFixedBit ae adversary true}[x = true]).toReal -
-   (Pr{let x ← securityExpFixedBit ae adversary false}[x = true]).toReal|
+  |(Pr{let x ← securityExpFixedBit ae lenM clen adversary true}[x = true]).toReal -
+   (Pr{let x ← securityExpFixedBit ae lenM clen adversary false}[x = true]).toReal|
 ```
 :::::
 
@@ -312,8 +314,8 @@ $$`\mathsf{Adv}^{\textsf{guess}}_{\textsf{AEAD}}(\adv)
 ```anchor guessAdvantage_eq_distAdvantage_div_two (project := ".") (module := SecureMessaging.AEAD.Defs)
 lemma guessAdvantage_eq_distAdvantage_div_two
     [LenSampleable C] [DecidableEq AD] [DecidableEq C]
-    (ae : AEADScheme ProbComp M AD K C)
+    (ae : AEADScheme ProbComp M AD K C) (lenM : M → ℕ) (clen : ℕ → ℕ)
     (adversary : OneTimeCCAAdversary AD M C) :
-    guessAdvantage ae adversary = distAdvantage ae adversary / 2
+    guessAdvantage ae lenM clen adversary = distAdvantage ae lenM clen adversary / 2
 ```
 :::

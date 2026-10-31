@@ -350,11 +350,11 @@ variable {K : Type}
 /-- `game0` outputs `true` with the same probability as the real ACD19 experiment, the one with
 challenge bit `false`. -/
 theorem game0_eq_real (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
-    (hL : ValidMsgLength L)
+    (hL : ValidMsgLength L) (lenM : BitVec L → ℕ) (clen : ℕ → ℕ)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
     Pr{let x ← game0 prp iv L hL adv}[x = true] =
-      Pr{let x ←
-        AEADScheme.securityExpFixedBit (gcmOneTimeAEAD prp iv L hL) adv false}[x = true] := by
+      Pr{let x ← (AEADScheme.securityExpFixedBit (gcmOneTimeAEAD prp iv L hL) lenM clen adv
+        false)}[x = true] := by
   -- Unfold only the keygen projection (keep `aeadSecurityImpl` folded to match the RHS).
   have hkg : (gcmOneTimeAEAD prp iv L hL).keygen = prp.keygen := rfl
   unfold game0 AEADScheme.securityExpFixedBit
@@ -366,7 +366,8 @@ theorem game0_eq_real (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ
   -- `aeadSecurityImpl … false k` with `proj = id` (state `Option (AD × C)` on both sides).
   refine congrArg (fun o : ProbComp Bool => Pr{let x ← o}[x = true]) ?_
   refine run'_simulateQ_eq_of_query_map_eq _
-    (AEADScheme.aeadSecurityImpl (gcmOneTimeAEAD prp iv L hL) false k) id ?hproj adv none
+    (AEADScheme.aeadSecurityImpl (gcmOneTimeAEAD prp iv L hL) lenM clen false k) id ?hproj adv
+    none
   case hproj =>
     intro t s
     rcases t with (n | ⟨ad, m⟩) | ⟨ad, e⟩
@@ -399,11 +400,11 @@ theorem game4_eq_plain (prp : PRPScheme K (BitVec 128)) (L : ℕ) (hL : ValidMsg
 challenge bit `true`. The key is unused on the ideal side, and no hypothesis on `prp.keygen` is
 needed because every `ProbComp` is failure-free. -/
 theorem game4_eq_rand (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
-    (hL : ValidMsgLength L)
+    (hL : ValidMsgLength L) (lenM : BitVec L → ℕ) (clen : ℕ → ℕ)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
     Pr{let x ← game4 prp L hL adv}[x = true] =
-      Pr{let x ←
-        AEADScheme.securityExpFixedBit (gcmOneTimeAEAD prp iv L hL) adv true}[x = true] := by
+      Pr{let x ← (AEADScheme.securityExpFixedBit (gcmOneTimeAEAD prp iv L hL) lenM clen adv
+        true)}[x = true] := by
   -- (1)-(2) Unconsume and kill the dead tuple sample: both steps are `game4_eq_plain`.
   rw [(game4_eq_plain prp L hL adv).prEvent_eq]
   -- (3) RHS: the endpoint's keygen is dead on the random side; fold the tail to `.run'`.
@@ -414,11 +415,11 @@ theorem game4_eq_rand (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ
   -- (4) Kill it with losslessness; the per-key body is constant (= the LHS value by
   -- the `id`-projection).
   rw [prEvent_bind_eq_of_forall_eq prp.keygen (by simp)
-      (fun k => (simulateQ (AEADScheme.aeadSecurityImpl (gcmOneTimeAEAD prp iv L hL)
+      (fun k => (simulateQ (AEADScheme.aeadSecurityImpl (gcmOneTimeAEAD prp iv L hL) lenM clen
         true k) adv).run' none) _
       (fun k => congrArg (fun o => Pr{let x ← o}[x = true])
         (run'_simulateQ_eq_of_query_map_eq _
-          (AEADScheme.aeadSecurityImpl (gcmOneTimeAEAD prp iv L hL) true k)
+          (AEADScheme.aeadSecurityImpl (gcmOneTimeAEAD prp iv L hL) lenM clen true k)
           id ?_ adv none).symm)]
   · -- Per-query `id`-projection (`impl₁` is the eager `gcmRandRejectImpl`).
     intro t s
@@ -433,7 +434,7 @@ theorem game4_eq_rand (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ
         simp [gcmRandRejectImpl, gcmGameSkeleton, AEADScheme.aeadSecurityImpl,
           AEADScheme.oracleEncrypt, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
           StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_pure, map_pure,
-          LenSampleable.unifSameLen_bitVec_prod]
+          LenSampleable.unifOfLen_bitVec_prod, -LenSampleable.unifOfLen_prod]
     · -- ODecrypt: both sides always reject (`b = true` short-circuits `oracleDecrypt`).
       simp [gcmRandRejectImpl, gcmGameSkeleton, AEADScheme.aeadSecurityImpl,
         AEADScheme.oracleDecrypt, QueryImpl.add_apply_inr]

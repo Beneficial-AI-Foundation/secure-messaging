@@ -476,18 +476,22 @@ $$`\mathsf{Adv}^{\textsf{dist}}_{\textsf{GCM}}(\adv)
 
 There is no separate tag-guessing term, because $`\varepsilon \ge 2^{-128}` for every AXU bound of GHASH.
 
+The bound holds for every message length $`|m|` and ciphertext length function
+$`\mathit{clen}` of the game, because all ciphertexts in $`\bit^L \times \bit^{128}` have
+the same length.
+
 :::leanPillCaption "security theorem for any AXU bound"
 :::
 
 ```anchor gcmOneTimeAEAD_security_of_axu (project := ".") (module := SecureMessaging.AEAD.FromGCM.Security)
 theorem gcmOneTimeAEAD_security_of_axu (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
-    (hL : ValidMsgLength L)
+    (hL : ValidMsgLength L) (lenM : BitVec L → ℕ) (clen : ℕ → ℕ)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
     (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d)
     {ε : ℝ≥0∞} (hε : ε ≠ ⊤) (haxu : GhashIsAXU L ε) :
     let reduction := prfReduction iv L adv
     let forgeryBound : ℝ := (q_d : ℝ) * ε.toReal
-    AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) adv ≤
+    AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) lenM clen adv ≤
       (PRFScheme.prfAdvantage prp.toPRFScheme reduction).toReal + forgeryBound
 ```
 
@@ -524,19 +528,23 @@ $$`\mathsf{Adv}^{\textsf{dist}}_{\textsf{GCM}}(\adv)
 
 The second term is the switching bound, and the third is $`q_d` times the GHASH AXU bound.
 
+The bound holds for every message length $`|m|` and ciphertext length function
+$`\mathit{clen}` of the game, because all ciphertexts in $`\bit^L \times \bit^{128}` have
+the same length.
+
 :::leanPillCaption "security theorem"
 :::
 
 ```anchor gcmOneTimeAEAD_security (project := ".") (module := SecureMessaging.AEAD.FromGCM.Security)
 theorem gcmOneTimeAEAD_security (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
-    (hL : ValidMsgLength L)
+    (hL : ValidMsgLength L) (lenM : BitVec L → ℕ) (clen : ℕ → ℕ)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
     (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d) :
     let blocks : ℕ := (L + 127) / 128
     let reduction := prfReduction iv L adv
     let switchingBound : ℝ := ((blocks : ℝ) + 2) * ((blocks : ℝ) + 1) / 2 ^ 129
     let forgeryBound : ℝ := (q_d : ℝ) * ((2 ^ 57 + (blocks : ℝ) + 1) / 2 ^ 128)
-    AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) adv ≤
+    AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) lenM clen adv ≤
       (PRPScheme.prpAdvantage prp reduction).toReal + switchingBound + forgeryBound
 ```
 
