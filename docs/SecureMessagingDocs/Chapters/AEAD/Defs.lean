@@ -82,32 +82,18 @@ The ciphertext space has a length function $`|\cdot| : \mathcal C \to \mathbb N`
 $`|e|` is the length of the ciphertext $`e`.
 :::::
 
-:::::gameCell "\\textsf{Correction}" (kind := "scheme-notation")
-In {Informal.citet ACD19}[], Figure 1, $`\Odec` refuses every query $`(a, e^*)`, for every
-associated data $`a`. The game then never tests whether $`e^*` decrypts under associated
-data other than $`a^*`, so a scheme that ignores associated data is secure. Built on such a
-scheme, the FS-AEAD scheme of {Informal.citet ACD19}[], Figure 6, is insecure, which
-contradicts their Theorem 5. We correct this, marked by boxes in pseudocode:
+:::::gameCell "\\textsf{Deviations}" (kind := "scheme-notation")
+We change {Informal.citet ACD19}[], Figure 1, in two places, marked by boxes in pseudocode:
 
-- $`\Oenc` also stores the associated data $`a^*`;
-- $`\Odec` refuses only the challenge pair $`(a^*, e^*)`.
-
-{Informal.citet NRS14}[] restrict decryption queries in the same way.
-:::::
-
-:::::gameCell "\\textsf{Deviation}" (kind := "scheme-notation")
-In {Informal.citet ACD19}[], Figure 1, $`\Oenc` with $`b = 1` samples $`e^*` from the whole
-ciphertext space $`\mathcal C`. We sample $`e^*` uniformly among the ciphertexts of the same
-length as $`\Enc(K, a, m)`, as the $`\$` oracle of {Informal.citet NRS14}[], Figure 4, does
-(boxed in $`\Oenc`). If $`\mathcal C` is infinite, Figure 1 is not defined. If $`\mathcal C`
-is finite with several lengths, the length of $`e^*` alone can tell the two branches apart. For
-ciphertexts of one length, the two games are the same.
-
-The new game leaks $`|\Enc(K, a, m)|`. Suppose that, for fixed associated data, this length
-depends only on $`|m|`: $`|m| = |m'|` implies $`|\Enc(K, a, m)| = |\Enc(K', a, m')|` for all
-keys $`K, K'`. Then the new game suffices for Theorem 5 of {Informal.citet ACD19}[]: the
-FS-AEAD game of their Figure 5 requires $`|m_0| = |m_1|` and encrypts both messages under the same associated data,
-so the random challenge ciphertext does not depend on $`b`.
+1. $`\Odec` refuses only the challenge pair $`(a^*, e^*)`, as in {Informal.citet NRS14}[],
+   not every $`(a, e^*)`. So $`\Oenc` also stores $`a^*`. In Figure 1, a scheme that ignores
+   associated data is secure, and the FS-AEAD scheme of their Figure 6 built on it is
+   insecure, which contradicts their Theorem 5.
+2. With $`b = 1`, $`\Oenc` samples $`e^*` uniformly among the ciphertexts of length
+   $`|\Enc(K, a, m)|`, as in {Informal.citet NRS14}[], Figure 4, not from all of
+   $`\mathcal C`. Figure 1 is not defined if $`\mathcal C` is infinite. Theorem 5 still
+   holds if $`|m| = |m'|` implies $`|\Enc(K, a, m)| = |\Enc(K', a, m')|` for all keys
+   $`K, K'`, because their Figure 5 requires $`|m_0| = |m_1|` under the same associated data.
 :::::
 ::::::
 
@@ -216,7 +202,7 @@ Each oracle call has a solid arrow for the adversary's query and a dashed arrow 
 oracle's reply. An X marks a query that the game refuses; the reply is then $`\bot`.
 The adversary decrypts once before the challenge. $`\Oenc` answers only its first call.
 $`\Odec` refuses the challenge pair $`(a_1, e^*)` but answers $`(a_2, e^*)`, which
-{Informal.citet ACD19}[], Figure 1, refuses (see the correction above).
+{Informal.citet ACD19}[], Figure 1, refuses (see deviation 1 above).
 
 :::aeadAdversaryIllustration
 :::
