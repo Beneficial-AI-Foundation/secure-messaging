@@ -16,6 +16,7 @@ import ToVCVio.OracleComp.SimSemantics.StateT.LazyKey
 namespace EtM
 
 open OracleSpec OracleComp ENNReal PRFScheme AEADScheme
+open DetSymmEncAlg (INDDollarOracleSpec)
 
 variable {K_e K_m M AD C_e T : Type}
   [DecidableEq AD] [DecidableEq C_e] [DecidableEq T]
@@ -51,21 +52,21 @@ private theorem securityExpFixedBit_encReduction (se : DetSymmEncAlg M K_e C_e) 
   obtain ⟨ch, qc⟩ := s
   have hT0 : simulateQ (DetSymmEncAlg.otsImpl se b)
       ((liftM ($ᵗ T : ProbComp T) :
-        StateT (TagCache AD C_e T) (OracleComp (DetSymmEncAlg.otsSpec M C_e)) T).run qc) =
+        StateT (TagCache AD C_e T) (OracleComp (INDDollarOracleSpec M C_e)) T).run qc) =
         (fun x => (x, qc)) <$> ($ᵗ T : ProbComp T) := by
     have hrun : (liftM ($ᵗ T : ProbComp T) :
-        StateT (TagCache AD C_e T) (OracleComp (DetSymmEncAlg.otsSpec M C_e)) T).run qc =
+        StateT (TagCache AD C_e T) (OracleComp (INDDollarOracleSpec M C_e)) T).run qc =
           (liftM ((fun x => (x, qc)) <$> ($ᵗ T : ProbComp T)) :
-            OracleComp (DetSymmEncAlg.otsSpec M C_e) (T × TagCache AD C_e T)) := by
+            OracleComp (INDDollarOracleSpec M C_e) (T × TagCache AD C_e T)) := by
       change (liftM (liftM ($ᵗ T : ProbComp T) : StateT (TagCache AD C_e T) ProbComp T) :
-        StateT (TagCache AD C_e T) (OracleComp (DetSymmEncAlg.otsSpec M C_e)) T).run qc = _
+        StateT (TagCache AD C_e T) (OracleComp (INDDollarOracleSpec M C_e)) T).run qc = _
       simp only [liftM_StateT_eq, StateT.run_monadLift, monadLift_self, bind_pure_comp,
           map_eq_bind_pure_comp, liftM_bind, Function.comp_apply, liftM_pure, StateT.run_mk]
     rw [hrun, DetSymmEncAlg.otsImpl, QueryImpl.simulateQ_add_liftM_left, DetSymmEncAlg.oracleUnif,
       QueryImpl.simulateQ_toQueryImpl]
   have hT : simulateQ (HasQuery.toQueryImpl + DetSymmEncAlg.oracleEncrypt se b)
       ((monadLift ($ᵗ T : ProbComp T) :
-        StateT (TagCache AD C_e T) (OracleComp (DetSymmEncAlg.otsSpec M C_e)) T).run qc) =
+        StateT (TagCache AD C_e T) (OracleComp (INDDollarOracleSpec M C_e)) T).run qc) =
         (fun x => (x, qc)) <$> ($ᵗ T : ProbComp T) := hT0
   rcases t with (n | ⟨ad, m⟩) | ⟨ad, c⟩ <;> cases ch <;>
     simp only [add_apply_inl, QueryImpl.mapStateTBase, DetSymmEncAlg.otsImpl,

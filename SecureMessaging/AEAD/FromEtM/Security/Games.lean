@@ -217,7 +217,7 @@ serve as adversaries for the underlying primitive's security game.
 - `prfReduction`: game0 → game1 hop. Instantiates the skeleton with
   `spec = PRFOracleSpec`, forwarding tag queries to the external oracle.
 - `encReduction`: game2 → game3 hop. Instantiates the skeleton with
-  `spec = otsSpec`, forwarding encryption to its oracle, sampling tags
+  `spec = INDDollarOracleSpec M C_e`, forwarding encryption to its oracle, sampling tags
   uniformly, and always rejecting decrypt (since `verifyTag = pure false`
   in both game2 and game3, no `ke` or `se.decrypt` access is needed).
 
@@ -259,8 +259,8 @@ noncomputable def prfReduction
     unifImpl
     adv
 
-/-- One-time secrecy reduction: skeleton with `spec = otsSpec`, encryption queries
-forwarded to the external oracle (which is either real encryption under a fresh key or
+/-- One-time secrecy reduction: skeleton with `spec = INDDollarOracleSpec M C_e`, encryption
+queries forwarded to the external oracle (which is either real encryption under a fresh key or
 random).
 
 NRS14 Lemma 3, privacy reduction D₁(A).
@@ -285,7 +285,7 @@ the one-time secrecy oracle. -/
 noncomputable def encReduction
     (_se : DetSymmEncAlg M K_e C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
-    : DetSymmEncAlg.OTSAdversary M C_e
+    : DetSymmEncAlg.INDDollarAdversary M C_e
 -- ANCHOR_END: etmEncReduction
     :=
   let spec := unifSpec + (M →ₒ C_e)

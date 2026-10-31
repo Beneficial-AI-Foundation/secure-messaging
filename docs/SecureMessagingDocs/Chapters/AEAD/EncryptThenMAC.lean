@@ -62,13 +62,14 @@ $`\Dec(K, \Enc(K, m)) = m` for all keys $`K` and messages $`m`.
 
 Each ciphertext $`c` has a length $`|c|`, and the ciphertexts of each length form a finite
 nonempty set, so that the security game can sample from it uniformly. Let $`|m|` denote a
-fixed length function on messages ($`\mathit{lenM}` in Lean). $`\mathsf{SE}` is
-length-regular if $`|m| = |m'|` implies $`|\Enc(K, m)| = |\Enc(K', m')|` for all keys
-$`K, K'` ({Informal.citet NRS14}[], Section 2).
+fixed length function on messages. $`\mathsf{SE}` is length-regular if $`|m| = |m'|` implies
+$`|\Enc(K, m)| = |\Enc(K', m')|` for all keys $`K, K'` ({Informal.citet NRS14}[], Section 2).
 
 The Lean definitions of the scheme and of correctness are VCVio's `DetSymmEncAlg` and
 `DetSymmEncAlg.PerfectlyCorrect`. VCVio has no length regularity, so
-`DetSymmEncAlg.LengthRegular` is defined here.
+`DetSymmEncAlg.LengthRegular` is defined here. Its argument `lenM` is the message length
+$`|m|`, and the class `LenSampleable C` gives the ciphertext length and the uniform sample of
+each length.
 
 :::leanPillCaption "length regularity"
 :::
@@ -134,7 +135,7 @@ b' \gets \adv^{\Oenc}; \\
 
 ```anchor detSESecurityExpFixedBit (project := ".") (module := SecureMessaging.SymEnc.Defs)
 def securityExpFixedBit [LenSampleable C] (se : DetSymmEncAlg M K C)
-    (adversary : OTSAdversary M C) (b : Bool) : ProbComp Bool :=
+    (adversary : INDDollarAdversary M C) (b : Bool) : ProbComp Bool :=
   simulateQ (otsImpl se b) adversary
 ```
 :::::
@@ -151,7 +152,7 @@ $$`\mathsf{Adv}^{\textsf{ots}}_{\textsf{SE}}(\adv)
 
 ```anchor detSEDistAdvantage (project := ".") (module := SecureMessaging.SymEnc.Defs)
 noncomputable def distAdvantage [LenSampleable C] (se : DetSymmEncAlg M K C)
-    (adversary : OTSAdversary M C) : ℝ :=
+    (adversary : INDDollarAdversary M C) : ℝ :=
   |(Pr{let x ← securityExpFixedBit se adversary true}[x = true]).toReal -
    (Pr{let x ← securityExpFixedBit se adversary false}[x = true]).toReal|
 ```
@@ -374,6 +375,6 @@ noncomputable def prfReduction
 noncomputable def encReduction
     (_se : DetSymmEncAlg M K_e C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
-    : DetSymmEncAlg.OTSAdversary M C_e
+    : DetSymmEncAlg.INDDollarAdversary M C_e
 ```
 :::::
