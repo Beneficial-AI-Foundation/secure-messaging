@@ -79,6 +79,7 @@ import SecureMessaging.SCKA.MLKEMBraid.Construction
 import SecureMessaging.SCKA.MLKEMBraid.Correctness
 import SecureMessaging.SCKA.SPQR.Chunked
 import SecureMessaging.SCKA.SPQR.Construction
+import SecureMessaging.SCKA.SPQR.Correctness
 import SecureMessaging.SCKA.SPQR.Correctness.Relation
 import SecureMessaging.SCKA.SPQR.Correspondence
 import SecureMessaging.SCKA.SPQR.Instances
