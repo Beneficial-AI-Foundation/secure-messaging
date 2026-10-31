@@ -457,7 +457,7 @@ theorem prfAdvantage_le_prpAdvantage_switching {K : Type}
 :::defTitle "aead_gcm_security_of_axu" "AEAD-GCM security for any AXU bound"
 :::
 
-:::::theorem "aead_gcm_security_of_axu" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_security_of_axu, GCM.prfReduction") (uses := "aead_gcm_spec, aead_gcm_ghash_hash, prf, aead_security_exp, aead_dist_advantage, aead_decrypt_query_bound, aead_oracles")
+:::::theorem "aead_gcm_security_of_axu" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_security_of_axu, GCM.prfReduction") (uses := "aead_gcm_spec, aead_gcm_ghash_hash, prf, aead_security_exp, aead_dist_advantage, aead_oracles")
 Adapted from {Informal.citet IOM12}[], Corollaries 3 and 4, with one encryption query and an
 abstract AXU bound $`\varepsilon` in place of the GHASH bound.
 
@@ -504,7 +504,7 @@ noncomputable def prfReduction (iv : BitVec 96) (L : ℕ)
 :::defTitle "aead_gcm_security" "AEAD-GCM security"
 :::
 
-::::theorem "aead_gcm_security" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_security, GCM.prfReduction") (tags := "gh-23") (uses := "aead_gcm_spec, aead_gcm_security_of_axu, aead_gcm_ghash_axu, aead_gcm_prp_switching, aead_security_exp, aead_dist_advantage, aead_decrypt_query_bound, prp, aead_oracles")
+::::theorem "aead_gcm_security" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_security, GCM.prfReduction") (tags := "gh-23") (uses := "aead_gcm_spec, aead_gcm_security_of_axu, aead_gcm_ghash_axu, aead_gcm_prp_switching, aead_security_exp, aead_dist_advantage, prp, aead_oracles")
 Adapted from {Informal.citet IOM12}[], Corollary 3 (privacy) and Corollary 4 (authenticity)
 for 96-bit nonces, with one encryption query. We prove one bound for the one-time IND-CCA
 game instead of two separate bounds.

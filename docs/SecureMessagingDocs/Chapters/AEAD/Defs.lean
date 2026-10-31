@@ -160,7 +160,7 @@ def Correct (ae : AEADScheme m M AD K C) : Prop :=
 :::defTitle "aead_security_exp" "AEAD one-time IND-CCA security experiment"
 :::
 
-:::::::definition "aead_security_exp" (lean := "AEADScheme.securityExp, AEADScheme.aeadSecurityImpl, AEADScheme.OneTimeCCAAdversary") (tags := "gh-194") (uses := "aead, aead_oracles")
+:::::::definition "aead_security_exp" (lean := "AEADScheme.securityExp, AEADScheme.aeadSecurityImpl, AEADScheme.OneTimeCCAAdversary, AEADScheme.decryptQueryBound") (tags := "gh-194") (uses := "aead, aead_oracles")
 Adapted from {Informal.citet ACD19}[], Figure 1 and Definition 2.
 
 Let $`\O = \{\Oenc, \Odec\}` and denote by $`\adv^{\O}` an adversary with oracle access to
@@ -191,6 +191,15 @@ def aeadSecurityImpl [LenSampleable C] [DecidableEq AD] [DecidableEq C]
 ```anchor OneTimeCCAAdversary (project := ".") (module := SecureMessaging.AEAD.Defs)
 abbrev OneTimeCCAAdversary (AD M C : Type) :=
   OracleComp (aeadOneTimeCCASpec AD M C) Bool
+```
+
+:::leanPillCaption "the adversary makes at most $`q_d` queries to $`\\Odec`"
+:::
+
+```anchor decryptQueryBound (project := ".") (module := SecureMessaging.AEAD.Defs)
+def decryptQueryBound (adv : OneTimeCCAAdversary AD M C)
+    (q_d : ℕ) : Prop :=
+  adv.IsQueryBoundP (· matches Sum.inr _) q_d
 ```
 
 ::::::gameGrid
@@ -233,21 +242,6 @@ def securityExp [LenSampleable C] [DecidableEq AD] [DecidableEq C]
 :::::
 ::::::
 :::::::
-
-:::defTitle "aead_decrypt_query_bound" "AEAD decryption-query bound"
-:::
-
-:::definition "aead_decrypt_query_bound" (lean := "AEADScheme.decryptQueryBound") (uses := "aead_security_exp")
-$`\mathsf{decryptQueryBound}(\adv, q_d)` holds if the adversary $`\adv` makes at most
-$`q_d` queries to $`\Odec`. The security bounds for Encrypt-then-MAC and GCM have a term in
-$`q_d`, the number of tries the adversary has to forge a tag.
-
-```anchor decryptQueryBound (project := ".") (module := SecureMessaging.AEAD.Defs)
-def decryptQueryBound (adv : OneTimeCCAAdversary AD M C)
-    (q_d : ℕ) : Prop :=
-  adv.IsQueryBoundP (· matches Sum.inr _) q_d
-```
-:::
 
 :::defTitle "aead_guess_advantage" "AEAD guess advantage"
 :::

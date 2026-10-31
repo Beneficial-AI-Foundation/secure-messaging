@@ -349,7 +349,7 @@ theorem etmAEAD_correct (se : DetSEAlg K_e M C_e)
 :::defTitle "aead_etm_security" "AEAD encrypt-then-MAC security"
 :::
 
-:::::theorem "aead_etm_security" (parent := "aead_encrypt_then_mac") (lean := "EtM.etmAEAD_security, EtM.prfReduction, EtM.encReduction") (tags := "gh-26") (uses := "aead_etm_spec, aead_etm_det_se, aead_etm_det_se_ots, prf, aead_security_exp, aead_dist_advantage, aead_decrypt_query_bound, aead_oracles")
+:::::theorem "aead_etm_security" (parent := "aead_encrypt_then_mac") (lean := "EtM.etmAEAD_security, EtM.prfReduction, EtM.encReduction") (tags := "gh-26") (uses := "aead_etm_spec, aead_etm_det_se, aead_etm_det_se_ots, prf, aead_security_exp, aead_dist_advantage, aead_oracles")
 Adapted from {Informal.citet NRS14}[], Theorem 1.
 
 Let $`\mathsf{SE}` be a deterministic symmetric encryption scheme with ciphertext space
