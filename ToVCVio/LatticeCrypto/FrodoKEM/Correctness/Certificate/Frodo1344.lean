@@ -10,7 +10,7 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.ClosedForm
 
 namespace FrodoKEM.Certificate
 
-/-- The modern semantic certificate has the kernel-checked exact output pair. -/
+/-- The certificate values `(v₁, v₂)` for FrodoKEM-1344, computed by the kernel. -/
 theorem certificate1344 :
     FailureCertificate.RoundedConvolution.certificateValues
       (config .FrodoKEM1344) (badWeight .FrodoKEM1344) =

@@ -4,6 +4,7 @@ import SecureMessagingDocs.Bibliography
 import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
 import ToVCVio.LatticeCrypto.FrodoKEM.Construction
+import ToVCVio.LatticeCrypto.FrodoKEM.Correctness
 
 /-! # Blueprint chapter: FrodoKEM -/
 
@@ -258,11 +259,27 @@ def decaps {ps : ParameterSet} (ops : Operations ps)
 :::defTitle "frodo_kem_correctness" "FrodoKEM correctness"
 :::
 
-::::theorem "frodo_kem_correctness" (parent := "frodo_kem") (tags := "gh-260") (uses := "frodo_kem_scheme")
-$`\todo`
+::::theorem "frodo_kem_correctness" (parent := "frodo_kem") (lean := "FrodoKEM.ROM.honestFailureProb_tenth_power_le") (tags := "gh-260") (uses := "frodo_kem_scheme")
+Model SHAKE as a random oracle: a table of uniformly random answers, sampled once. Then the probability that honest decapsulation returns a different shared secret from encapsulation is at most $`2^{-138.7}`, $`2^{-199.6}` and $`2^{-252.5}` for FrodoKEM-640, -976 and -1344. These are the values published in {Informal.citet FrodoKEM}[]. The probability is averaged over the table and all honest random choices.
 
-:::leanPill "missing"
+The proof has six steps, described in detail in `ToVCVio/LatticeCrypto/FrodoKEM/Correctness.lean`:
+
+1. Decoding returns the original message when the added noise is less than half the encoding spacing ({Informal.citet FrodoKEM}[], Lemma 1).
+2. So decapsulation fails only if the decryption noise matrix $`S'E + E'' - E'S` is too large.
+3. In the random-oracle model, the five noise matrices have the same distribution as five independently sampled ones.
+4. By the union bound over the $`8 \times 8` entries, the failure probability is at most 64 times that of one entry.
+5. One entry is the sum of $`2n` products of two independent errors and one more error, whose exact distribution is a power of the error distribution.
+6. A version of that distribution, rounded down and cut to a window, is computed inside Lean's kernel. Rounding down never increases a count, and all mass that is lost is counted as failure, so the result is an upper bound.
+
+:::leanPillCaption "Failure bound in the random-oracle model"
 :::
+
+```anchor frodoKEM_correctness (project := ".") (module := ToVCVio.LatticeCrypto.FrodoKEM.Correctness.RandomOracle.Numerical)
+theorem honestFailureProb_tenth_power_le
+    (ps : ParameterSet) (gen : Generator ps) :
+    honestFailureProb ps gen ^ 10 *
+      2 ^ Certificate.exponentTenths ps ≤ 1
+```
 ::::
 
 :::defTitle "frodo_kem_security" "FrodoKEM security"

@@ -163,8 +163,9 @@ These follow Algorithms 8–10 of `[CiC25]` and Sections 7.1–7.3 of `[LBES26]`
 This module defines the PKE and KEM algorithms using caller-supplied Gen and SHAKE
 functions. Input lengths and matrix dimensions are specified by the Lean types.
 Concrete primitive implementations, byte parsing,
-signed secret-key serialization, constant-time execution, decryption-failure bounds
-and cryptographic security proofs are outside the present formalization.
+signed secret-key serialization, constant-time execution and cryptographic security
+proofs are outside the present formalization. Decryption-failure bounds, in a model where
+SHAKE is a random oracle, are proved in `FrodoKEM/Correctness.lean`.
 The types of the supplied functions do not ensure that they implement the specified
 Gen and SHAKE algorithms or satisfy the assumptions needed for security proofs.
 

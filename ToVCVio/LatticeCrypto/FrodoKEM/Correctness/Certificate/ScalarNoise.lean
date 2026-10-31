@@ -11,8 +11,9 @@ import VCVio.EvalDist.Monad.Seq
 /-!
 # Exact scalar product-sum noise law
 
-This unit derives the exact entry-noise distribution from the shared integer
-counting measure.
+For independent samples of a symmetric integer distribution `χ`, the noise
+`∑ s₁ e₀ - ∑ e₁ s₀ + e″` has an exact distribution: a power of the counting measure of `χ`.
+`probOutput_entryNoiseIntExp_counts` proves this.
 -/
 
 open OracleComp
@@ -23,7 +24,8 @@ namespace ToVCVio.Probability.ScalarNoise
 open FailureCertificate.RoundedConvolution ToVCVio
 
 
-/-- The integer noise in one entry of a first exchange. -/
+/-- One noise entry: two sums of `n` products of independent samples of `χ`, plus one more
+sample. -/
 def entryNoiseIntExp (n : ℕ) (χ : ProbComp ℤ) : ProbComp ℤ := do
   let s0 ← ProbComp.sampleIID n χ
   let e0 ← ProbComp.sampleIID n χ

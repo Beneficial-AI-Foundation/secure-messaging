@@ -11,9 +11,11 @@ import VCVio.OracleComp.QueryTracking.RandomOracle.EagerTable
 /-!
 # FrodoKEM correctness in the finite random-oracle model
 
-This file proves that the five adaptive pre-residual random-oracle queries induce the same joint
-noise law as independent ideal FrodoKEM noise. It then averages the existing deterministic KEM
-failure containment over the sampled finite oracle table and honest coins.
+With SHAKE replaced by a uniformly random table, the KEM makes five table lookups before the
+noise is fixed. This file proves that the resulting error matrices have the same joint
+distribution as five independently sampled ones. Averaging the bound of
+`FailureProbability.lean` over the table then bounds the KEM failure probability by the
+probability of large noise in the ideal experiment.
 -/
 
 namespace FrodoKEM.ROM
@@ -450,7 +452,7 @@ private theorem five_coin_average {T A B C D E : Type}
     refine prob_bind_const _ _ fun _ => ?_
   simpa only [← bind_pure_comp] using h _ _ _ _ _
 
-/-- The table-averaged residual-noise event has exactly the accepted ideal noise law. -/
+/-- Averaged over the table, large noise is exactly as likely as in the ideal experiment. -/
 theorem honestNoiseBadProb_eq_ideal
     (ps : ParameterSet) (gen : Generator ps) :
     honestNoiseBadProb ps gen = Ideal.noiseBadProb ps := by
@@ -481,7 +483,7 @@ private theorem honestFailureProb_le_honestNoiseBadProb
   intro H _
   exact KEM.honestFailureProb_le_honestNoiseBadProb (operations ps gen H)
 
-/-- Honest finite-random-oracle KEM failure is bounded by the accepted ideal noise event. -/
+/-- In the random-oracle model, KEM failure is at most as likely as large ideal noise. -/
 theorem honestFailureProb_le_idealNoiseBadProb
     (ps : ParameterSet) (gen : Generator ps) :
     honestFailureProb ps gen ≤ Ideal.noiseBadProb ps := by

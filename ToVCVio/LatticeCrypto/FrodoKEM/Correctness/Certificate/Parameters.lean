@@ -7,7 +7,7 @@ Authors: Beneficial AI Foundation
 import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Ideal
 import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.RoundedConvolution
 
-/-! # Exact certificate parameters for the modern FrodoKEM families -/
+/-! # Certificate parameters for each FrodoKEM family -/
 
 open scoped ENNReal
 
@@ -25,7 +25,7 @@ def window : ParameterSet → ℕ
   | .FrodoKEM976 | .eFrodoKEM976 => 4608
   | .FrodoKEM1344 | .eFrodoKEM1344 => 2560
 
-/-- Generic recurrence configured with the exact modern sampler weights. -/
+/-- The rounded-convolution settings for one family, weighted by the exact error-sampler counts. -/
 def config (ps : ParameterSet) :
     FailureCertificate.RoundedConvolution.Config :=
   {
@@ -37,11 +37,11 @@ def config (ps : ParameterSet) :
     weight := noiseCount ps
   }
 
-/-- Indicator of the asymmetric decoder failure interval. -/
+/-- `1` outside the decoding interval `[-threshold, threshold)` and `0` inside it. -/
 def badWeight (ps : ParameterSet) (z : ℤ) : ℕ :=
   if Ideal.entryBad ps z then 1 else 0
 
-/-- Exact certified block-bound numerator for each family. -/
+/-- Numerator of `failureBound`, the certified bound on decryption failure. -/
 def numerator : ParameterSet → ℕ
   | .FrodoKEM640 | .eFrodoKEM640 => 697039582896201685440
   | .FrodoKEM976 | .eFrodoKEM976 => 6219212683815615322880
@@ -53,7 +53,7 @@ def exponentTenths : ParameterSet → ℕ
   | .FrodoKEM976 | .eFrodoKEM976 => 1996
   | .FrodoKEM1344 | .eFrodoKEM1344 => 2525
 
-/-- Exact rational upper bound for the independent-sampling experiment. -/
+/-- Certified bound on decryption failure when the errors are sampled independently. -/
 noncomputable def failureBound (ps : ParameterSet) : ℝ≥0∞ :=
   (numerator ps : ℝ≥0∞) / 2 ^ (precision ps + lenChi)
 

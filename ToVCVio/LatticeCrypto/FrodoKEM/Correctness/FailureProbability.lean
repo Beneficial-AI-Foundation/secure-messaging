@@ -7,11 +7,11 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Deterministic
 import VCVio.EvalDist.ProbabilityBounds
 
 /-!
-# FrodoKEM honest failure containment
+# FrodoKEM failure from large noise
 
-Honest decapsulation failure is contained in the residual-noise bad event under the actual
-joint distribution of key generation and encapsulation coins. This result preserves the
-dependencies introduced by seed derivation and assumes no sampling property of SHAKE.
+Honest decapsulation fails only if the decryption noise is too large, so the failure
+probability is at most the probability of large noise. The seeds are derived exactly as the
+KEM derives them, and no property of SHAKE is assumed.
 -/
 
 namespace FrodoKEM.KEM
@@ -25,7 +25,7 @@ noncomputable def honestFailureProb {ps : ParameterSet}
   Pr{let keys ← keygen ops; let out ← encaps ops keys.1}[
     decaps ops keys.2 out.1 ≠ out.2]
 
-/-- Residual-noise failure with the sampling seeds derived by the actual KEM operations. -/
+/-- The probability of large decryption noise, with seeds derived as the KEM derives them. -/
 noncomputable def honestNoiseBadProb {ps : ParameterSet}
     (ops : Operations ps) : ℝ≥0∞ :=
   Pr{
@@ -42,7 +42,7 @@ noncomputable def honestNoiseBadProb {ps : ParameterSet}
           message salt).1)
   ]
 
-/-- The actual honest KEM failure probability is bounded by its joint residual-noise event. -/
+/-- Honest KEM failure is at most as likely as large decryption noise. -/
 theorem honestFailureProb_le_honestNoiseBadProb
     {ps : ParameterSet} (ops : Operations ps) :
     honestFailureProb ops ≤ honestNoiseBadProb ops := by

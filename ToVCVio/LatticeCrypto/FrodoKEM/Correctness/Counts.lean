@@ -7,10 +7,10 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.Parameters
 import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.ScalarNoise
 
 /-!
-# Exact scalar noise counts for modern FrodoKEM
+# Exact noise counts for FrodoKEM
 
-The generic scalar convolution theorem applies to the independent scalar experiment.
-The adapter uses its source distribution and contains no reconciliation data.
+Applies the general result of `Certificate/ScalarNoise.lean` to FrodoKEM's error sampler,
+giving the exact distribution of one entry of the decryption noise.
 -/
 
 namespace FrodoKEM.Certificate
@@ -31,7 +31,7 @@ private theorem counts_apply (ps : ParameterSet) (z : ℤ) :
       simp [noiseCount, hn]
     rw [hzero, FailureCertificate.RoundedConvolution.counts_apply_of_not_mem (config ps) z hz]
 
-/-- The modern source count measure has exactly sixteen bits of mass. -/
+/-- The error-sampler counts add up to `2 ^ 16`, one for each 16-bit input. -/
 theorem counts_totalMass (ps : ParameterSet) :
     ToVCVio.totalMass
       (FailureCertificate.RoundedConvolution.counts (config ps)) = 2 ^ lenChi := by
@@ -45,7 +45,7 @@ theorem counts_totalMass (ps : ParameterSet) :
   simp_rw [hsingle]
   cases ps <;> decide
 
-/-- An ideal residual entry has the exact convolution law of `2n` products and one error. -/
+/-- One noise entry is distributed as a sum of `2n` products of two errors and one more error. -/
 theorem probOutput_entryNoiseExp (ps : ParameterSet) (z : ℤ) :
     Pr{let x ← Ideal.entryNoiseExp ps}[x = z] =
       (((ToVCVio.productMeasure

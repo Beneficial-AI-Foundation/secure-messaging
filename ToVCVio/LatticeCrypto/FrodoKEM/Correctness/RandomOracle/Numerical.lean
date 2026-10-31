@@ -24,10 +24,13 @@ theorem honestFailureProb_le_failureBound
     (Certificate.noiseBadProb_le_failureBound ps)
 
 /-- The oracle-averaged honest KEM experiment meets all three exact fractional-bit targets. -/
+-- ANCHOR: frodoKEM_correctness
 theorem honestFailureProb_tenth_power_le
     (ps : ParameterSet) (gen : Generator ps) :
     honestFailureProb ps gen ^ 10 *
-      2 ^ Certificate.exponentTenths ps ≤ 1 :=
+      2 ^ Certificate.exponentTenths ps ≤ 1
+-- ANCHOR_END: frodoKEM_correctness
+    :=
   (mul_le_mul' (pow_le_pow_left' (honestFailureProb_le_failureBound ps gen) 10)
     le_rfl).trans (Certificate.failureBound_tenth_power_le ps)
 
