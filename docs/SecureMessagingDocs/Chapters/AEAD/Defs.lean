@@ -85,13 +85,12 @@ $`|e|` is the length of the ciphertext $`e`.
 :::::gameCell "\\textsf{Deviations}" (kind := "scheme-notation")
 We change {Informal.citet ACD19}[], Figure 1, in two places, marked by boxes in pseudocode:
 
-1. $`\Odec` refuses only the challenge pair $`(a^*, e^*)`, as in {Informal.citet NRS14}[],
-   not every $`(a, e^*)`. So $`\Oenc` also stores $`a^*`. In Figure 1, a scheme that ignores
+1. $`\Odec` refuses only the challenge pair $`(a^*, e^*)`,
+   not every $`(a, e^*)`. Thus $`\Oenc` also stores $`a^*`. In Figure 1, a scheme that ignores
    associated data is secure, and the FS-AEAD scheme of their Figure 6 built on it is
    insecure, which contradicts their Theorem 5.
 2. With $`b = 1`, $`\Oenc` samples $`e^*` uniformly among the ciphertexts of length
-   $`|\Enc(K, a, m)|`, as in {Informal.citet NRS14}[], Figure 4, not from all of
-   $`\mathcal C`.
+   $`|\Enc(K, a, m)|`, not from all of $`\mathcal C`.
 :::::
 ::::::
 
