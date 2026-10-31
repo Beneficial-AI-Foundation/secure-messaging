@@ -91,9 +91,7 @@ We change {Informal.citet ACD19}[], Figure 1, in two places, marked by boxes in 
    insecure, which contradicts their Theorem 5.
 2. With $`b = 1`, $`\Oenc` samples $`e^*` uniformly among the ciphertexts of length
    $`|\Enc(K, a, m)|`, as in {Informal.citet NRS14}[], Figure 4, not from all of
-   $`\mathcal C`. Figure 1 is not defined if $`\mathcal C` is infinite. Theorem 5 still
-   holds if $`|m| = |m'|` implies $`|\Enc(K, a, m)| = |\Enc(K', a, m')|` for all keys
-   $`K, K'`, because their Figure 5 requires $`|m_0| = |m_1|` under the same associated data.
+   $`\mathcal C`.
 :::::
 ::::::
 
