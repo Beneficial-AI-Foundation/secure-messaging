@@ -106,22 +106,12 @@ private theorem maskedRecv_keysSampled {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C�
     maskedRecv P hMac e c2 v (.keysSampled vec enc) msg =
       some (relabelKey e v key?, trcv, maskState e st') := by
   rcases msg with ⟨me, mt, md⟩
-  by_cases he : me = e
-  · subst he
-    cases mt <;> cases md <;>
-      simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, Bool.false_eq_true,
-        Bool.not_false, Bool.not_true, Option.isNone_none, Option.isNone_some,
-        Option.isSome_none, Option.isSome_some, Option.some.injEq, Prod.mk.injEq,
-        ↓reduceIte] at hr <;>
-      obtain ⟨rfl, rfl, rfl⟩ := hr <;>
-      simp [maskedRecv, Message.wellFormed, maskState, relabelKey]
-  · cases mt <;> cases md <;>
-      simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, he, Bool.false_eq_true,
-        Bool.not_false, Bool.not_true, Option.isNone_none, Option.isNone_some,
-        Option.isSome_none, Option.isSome_some, Option.some.injEq, Prod.mk.injEq,
-        ↓reduceIte] at hr <;>
-      obtain ⟨rfl, rfl, rfl⟩ := hr <;>
-      simp [maskedRecv, Message.wellFormed, maskState, relabelKey, he]
+  by_cases he : me = e <;> cases mt <;> cases md <;>
+    simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, he, Bool.false_eq_true,
+      Bool.not_false, Bool.not_true, Option.isNone_none, Option.isNone_some, Option.isSome_none,
+      Option.isSome_some, Option.some.injEq, Prod.mk.injEq, ↓reduceIte] at hr <;>
+    obtain ⟨rfl, rfl, rfl⟩ := hr <;>
+    simp [maskedRecv, Message.wellFormed, maskState, relabelKey, he]
 
 /-- The masked receive of `headerSent`. -/
 private theorem maskedRecv_headerSent {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C₂} {a : Unit}
@@ -132,38 +122,20 @@ private theorem maskedRecv_headerSent {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C�
     maskedRecv P hMac e c2 v (.headerSent dec enc) msg =
       some (relabelKey e v key?, trcv, maskState e st') := by
   rcases msg with ⟨me, mt, md⟩
-  by_cases he : me = e
-  · subst he
-    cases mt
-    case ct1 =>
-      cases md with
-      | none =>
-          simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, Bool.not_false,
-            Option.isSome_none, Option.some.injEq, Prod.mk.injEq, ↓reduceIte] at hr
-          obtain ⟨rfl, rfl, rfl⟩ := hr
-          simp [maskedRecv, Message.wellFormed, maskState, relabelKey]
-      | some chunk =>
-          cases hd : (dec.addChunk chunk).decodedPayload <;>
-            simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, hd, Bool.false_eq_true,
-              Bool.not_true, Option.isSome_some, Option.some.injEq, Prod.mk.injEq,
-              ↓reduceIte] at hr <;>
-            obtain ⟨rfl, rfl, rfl⟩ := hr <;>
-            simp [maskedRecv, Message.wellFormed, maskState, relabelKey, hd]
-    all_goals
-      cases md <;>
-        simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, Bool.false_eq_true,
-          Bool.not_false, Bool.not_true, Option.isNone_none, Option.isNone_some,
-          Option.isSome_none, Option.isSome_some, Option.some.injEq, Prod.mk.injEq,
-          ↓reduceIte] at hr <;>
-        obtain ⟨rfl, rfl, rfl⟩ := hr <;>
-        simp [maskedRecv, Message.wellFormed, maskState, relabelKey]
-  · cases mt <;> cases md <;>
-      simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, he, Bool.false_eq_true,
-        Bool.not_false, Bool.not_true, Option.isNone_none, Option.isNone_some,
-        Option.isSome_none, Option.isSome_some, Option.some.injEq, Prod.mk.injEq,
-        ↓reduceIte] at hr <;>
-      obtain ⟨rfl, rfl, rfl⟩ := hr <;>
-      simp [maskedRecv, Message.wellFormed, maskState, relabelKey, he]
+  by_cases he : me = e <;> cases mt <;> cases md
+  all_goals try
+    simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, he, Bool.false_eq_true,
+      Bool.not_false, Bool.not_true, Option.isNone_none, Option.isNone_some, Option.isSome_none,
+      Option.isSome_some, Option.some.injEq, Prod.mk.injEq, ↓reduceIte] at hr
+    obtain ⟨rfl, rfl, rfl⟩ := hr
+    simp [maskedRecv, Message.wellFormed, maskState, relabelKey, he]
+  subst he
+  rename_i chunk
+  cases hd : (dec.addChunk chunk).decodedPayload <;>
+    simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, hd, Bool.false_eq_true,
+      Bool.not_true, Option.isSome_some, Option.some.injEq, Prod.mk.injEq, ↓reduceIte] at hr <;>
+    obtain ⟨rfl, rfl, rfl⟩ := hr <;>
+    simp [maskedRecv, Message.wellFormed, maskState, relabelKey, hd]
 
 /-- The masked receive of `ct1Received`. -/
 private theorem maskedRecv_ct1Received {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C₂} {a : Unit}
@@ -174,22 +146,12 @@ private theorem maskedRecv_ct1Received {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C�
     maskedRecv P hMac e c2 v (.ct1Received ct1 enc) msg =
       some (relabelKey e v key?, trcv, maskState e st') := by
   rcases msg with ⟨me, mt, md⟩
-  by_cases he : me = e
-  · subst he
-    cases mt <;> cases md <;>
-      simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, Bool.false_eq_true,
-        Bool.not_false, Bool.not_true, Option.isNone_none, Option.isNone_some,
-        Option.isSome_none, Option.isSome_some, Option.some.injEq, Prod.mk.injEq,
-        ↓reduceIte] at hr <;>
-      obtain ⟨rfl, rfl, rfl⟩ := hr <;>
-      simp [maskedRecv, Message.wellFormed, maskState, relabelKey]
-  · cases mt <;> cases md <;>
-      simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, he, Bool.false_eq_true,
-        Bool.not_false, Bool.not_true, Option.isNone_none, Option.isNone_some,
-        Option.isSome_none, Option.isSome_some, Option.some.injEq, Prod.mk.injEq,
-        ↓reduceIte] at hr <;>
-      obtain ⟨rfl, rfl, rfl⟩ := hr <;>
-      simp [maskedRecv, Message.wellFormed, maskState, relabelKey, he]
+  by_cases he : me = e <;> cases mt <;> cases md <;>
+    simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, he, Bool.false_eq_true,
+      Bool.not_false, Bool.not_true, Option.isNone_none, Option.isNone_some, Option.isSome_none,
+      Option.isSome_some, Option.some.injEq, Prod.mk.injEq, ↓reduceIte] at hr <;>
+    obtain ⟨rfl, rfl, rfl⟩ := hr <;>
+    simp [maskedRecv, Message.wellFormed, maskState, relabelKey, he]
 
 /-- The masked receive of `ekSentCt1Received`: the repaired completion outputs the test key. -/
 private theorem maskedRecv_ekSent {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C₂}
