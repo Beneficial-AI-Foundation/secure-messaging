@@ -157,7 +157,7 @@ def Correct (ae : AEADScheme m M AD K C) : Prop :=
 ```
 :::
 
-:::defTitle "aead_security_exp" "AEAD security experiment"
+:::defTitle "aead_security_exp" "AEAD one-time IND-CCA security experiment"
 :::
 
 :::::::definition "aead_security_exp" (lean := "AEADScheme.securityExp, AEADScheme.aeadSecurityImpl, AEADScheme.OneTimeCCAAdversary") (tags := "gh-194") (uses := "aead, aead_oracles")
