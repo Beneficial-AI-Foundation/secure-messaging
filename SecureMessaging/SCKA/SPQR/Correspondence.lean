@@ -166,7 +166,6 @@ private theorem receive_toMLKEMBraid_of_lt [DecidableEq P.Sym]
 set_option maxHeartbeats 300000 in
 -- The proof checks every state and payload pair and unfolds both receive functions, hence it
 -- requires significant computation time.
-set_option linter.flexible false in
 /-- At equal epochs and outside `RecvDivergence`, the SCKA receive outputs agree after
 translation. -/
 private theorem recvSCKA_toMLKEMBraid_of_epoch_eq [DecidableEq P.Sym]
@@ -181,19 +180,23 @@ private theorem recvSCKA_toMLKEMBraid_of_epoch_eq [DecidableEq P.Sym]
   subst heq
   cases st <;> cases payload <;>
     simp only [RecvDivergence, Chunked.Message.toMLKEMBraid] at h ⊢ <;>
-    simp [recvSCKA, Chunked.recv, MLKEMBraid.recvSCKA, MLKEMBraid.receive,
-      Chunked.PartyState.toMLKEMBraid,
-      Chunked.PartyState.epoch, MLKEMBraid.State.epoch, MLKEMBraid.Message.wellFormed,
-      Chunked.completeCt2, EkSender.sendVector, EkSender.recvCt1, EkSender.recvCt2,
-      CtSender.recvHeader, CtSender.recvVector] at h ⊢ <;>
-    try simp_all
+    simp only [recvSCKA, recv, MLKEMBraid.recvSCKA, MLKEMBraid.receive, PartyState.toMLKEMBraid,
+      PartyState.epoch, MLKEMBraid.State.epoch, MLKEMBraid.Message.wellFormed, completeCt2,
+      EkSender.sendVector, EkSender.recvCt1, EkSender.recvCt2, CtSender.recvHeader,
+      CtSender.recvVector, PartyState.ct1Acknowledged.injEq, PartyState.ct2Sampled.injEq,
+      PartyState.ekReceivedCt1Sampled.injEq, Payload.ek.injEq, Bool.false_eq_true, Bool.not_true,
+      Nat.left_eq_add, Option.isNone_none, Option.isSome_some, Option.map_some, and_false,
+      and_self, and_true, exists_and_left, exists_eq', exists_false, lt_self_iff_false,
+      not_false_eq_true, not_true_eq_false, one_ne_zero, or_false, or_self, or_true,
+      reduceCtorEq, ↓existsAndEq, ↓reduceIte] at h ⊢ <;>
+    try simp_all only
   all_goals
     generalize hdec : (‹DecoderState _ _›.addChunk ‹ℕ × P.Sym›).decodedPayload = decoded
-    cases decoded <;> simp_all
+    cases decoded <;> simp_all only [Option.map_some]
   all_goals try (split_ifs <;> simp_all)
   all_goals
     generalize hdecaps : P.hDet.decapsDet _ _ = decaps
-    cases decaps <;> simp_all
+    cases decaps <;> simp_all only [Option.map_none]
   all_goals try (split_ifs <;> simp_all)
 
 /-- Outside `RecvDivergence`, the SCKA receive outputs agree after translation. This includes the

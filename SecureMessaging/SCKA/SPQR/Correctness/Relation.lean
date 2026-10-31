@@ -36,8 +36,8 @@ about SPQR that the Braid invariants cannot express. SPQR sends `ct1Ack` only fr
 The first cell of `RecvDivergence`, a future epoch outside the successor epoch of `ct2Sampled`,
 cannot occur: a recorded message is at most one epoch ahead of its receiver, and a sender one
 epoch ahead has a receiver in `ct2Sampled`. The second cell, a standalone `ct1Ack` in
-`ekReceivedCt1Sampled`, cannot occur either: its sender has received `ct₂`, so the receiver has
-already reached `ct2Sampled`.
+`ekReceivedCt1Sampled`, cannot occur either: its sender has received a chunk of `ct₂`, so the
+receiver has already reached `ct2Sampled`.
 
 The third cell occurs. In the following run, A is the key generator of epoch `e` and B the
 encapsulator.
@@ -471,7 +471,7 @@ private theorem recvDivergence_ct1Acknowledged_ek {st peer : PartyState P AuthSt
     have hpos := (hpair.2 (by rw [toMLKEMBraid_epoch, toMLKEMBraid_epoch]; omega)).1
     exact absurd ⟨by cases st <;> simp_all [PartyState.toMLKEMBraid,
       MLKEMBraid.State.controlPosition], hsucc⟩ hnot
-  · -- The sender of a `ct1Ack` has received `ct₂`, so the receiver is in `ct2Sampled`.
+  · -- The sender of a `ct1Ack` has received a chunk of `ct₂`, so the receiver is in `ct2Sampled`.
     exfalso
     have hepE : (PartyState.ekReceivedCt1Sampled core enc).epoch = core.ep := rfl
     have hcompE :

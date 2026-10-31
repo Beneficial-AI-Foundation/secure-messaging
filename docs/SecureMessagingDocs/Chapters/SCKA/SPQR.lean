@@ -7,6 +7,7 @@ import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessaging.SCKA.SPQR.Unchunked
 import SecureMessaging.SCKA.SPQR.Chunked
 import SecureMessaging.SCKA.SPQR.Construction
+import SecureMessaging.SCKA.SPQR.Correctness
 import SecureMessaging.SCKA.SPQR.Instances
 
 /-! # Blueprint chapter: SPQR -/
