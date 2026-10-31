@@ -31,6 +31,8 @@ set_option pp.rawOnError true
 - {Informal.citet ACD19}[] — AEAD syntax and correctness (Definition 1), one-time IND-CCA
   game (Figure 1) and security (Definition 2).
 - {Informal.citet TR25}[] — the AEAD advantage convention (Definition 2.5).
+- {Informal.citet Ros26}[] — AEAD security (Definition 9.6.5), which agrees with both deviations
+  from ACD19.
 
 :::defTitle "aead" "AEAD scheme"
 :::
@@ -88,9 +90,12 @@ We change {Informal.citet ACD19}[], Figure 1, in two places, marked by boxes in 
 1. $`\Odec` refuses only the challenge pair $`(a^*, e^*)`,
    not every $`(a, e^*)`. Thus $`\Oenc` also stores $`a^*`. In Figure 1, a scheme that ignores
    associated data is secure, and the FS-AEAD scheme of their Figure 6 built on it is
-   insecure, which contradicts their Theorem 5.
+   insecure, which contradicts their Theorem 5. {Informal.citet Ros26}[], Definition 9.6.5,
+   also keys decryption on the pair of associated data and ciphertext.
 2. With $`b = 1`, $`\Oenc` samples $`e^*` uniformly among the ciphertexts of length
-   $`|\Enc(K, a, m)|`, not from all of $`\mathcal C`.
+   $`|\Enc(K, a, m)|`, not from all of $`\mathcal C`. {Informal.citet Ros26}[],
+   Definition 9.6.5, also samples the random ciphertext by length, uniformly from
+   $`\mathcal C(|m|)`, the ciphertexts of messages of length $`|m|`.
 :::::
 ::::::
 

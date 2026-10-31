@@ -37,6 +37,9 @@ Indistinguishability under Chosen-Ciphertext Attack (IND-CCA) security following
   *Reconsidering Generic Composition.*
   EUROCRYPT 2014, https://eprint.iacr.org/2014/206
 
+- [Ros26] Rosulek. *The Joy of Cryptography.* Online edition, 2026.
+  — Definition 9.6.5 (AEAD security), which agrees with both deviations below.
+
 - [BS] Boneh, Shoup.
   *A Graduate Course in Applied Cryptography*, version 0.6, 2023.
   — Definition 9.10 (CCA security with associated data).
@@ -114,7 +117,8 @@ Each deviation is marked `Deviation (D1)` or `Deviation (D2)` where it takes eff
   `(a, e) = (a*, e*)`, `AE'` is insecure: the adversary encrypts `(a, m)`, receives `e*`, and
   queries `decrypt(a', e*)` with `a' ≠ a`. The query returns `m` if `b = 0` and `⊥` if `b = 1`.
   [NRS14] and Definition 9.10 of [BS] restrict decryption queries in the same way: only the
-  exact pair returned by encryption is refused.
+  exact pair returned by encryption is refused. [Ros26] Definition 9.6.5 also keys decryption
+  on the pair `(A, C)` of associated data and ciphertext.
 
 - (D2) For `b = 1`, the challenge `e*` is uniform among the ciphertexts of the same length as
   `Enc(K, a, m)`, not uniform on all of `C`. One oracle line changes:
@@ -125,18 +129,10 @@ Each deviation is marked `Deviation (D1)` or `Deviation (D2)` where it takes eff
   ```
 
   The length and the uniform sample of each length come from the class `LenSampleable C`.
-
-  Reason. If `C` is infinite, for example all bit strings, Figure 1 is not defined: `C` has no
-  uniform distribution. If `C` is finite with several lengths, an adversary that encrypts a
-  message whose ciphertext length is rare under `$ C` tells the two branches apart by the
-  length alone. The new game follows the `$` oracle of [NRS14] Figure 4, which returns `|C|`
-  random bits. For a ciphertext type with one length, such as `BitVec n` or
-  `BitVec n × BitVec 128`, the two games are the same (`LenSampleable.unifSameLen_const_prod`).
-
-  The new game leaks `|Enc(K, a, m)|`. For fixed associated data, `LengthRegular` below limits
-  that leak to the message length. It suffices for the proof of Theorem 5 of [ACD19]: in hybrid
-  H3, the challenge ciphertext is drawn from `unifSameLen (Enc(K, (i, a), m_b))`. If `ae` is
-  `LengthRegular` and `|m₀| = |m₁|`, this distribution does not depend on `b`.
+  [Ros26] Definition 9.6.5 also samples the random ciphertext by length: uniformly from
+  `Σ.C(|M|)`, the ciphertexts of messages of length `|M|`. For a ciphertext type with one
+  length, such as `BitVec n × BitVec 128`, the two games are the same
+  (`LenSampleable.unifSameLen_const_prod`).
 
 [WHY A PRF TAG, NOT JUST A MAC]
 The game above is *real-or-random*: when `b = 1` the oracle returns a uniform random

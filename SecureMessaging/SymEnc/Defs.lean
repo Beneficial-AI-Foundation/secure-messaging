@@ -17,7 +17,8 @@ symmetric encryption schemes `DetSymmEncAlg M K C`, following:
 
 - [Ros26] Rosulek. *The Joy of Cryptography.* Online edition, 2026.
   — Definition 5.3.2: computational one-time secrecy (OTS). Each encryption query uses a
-  fresh key, and the adversary may make any number of queries.
+  fresh key, and the adversary may make any number of queries. Definition 8.1.1: the set
+  `Σ.C(ℓ)` of ciphertexts of messages of length `ℓ`.
 
 - [NRS14] Namprempre, Rogaway, Shrimpton.
   *Reconsidering Generic Composition.*
@@ -38,13 +39,11 @@ length.
 - **Key generation**: Ros26 samples the key uniformly from the key space. We use the
   scheme's `keygen`, which can be any distribution; `keygen = $ᵗ K` gives Ros26's game. EtM
   builds its key generation from `keygen`.
-- **Random ciphertexts by length**: Ros26 samples the random ciphertext from the whole
-  ciphertext space. As in NRS14, the random branch here returns a uniform ciphertext of the
-  same length as the real one (`|C|` random bits). The length and the uniform sample of each
-  length come from the class `LenSampleable C`. With one length (`LenSampleable.const C`),
-  this is Ros26's sampling. With several lengths, Ros26's game is undefined (infinite `C`) or
-  lost by every padded cipher (finite `C`). The game leaks the ciphertext length, so it
-  implies message privacy only for schemes that satisfy `LengthRegular`.
+- **Random ciphertexts by length**: the random branch returns a uniform ciphertext of the
+  same length as the real one. The length and the uniform sample of each length come from
+  the class `LenSampleable C`. With one length (`LenSampleable.const C`), this is the sampling
+  of Ros26 Definition 5.3.2. For schemes that satisfy `LengthRegular`, it is the uniform
+  sample from `Σ.C(|M|)` of Ros26 Definition 8.1.1.
 -/
 
 open OracleSpec OracleComp ENNReal
