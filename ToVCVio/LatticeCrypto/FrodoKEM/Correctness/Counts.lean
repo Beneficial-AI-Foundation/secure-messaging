@@ -9,8 +9,8 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.ScalarNoise
 /-!
 # Exact noise counts for FrodoKEM
 
-Applies the general result of `Certificate/ScalarNoise.lean` to FrodoKEM's error sampler,
-giving the exact distribution of one entry of the decryption noise.
+This file applies the general result of `Certificate/ScalarNoise.lean` to the error sampler of
+FrodoKEM. The result is the exact distribution of one entry of the decryption noise.
 -/
 
 namespace FrodoKEM.Certificate

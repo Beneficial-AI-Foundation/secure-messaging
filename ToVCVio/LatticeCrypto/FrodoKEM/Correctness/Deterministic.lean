@@ -9,10 +9,10 @@ import VCVio.EvalDist.Monad.Support
 /-!
 # Correctness of the FrodoPKE and FrodoKEM constructions
 
-Connects the FrodoPKE and FrodoKEM algorithms to the decoding result of `Basic.lean`:
-decryption returns the message whenever the noise matrix is small. Key generation and
-encapsulation are also written as functions of their random inputs (`KEM.keygenFromCoins`,
-`KEM.encapsFromCoins`), so that correctness can be stated for each choice of those inputs.
+This file connects the FrodoPKE and FrodoKEM algorithms to the decoding result of `Basic.lean`.
+If the noise matrix is small, decryption returns the message. The file also gives key generation
+and encapsulation as functions of their random inputs (`KEM.keygenFromCoins`,
+`KEM.encapsFromCoins`). Thus the correctness statements can name each choice of those inputs.
 -/
 
 namespace FrodoKEM
