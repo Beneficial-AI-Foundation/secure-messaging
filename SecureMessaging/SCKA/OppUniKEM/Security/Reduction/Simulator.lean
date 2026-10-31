@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.SCKA.OppUniKEM.Security.Basic
 import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
+import ToVCVio.OracleComp.Constructions.EpochChoice
 
 /-!
 # The IND-CPA reduction and its fixed branches
@@ -48,7 +49,7 @@ Pr[𝓑_real = true] - Pr[𝓑_random = true]
 ```
 -/
 
-open OracleSpec OracleComp KEMScheme
+open OracleSpec OracleComp KEMScheme ToVCVio
 open SCKAScheme.sckaSecuritySpec
 
 namespace oppUniKemCKA.Security.Embedding
@@ -325,14 +326,6 @@ def run [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     adv).run).run' (initial onoff)
   pure (result.getD false)
 
-/-- Challenge epoch sampler: draws an epoch uniformly from `{1, …, q}` when `q > 0`, and returns
-`1` when `q = 0`. -/
-def epochChoice (q : ℕ) : ProbComp ℕ :=
-  if hq : q = 0 then pure 1
-  else
-    letI : NeZero q := ⟨hq⟩
-    (fun i : Fin q => i.val + 1) <$> ($ᵗ (Fin q) : ProbComp (Fin q))
-
 /-- The IND-CPA adversary against `kem` constructed from an SCKA adversary `adv` and send budget
 `q`: in the pre-challenge phase it draws a challenge epoch `e ← epochChoice q` and stores `(pk, e)`;
 in the post-challenge phase on `(ct, key)` it runs `run … adv e pk ct key`. -/
@@ -391,12 +384,7 @@ theorem securityReduction_acceptance_average
     (q : ℝ)⁻¹ * ∑ i : Fin q,
       (Pr{let x ← (fixedBranch
           kem onoff ecEk ecCt0 ecCt1 leak adv (i.val + 1) b)}[x = true]).toReal := by
-  rw [securityReduction_probOutput]
-  let : NeZero q := ⟨hq⟩
-  simp only [epochChoice, hq, ↓reduceDIte, bind_map_left, (prEvent_bind_eq_sum_fintype _),
-    SampleableType.prEvent_uniformSample_eq_singleton, Fintype.card_fin, ← Finset.mul_sum]
-  rw [ENNReal.toReal_mul, ENNReal.toReal_inv, ENNReal.toReal_natCast,
-    ENNReal.toReal_sum (fun _ _ => (prEvent_ne_top _))]
+  rw [securityReduction_probOutput, toReal_prEvent_epochChoice_bind q hq]
 
 /-- For `q ≠ 0`, the difference in acceptance probability between the real (`true`) and random
 (`false`) IND-CPA branches of `securityReduction … adv q` equals the average over `e ∈ {1, …, q}`

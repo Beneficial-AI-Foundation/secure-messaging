@@ -33,6 +33,13 @@ def smDocsCss : String := r#"
    full source via `anchor` blocks or external-code pills (see `smDocsJs`). */
 .bp_code_panel_wrapper { display: none !important; }
 
+/* A display formula wider than its block scrolls inside the block. */
+.bp_math.display {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
 
 /* Clearer Lean syntax highlighting palette (GitHub-light style) */
 .hl.lean .keyword { color: #cf222e; }

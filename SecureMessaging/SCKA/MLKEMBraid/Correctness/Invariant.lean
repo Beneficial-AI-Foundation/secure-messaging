@@ -194,10 +194,11 @@ def decapsEpochKey (e : ℕ) (pk : P.PK) (sk : P.SK) (encapsState : P.inc.St) (c
     P.hEnc2.encaps2Det encapsState (P.inc.toHeader pk) (P.inc.toVector pk)))).map
       (fun k => P.kdfOK k e)
 
-/-- The game state agrees with the transcript's samples, payloads, messages, keys and
-completed-epoch decapsulation, with a true correctness flag and the control and pair invariants. -/
-structure TranscriptConsistent (ik : InitKey) (T : ℕ → EpochTranscript P)
-    (s : GameState P AuthState) : Prop where
+/-- The game state agrees with the transcript's samples, payloads, messages and keys, with a true
+correctness flag and the control and pair invariants. Each recorded encapsulation of an epoch that
+its generator has completed satisfies `D`. -/
+structure TranscriptInv (D : ℕ → P.PK → P.SK → P.inc.St → P.inc.C₁ → P.K → Prop) (ik : InitKey)
+    (T : ℕ → EpochTranscript P) (s : GameState P AuthState) : Prop where
   /-- The correctness flag is true. -/
   correct : s.correct = true
   /-- The control invariant holds. -/
@@ -212,15 +213,14 @@ structure TranscriptConsistent (ik : InitKey) (T : ℕ → EpochTranscript P)
   keypair : ∀ e pk sk, (T e).keypair = some (pk, sk) →
     0 < e ∧ e ≤ (if e % 2 = 1 then s.stA else s.stB).epoch
   /-- A recorded encapsulation belongs to a positive epoch its encapsulator has completed. The
-  epoch has a recorded key pair, and once the generator completes the epoch, decapsulation gives
-  the recorded key. -/
+  epoch has a recorded key pair, and once the generator completes the epoch, the record satisfies
+  `D`. -/
   encaps : ∀ e encapsState ct1 key,
     (T e).encaps1 = some (encapsState, ct1, key) →
     0 < e ∧
       e ≤ (if e % 2 = 1 then s.stB else s.stA).completedEpoch ∧
       ∃ pk sk, (T e).keypair = some (pk, sk) ∧
-        (e ≤ (if e % 2 = 1 then s.stA else s.stB).completedEpoch →
-          decapsEpochKey e pk sk encapsState ct1 = some (P.kdfOK key e))
+        (e ≤ (if e % 2 = 1 then s.stA else s.stB).completedEpoch → D e pk sk encapsState ct1 key)
   /-- A's state agrees with the transcript. -/
   localA : LocalPayloadInv auth ik T s.stA
   /-- B's state agrees with the transcript. -/
@@ -236,9 +236,18 @@ structure TranscriptConsistent (ik : InitKey) (T : ℕ → EpochTranscript P)
         (T e).encaps1.map (fun (_, _, key) => P.kdfOK key e)
       else none
 
+/-- The game state agrees with the transcript's samples, payloads, messages, keys and
+completed-epoch decapsulation, with a true correctness flag and the control and pair invariants. -/
+abbrev TranscriptConsistent (ik : InitKey) (T : ℕ → EpochTranscript P)
+    (s : GameState P AuthState) : Prop :=
+  TranscriptInv auth (fun e pk sk encapsState ct1 key =>
+    decapsEpochKey e pk sk encapsState ct1 = some (P.kdfOK key e)) ik T s
+
+variable {D : ℕ → P.PK → P.SK → P.inc.St → P.inc.C₁ → P.K → Prop}
+
 /-- The state of either party agrees with the transcript. -/
-theorem TranscriptConsistent.local {ik : InitKey} {T : ℕ → EpochTranscript P}
-    {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s) (party : Bool) :
+theorem TranscriptInv.local {ik : InitKey} {T : ℕ → EpochTranscript P}
+    {s : GameState P AuthState} (hT : TranscriptInv auth D ik T s) (party : Bool) :
     LocalPayloadInv auth ik T (s.stateAt party) := by
   cases party; exacts [hT.localB, hT.localA]
 
@@ -308,8 +317,8 @@ theorem PairInv.peer_of_headerReceived {st peer : State P AuthState}
 /-- In a transcript-consistent state, the states `st` of `party` and `peer` of its peer satisfy
 `PairInv` in both directions, have positive epochs, each have an epoch at most the other's completed
 epoch plus one, and have opposite roles at equal epochs. -/
-theorem TranscriptConsistent.pairBounds {ik : InitKey} {T : ℕ → EpochTranscript P}
-    {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s) (party : Bool) :
+theorem TranscriptInv.pairBounds {ik : InitKey} {T : ℕ → EpochTranscript P}
+    {s : GameState P AuthState} (hT : TranscriptInv auth D ik T s) (party : Bool) :
     let st := s.stateAt party
     let peer := s.stateAt (!party)
     PairInv st peer ∧ PairInv peer st ∧ 0 < st.epoch ∧ 0 < peer.epoch ∧
@@ -329,7 +338,7 @@ theorem TranscriptConsistent.pairBounds {ik : InitKey} {T : ℕ → EpochTranscr
 /-- When a party is about to sample its key pair, its peer is waiting for the header of the same
 epoch. -/
 theorem peer_noHeaderReceived_of_keysUnsampled {ik : InitKey} {T : ℕ → EpochTranscript P}
-    {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
+    {s : GameState P AuthState} (hT : TranscriptInv auth D ik T s)
     (party : Bool) {e : ℕ} {a : AuthState}
     (hst : s.stateAt party = .keysUnsampled e a) :
     ∃ b dec, s.stateAt (!party) = .noHeaderReceived e b dec := by
@@ -339,7 +348,7 @@ theorem peer_noHeaderReceived_of_keysUnsampled {ik : InitKey} {T : ℕ → Epoch
 /-- When a party is about to encapsulate against a received header, the epoch has a recorded key
 pair, the header is that key pair's header, and the peer holds its secret key and vector. -/
 theorem peer_keysSampled_of_headerReceived {ik : InitKey} {T : ℕ → EpochTranscript P}
-    {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
+    {s : GameState P AuthState} (hT : TranscriptInv auth D ik T s)
     (party : Bool) {e : ℕ} {a : AuthState} {hdr : P.inc.PKheader}
     {dec : DecoderState P.inc.PKvector P.Sym}
     (hst : s.stateAt party = .headerReceived e a hdr dec) :
@@ -364,8 +373,8 @@ theorem peer_keysSampled_of_headerReceived {ik : InitKey} {T : ℕ → EpochTran
 /-- If `s'` has a true correctness flag, satisfies `ControlInv` and `StatePairInv`, has the epochs,
 completed epochs and keys of a state `s` consistent with `T`, and its party states and recorded
 messages agree with `T`, then `s'` is consistent with `T`. -/
-theorem TranscriptConsistent.of_party {ik : InitKey} {T : ℕ → EpochTranscript P}
-    {s s' : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
+theorem TranscriptInv.of_party {ik : InitKey} {T : ℕ → EpochTranscript P}
+    {s s' : GameState P AuthState} (hT : TranscriptInv auth D ik T s)
     (hc : s'.correct = true) (hC : ControlInv s') (hP : StatePairInv s')
     (he : ∀ party, (s'.stateAt party).epoch = (s.stateAt party).epoch)
     (hcomp : ∀ party, (s'.stateAt party).completedEpoch = (s.stateAt party).completedEpoch)
@@ -373,7 +382,7 @@ theorem TranscriptConsistent.of_party {ik : InitKey} {T : ℕ → EpochTranscrip
     (hMessages : ∀ party n msg tsnd, s'.messagesAt party n = some (msg, tsnd) →
       MessagePayloadInv auth ik T msg)
     (hKeys : ∀ party, s'.keysAt party = s.keysAt party) :
-    TranscriptConsistent auth ik T s' := by
+    TranscriptInv auth D ik T s' := by
   refine ⟨hc, hC, hP, hT.keypair_zero, hT.encaps_zero, ?_, ?_,
     hLocal true, hLocal false, hMessages, ?_⟩
   · intro e pk sk hk
@@ -394,5 +403,17 @@ theorem TranscriptConsistent.of_party {ik : InitKey} {T : ℕ → EpochTranscrip
         (T e).encaps1.map (fun (_, _, key) => P.kdfOK key e) else none
     rw [hKeys, hcomp]
     exact hT.keys party e
+
+/-- The invariant for `D` gives the invariant for `D'` if `D` implies `D'` on the recorded key
+pairs and encapsulations. -/
+theorem TranscriptInv.mono {ik : InitKey} {T : ℕ → EpochTranscript P} {s : GameState P AuthState}
+    (hT : TranscriptInv auth D ik T s) (D' : ℕ → P.PK → P.SK → P.inc.St → P.inc.C₁ → P.K → Prop)
+    (hD : ∀ e pk sk es ct1 key, (T e).keypair = some (pk, sk) →
+      (T e).encaps1 = some (es, ct1, key) → D e pk sk es ct1 key → D' e pk sk es ct1 key) :
+    TranscriptInv auth D' ik T s :=
+  { hT with
+    encaps := fun e es ct1 key hc => by
+      obtain ⟨h0, hle, pk, sk, hkp, hdec⟩ := hT.encaps e es ct1 key hc
+      exact ⟨h0, hle, pk, sk, hkp, fun h => hD e pk sk es ct1 key hkp hc (hdec h)⟩ }
 
 end MLKEMBraid

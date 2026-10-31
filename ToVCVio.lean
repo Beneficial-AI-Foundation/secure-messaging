@@ -25,6 +25,7 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Construction
 import ToVCVio.LatticeCrypto.FrodoKEM.Correctness
 import ToVCVio.LatticeCrypto.TransformOps
 import ToVCVio.OracleComp.Constructions.BitVec
+import ToVCVio.OracleComp.Constructions.EpochChoice
 import ToVCVio.OracleComp.Constructions.SampleableType
 import ToVCVio.OracleComp.EvalDist
 import ToVCVio.ProgramLogic.Unary.WP
@@ -37,6 +38,7 @@ import ToVCVio.OracleComp.SimSemantics.StateT.BadFlag
 import ToVCVio.OracleComp.SimSemantics.StateT.WPBound
 import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
 import ToVCVio.OracleComp.SimSemantics.StateT.MapStateTBase
+import ToVCVio.OracleComp.SimSemantics.StateT.QueryImplAdd
 import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 import ToVCVio.OracleComp.SimSemantics.UnifLift
 import ToVCVio.Probability.IntMeasure

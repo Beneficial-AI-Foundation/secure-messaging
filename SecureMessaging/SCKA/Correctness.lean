@@ -298,6 +298,48 @@ theorem mem_support_oracleRecvB_run_iff (n : ℕ)
 
 end Oracles
 
+/-- Every receive outcome preserves exposure, challenges and both send counters. -/
+theorem oracleRecvA_flags
+    {IK StA StB I Rho Rand : Type} [DecidableEq I]
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    {n : ℕ} {g : GameState StA StB I Rho}
+    {w : Option (ℕ × Option ℕ) × GameState StA StB I Rho}
+    (hw : w ∈ support ((oracleRecvA scka n).run g)) :
+    w.2.exposed = g.exposed ∧ w.2.challenged = g.challenged ∧
+      w.2.nA = g.nA ∧ w.2.nB = g.nB := by
+  rcases hm : g.msgB n with _ | ⟨ρ, tsnd⟩
+  · rw [oracleRecvA_run_eq_of_none _ _ hm, mem_support_pure_iff] at hw
+    subst hw
+    exact ⟨rfl, rfl, rfl, rfl⟩
+  rcases hr : scka.recvA g.stA ρ with _ | ⟨keyOpt, trcv, st'⟩
+  · rw [oracleRecvA_run_eq_of_refuse _ _ hm hr, mem_support_pure_iff] at hw
+    subst hw
+    exact ⟨rfl, rfl, rfl, rfl⟩
+  · rw [oracleRecvA_run_eq_of_accept _ _ hm hr, mem_support_pure_iff] at hw
+    subst hw
+    rcases keyOpt with _ | ⟨tI, key⟩ <;> exact ⟨rfl, rfl, rfl, rfl⟩
+
+/-- The version of `oracleRecvA_flags` for B, including refused and missing deliveries. -/
+theorem oracleRecvB_flags
+    {IK StA StB I Rho Rand : Type} [DecidableEq I]
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    {n : ℕ} {g : GameState StA StB I Rho}
+    {w : Option (ℕ × Option ℕ) × GameState StA StB I Rho}
+    (hw : w ∈ support ((oracleRecvB scka n).run g)) :
+    w.2.exposed = g.exposed ∧ w.2.challenged = g.challenged ∧
+      w.2.nA = g.nA ∧ w.2.nB = g.nB := by
+  rcases hm : g.msgA n with _ | ⟨ρ, tsnd⟩
+  · rw [oracleRecvB_run_eq_of_none _ _ hm, mem_support_pure_iff] at hw
+    subst hw
+    exact ⟨rfl, rfl, rfl, rfl⟩
+  rcases hr : scka.recvB g.stB ρ with _ | ⟨keyOpt, trcv, st'⟩
+  · rw [oracleRecvB_run_eq_of_refuse _ _ hm hr, mem_support_pure_iff] at hw
+    subst hw
+    exact ⟨rfl, rfl, rfl, rfl⟩
+  · rw [oracleRecvB_run_eq_of_accept _ _ hm hr, mem_support_pure_iff] at hw
+    subst hw
+    rcases keyOpt with _ | ⟨tI, key⟩ <;> exact ⟨rfl, rfl, rfl, rfl⟩
+
 /-! ### Invariants -/
 
 /-- The uniform-randomness oracle preserves every predicate on the game state. -/

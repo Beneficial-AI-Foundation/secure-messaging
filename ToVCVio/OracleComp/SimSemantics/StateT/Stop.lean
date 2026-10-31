@@ -211,6 +211,39 @@ theorem stopOnState_run_eq_map
   rw [map_eq_bind_pure_comp]
   rfl
 
+/-- Every supported stopped outcome comes from a supported ordinary response/state pair. -/
+theorem mem_support_stopOnState {ι σ : Type} {spec : OracleSpec ι}
+    {impl : QueryImpl spec (StateT σ ProbComp)} {stop : σ → Bool}
+    {t : spec.Domain} {s : σ} {z : Option (spec.Range t) × σ}
+    (hz : z ∈ support (((stopOnState impl stop t).run).run s)) :
+    ∃ w ∈ support ((impl t).run s),
+      z = (if stop w.2 then none else some w.1, w.2) := by
+  rw [stopOnState_run_eq_map, support_map] at hz
+  obtain ⟨w, hw, rfl⟩ := hz
+  exact ⟨w, hw, rfl⟩
+
+/-- Stopping preserves equality of the joint response/state distribution. -/
+theorem stopped_congr {ι σ : Type} {spec : OracleSpec ι}
+    {I L : QueryImpl spec (StateT σ ProbComp)}
+    (stop : σ → Bool) (q : spec.Domain) (s : σ)
+    (h : (I q).run s =ᵈ (L q).run s) :
+    ((stopOnState I stop q).run).run s =ᵈ ((stopOnState L stop q).run).run s := by
+  rw [stopOnState_run_eq_map, stopOnState_run_eq_map]
+  exact h.map _
+
+/-- Stopping commutes with sampling a parameter before a single oracle step. -/
+theorem stopped_bind {ι σ α : Type} {spec : OracleSpec ι}
+    (sample : ProbComp α)
+    {I : α → QueryImpl spec (StateT σ ProbComp)}
+    {L : QueryImpl spec (StateT σ ProbComp)}
+    (stop : σ → Bool) (q : spec.Domain) (s : σ)
+    (h : (L q).run s =ᵈ sample >>= fun a => (I a q).run s) :
+    ((stopOnState L stop q).run).run s =ᵈ
+      sample >>= fun a => ((stopOnState (I a) stop q).run).run s := by
+  simp only [stopOnState_run_eq_map]
+  refine (h.map _).trans ?_
+  rw [map_bind]
+
 /-- For every query `t` and state `s`, if `stop s' = false` for every `(a, s')` in the support
 of `(impl t).run s`, then the response and next state under `stopOnState impl stop t` are
 equal in distribution to `(impl t).run s` with each response wrapped in `some`. -/

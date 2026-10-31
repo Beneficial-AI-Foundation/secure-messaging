@@ -297,4 +297,44 @@ theorem stoppedRun_sample_once_eq
     rw [h, stopOnState_run_eq_map]
     exact ((havg t s hs).map _).symm
 
+/-- If `L` samples at its first hit and `I a` uses the installed value `a`, sampling once before
+execution has the same acceptance probability as `L`. The hypotheses preserve the invariant,
+mark the first hit as used, exclude subsequent hits, and compare the joint query outcomes. -/
+theorem optionRun_install {ι σ α : Type} {spec : OracleSpec ι} (sample : ProbComp α)
+    (I : α → QueryImpl spec (OptionT (StateT σ ProbComp)))
+    (L : QueryImpl spec (OptionT (StateT σ ProbComp))) (Inv used : σ → Prop)
+    (hit : spec.Domain → σ → Bool)
+    (hpres : ∀ a ∈ support sample, ∀ t s, Inv s →
+      ∀ z ∈ support (((I a t).run).run s), z.1.isSome → Inv z.2)
+    (hused : ∀ a ∈ support sample, ∀ t s, Inv s → used s →
+      ∀ z ∈ support (((I a t).run).run s), z.1.isSome → used z.2)
+    (hnohit : ∀ t s, Inv s → used s → hit t s = false)
+    (hfirst : ∀ a ∈ support sample, ∀ t s, Inv s → hit t s = true →
+      ∀ z ∈ support (((I a t).run).run s), z.1.isSome → used z.2)
+    (hoff : ∀ t s, Inv s → hit t s = false → ∀ a ∈ support sample,
+      ((I a t).run).run s =ᵈ ((L t).run).run s)
+    (hon : ∀ t s, Inv s → hit t s = true →
+      ((L t).run).run s =ᵈ sample >>= fun a => ((I a t).run).run s)
+    (oa : OracleComp spec Bool) (s : σ) (hs : Inv s) :
+    Pr{let x ← do let a ← sample; optionRun (I a) oa s}[x = true] =
+      Pr{let x ← optionRun L oa s}[x = true] := by
+  have hU := optionRun_sample_once_eq_sampleEachQuery sample I Inv used hit hpres hused
+    (fun t s hs hh a ha a' ha' => (hoff t s hs hh a ha).trans (hoff t s hs hh a' ha').symm)
+    hnohit hfirst oa s hs
+  have hS : Pr{let x ← optionRun L oa s}[x = true] =
+      Pr{let x ← optionRun (sampleEachQuery sample I) oa s}[x = true] :=
+    prEvent_optionRun_eq_of_state_map (sampleEachQuery sample I) L id Inv
+      (fun t s hs z hz hsome => by
+        rw [sampleEachQuery_run, mem_support_bind_iff] at hz
+        obtain ⟨a, ha, hz⟩ := hz
+        exact hpres a ha t s hs z hz hsome)
+      (fun t s hs => by
+        rw [sampleEachQuery_run, Prod.map_id, id_map]
+        cases hh : hit t s
+        · exact ((EvalDistEq.bind_congr_of_support sample fun a ha => hoff t s hs hh a ha).trans
+            (EvalDistEq.bind_const _ _)).symm
+        · exact hon t s hs hh)
+      oa s hs
+  exact hU.trans hS.symm
+
 end OracleComp
