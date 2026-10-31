@@ -268,8 +268,7 @@ $$`\mathsf{Adv}^{\textsf{dist}}_{\textsf{AEAD}}(\adv)
   = \Bigl|\, \Pr[\mathsf{AEAD_{rand}} = 1] - \Pr[\mathsf{AEAD_{real}} = 1] \,\Bigr|`
 
 where $`\mathsf{AEAD_{real}}` and $`\mathsf{AEAD_{rand}}` are the security experiment
-with $`b` fixed to $`0` and to $`1`, and each returns the guess $`b'`. The security
-theorems for Encrypt-then-MAC and GCM bound this advantage.
+with $`b` fixed to $`0` and to $`1`, and each returns the guess $`b'`.
 
 :::leanPillCaption "security experiment with a fixed challenge bit"
 :::
