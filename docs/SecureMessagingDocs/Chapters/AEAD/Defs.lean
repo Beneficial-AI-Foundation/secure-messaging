@@ -76,8 +76,10 @@ $`(a^*, e^*)`: the associated data and the ciphertext returned by $`\Oenc`. Befo
 first $`\Oenc` call, $`(a^*, e^*) = (\bot, \bot)`.
 
 In the oracles, $`\req\varphi` means: if $`\varphi` is false, the oracle returns
-$`\bot` and the game state does not change. $`|e|` is the length of $`e` given by
-`LenSampleable`. Only equality of lengths matters.
+$`\bot` and the game state does not change.
+
+The ciphertext space has a length function $`|\cdot| : \mathcal C \to \mathbb N`, and
+$`|e|` is the length of the ciphertext $`e`.
 :::::
 
 :::::gameCell "\\textsf{Correction}" (kind := "scheme-notation")
@@ -101,9 +103,10 @@ length as $`\Enc(K, a, m)`, as the $`\$` oracle of {Informal.citet NRS14}[], Fig
 is finite with several lengths, the length of $`e^*` alone can tell the two branches apart. For
 ciphertexts of one length, the two games are the same.
 
-The new game leaks $`|\Enc(K, a, m)|`. If, for fixed associated data, this length depends only
-on $`|m|` (`LengthRegular`), the new game suffices for Theorem 5 of {Informal.citet ACD19}[]: the FS-AEAD game of their
-Figure 5 requires $`|m_0| = |m_1|` and encrypts both messages under the same associated data,
+The new game leaks $`|\Enc(K, a, m)|`. Suppose that, for fixed associated data, this length
+depends only on $`|m|`: $`|m| = |m'|` implies $`|\Enc(K, a, m)| = |\Enc(K', a, m')|` for all
+keys $`K, K'`. Then the new game suffices for Theorem 5 of {Informal.citet ACD19}[]: the
+FS-AEAD game of their Figure 5 requires $`|m_0| = |m_1|` and encrypts both messages under the same associated data,
 so the random challenge ciphertext does not depend on $`b`.
 :::::
 ::::::
