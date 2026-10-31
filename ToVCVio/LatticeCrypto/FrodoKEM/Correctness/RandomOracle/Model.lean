@@ -7,8 +7,11 @@ import ToVCVio.Probability.FiniteXOF
 import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Ideal
 import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.FailureProbability
 
-/-! # Finite random-oracle model and deterministic adequacy for FrodoKEM
-The generator is fixed independently of the sampled raw-input table.
+/-!
+# Finite random-oracle model for FrodoKEM
+
+Replaces SHAKE by a finite table of uniformly random answers. The function generating the
+public matrix is fixed independently of that table.
 -/
 namespace FrodoKEM.ROM
 open OracleComp LatticeCrypto

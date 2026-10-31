@@ -10,8 +10,8 @@ import VCVio.EvalDist.ProbabilityBounds
 /-!
 # Ideal-model decryption failure for FrodoKEM
 
-Honest decryption in the ideal model with independent uniform error streams.
-No distributional claim about deterministic SHAKE expansion is made here.
+Decryption failure when the five error matrices are sampled from independent uniform
+bit strings. Nothing here is claimed about how SHAKE expands a seed.
 -/
 
 namespace FrodoKEM.Ideal

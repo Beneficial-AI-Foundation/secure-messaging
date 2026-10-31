@@ -9,16 +9,18 @@ import VCVio.EvalDist.Monad.Support
 /-!
 # Correctness of the FrodoPKE and FrodoKEM constructions
 
-This file connects the deterministic construction algorithms to the bounded-noise decoding
-result. It also exposes explicit-coin views of FrodoKEM key generation and encapsulation and uses
-them to state correctness for supported honest executions.
+Connects the FrodoPKE and FrodoKEM algorithms to the decoding result of `Basic.lean`:
+decryption returns the message whenever the noise matrix is small. Key generation and
+encapsulation are also written as functions of their random inputs (`KEM.keygenFromCoins`,
+`KEM.encapsFromCoins`), so that correctness can be stated for each choice of those inputs.
 -/
 
 namespace FrodoKEM
 
 open OracleComp LatticeCrypto
 
-/-- The asymmetric centered-representative interval sufficient for Frodo decoding. -/
+/-- Every entry `e` of `E`, taken as an integer between `-q / 2` and `q / 2`, satisfies the
+decoding condition `-q ≤ 2 ^ (B + 1) * e < q` of `dc_ec_add`. -/
 def NoiseBound (p : Params) (E : FrodoMatrix p mbar nbar) : Prop :=
   (∀ i j, -(p.q : ℤ) ≤
     2 ^ (p.B + 1) * centeredRepr (E i j)) ∧
@@ -150,7 +152,7 @@ def encapsFromCoins {ps : ParameterSet} (ops : Operations ps)
         ciphertext.salt.toList ++ derived.2.toList)
       p.ell)
 
-/-- The existing randomized key generation samples exactly the inputs of `keygenFromCoins`. -/
+/-- `keygen` samples the three inputs of `keygenFromCoins` uniformly and runs it. -/
 theorem keygen_eq {ps : ParameterSet} (ops : Operations ps) :
     keygen ops =
       (do
@@ -160,7 +162,7 @@ theorem keygen_eq {ps : ParameterSet} (ops : Operations ps) :
         return keygenFromCoins ops fallback seedSE z) := by
   rfl
 
-/-- The existing randomized encapsulation samples exactly the inputs of `encapsFromCoins`. -/
+/-- `encaps` samples the message and salt uniformly and runs `encapsFromCoins`. -/
 theorem encaps_eq {ps : ParameterSet} (ops : Operations ps)
     (pk : PublicKey ps) :
     encaps ops pk =
@@ -247,7 +249,8 @@ theorem decaps_encapsFromCoins_of_noiseBound
     ps.params.ell = shared
   rw [ite_eq_left ⟨rfl, rfl⟩]
 
-/-- Supported honest executions expose coins under which decapsulation is conditionally correct. -/
+/-- Every possible honest run comes from some random inputs, and for those inputs
+decapsulation returns the honest shared secret whenever the noise is small. -/
 theorem honest_support_correctness
     {ps : ParameterSet} (ops : Operations ps)
     (keys : PublicKey ps × SecretKey ps)

@@ -11,9 +11,9 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.Frodo1344
 /-!
 # Numerical correctness bounds for independently sampled FrodoKEM errors
 
-The three kernel certificates bound the actual PKE decryption experiment with independent error
-streams. Tenth powers express the published fractional-bit exponents using exact integer arithmetic.
-No numerical claim about an arbitrary seeded SHAKE operation is made here.
+Turns the three certificates into failure bounds for FrodoPKE when its errors are sampled
+independently. Raising both sides to the tenth power turns published exponents such as `138.7`
+into comparisons of whole numbers. Nothing here is claimed about SHAKE.
 -/
 
 namespace FrodoKEM.Certificate
@@ -23,13 +23,13 @@ open scoped ENNReal
 
 set_option maxRecDepth 8192 in
 set_option exponentiation.threshold 4096 in
-/-- Each rational certificate meets its exact fractional-bit target. -/
+/-- Each family's bound meets its published exponent, after raising both to the tenth power. -/
 theorem numerator_tenth_power_le (ps : ParameterSet) :
     numerator ps ^ 10 * 2 ^ exponentTenths ps ≤
       2 ^ (10 * (precision ps + lenChi)) := by
   cases ps <;> decide
 
-/-- The certificate bounds satisfy the fractional-bit inequalities as extended probabilities. -/
+/-- `numerator_tenth_power_le`, stated for `failureBound` as a probability. -/
 theorem failureBound_tenth_power_le (ps : ParameterSet) :
     failureBound ps ^ 10 * 2 ^ exponentTenths ps ≤ 1 := by
   have h : (numerator ps : ℝ≥0∞) ^ 10 * 2 ^ exponentTenths ps ≤
@@ -73,7 +73,7 @@ private theorem matrixBound_eq (ps : ParameterSet) :
     | exact blockBound_eq 97175197777440479084 6213051 256
     | exact blockBound_eq 198663617378549905966698 4264645 320
 
-/-- The residual matrix bad event is bounded by the corresponding checked certificate. -/
+/-- In the ideal experiment, large decryption noise has probability at most `failureBound`. -/
 theorem noiseBadProb_le_failureBound (ps : ParameterSet) :
     Ideal.noiseBadProb ps ≤ failureBound ps := by
   have hbits : 0 < (config ps).seedBits := by cases ps <;> decide
