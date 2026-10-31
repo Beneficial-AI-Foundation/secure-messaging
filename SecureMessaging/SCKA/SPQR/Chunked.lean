@@ -85,6 +85,7 @@ error except for the `ct2Sampled` successor case. These cases differ from the pa
 
 `SPQR.Construction` packages this model as an SCKA scheme. `SPQR.Correspondence` translates states
 and messages into `MLKEMBraid` and states the hypotheses under which their transitions agree.
+`SPQR.Correctness` uses this translation to transport the `MLKEMBraid` correctness bound to SPQR.
 -/
 
 open ErasureCodePayload.Streaming

@@ -692,14 +692,77 @@ noncomputable def v1Scheme {InitKey AuthState EpochKey Mac : Type}
 ```
 ::::
 
+:::defTitle "spqr_mlkem_braid_relation" "SPQR and ML-KEM Braid correctness games"
+:::
+
+::::definition "spqr_mlkem_braid_relation" (parent := "cka_protocols_spqr") (lean := "SPQR.Chunked.Message.toMLKEMBraid, SPQR.Chunked.PartyState.toMLKEMBraid, SPQR.RecvDivergence, SPQR.GameState.toMLKEMBraid, SPQR.Ct1AckInv, SPQR.sckaCorrectnessImpl_run_toMLKEMBraid, SPQR.DeliveryDivergence.ct1Acknowledged_ek, SPQR.sckaCorrectnessImpl_run_toMLKEMBraidAck") (tags := "gh-269") (uses := "spqr_chunked_scheme, mlkem_braid_spec, scka_correctness")
+SPQR party states and messages translate into ML-KEM Braid ones, field for field. The
+one exception is SPQR's `Ct1Ack(true)`, which becomes an empty message: in that state
+ML-KEM Braid sends an empty message. The translation extends to the states of the SCKA
+correctness game.
+
+On translated states, a query of the SPQR correctness game acts as the same query of the
+ML-KEM Braid game, except on three kinds of delivery. In a reachable state only one of
+them occurs: a plain vector chunk that arrives after an acknowledging vector chunk. SPQR
+adds that chunk to its decoder and ML-KEM Braid ignores it, so the two games are not
+related step by step. The delivery is, however, the ML-KEM Braid delivery of the same
+chunk sent as an acknowledging vector chunk, and its sender is at a step where it could
+have sent one.
+
+:::leanPillCaption "the relation of the two games"
+:::
+
+```anchor Relation_sckaCorrectnessImpl_run_toMLKEMBraid (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness.Relation)
+theorem sckaCorrectnessImpl_run_toMLKEMBraid (s : GameState P AuthState)
+    (t : (SCKAScheme.sckaCorrectnessSpec (Chunked.Message P.Sym)).Domain)
+    (ht : ¬ DeliveryDivergence s t) :
+    (fun z => GameState.toMLKEMBraid z.2) <$>
+        (SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey) t).run s =
+      (fun z => z.2) <$>
+        (SCKAScheme.sckaCorrectnessImpl (MLKEMBraid.scheme P auth irl sampleInitKey) t).run
+          s.toMLKEMBraid
+```
+::::
+
 :::defTitle "spqr_protocol_correctness" "SPQR protocol correctness"
 :::
 
-::::theorem "spqr_protocol_correctness" (parent := "cka_protocols_spqr") (tags := "gh-269") (uses := "spqr_protocol_spec, scka_correctness, erasure_code_correctness")
-$`\todo`
+::::theorem "spqr_protocol_correctness" (parent := "cka_protocols_spqr") (lean := "SPQR.correctness_error_le, SPQR.v1Scheme_correctness_error_le") (tags := "gh-269") (uses := "spqr_protocol_spec, spqr_mlkem_braid_relation, mlkem_braid_correctness, scka_correctness, erasure_code_correctness, incremental_kem_scheme, incremental_kem_rand_leak")
+Assume that:
 
-:::leanPill "missing"
+* $`\adv` is any SCKA correctness adversary making at most $`q` send-oracle
+  queries;
+* the incremental KEM has deterministic decapsulation and a deterministic
+  second stage, and has correctness error at most $`\varepsilon`;
+* and the four erasure codes are correct.
+
+Then $`1-\Pr\bigl[\Exp{\textsf{cor}}{\textsf{SPQR}}(\adv)=1\bigr] \le q\varepsilon`. This is
+the bound of ML-KEM Braid. The proof translates SPQR game states into ML-KEM Braid
+game states and uses the invariant and the failure potential of the ML-KEM Braid proof
+on the translated states. For SPQR v1 the codes are the SPQR Reed–Solomon codes, which
+are correct, and $`\varepsilon` is the correctness error of ML-KEM-768.
+
+:::leanPillCaption "Correctness error bound"
 :::
+
+```anchor SPQR_correctness_error_le (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness)
+theorem correctness_error_le
+    (P : MLKEMBraid.Parameters ProbComp) [DecidableEq P.K]
+    [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    {InitKey AuthState : Type}
+    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
+      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
+    (irl : P.kem.IncrementalRandLeak P.inc)
+    (sampleInitKey : ProbComp InitKey)
+    (hHdrCorrect : P.ecpHdr.ec.Correct)
+    (hEkCorrect : P.ecpEk.ec.Correct)
+    (hCt1Correct : P.ecpCt1.ec.Correct)
+    (hCt2Correct : P.ecpCt2.ec.Correct)
+    (adv : SCKAScheme.SCKACorrectnessAdversary (Chunked.Message P.Sym))
+    (q : ℕ) (hq : SCKAScheme.SendQueryBound adv q) :
+    1 - Pr{let x ← SCKAScheme.correctnessExp (scheme P auth irl sampleInitKey) adv}[x = true] ≤
+      (q : ℝ≥0∞) * P.kem.correctnessError ProbCompRuntime.probComp
+```
 ::::
 
 :::defTitle "spqr_protocol_security" "SPQR protocol security"

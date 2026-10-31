@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
+import SecureMessaging.ErasureCode.SPQRReedSolomon.Correctness
 import SecureMessaging.SCKA.SPQR.Correctness.Relation
+import SecureMessaging.SCKA.SPQR.Instances
 
 /-!
 # SPQR correctness
@@ -25,7 +27,9 @@ message or when a check on the reported epochs and the output keys fails.
 
 If the four erasure codes of `P` are correct and `Adv` makes at most `q` send queries, then
 
-* `correctness_error_le`: `1 - Pr[G(Adv) = true] ≤ q · ε`.
+* `correctness_error_le`: `1 - Pr[G(Adv) = true] ≤ q · ε`;
+* `v1Scheme_correctness_error_le`: the same bound for `v1Scheme`, whose four SPQR Reed-Solomon
+  codes are correct, with `ε` the correctness error of ML-KEM-768.
 
 This is the bound of `MLKEMBraid.correctness_error_le`, for the SPQR scheme.
 
@@ -45,7 +49,8 @@ and not at all otherwise:
   (`DeliveryDivergence.ct1Acknowledged_ek`), and it is the Braid query on the translation in which
   that record is an acknowledging vector chunk (`sckaCorrectnessImpl_run_toMLKEMBraidAck`).
 
-The relabelling in the last case is harmless. The Braid invariant sees the type of a recorded
+The relabelling in the last case changes neither the invariant nor the potential. The Braid
+invariant sees the type of a recorded
 vector chunk only through the step its sender must have reached. The sender is in `ct1Received`,
 which is late enough for an acknowledging chunk. The potential does not read recorded messages.
 
@@ -499,5 +504,56 @@ theorem correctness_error_le
       simp [MLKEMBraid.failurePotential, MLKEMBraid.currentEpochFailure,
         MLKEMBraid.pairFailure, SCKAScheme.initGameState, MLKEMBraid.initA, MLKEMBraid.initB,
         MLKEMBraid.State.controlPosition, MLKEMBraid.State.epoch]
+
+open ErasureCode.SPQRReedSolomon (Chunk GF16 erasureCode_correct) in
+/-- The bound of `correctness_error_le` for `v1Scheme`. The four SPQR Reed-Solomon codes are
+correct, and `ε` is the correctness error of ML-KEM-768. -/
+-- ANCHOR: SPQR_v1Scheme_correctness_error_le
+theorem v1Scheme_correctness_error_le {InitKey AuthState EpochKey Mac : Type}
+    [DecidableEq EpochKey]
+    (kdfOK : MLKEM.SharedSecret → ℕ → EpochKey)
+    (serializeHdr : v1Incremental.PKheader × Mac → Fin 3 → Chunk GF16)
+    (parseHdr : (Fin 3 → Chunk GF16) → Option (v1Incremental.PKheader × Mac))
+    (parseHdr_serializeHdr : ∀ payload, parseHdr (serializeHdr payload) = some payload)
+    (serializeEk : v1Incremental.PKvector → Fin 36 → Chunk GF16)
+    (parseEk : (Fin 36 → Chunk GF16) → Option v1Incremental.PKvector)
+    (parseEk_serializeEk : ∀ payload, parseEk (serializeEk payload) = some payload)
+    (serializeCt1 : v1Incremental.C₁ → Fin 30 → Chunk GF16)
+    (parseCt1 : (Fin 30 → Chunk GF16) → Option v1Incremental.C₁)
+    (parseCt1_serializeCt1 : ∀ payload, parseCt1 (serializeCt1 payload) = some payload)
+    (serializeCt2 : v1Incremental.C₂ × Mac → Fin 5 → Chunk GF16)
+    (parseCt2 : (Fin 5 → Chunk GF16) → Option (v1Incremental.C₂ × Mac))
+    (parseCt2_serializeCt2 : ∀ payload, parseCt2 (serializeCt2 payload) = some payload)
+    (auth : RatchetedAuthenticator InitKey EpochKey AuthState
+      v1Incremental.PKheader (v1Incremental.C₁ × v1Incremental.C₂) Mac)
+    (sampleInitKey : ProbComp InitKey)
+    (adv : SCKAScheme.SCKACorrectnessAdversary (Chunked.Message (Chunk GF16)))
+    (q : ℕ) (hq : SCKAScheme.SendQueryBound adv q) :
+    1 - Pr{let x ← (SCKAScheme.correctnessExp
+        (v1Scheme kdfOK serializeHdr parseHdr parseHdr_serializeHdr serializeEk parseEk
+          parseEk_serializeEk serializeCt1 parseCt1 parseCt1_serializeCt1 serializeCt2 parseCt2
+          parseCt2_serializeCt2 auth sampleInitKey) adv)}[x = true] ≤
+      (q : ℝ≥0∞) * MLKEM.mlkem768Scheme.correctnessError ProbCompRuntime.probComp
+-- ANCHOR_END: SPQR_v1Scheme_correctness_error_le
+    := by
+  let P₀ := v1Parameters kdfOK serializeHdr parseHdr parseHdr_serializeHdr serializeEk parseEk
+    parseEk_serializeEk serializeCt1 parseCt1 parseCt1_serializeCt1 serializeCt2 parseCt2
+    parseCt2_serializeCt2
+  let : DecidableEq P₀.K := by
+    change DecidableEq MLKEM.SharedSecret
+    infer_instance
+  let : DecidableEq P₀.EpochKey := by
+    change DecidableEq EpochKey
+    infer_instance
+  let : DecidableEq P₀.Sym := by
+    change DecidableEq (Chunk GF16)
+    infer_instance
+  exact correctness_error_le P₀ auth
+    (MLKEM.mlkemIncrementalRandLeak .MLKEM768 MLKEM.Concrete.concreteNTTRingOps
+      MLKEM.Concrete.mlkem768Primitives) sampleInitKey
+    (erasureCode_correct 3 (by norm_num) (by norm_num))
+    (erasureCode_correct 36 (by norm_num) (by norm_num))
+    (erasureCode_correct 30 (by norm_num) (by norm_num))
+    (erasureCode_correct 5 (by norm_num) (by norm_num)) adv q hq
 
 end SPQR

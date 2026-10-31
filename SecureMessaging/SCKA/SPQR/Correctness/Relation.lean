@@ -25,8 +25,8 @@ into a Braid game state: the party states by `PartyState.toMLKEMBraid`, the reco
 * `sckaCorrectnessImpl_run_toMLKEMBraidAck`: such a delivery maps the translated state as the Braid
   game does when the delivered record is relabelled as an acknowledging vector chunk.
 
-"Reachable" means that the translated state satisfies the Braid invariants `ControlInv` and
-`StatePairInv`, and that the state satisfies `Ct1AckInv`. The last condition is the one fact
+Here a state is reachable when its translation satisfies the Braid invariants `ControlInv` and
+`StatePairInv` and the state itself satisfies `Ct1AckInv`. The last condition is the one fact
 about SPQR that the Braid invariants cannot express. SPQR sends `ct1Ack` only from
 `ekSentCt1Received`, and the translation turns every recorded `ct1Ack` into an empty message.
 `Ct1AckInv` keeps the information that the translation forgets.
@@ -72,7 +72,7 @@ abbrev GameState (P : MLKEMBraid.Parameters ProbComp) (AuthState : Type) : Type 
   SCKAScheme.GameState (Chunked.PartyState P AuthState) (Chunked.PartyState P AuthState)
     P.EpochKey (Chunked.Message P.Sym)
 
-/-- The Braid game state with translated party states and recorded messages; the key tables,
+/-- The Braid game state with translated party states and recorded messages. The key tables,
 counters, epochs and flags are unchanged. -/
 -- ANCHOR: Relation_GameState_toMLKEMBraid
 def GameState.toMLKEMBraid (s : GameState P AuthState) : MLKEMBraid.GameState P AuthState where
@@ -537,8 +537,8 @@ theorem DeliveryDivergence.ct1Acknowledged_ek {s : GameState P AuthState}
     exact ⟨false, n, core, dec, chunk, tsnd, rfl, hst, hmsg⟩
 
 /-- A plain vector chunk delivered to a party in `ct1Acknowledged` maps the translated state as the
-Braid game maps the translation in which that record is an acknowledging vector chunk; the Braid
-successor keeps the relabelled record, which the translation of the SPQR successor does not. -/
+Braid game maps the translation in which that record is an acknowledging vector chunk. The Braid
+successor keeps the relabelled record, so the record is restored afterwards. -/
 -- ANCHOR: Relation_sckaCorrectnessImpl_run_toMLKEMBraidAck
 theorem sckaCorrectnessImpl_run_toMLKEMBraidAck (s : GameState P AuthState) (party : Bool)
     (n : ℕ) (core : CtSender.Ct1Sent P.inc AuthState) (dec : DecoderState P.inc.PKvector P.Sym)
