@@ -11,9 +11,9 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.Frodo1344
 /-!
 # Numerical correctness bounds for independently sampled FrodoKEM errors
 
-Turns the three certificates into failure bounds for FrodoPKE when its errors are sampled
-independently. Raising both sides to the tenth power turns published exponents such as `138.7`
-into comparisons of whole numbers. Nothing here is claimed about SHAKE.
+This file turns the three certificates into failure bounds for FrodoPKE with independently
+sampled errors. The comparison raises both sides to the tenth power. Thus a published exponent
+such as `138.7` becomes a comparison of whole numbers. This file makes no claim about SHAKE.
 -/
 
 namespace FrodoKEM.Certificate
@@ -23,7 +23,8 @@ open scoped ENNReal
 
 set_option maxRecDepth 8192 in
 set_option exponentiation.threshold 4096 in
-/-- Each family's bound meets its published exponent, after raising both to the tenth power. -/
+/-- For each family, the bound meets the published exponent. The comparison raises both sides to
+the tenth power. -/
 theorem numerator_tenth_power_le (ps : ParameterSet) :
     numerator ps ^ 10 * 2 ^ exponentTenths ps ≤
       2 ^ (10 * (precision ps + lenChi)) := by

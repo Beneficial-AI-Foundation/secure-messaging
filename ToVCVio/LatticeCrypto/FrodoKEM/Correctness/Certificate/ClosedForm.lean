@@ -10,9 +10,9 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.Parameters
 # Closed forms for kernel evaluation of rounded-convolution certificates
 
 `certificateValues` is defined with long folds: the window mask and the failure weights each
-have thousands of terms. The kernel keeps every intermediate value of such a fold, which costs
-gigabytes of memory. This file proves that the folds equal short geometric-series formulas, so
-each family's certificate is a single `decide +kernel` with no precomputed values.
+have thousands of terms. The kernel keeps every intermediate value of such a fold, and this
+uses gigabytes of memory. This file proves that the folds equal short geometric-series formulas.
+Thus the certificate for each family is one `decide +kernel` command with no precomputed values.
 -/
 
 namespace FailureCertificate.RoundedConvolution

@@ -260,16 +260,16 @@ def decaps {ps : ParameterSet} (ops : Operations ps)
 :::
 
 ::::theorem "frodo_kem_correctness" (parent := "frodo_kem") (lean := "FrodoKEM.ROM.honestFailureProb_tenth_power_le") (tags := "gh-260") (uses := "frodo_kem_scheme")
-Model SHAKE as a random oracle: a table of uniformly random answers, sampled once. Then the probability that honest decapsulation returns a different shared secret from encapsulation is at most $`2^{-138.7}`, $`2^{-199.6}` and $`2^{-252.5}` for FrodoKEM-640, -976 and -1344. These are the values published in {Informal.citet FrodoKEM}[]. The probability is averaged over the table and all honest random choices.
+In the random-oracle model, a table of uniformly random answers replaces SHAKE. A decapsulation failure occurs when honest decapsulation returns a different shared secret from encapsulation. In this model, the failure probability is at most $`2^{-138.7}`, $`2^{-199.6}` and $`2^{-252.5}` for FrodoKEM-640, -976 and -1344. {Informal.citet FrodoKEM}[] publishes the same values. The probability is an average over the table and over all honest random choices.
 
-The proof has six steps, described in detail in `ToVCVio/LatticeCrypto/FrodoKEM/Correctness.lean`:
+The proof has six steps. The file `ToVCVio/LatticeCrypto/FrodoKEM/Correctness.lean` gives each step in detail:
 
-1. Decoding returns the original message when the added noise is less than half the encoding spacing ({Informal.citet FrodoKEM}[], Lemma 1).
-2. So decapsulation fails only if the decryption noise matrix $`S'E + E'' - E'S` is too large.
-3. In the random-oracle model, the five noise matrices have the same distribution as five independently sampled ones.
-4. By the union bound over the $`8 \times 8` entries, the failure probability is at most 64 times that of one entry.
-5. One entry is the sum of $`2n` products of two independent errors and one more error, whose exact distribution is a power of the error distribution.
-6. A version of that distribution, rounded down and cut to a window, is computed inside Lean's kernel. Rounding down never increases a count, and all mass that is lost is counted as failure, so the result is an upper bound.
+1. If the added noise is less than half the distance between encoded values, decoding returns the original message ({Informal.citet FrodoKEM}[], Lemma 1).
+2. Thus decapsulation fails only if the decryption noise matrix $`S'E + E'' - E'S` is large.
+3. In the random-oracle model, the five noise matrices have the distribution of five independent samples.
+4. The union bound over the $`8 \times 8` entries gives a failure probability of at most 64 times the probability for one entry.
+5. One entry is the sum of $`2n` products of two independent errors, plus one more error. Its exact distribution is a power of the error distribution.
+6. The Lean kernel computes an approximate distribution, with counts rounded down and cut to a window. Rounding down never increases a count. The proof counts all removed mass as failure. Thus the result is an upper bound.
 
 :::leanPillCaption "Failure bound in the random-oracle model"
 :::

@@ -11,9 +11,9 @@ import VCVio.EvalDist.Monad.Seq
 /-!
 # Exact scalar product-sum noise law
 
-For independent samples of a symmetric integer distribution `χ`, the noise
-`∑ s₁ e₀ - ∑ e₁ s₀ + e″` has an exact distribution: a power of the counting measure of `χ`.
-`probOutput_entryNoiseIntExp_counts` proves this.
+Let `χ` be a symmetric integer distribution with independent samples. Then the noise
+`∑ s₁ e₀ - ∑ e₁ s₀ + e″` has an exact distribution, a power of the counting measure of `χ`.
+`probOutput_entryNoiseIntExp_counts` proves this result.
 -/
 
 open OracleComp

@@ -10,8 +10,8 @@ import VCVio.EvalDist.ProbabilityBounds
 /-!
 # Ideal-model decryption failure for FrodoKEM
 
-Decryption failure when the five error matrices are sampled from independent uniform
-bit strings. Nothing here is claimed about how SHAKE expands a seed.
+This file bounds decryption failure when the five error matrices come from independent
+uniform bit strings. It makes no claim about how SHAKE expands a seed.
 -/
 
 namespace FrodoKEM.Ideal
