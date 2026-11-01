@@ -140,10 +140,13 @@ private lemma indCpaAdvantageB_eq_indCpaAdvantageA (gen : G)
 
 /-- **Tight reduction, party `B`**: as `indCpaAdvantageA_eq`, with the same reduction, since
 `scheme gen` treats both parties identically. -/
+-- ANCHOR: indCpaAdvantageB_eq
 theorem indCpaAdvantageB_eq (gen : G) (hg : Function.Bijective (· • gen : F → G))
     (adversary : RKEMScheme.INDCPAAdversary Unit G Unit G) :
     (scheme (F := F) gen).indCpaAdvantageB adversary =
-      (ddhAdvantage gen (ddhReduction (F := F) adversary)).toReal / 2 := by
+      (ddhAdvantage gen (ddhReduction (F := F) adversary)).toReal / 2
+-- ANCHOR_END: indCpaAdvantageB_eq
+    := by
   rw [indCpaAdvantageB_eq_indCpaAdvantageA, indCpaAdvantageA_eq gen hg]
 
 /-- **IND-CPA security** ([TripleRatchet, Thm. A.4], non-forward-secure part): if every DDH

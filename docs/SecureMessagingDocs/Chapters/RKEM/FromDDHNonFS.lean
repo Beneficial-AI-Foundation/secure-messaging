@@ -235,7 +235,7 @@ theorem deltaCorrect [DecidableEq G] (gen : G) :
 :::defTitle "rkem_from_ddh_nonfs_ind_cpa" "RKEM from DDH non-FS IND-CPA security"
 :::
 
-:::::::theorem "rkem_from_ddh_nonfs_ind_cpa" (parent := "rkem_rkem_from_ddh_non_fs") (lean := "ddhRKEM.ddhReduction, ddhRKEM.indCpaAdvantageA_eq, ddhRKEM.indCpaAdvantageB_eq, ddhRKEM.INDCPASecure") (tags := "gh-375") (uses := "rkem_from_ddh_nonfs_spec, rkem_scheme, rkem_security")
+:::::::theorem "rkem_from_ddh_nonfs_ind_cpa" (parent := "rkem_rkem_from_ddh_non_fs") (lean := "ddhRKEM.ddhReduction, ddhRKEM.indCpaAdvantageA_eq, ddhRKEM.indCpaAdvantageB_eq, ddhRKEM.INDCPASecure, DiffieHellman.DDHAdversary, DiffieHellman.ddhRealExperiment, DiffieHellman.ddhRandomExperiment, DiffieHellman.ddhAdvantage") (tags := "gh-375") (uses := "rkem_from_ddh_nonfs_spec, rkem_scheme, rkem_security")
 Adapted from {Informal.citet TR25}[], Theorem A.4.
 
 Let $`G=\langle g\rangle` be a group of prime order $`q`, so that $`x\mapsto g^x` is a bijection $`\mathbb{Z}_q\to G`.
@@ -262,9 +262,7 @@ def ddhReduction (adversary : RKEMScheme.INDCPAAdversary Unit G Unit G) :
   fun _gen ekA ekBHat key => adversary () ekA ekA ekBHat () key
 ```
 
-:::leanPillCaption "Tight reduction, party A"
-:::
-
+::::leanCompare "Tight reduction" (left := "Party A") (right := "Party B")
 ```anchor indCpaAdvantageA_eq (project := ".") (module := SecureMessaging.RKEM.FromDDHNonFS.Security)
 theorem indCpaAdvantageA_eq (gen : G)
     (hg : Function.Bijective (· • gen : F → G))
@@ -272,6 +270,14 @@ theorem indCpaAdvantageA_eq (gen : G)
     (scheme (F := F) gen).indCpaAdvantageA adversary =
       (ddhAdvantage gen (ddhReduction (F := F) adversary)).toReal / 2
 ```
+
+```anchor indCpaAdvantageB_eq (project := ".") (module := SecureMessaging.RKEM.FromDDHNonFS.Security)
+theorem indCpaAdvantageB_eq (gen : G) (hg : Function.Bijective (· • gen : F → G))
+    (adversary : RKEMScheme.INDCPAAdversary Unit G Unit G) :
+    (scheme (F := F) gen).indCpaAdvantageB adversary =
+      (ddhAdvantage gen (ddhReduction (F := F) adversary)).toReal / 2
+```
+::::
 
 :::leanPillCaption "IND-CPA security"
 :::
