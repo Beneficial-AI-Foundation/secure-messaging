@@ -10,9 +10,13 @@ import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
 # Trace games with installed samples
 
 An installed trace game uses a given key pair, first-stage encapsulation or challenge value at the
-selected epoch `e` instead of sampling it. A send that uses an installed sample has the same
-outcome, the same records and the same refusal and exposure rule as a send that samples. This
-module defines these games and proves their equations for one query.
+selected epoch `e` instead of sampling it. A send that uses an installed sample makes the same
+state update, the same records and the same refusal as a send that samples. Its answer differs:
+an ordinary send answers with the coin tag `SendRand.none`, which the ordinary send oracle then
+drops, and an accepted leaking send answers `none` and exposes `e`. So the installation results
+of `Installed.Sampling` (`stoppedRun_installKeygen`, `stoppedRun_installEncaps1`,
+`stoppedRun_installBoth`) compare the two games only for runs that stop at the first exposure of
+`e`. This module defines these games and proves their equations for one query.
 -/
 
 open OracleSpec OracleComp
