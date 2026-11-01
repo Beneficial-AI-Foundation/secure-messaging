@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.IncrementalKEM.Defs
+import SecureMessaging.SCKA.SPQR.Params
 import SecureMessaging.SCKA.MLKEMBraid.Authenticator
 import ToVCVio.CryptoFoundations.KeyEncapMech
 
@@ -25,7 +25,7 @@ universe u
 
 namespace SPQR
 
-variable {m : Type → Type u} [Monad m] {K PK SK C : Type} {kem : KEMScheme m K PK SK C}
+variable {m : Type → Type u} [Monad m]
 
 /-- Post-KEM epoch-key derivation `KDF_OK` from a shared secret and an epoch. -/
 -- ANCHOR: EpochKeyDerivation
@@ -44,35 +44,35 @@ structure KeysUnsampled (AuthState : Type) where
   authSt : AuthState
 
 /-- State after sending the authenticated encapsulation-key header. -/
-structure HeaderSent (inc : kem.IncrementalStructure) (AuthState : Type) where
+structure HeaderSent (P : Parameters m) (AuthState : Type) where
   /-- The epoch in progress. -/
   ep : ℕ
   /-- Authenticator state entering the epoch. -/
   authSt : AuthState
   /-- The sampled encapsulation key. -/
-  pk : PK
+  pk : P.PK
   /-- The decapsulation key held for this epoch. -/
-  sk : SK
+  sk : P.SK
 
 /-- State after sending the encapsulation-key vector. -/
-structure EkSent (inc : kem.IncrementalStructure) (AuthState : Type) where
+structure EkSent (P : Parameters m) (AuthState : Type) where
   /-- The epoch in progress. -/
   ep : ℕ
   /-- Authenticator state entering the epoch. -/
   authSt : AuthState
   /-- The decapsulation key held for this epoch. -/
-  sk : SK
+  sk : P.SK
 
 /-- State after sending the encapsulation key and receiving the first ciphertext component. -/
-structure EkSentCt1Received (inc : kem.IncrementalStructure) (AuthState : Type) where
+structure EkSentCt1Received (P : Parameters m) (AuthState : Type) where
   /-- The epoch in progress. -/
   ep : ℕ
   /-- Authenticator state entering the epoch. -/
   authSt : AuthState
   /-- The decapsulation key held for this epoch. -/
-  sk : SK
+  sk : P.SK
   /-- The received first ciphertext component. -/
-  c1 : inc.C₁
+  c1 : P.det.C₁
 
 end EkSender
 
@@ -86,41 +86,41 @@ structure NoHeaderReceived (AuthState : Type) where
   authSt : AuthState
 
 /-- State after receiving an authenticated encapsulation-key header. -/
-structure HeaderReceived (inc : kem.IncrementalStructure) (AuthState : Type) where
+structure HeaderReceived (P : Parameters m) (AuthState : Type) where
   /-- The epoch in progress. -/
   ep : ℕ
   /-- Authenticator state entering the epoch. -/
   authSt : AuthState
   /-- Stored encapsulation-key header. -/
-  hdr : inc.PKheader
+  hdr : P.det.PKheader
 
 /-- State after deriving the epoch key and sending the first ciphertext component. -/
-structure Ct1Sent (inc : kem.IncrementalStructure) (AuthState : Type) where
+structure Ct1Sent (P : Parameters m) (AuthState : Type) where
   /-- The epoch in progress. -/
   ep : ℕ
   /-- Authenticator state after the update with this epoch's key. -/
   authSt : AuthState
   /-- Stored encapsulation-key header. -/
-  hdr : inc.PKheader
+  hdr : P.det.PKheader
   /-- The encapsulation state carried from the first stage to the second. -/
-  encapsSt : inc.St
+  encapsSt : P.det.St
   /-- The first ciphertext component, kept for the ciphertext tag. -/
-  c1 : inc.C₁
+  c1 : P.det.C₁
 
 /-- State after sending the first ciphertext component and validating the encapsulation key. -/
-structure Ct1SentEkReceived (inc : kem.IncrementalStructure) (AuthState : Type) where
+structure Ct1SentEkReceived (P : Parameters m) (AuthState : Type) where
   /-- The epoch in progress. -/
   ep : ℕ
   /-- Authenticator state after the update with this epoch's key. -/
   authSt : AuthState
   /-- Stored encapsulation-key header. -/
-  hdr : inc.PKheader
+  hdr : P.det.PKheader
   /-- The encapsulation state carried from the first stage to the second. -/
-  encapsSt : inc.St
+  encapsSt : P.det.St
   /-- The first ciphertext component, kept for the ciphertext tag. -/
-  c1 : inc.C₁
+  c1 : P.det.C₁
   /-- Stored encapsulation-key vector. -/
-  vec : inc.PKvector
+  vec : P.det.PKvector
 
 /-- State after sending the second ciphertext component and its tag. -/
 structure Ct2Sent (AuthState : Type) where
@@ -131,47 +131,50 @@ structure Ct2Sent (AuthState : Type) where
 
 end CtSender
 
-variable {InitKey EpochKey AuthState Mac : Type}
+variable {InitKey AuthState : Type}
 
 /-! ## Encapsulation-key sender transitions -/
 
 namespace EkSender
 
 -- ANCHOR: EkSender_sendHeader
-/-- Generate a KEM key pair and return the successor state, header, and tag. -/
-def sendHeader (inc : kem.IncrementalStructure)
-    (auth : RatchetedAuthenticator InitKey EpochKey AuthState inc.PKheader (inc.C₁ × inc.C₂) Mac)
-    (st : KeysUnsampled AuthState) : m (HeaderSent inc AuthState × inc.PKheader × Mac) := do
-  let (pk, sk) ← kem.keygen
-  let hdr := inc.toHeader pk
-  pure (⟨st.ep, st.authSt, pk, sk⟩, hdr, auth.macHeader st.authSt st.ep hdr)
+/-- Generate a KEM key pair and return the successor state, header, tag, and sampled coins. -/
+def sendHeader (P : Parameters m)
+    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
+      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
+    (st : KeysUnsampled AuthState) :
+    m ((HeaderSent P AuthState × P.det.PKheader × P.Mac) × P.det.KeygenRand) := do
+  let r ← P.det.sampleKeygen
+  let (pk, sk) := P.det.keygenDet r
+  let hdr := P.det.toHeader pk
+  pure ((⟨st.ep, st.authSt, pk, sk⟩, hdr, auth.macHeader st.authSt st.ep hdr), r)
 -- ANCHOR_END: EkSender_sendHeader
 
 -- ANCHOR: EkSender_sendVector
 /-- Return the successor state and the vector component of the stored encapsulation key. -/
-def sendVector (inc : kem.IncrementalStructure) (st : HeaderSent inc AuthState) :
-    EkSent inc AuthState × inc.PKvector :=
-  (⟨st.ep, st.authSt, st.sk⟩, inc.toVector st.pk)
+def sendVector (P : Parameters m) (st : HeaderSent P AuthState) :
+    EkSent P AuthState × P.det.PKvector :=
+  (⟨st.ep, st.authSt, st.sk⟩, P.det.toVector st.pk)
 -- ANCHOR_END: EkSender_sendVector
 
 -- ANCHOR: EkSender_recvCt1
 /-- Store the first ciphertext component. -/
-def recvCt1 (inc : kem.IncrementalStructure) (st : EkSent inc AuthState)
-    (c1 : inc.C₁) : EkSentCt1Received inc AuthState :=
+def recvCt1 (P : Parameters m) (st : EkSent P AuthState)
+    (c1 : P.det.C₁) : EkSentCt1Received P AuthState :=
   ⟨st.ep, st.authSt, st.sk, c1⟩
 -- ANCHOR_END: EkSender_recvCt1
 
 -- ANCHOR: EkSender_recvCt2
 /-- Decapsulate and authenticate the ciphertext, returning the next role state and epoch key. -/
-def recvCt2 (inc : kem.IncrementalStructure)
-    (auth : RatchetedAuthenticator InitKey EpochKey AuthState inc.PKheader (inc.C₁ × inc.C₂) Mac)
-    (deriveEpochKey : EpochKeyDerivation K EpochKey) (hDet : DeterministicDecaps kem)
-    (st : EkSentCt1Received inc AuthState) (c2 : inc.C₂) (tag : Mac) :
-    Option (CtSender.NoHeaderReceived AuthState × (ℕ × EpochKey)) :=
-  match hDet.decapsDet st.sk (inc.splitC.symm (st.c1, c2)) with
+def recvCt2 (P : Parameters m)
+    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
+      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
+    (st : EkSentCt1Received P AuthState) (c2 : P.det.C₂) (tag : P.Mac) :
+    Option (CtSender.NoHeaderReceived AuthState × (ℕ × P.EpochKey)) :=
+  match P.det.decapsDet st.sk (P.det.splitC.symm (st.c1, c2)) with
   | none => none
   | some k =>
-    let ik := deriveEpochKey k st.ep
+    let ik := P.kdfOK k st.ep
     let authSt' := auth.update st.authSt st.ep ik
     if auth.verifyCiphertext authSt' st.ep (st.c1, c2) tag then
       some (⟨st.ep + 1, authSt'⟩, (st.ep, ik))
@@ -186,40 +189,45 @@ namespace CtSender
 
 -- ANCHOR: CtSender_recvHeader
 /-- Verify the header tag and return the successor state on success. -/
-def recvHeader (inc : kem.IncrementalStructure)
-    (auth : RatchetedAuthenticator InitKey EpochKey AuthState inc.PKheader (inc.C₁ × inc.C₂) Mac)
-    (st : NoHeaderReceived AuthState) (hdr : inc.PKheader) (tag : Mac) :
-    Option (HeaderReceived inc AuthState) :=
+def recvHeader (P : Parameters m)
+    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
+      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
+    (st : NoHeaderReceived AuthState) (hdr : P.det.PKheader) (tag : P.Mac) :
+    Option (HeaderReceived P AuthState) :=
   if auth.verifyHeader st.authSt st.ep hdr tag then some ⟨st.ep, st.authSt, hdr⟩ else none
 -- ANCHOR_END: CtSender_recvHeader
 
 -- ANCHOR: CtSender_sendCt1
-/-- Run encapsulation stage one and return the successor state, ciphertext, and epoch key. -/
-def sendCt1 (inc : kem.IncrementalStructure)
-    (auth : RatchetedAuthenticator InitKey EpochKey AuthState inc.PKheader (inc.C₁ × inc.C₂) Mac)
-    (deriveEpochKey : EpochKeyDerivation K EpochKey) (st : HeaderReceived inc AuthState) :
-    m (Ct1Sent inc AuthState × inc.C₁ × (ℕ × EpochKey)) := do
-  let (encapsSt, c1, k) ← inc.encaps1 st.hdr
-  let ik := deriveEpochKey k st.ep
-  pure (⟨st.ep, auth.update st.authSt st.ep ik, st.hdr, encapsSt, c1⟩, c1, (st.ep, ik))
+/-- Run encapsulation stage one and return the successor state, ciphertext, epoch key,
+and sampled coins. -/
+def sendCt1 (P : Parameters m)
+    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
+      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
+    (st : HeaderReceived P AuthState) :
+    m ((Ct1Sent P AuthState × P.det.C₁ × (ℕ × P.EpochKey)) × P.det.Encaps1Rand) := do
+  let r ← P.det.sampleEncaps1
+  let (encapsSt, c1, k) := P.det.encaps1Det st.hdr r
+  let ik := P.kdfOK k st.ep
+  pure ((⟨st.ep, auth.update st.authSt st.ep ik, st.hdr, encapsSt, c1⟩, c1, (st.ep, ik)), r)
 -- ANCHOR_END: CtSender_sendCt1
 
 -- ANCHOR: CtSender_recvVector
 /-- Validate the encapsulation-key vector and return the successor state on success. -/
-def recvVector (inc : kem.IncrementalStructure) (st : Ct1Sent inc AuthState)
-    (vec : inc.PKvector) : Option (Ct1SentEkReceived inc AuthState) :=
-  if inc.validPK st.hdr vec then
+def recvVector (P : Parameters m) (st : Ct1Sent P AuthState)
+    (vec : P.det.PKvector) : Option (Ct1SentEkReceived P AuthState) :=
+  if P.det.validPK st.hdr vec then
     some ⟨st.ep, st.authSt, st.hdr, st.encapsSt, st.c1, vec⟩
   else none
 -- ANCHOR_END: CtSender_recvVector
 
 -- ANCHOR: CtSender_sendCt2
 /-- Run encapsulation stage two and return the successor state, ciphertext, and tag. -/
-def sendCt2 (inc : kem.IncrementalStructure)
-    (auth : RatchetedAuthenticator InitKey EpochKey AuthState inc.PKheader (inc.C₁ × inc.C₂) Mac)
-    (st : Ct1SentEkReceived inc AuthState) : m (Ct2Sent AuthState × inc.C₂ × Mac) := do
-  let c2 ← inc.encaps2 st.encapsSt st.hdr st.vec
-  pure (⟨st.ep, st.authSt⟩, c2, auth.macCiphertext st.authSt st.ep (st.c1, c2))
+def sendCt2 (P : Parameters m)
+    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
+      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
+    (st : Ct1SentEkReceived P AuthState) : Ct2Sent AuthState × P.det.C₂ × P.Mac :=
+  let c2 := P.det.encaps2Det st.encapsSt st.hdr st.vec
+  (⟨st.ep, st.authSt⟩, c2, auth.macCiphertext st.authSt st.ep (st.c1, c2))
 -- ANCHOR_END: CtSender_sendCt2
 
 -- ANCHOR: CtSender_recvNextEpoch

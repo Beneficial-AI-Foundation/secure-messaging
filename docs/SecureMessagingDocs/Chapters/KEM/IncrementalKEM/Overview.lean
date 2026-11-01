@@ -74,6 +74,99 @@ structure IncrementalStructure (kem : KEMScheme m K PK SK C) where
 
 ::::
 
+:::defTitle "incremental_kem_det" "Incremental KEM with explicit coins"
+:::
+
+::::definition "incremental_kem_det" (parent := "incremental_kem") (lean := "KEMScheme.IncrementalKEMDet, MLKEM.mlkemIncrementalDet") (tags := "gh-224") (uses := "incremental_kem_scheme, ml_kem_scheme")
+An incremental KEM with explicit coins consists of deterministic key generation,
+first- and second-stage encapsulation, and decapsulation, together with samplers for
+key-generation and first-stage coins. Decapsulation may reject. The protocol draws the coins
+and supplies them to the corresponding deterministic block.
+
+The derived KEM runs these blocks with their samplers. Its incremental witness factors
+encapsulation into the two stages. Its leakage witness returns the sampled coins, with no
+randomness in the second stage.
+
+:::leanPillCaption "deterministic blocks and coin samplers"
+:::
+
+```anchor IncrementalKEMDet (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.Derandomized)
+structure IncrementalKEMDet (m : Type → Type u) (K PK SK C : Type) where
+  /-- Public-key header. -/
+  PKheader : Type
+  /-- Public-key vector. -/
+  PKvector : Type
+  /-- First ciphertext component. -/
+  C₁ : Type
+  /-- Second ciphertext component. -/
+  C₂ : Type
+  /-- Secret state retained between encapsulation stages. -/
+  St : Type
+  /-- Key-generation coins. -/
+  KeygenRand : Type
+  /-- First-stage encapsulation coins. -/
+  Encaps1Rand : Type
+  /-- Consistency of a public-key header and vector. -/
+  validPK : PKheader → PKvector → Bool
+  /-- Public keys are precisely the valid header/vector pairs. -/
+  splitPK : PK ≃ { parts : PKheader × PKvector // validPK parts.1 parts.2 = true }
+  /-- Ciphertext decomposition into its two components. -/
+  splitC : C ≃ C₁ × C₂
+  /-- Key generation from explicit coins. -/
+  keygenDet : KeygenRand → PK × SK
+  /-- First-stage encapsulation from a header and explicit coins. -/
+  encaps1Det : PKheader → Encaps1Rand → St × C₁ × K
+  /-- Second-stage encapsulation using the retained state. -/
+  encaps2Det : St → PKheader → PKvector → C₂
+  /-- Decapsulation, with `none` denoting rejection. -/
+  decapsDet : SK → C → Option K
+  /-- Sampler for key-generation coins. -/
+  sampleKeygen : m KeygenRand
+  /-- Sampler for first-stage encapsulation coins. -/
+  sampleEncaps1 : m Encaps1Rand
+```
+
+For ML-KEM, key generation draws one uniformly distributed 64-byte seed and splits it into
+$`d` and $`z`, in that order. First-stage encapsulation draws one uniformly distributed
+32-byte message. Splitting the key-generation seed has the same distribution as independently
+sampling $`d` and $`z` in the existing ML-KEM scheme.
+
+:::leanPillCaption "ML-KEM blocks with the implementation's coin spaces"
+:::
+
+```anchor mlkemIncrementalDet (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
+def mlkemIncrementalDet (p : ParameterSet) (ring : NTTRingOps)
+    (prims : Primitives (ParameterSet.params p)
+      (Concrete.concreteEncoding (ParameterSet.params p))) :
+    IncrementalKEMDet ProbComp SharedSecret
+      (EncapsulationKey (ParameterSet.params p)
+        (Concrete.concreteEncoding (ParameterSet.params p)))
+      (DecapsulationKey (ParameterSet.params p)
+        (Concrete.concreteEncoding (ParameterSet.params p)))
+      (Ciphertext (ParameterSet.params p)
+        (Concrete.concreteEncoding (ParameterSet.params p))) :=
+  let inc := mlkemIncremental p ring prims
+  { PKheader := inc.PKheader
+    PKvector := inc.PKvector
+    C₁ := inc.C₁
+    C₂ := inc.C₂
+    St := inc.St
+    KeygenRand := Bytes 64
+    Encaps1Rand := Message
+    validPK := inc.validPK
+    splitPK := inc.splitPK
+    splitC := inc.splitC
+    keygenDet := fun r => keygenInternal ring
+      (Concrete.concreteEncoding (ParameterSet.params p)) prims (r.take 32) (r.drop 32)
+    encaps1Det := incrementalEncaps1 ring prims
+    encaps2Det := fun st _hdr vec => incrementalEncaps2 ring st vec
+    decapsDet := fun sk c => some (decapsInternal ring
+      (Concrete.concreteEncoding (ParameterSet.params p)) prims sk c)
+    sampleKeygen := $ᵗ Bytes 64
+    sampleEncaps1 := $ᵗ Message }
+```
+::::
+
 :::group "incremental_kem_incremental_kem_from_ml_kem"
 Incremental KEM from ML-KEM.
 :::
