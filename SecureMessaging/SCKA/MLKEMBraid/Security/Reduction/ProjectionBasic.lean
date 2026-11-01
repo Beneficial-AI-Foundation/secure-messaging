@@ -9,6 +9,7 @@ import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Basic
 import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
 import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 import ToVCVio.OracleComp.EvalDist
+import ToVCVio.OracleComp.SimSemantics.UnifLift
 
 /-!
 # The simulator view of a trace state
@@ -189,12 +190,6 @@ theorem send_masked (hMac : P.Mac = Unit) {e : ℕ} {st : State P Unit} {m : Mas
         exact ⟨_, rfl, rfl, rfl, rfl, by simp only [maskState, ↓reduceIte]; rfl⟩
       · simp [maskState, ht] at hm
 
-/-- Lifted uniform randomness keeps any state. -/
-theorem liftTarget_unif_run {σ : Type} (t : ℕ) (s : σ) :
-    (((QueryImpl.ofLift unifSpec ProbComp).liftTarget (StateT σ ProbComp)) t).run s =
-      (fun a => (a, s)) <$> (QueryImpl.ofLift unifSpec ProbComp) t := by
-  simp [StateT.run_monadLift, map_eq_bind_pure_comp]
-
 variable [DecidableEq P.EpochKey]
 
 /-- The simulator game of a trace send update. -/
@@ -290,13 +285,13 @@ theorem traceUnif_run (t : ℕ) (s : TraceState P) :
     (traceUnif P t).run s = (fun a => (a, s)) <$> (QueryImpl.ofLift unifSpec ProbComp) t := by
   rw [show traceUnif P t = liftGame (SCKAScheme.oracleUnif (State P Unit) (State P Unit)
       P.EpochKey (Message P.Sym) t) from rfl, liftGame_run, SCKAScheme.oracleUnif,
-    liftTarget_unif_run, Functor.map_map]
+    ToVCVio.liftTarget_unif_run, Functor.map_map]
 
 /-- The uniform-randomness query agrees. -/
 theorem unif_step (t : ℕ) (s : TraceState P) :
     StepSim e v ((simUnif P t).run (simOf e v s)) ((traceUnif P t).run s) :=
   StepSim.of_eq (by
-    rw [show (simUnif P t).run (simOf e v s) = _ from liftTarget_unif_run t (simOf e v s),
+    rw [show (simUnif P t).run (simOf e v s) = _ from ToVCVio.liftTarget_unif_run t (simOf e v s),
       traceUnif_run, Functor.map_map]
     rfl)
 

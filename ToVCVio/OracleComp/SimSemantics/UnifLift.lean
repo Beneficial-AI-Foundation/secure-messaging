@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 
 import VCVio.OracleComp.SimSemantics.QueryImpl.Basic
 import VCVio.OracleComp.Support
+import VCVio.OracleComp.ProbComp.Basic
 
 /-!
 # The canonical `unifSpec → StateT σ` lift handler
@@ -37,5 +38,11 @@ lemma support_unifLiftStateT_run (σ : Type) (n : unifSpec.Domain) (s : σ) :
     QueryImpl.ofLift_apply, StateT.run_monadLift, monadLift_self, bind_pure_comp,
     MonadAttach.support_map, support_liftM, OracleQuery.input_query, OracleQuery.cont_query,
     Set.range_id, Set.image_univ]
+
+/-- Lifted uniform randomness keeps any state. -/
+theorem liftTarget_unif_run {σ : Type} (t : ℕ) (s : σ) :
+    (((QueryImpl.ofLift unifSpec ProbComp).liftTarget (StateT σ ProbComp)) t).run s =
+      (fun a => (a, s)) <$> (QueryImpl.ofLift unifSpec ProbComp) t := by
+  simp [StateT.run_monadLift, map_eq_bind_pure_comp]
 
 end ToVCVio
