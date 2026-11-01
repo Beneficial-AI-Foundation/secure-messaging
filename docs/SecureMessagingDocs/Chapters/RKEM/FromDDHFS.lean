@@ -39,7 +39,7 @@ $`\todo`
 :::defTitle "rkem_from_ddh_fs_forward_security" "RKEM from DDH FS forward security"
 :::
 
-::::theorem "rkem_from_ddh_fs_forward_security" (parent := "rkem_rkem_from_ddh_fs") (tags := "gh-72") (uses := "rkem_from_ddh_fs_spec, rkem_scheme, rkem_forward_security")
+::::theorem "rkem_from_ddh_fs_forward_security" (parent := "rkem_rkem_from_ddh_fs") (tags := "gh-72") (uses := "rkem_from_ddh_fs_spec, rkem_scheme, rkem_security")
 $`\todo`
 
 :::leanPill "missing"
