@@ -238,7 +238,7 @@ theorem deltaCorrect [DecidableEq G] (gen : G) :
 :::::::theorem "rkem_from_ddh_nonfs_ind_cpa" (parent := "rkem_rkem_from_ddh_non_fs") (lean := "ddhRKEM.ddhReduction, ddhRKEM.indCpaAdvantageA_eq, ddhRKEM.indCpaAdvantageB_eq, ddhRKEM.INDCPASecure") (tags := "gh-375") (uses := "rkem_from_ddh_nonfs_spec, rkem_scheme, rkem_security")
 Adapted from {Informal.citet TR25}[], Theorem A.4.
 
-Let $`G=\langle g\rangle` be of prime order $`q`, so that $`x\mapsto g^x` is a bijection $`\mathbb{Z}_q\to G`.
+Let $`G=\langle g\rangle` be a group of prime order $`q`, so that $`x\mapsto g^x` is a bijection $`\mathbb{Z}_q\to G`.
 
 :::leanPillCaption "Generator hypothesis"
 :::
@@ -247,22 +247,11 @@ Let $`G=\langle g\rangle` be of prime order $`q`, so that $`x\mapsto g^x` is a b
     (hg : Function.Bijective (· • gen : F → G))
 ```
 
-For each party $`\mathsf{P}\in\{\A,\B\}` and every IND-CPA adversary $`\adv` against the non-forward-secure RKEM from DDH, the DDH adversary $`\mathcal{B}` below satisfies
+For every IND-CPA adversary $`\adv` and $`\mathsf{P}\in\{\A,\B\}`, the DDH adversary $`\mathcal{B}(g,X,Y,T):=\adv(X,X,Y,(),T)` satisfies
 
 $$`\mathsf{Adv}^{\mathsf{IND\text{-}CPA}\text{-}\mathsf{P}}(\adv)=\tfrac12\,\mathsf{Adv}^{\mathsf{DDH}}(\mathcal{B}),`
 
-with $`\mathsf{Adv}^{\mathsf{DDH}}(\mathcal{B})=|\Pr[\mathcal{B}\text{ outputs }1\text{ on a real triple}]-\Pr[\mathcal{B}\text{ outputs }1\text{ on a random triple}]|` the distinguishing advantage. The factor $`\tfrac12` only converts this distinguishing advantage into the bias advantage $`|\Pr[\cdot]-\tfrac12|` of the IND-CPA game; the reduction is tight.
-
-Consequently, if every DDH adversary has advantage at most $`\varepsilon`, the scheme is $`\tfrac{\varepsilon}{2}`-IND-CPA secure in the sense of {bpref "rkem_security"}[RKEM IND-CPA].
-
-::::::gameGrid
-:::::gameCell "\\mathcal{B}(g,X,Y,T)" (kind := "compact")
-$`\begin{array}{l}
-b'\sample\adv(X,X,Y,(),T)\pcomment{\ekA=\ekh{A}=X,\ \ekh{B}=Y,\ \ct_\B=()} \\
-\Return b'
-\end{array}`
-:::::
-::::::
+where $`\mathsf{Adv}^{\mathsf{DDH}}(\mathcal{B})=\bigl|\Pr[\mathcal{B}(g,g^x,g^y,g^{xy})=1]-\Pr[\mathcal{B}(g,g^x,g^y,g^c)=1]\bigr|` for $`x,y,c\sample\mathbb{Z}_q`. Hence, if every DDH adversary has advantage at most $`\varepsilon`, the scheme is $`\tfrac{\varepsilon}{2}`-IND-CPA secure ({bpref "rkem_security"}[RKEM IND-CPA]).
 
 :::leanPillCaption "DDH reduction"
 :::
