@@ -227,7 +227,7 @@ Chunked SPQR.
 :::defTitle "spqr_chunked_spec" "SPQR chunked data and helpers"
 :::
 
-::::definition "spqr_chunked_spec" (parent := "spqr_chunked") (lean := "SPQR.Chunked.Payload, SPQR.Chunked.Message, SPQR.Chunked.PartyState, SPQR.Chunked.Error, SPQR.Chunked.SendResult, SPQR.Chunked.RecvResult, SPQR.Chunked.completeCt2") (tags := "gh-263") (uses := "spqr_unchunked_ek_sender, spqr_unchunked_ct_sender, erasure_code_payload, erasure_code_streaming, mlkem_braid_protocol_parameters")
+::::definition "spqr_chunked_spec" (parent := "spqr_chunked") (lean := "SPQR.Chunked.Payload, SPQR.Chunked.Message, SPQR.Chunked.PartyState, SPQR.Chunked.Error, SPQR.Chunked.SendResult, SPQR.Chunked.RecvResult, SPQR.Chunked.completeCt2") (tags := "gh-263") (uses := "spqr_unchunked_ek_sender, spqr_unchunked_ct_sender, erasure_code_payload, erasure_code_streaming, spqr_parameters")
 $`\todo`
 
 :::leanPillCaption "wire payload"
