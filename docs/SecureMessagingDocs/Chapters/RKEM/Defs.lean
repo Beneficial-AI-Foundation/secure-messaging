@@ -392,7 +392,7 @@ noncomputable def ctxtSimAdvantage (rkem : RKEMScheme ProbComp Par EK DK CT K)
 
 For each property $`\mathsf{X}\in\{\mathsf{KeyBaseSim},\mathsf{KeyUpdSim},\mathsf{CtxtSim}\}` and party $`\mathsf{P}`, the advantage of a distinguisher $`\adv` is
 
-$$`\mathsf{Adv}^{\mathsf{X}\text{-}\mathsf{P}}(\adv)=\left|\Pr\left[b\sample\bit,\;x\sample\mathcal{D}^{\mathsf{X}}_{\mathsf{P},b},\;b'\sample\adv(x):b'=b\right]-\frac12\right|,\qquad \mathsf{Adv}^{\mathsf{X}}(\adv_\A,\adv_\B)=\max_{\mathsf{P}\in\{\A,\B\}}\mathsf{Adv}^{\mathsf{X}\text{-}\mathsf{P}}(\adv_\mathsf{P})`
+$$`\mathsf{Adv}^{\mathsf{X}\text{-}\mathsf{P}}(\adv)=\left|\Pr\left[b\sample\bit,\;x\sample\mathcal{D}^{\mathsf{X}}_{\mathsf{P},b},\;b'\sample\adv(x):b'=b\right]-\frac12\right|,\qquad \mathsf{Adv}^{\mathsf{X}}(\adv)=\max_{\mathsf{P}\in\{\A,\B\}}\mathsf{Adv}^{\mathsf{X}\text{-}\mathsf{P}}(\adv_\mathsf{P})`
 
 and the RKEM is $`\varepsilon`-ratchet-simulatable when all three advantages are at most $`\varepsilon`.
 
@@ -513,7 +513,7 @@ noncomputable def indCpaAdvantage (rkem : RKEMScheme ProbComp Par EK DK CT K)
 ```
 ::::
 
-An RKEM is $`\varepsilon`-FS-IND-CPA secure when $`\mathsf{Adv}^{\mathsf{FS\text{-}IND\text{-}CPA}}(\adv_\A,\adv_\B)\le\varepsilon`, and a non-forward-secure RKEM is $`\varepsilon`-IND-CPA secure when $`\mathsf{Adv}^{\mathsf{IND\text{-}CPA}}(\adv_\A,\adv_\B)\le\varepsilon`.
+An RKEM is $`\varepsilon`-FS-IND-CPA secure when $`\mathsf{Adv}^{\mathsf{FS\text{-}IND\text{-}CPA}}(\adv)\le\varepsilon`, and a non-forward-secure RKEM is $`\varepsilon`-IND-CPA secure when $`\mathsf{Adv}^{\mathsf{IND\text{-}CPA}}(\adv)\le\varepsilon`.
 
 ::::leanCompare "Security" (left := "FS-IND-CPA") (right := "IND-CPA")
 ```anchor FSINDCPASecure (project := ".") (module := SecureMessaging.RKEM.Defs)
