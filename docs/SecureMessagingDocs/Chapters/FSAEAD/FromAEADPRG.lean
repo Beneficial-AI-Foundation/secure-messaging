@@ -229,7 +229,7 @@ first two:
 :::fsAeadKeyChainIllustration
 :::
 
-Each step of $`G` turns a seed into the next seed and an AEAD key: $`w_0 = k` and
+Applying $`G` to a seed gives the next seed and an AEAD key: $`w_0 = k` and
 $`(w_j, K_j) \gets G(w_{j-1})`. A encrypts its $`j`-th message under $`K_j`. The diagram shows
 B after message 3 arrives first, before messages 1 and 2. B runs $`\mathsf{skip}(3)`: it stores $`K_1` and $`K_2` in $`D`,
 decrypts with $`K_3`, and keeps only the seed $`w_3`. If message 1 or 2 arrives later, B takes
