@@ -175,23 +175,28 @@ def gctr {K : Type} (ciph : K → BitVec 128 → BitVec 128) (k : K) (icb : BitV
 :::::::definition "aead_gcm_spec" (parent := "aead_gcm") (lean := "GCM.gcmEncrypt, GCM.gcmDecrypt, GCM.gcmOneTimeAEAD") (tags := "gh-21") (uses := "aead, prp, aead_gcm_components")
 Adapted from {Informal.citet NIST_GCM}[], Section 7, Algorithms 4 and 5.
 
-A message or ciphertext length is supported when it is at most $`2^{39} - 256` bits and a
-multiple of 8. An associated data length is supported when it is at most $`2^{64} - 1` bits
-and a multiple of 8.
-
 Let $`P` be a {bpref "prp"}[PRP scheme] on 128-bit blocks with key space $`\mathcal K`, let
 $`\mathit{IV}` be a 96-bit IV, and let $`L` be a supported message length. Then
 $`\mathsf{GCM}[P, \mathit{IV}, L]` is the one-time {bpref "aead"}[AEAD scheme] with key
 space $`\mathcal K`, message space $`\bit^L`, associated data space the bitstrings of
-supported length, ciphertext space $`\bit^L \times \bit^{128}` and the algorithms below.
+supported length, ciphertext space $`\bit^L \times \bit^{128}`, and the notation and
+algorithms below.
 
-GCM encrypts the message in counter mode and authenticates the associated data and the
-ciphertext with $`\mathsf{GHASH}`. Both use the block cipher $`\mathsf{CIPH}_K`, the
-permutation of $`P` under the key $`K`. The tag is 128 bits. For a bitstring $`X`, let
-$`0^{v_X}` be the fewest zero bits that make $`|X| + v_X` a multiple of 128. GHASH hashes the
-associated data $`A` and the ciphertext $`C` as
-
-$$`\mathsf{encode}(A, C) = A \concat 0^{v_A} \concat C \concat 0^{v_C} \concat [|A|]_{64} \concat [|C|]_{64}`
+::::::gameGrid
+:::::gameCell "\\textsf{Notation}" (kind := "scheme-notation")
+- A message or ciphertext length is supported when it is at most $`2^{39} - 256` bits and a
+  multiple of 8. An associated data length is supported when it is at most $`2^{64} - 1`
+  bits and a multiple of 8.
+- $`m \in \bit^L` is the message, $`a` the associated data, $`C \in \bit^L` the encrypted
+  message and $`T \in \bit^{128}` the tag. The ciphertext is the pair $`(C, T)`.
+- $`\mathsf{CIPH}_K = P.\mathsf{perm}(K, \cdot)` is the block cipher on 128-bit blocks under
+  the key $`K`.
+- For a bitstring $`X`, $`0^{v_X}` is the fewest zero bits that make $`|X| + v_X` a multiple
+  of 128.
+- $`\mathsf{encode}(A, C) = A \concat 0^{v_A} \concat C \concat 0^{v_C} \concat [|A|]_{64} \concat [|C|]_{64}`
+  is the input of $`\mathsf{GHASH}` for associated data $`A` and encrypted message $`C`.
+:::::
+::::::
 
 $`\Enc` is GCM-AE (Algorithm 4) and $`\Dec` is GCM-AD (Algorithm 5) of
 {Informal.citet NIST_GCM}[], with the IV fixed to $`\mathit{IV}`.
@@ -208,7 +213,9 @@ K \gets P.\mathsf{keygen}; \\
 $`\begin{array}{l}
 H \gets \mathsf{CIPH}_K(0^{128}); \\
 J_0 \gets \mathit{IV} \concat 0^{31} \concat 1; \\
+\pcommentline{\text{encrypt } m \text{ in counter mode}} \\
 C \gets \mathsf{GCTR}_K(\mathsf{inc}_{32}(J_0), m); \\
+\pcommentline{\text{tag over } a \text{ and } C} \\
 S \gets \mathsf{GHASH}_H(\mathsf{encode}(a, C)); \\
 T \gets \mathsf{GCTR}_K(J_0, S); \\
 \Return (C, T)
@@ -221,7 +228,9 @@ $`\begin{array}{l}
 \quad\Return \bot; \\
 H \gets \mathsf{CIPH}_K(0^{128}); \\
 J_0 \gets \mathit{IV} \concat 0^{31} \concat 1; \\
+\pcommentline{\text{decrypt } C \text{ in counter mode}} \\
 m \gets \mathsf{GCTR}_K(\mathsf{inc}_{32}(J_0), C); \\
+\pcommentline{\text{recompute the tag over } a \text{ and } C} \\
 S \gets \mathsf{GHASH}_H(\mathsf{encode}(a, C)); \\
 \pif\;T \neq \mathsf{GCTR}_K(J_0, S)\;\pthen \\
 \quad\Return \bot; \\
@@ -315,7 +324,8 @@ The scheme covers a part of what {Informal.citet NIST_GCM}[] allows:
   key and IV pair repeats;
 - the message length $`L` is fixed and supported, and the associated data has any supported
   length;
-- the tag is the full 128 bits, so $`\mathsf{MSB}_t` in step 6 of Algorithm 4 is the identity.
+- the tag is the full 128 bits; the shorter tags $`T = \mathsf{MSB}_t(\mathsf{GCTR}_K(J_0, S))`
+  with $`t < 128` are out of scope.
 :::::
 ::::::
 :::::::
