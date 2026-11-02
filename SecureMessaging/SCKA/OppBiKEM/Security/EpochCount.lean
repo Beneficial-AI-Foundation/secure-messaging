@@ -11,7 +11,15 @@ import ToVCVio.OracleComp.QueryTracking.StateBudget
 # Opp-BiKEM — Epoch counter
 
 **Setting.** `advances s` counts the epoch advances both parties have committed in a game state
-`s`: half the sum of A's responder epoch plus one and B's responder epoch.
+`s`. Writing `eA` and `eB` for the responder epochs `s.stA.res.resEpoch` and
+`s.stB.res.resEpoch` (integers, clamped at zero by `Int.toNat`),
+```
+advances s = ⌊ ((eA + 1) + eB) / 2 ⌋
+```
+A send moves the sending party's responder epoch forward by zero or two, so it raises the sum
+`(eA + 1) + eB` by at most two and `advances` by at most one; receives leave both responder epochs,
+hence `advances`, unchanged. The `+ 1` accounts for A's responder epoch starting at `-1` while B's
+starts at `0`, so that `advances` of the initial state is `0`.
 
 **Main results.**
 
