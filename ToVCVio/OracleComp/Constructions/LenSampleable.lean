@@ -104,7 +104,7 @@ instance instProd (C T : Type) [LenSampleable C] [SampleableType T] :
     rw [key p' h, key p rfl, prEvent_eq p.1 p'.1 h]
 
 /-- The sampler for a pair draws the first component by length and the second uniformly. -/
-@[simp] lemma unifSameLen_prod {C T : Type} [LenSampleable C] [SampleableType T] (c : C) (t : T) :
+lemma unifSameLen_prod {C T : Type} [LenSampleable C] [SampleableType T] (c : C) (t : T) :
     unifSameLen (c, t) = (do
       let c' ← unifSameLen c
       let t' ← $ᵗ T
