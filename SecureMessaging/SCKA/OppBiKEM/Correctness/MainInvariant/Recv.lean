@@ -43,14 +43,14 @@ lemma mem_recvAck_ekRec (role : Role) (ack : Acknowledgements) (ρ : Message Sym
   unfold recvAck
   by_cases h : ρ.ack.ekRec = true <;> simp [h, or_comm]
 
-/-- Ingesting a message's flags only adds ciphertext acknowledgements. -/
+/-- Ingesting a message's flags only *adds* ciphertext acknowledgements. -/
 lemma recvAck_ctRec_subset (role : Role) (ack : Acknowledgements) (ρ : Message Sym) :
     ack.ctRec ⊆ (recvAck role ack ρ).ctRec := by
   intro t ht
   rw [mem_recvAck_ctRec]
   exact Or.inl ht
 
-/-- Ingesting a message's flags only adds public-key acknowledgements. -/
+/-- Ingesting a message's flags only *adds* public-key acknowledgements. -/
 lemma recvAck_ekRec_subset (role : Role) (ack : Acknowledgements) (ρ : Message Sym) :
     ack.ekRec ⊆ (recvAck role ack ρ).ekRec := by
   intro t ht
@@ -267,10 +267,17 @@ lemma recv_parity_facts :
   refine ⟨h1, h2, ?_, ?_⟩ <;>
     cases roleR <;> simp only [Role.offset, Role.reqParity, Role.resParity] at h1 h2 ⊢ <;> omega
 
-/-- After a non-stale receive that emits no key, both parties satisfy `PartyInv` with the
-transcript unchanged, provided the new peer-key map `ekPeer'` only adds transcript keys, the
-ciphertext acknowledgements are exactly the ingested ones, every new `ekRec` entry has a newly
-decoded key, and the post-state buffer is consistent. -/
+/-- Assume:
+
+* the receive is non-stale (`hns`) and emits no key;
+* the new peer-key map `ekPeer'` preserves existing entries (`hstable`) and adds only
+  transcript keys (`hekT`);
+* the ciphertext acknowledgements are exactly those obtained by ingesting the message's flags
+  (`hct`);
+* every new `ekRec` entry has a newly decoded key (`heknew`);
+* the post-state buffer is consistent (`hbuf`).
+
+Then both parties satisfy `PartyInv` after the receive, with the transcript unchanged. -/
 lemma partyInv_recv_noKey (hns : ¬ ρ.tRes < stR.req.reqEpoch)
     (ekPeer' : ℤ → Option PK) (ack' : Acknowledgements) (chunks' : Finset (ℕ × Sym))
     (hstable : ∀ e, (stR.res.ekPeer e).isSome = true → ekPeer' e = stR.res.ekPeer e)
@@ -967,10 +974,18 @@ lemma partyInv_recv_stale (hst : ρ.tRes < stR.req.reqEpoch) :
           change ρ'.tReq ∈ (recvAck roleR stR.ack ρ).ctRec
           rw [hct]; exact hS.msgs_stale j ρ' t' hj hlt hfl }
 
-/-- At the decapsulation point of a non-stale ciphertext message — an unacknowledged epoch, a
-decoded ciphertext `c` and a stored secret key `sk` — the transcript has the key pair `(pk, sk)`
-and an encapsulation `(c, k)` at `ρ.tRes`, the peer's table records `k` there, and `ρ.tRes` is a
-positive requester-parity epoch. -/
+/-- Assume:
+
+* `ρ` is a non-stale ciphertext message (`hns`, `hbit`);
+* the receiver has not acknowledged epoch `ρ.tRes` (`hqnot`);
+* the receiver decodes ciphertext `c` after adding `ρ.ch` to its chunk buffer (`hdec`);
+* the receiver stores secret key `sk` for `ρ.tRes` (`hlk`).
+
+Then there exist `pk` and `k` such that:
+
+* the transcript records the key pair `(pk, sk)` and an encapsulation `(c, k)` at `ρ.tRes`;
+* the peer's key table records `k` at `ρ.tRes`;
+* `ρ.tRes` is positive and has the receiver's requester parity. -/
 lemma recv_ciphertext_point [DecidableEq Sym] (hCt : ecCt.ec.Correct)
     (hns : ¬ ρ.tRes < stR.req.reqEpoch) (hbit : ρ.bit = some 1)
     (hqnot : ρ.tRes ∉ stR.ack.ctRec) (c : C)
@@ -1005,12 +1020,22 @@ lemma recv_ciphertext_point [DecidableEq Sym] (hCt : ecCt.ec.Correct)
 
 /-! ### The receive step -/
 
-/-- Receiving a message recorded in the peer's table through `recvWith recover` succeeds, and
-every result satisfies the game's receive-side assertions — the reported epoch is the recorded
-sending epoch, the known-prefix check passes, and an emitted key is fresh for the receiver and
-consistent with the peer's table — and preserves `PartyInv` for both parties with the transcript
-unchanged. The only hypothesis on `recover`, `hrec`, is that it returns the transcript key at the
-received epoch when that epoch is not yet acknowledged. -/
+/-- Assume:
+
+* both parties satisfy `PartyInv` (`hR`, `hS`);
+* the peer's message table records `ρ` with sending epoch `tsnd` (`hmsg`);
+* the erasure codes `ecEk` and `ecCt` are correct (`hEk`, `hCt`);
+* if the receiver has not acknowledged epoch `ρ.tRes`, `recover` returns the transcript key
+  at that epoch when given the matching transcript secret key and ciphertext (`hrec`).
+
+Then `recvWith recover` succeeds, and every result has the following properties:
+
+* the reported epoch is the recorded sending epoch;
+* the known-prefix check passes;
+* any emitted key is fresh for the receiver and consistent with the peer's key table;
+* both parties satisfy `PartyInv`, with the transcript unchanged.
+
+The only hypothesis on `recover` is `hrec`. -/
 lemma partyInv_recvWith_step [DecidableEq Sym] (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
     (recover : ℤ → SK → C → Option K)
     (hrec : ρ.tRes ∉ stR.ack.ctRec → ∀ pk sk c k, (T ρ.tRes).keypair = some (pk, sk) →
@@ -1236,12 +1261,22 @@ lemma partyInv_recvWith_step [DecidableEq Sym] (hEk : ecEk.ec.Correct) (hCt : ec
           (fun t ht hnot => absurd ht hnot) (recv_buffer_unchanged hR hS hmsg hst)
         exact ⟨⟨_, _, _, rfl⟩, finish _ hR' hS'⟩
 
-/-- Receiving a message recorded in the peer's table succeeds, and every result satisfies the
-game's receive-side assertions — the reported epoch is the recorded sending epoch, the
-known-prefix check passes, and an emitted key is fresh for the receiver and consistent with the
-peer's table — and preserves `PartyInv` for both parties with the transcript unchanged. The only
-KEM hypothesis, `hdec`, is decapsulation correctness at the received epoch when that epoch is
-not yet acknowledged. -/
+/-- Assume:
+
+* both parties satisfy `PartyInv` (`hR`, `hS`);
+* the peer's message table records `ρ` with sending epoch `tsnd` (`hmsg`);
+* the erasure codes `ecEk` and `ecCt` are correct (`hEk`, `hCt`);
+* if the receiver has not acknowledged epoch `ρ.tRes`, decapsulation with the matching
+  transcript secret key and ciphertext returns the transcript key at that epoch (`hdec`).
+
+Then `recv` succeeds, and every result has the following properties:
+
+* the reported epoch is the recorded sending epoch;
+* the known-prefix check passes;
+* any emitted key is fresh for the receiver and consistent with the peer's key table;
+* both parties satisfy `PartyInv`, with the transcript unchanged.
+
+The only KEM correctness hypothesis is `hdec`. -/
 lemma partyInv_recv_step [DecidableEq Sym] (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
     (hdec : ρ.tRes ∉ stR.ack.ctRec → ∀ pk sk c k, (T ρ.tRes).keypair = some (pk, sk) →
       (T ρ.tRes).enc = some (c, k) → hDet.decapsDet sk c = some k) :
