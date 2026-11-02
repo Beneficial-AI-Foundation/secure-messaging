@@ -13,7 +13,9 @@ import SecureMessaging.SCKA.SPQR.Instances
 
 Let:
 
-* `Π := scheme P auth irl sampleInitKey` be the SPQR SCKA scheme;
+* `Π := scheme P auth irl sampleInitKey` be the SPQR SCKA scheme, where `P` holds the incremental
+  KEM, the epoch-key derivation and the four erasure-coded streams, `auth` is the authenticator,
+  `irl` describes the coins that a send may disclose, and `sampleInitKey` samples the initial key;
 * `G(Adv) := SCKAScheme.correctnessExp Π Adv` be its correctness game for an adversary `Adv`;
 * `ε := P.kem.correctnessError ProbCompRuntime.probComp` be the correctness error of the
   underlying KEM.
@@ -35,9 +37,9 @@ This is the bound of `MLKEMBraid.correctness_error_le`, for the SPQR scheme.
 
 ## Proof
 
-The proof does not repeat the Braid argument. It translates SPQR game states into Braid game states
-(`GameState.toMLKEMBraid`) and takes the invariant `CorrectnessInv` and the potential
-`failurePotential` of the Braid proof on the translated state. The SPQR invariant adds
+The proof translates SPQR game states into Braid game states (`GameState.toMLKEMBraid`) and takes
+the invariant `CorrectnessInv` and the potential `failurePotential` of the Braid proof on the
+translated state. The SPQR invariant adds
 `Ct1AckInv`. Then `SCKAScheme.correctness_error_le_of_potential` gives the bound, once each query
 is shown to preserve the invariant and to raise the expected potential by at most `ε` for a send
 and not at all otherwise:
@@ -231,7 +233,8 @@ variable [DecidableEq P.EpochKey] [DecidableEq P.Sym]
   (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey)
 
 omit [DecidableEq P.EpochKey] [DecidableEq P.Sym] in
-/-- The relabelled translation of a reachable state is consistent with the same transcript. -/
+/-- If the translation of a state is consistent with a transcript, so is its relabelling at a plain
+vector chunk delivered to a party in `ct1Acknowledged`. -/
 private theorem transcriptConsistent_toMLKEMBraidAck {ik : InitKey}
     {T : ℕ → MLKEMBraid.EpochTranscript P} {s : GameState P AuthState}
     (hT : MLKEMBraid.TranscriptConsistent auth ik T s.toMLKEMBraid) (party : Bool) (n : ℕ)

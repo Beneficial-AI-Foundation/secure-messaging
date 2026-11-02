@@ -696,19 +696,63 @@ noncomputable def v1Scheme {InitKey AuthState EpochKey Mac : Type}
 :::defTitle "spqr_mlkem_braid_relation" "SPQR and ML-KEM Braid correctness games"
 :::
 
-::::definition "spqr_mlkem_braid_relation" (parent := "cka_protocols_spqr") (lean := "SPQR.Chunked.Message.toMLKEMBraid, SPQR.Chunked.PartyState.toMLKEMBraid, SPQR.RecvDivergence, SPQR.GameState.toMLKEMBraid, SPQR.Ct1AckInv, SPQR.sckaCorrectnessImpl_run_toMLKEMBraid, SPQR.DeliveryDivergence.ct1Acknowledged_ek, SPQR.sckaCorrectnessImpl_run_toMLKEMBraidAck") (tags := "gh-269") (uses := "spqr_chunked_scheme, mlkem_braid_spec, scka_correctness")
+::::definition "spqr_mlkem_braid_relation" (parent := "cka_protocols_spqr") (lean := "SPQR.Chunked.Message.toMLKEMBraid, SPQR.Chunked.PartyState.toMLKEMBraid, SPQR.RecvDivergence, SPQR.GameState.toMLKEMBraid, SPQR.Ct1AckInv, SPQR.DeliveryDivergence, SPQR.sckaCorrectnessImpl_run_toMLKEMBraid, SPQR.DeliveryDivergence.ct1Acknowledged_ek, SPQR.sckaCorrectnessImpl_run_toMLKEMBraidAck") (tags := "gh-269") (uses := "spqr_chunked_scheme, mlkem_braid_spec, scka_correctness")
 SPQR party states and messages translate into ML-KEM Braid ones, field for field. The
-one exception is SPQR's `Ct1Ack(true)`, which becomes an empty message: in that state
-ML-KEM Braid sends an empty message. The translation extends to the states of the SCKA
-correctness game.
+one exception is SPQR's `Ct1Ack(true)`, which SPQR sends in `ekSentCt1Received`. In
+that state ML-KEM Braid sends an empty message, so `Ct1Ack(true)` becomes an empty
+message. The translation extends to the states of the SCKA correctness game.
 
-On translated states, a query of the SPQR correctness game acts as the same query of the
-ML-KEM Braid game, except on three kinds of delivery. In a reachable state only one of
-them occurs: a plain vector chunk that arrives after an acknowledging vector chunk. SPQR
-adds that chunk to its decoder and ML-KEM Braid ignores it, so the two games are not
-related step by step. The delivery is, however, the ML-KEM Braid delivery of the same
-chunk sent as an acknowledging vector chunk, and its sender is at a step where it could
-have sent one.
+Under the translation, a query of the SPQR correctness game and the same query of the
+ML-KEM Braid game give successor states with the same distribution, unless the query
+delivers a message in one of the three cases of `RecvDivergence`. Under the invariants of
+the correctness proof only one case occurs: a plain vector chunk that arrives after an
+acknowledging vector chunk. For that delivery the same holds once the record is
+relabelled as an acknowledging vector chunk.
+
+:::leanPillCaption "the translation of game states"
+:::
+
+```anchor Relation_GameState_toMLKEMBraid (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness.Relation)
+def GameState.toMLKEMBraid (s : GameState P AuthState) : MLKEMBraid.GameState P AuthState where
+  stA := s.stA.toMLKEMBraid
+  stB := s.stB.toMLKEMBraid
+  keyA := s.keyA
+  keyB := s.keyB
+  msgA := fun n => (s.msgA n).map fun e => (e.1.toMLKEMBraid, e.2)
+  msgB := fun n => (s.msgB n).map fun e => (e.1.toMLKEMBraid, e.2)
+  nA := s.nA
+  nB := s.nB
+  tcurA := s.tcurA
+  tcurB := s.tcurB
+  exposed := s.exposed
+  challenged := s.challenged
+  correct := s.correct
+```
+
+:::leanPillCaption "the divergent deliveries"
+:::
+
+```anchor Correspondence_RecvDivergence (project := ".") (module := SecureMessaging.SCKA.SPQR.Correspondence)
+def RecvDivergence (st : PartyState P AuthState) (msg : Message P.Sym) : Prop :=
+  (st.epoch < msg.epoch ∧ ¬ ((∃ core enc, st = .ct2Sampled core enc) ∧ msg.epoch = st.epoch + 1)) ∨
+    (msg.epoch = st.epoch ∧ (∃ core enc, st = .ekReceivedCt1Sampled core enc) ∧
+      msg.payload = .ct1Ack) ∨
+    (msg.epoch = st.epoch ∧ (∃ core dec, st = .ct1Acknowledged core dec) ∧
+      ∃ chunk, msg.payload = .ek chunk)
+```
+
+:::leanPillCaption "divergent deliveries in the correctness game"
+:::
+
+```anchor Relation_DeliveryDivergence (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness.Relation)
+def DeliveryDivergence (s : GameState P AuthState) :
+    (SCKAScheme.sckaCorrectnessSpec (Chunked.Message P.Sym)).Domain → Prop
+  | SCKAScheme.sckaCorrectnessSpec.ORecvA n =>
+      ∃ msg tsnd, s.msgB n = some (msg, tsnd) ∧ RecvDivergence s.stA msg
+  | SCKAScheme.sckaCorrectnessSpec.ORecvB n =>
+      ∃ msg tsnd, s.msgA n = some (msg, tsnd) ∧ RecvDivergence s.stB msg
+  | _ => False
+```
 
 :::leanPillCaption "the relation of the two games"
 :::
@@ -737,11 +781,9 @@ Assume that:
   second stage, and has correctness error at most $`\varepsilon`;
 * and the four erasure codes are correct.
 
-Then $`1-\Pr\bigl[\Exp{\textsf{cor}}{\textsf{SPQR}}(\adv)=1\bigr] \le q\varepsilon`. This is
-the bound of ML-KEM Braid. The proof translates SPQR game states into ML-KEM Braid
-game states and uses the invariant and the failure potential of the ML-KEM Braid proof
-on the translated states. For SPQR v1 the codes are the SPQR Reed–Solomon codes, which
-are correct, and $`\varepsilon` is the correctness error of ML-KEM-768.
+Then $`1-\Pr\bigl[\Exp{\textsf{cor}}{\textsf{SPQR}}(\adv)=1\bigr] \le q\varepsilon`.
+For SPQR v1, the four SPQR Reed–Solomon codes are correct and $`\varepsilon` is the
+correctness error of ML-KEM-768.
 
 :::leanPillCaption "Correctness error bound"
 :::

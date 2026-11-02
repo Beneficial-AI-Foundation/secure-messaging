@@ -19,27 +19,28 @@ into a Braid game state: the party states by `PartyState.toMLKEMBraid`, the reco
 ## Main results
 
 * `sckaCorrectnessImpl_run_toMLKEMBraid`: unless a query delivers a message in `RecvDivergence`,
-  the query maps the translated state as the same query of the Braid game does.
-* `DeliveryDivergence.ct1Acknowledged_ek`: in a reachable state, a delivery in `RecvDivergence` is
-  a plain vector chunk delivered to a party in `ct1Acknowledged`.
-* `sckaCorrectnessImpl_run_toMLKEMBraidAck`: such a delivery maps the translated state as the Braid
-  game does when the delivered record is relabelled as an acknowledging vector chunk.
+  the translated SPQR successor state and the Braid successor state of the translated state have
+  the same distribution.
+* `DeliveryDivergence.ct1Acknowledged_ek`: if the translation of a state satisfies the Braid
+  invariants `ControlInv` and `StatePairInv` and the state satisfies `Ct1AckInv`, a delivery in
+  `RecvDivergence` is a plain vector chunk delivered to a party in `ct1Acknowledged`.
+* `sckaCorrectnessImpl_run_toMLKEMBraidAck`: for such a delivery, the translated SPQR successor
+  state has the distribution of the Braid successor state of the translation in which the
+  delivered record is an acknowledging vector chunk, once the record is restored.
 
-Here a state is reachable when its translation satisfies the Braid invariants `ControlInv` and
-`StatePairInv` and the state itself satisfies `Ct1AckInv`. The last condition is the one fact
-about SPQR that the Braid invariants cannot express. SPQR sends `ct1Ack` only from
-`ekSentCt1Received`, and the translation turns every recorded `ct1Ack` into an empty message.
-`Ct1AckInv` keeps the information that the translation forgets.
+`Ct1AckInv` is the one fact about SPQR that the Braid invariants cannot express. SPQR sends
+`ct1Ack` only from `ekSentCt1Received`, and the translation turns every recorded `ct1Ack` into an
+empty message. `Ct1AckInv` keeps the information that the translation forgets.
 
 ## The three divergent deliveries
 
-The first cell of `RecvDivergence`, a future epoch outside the successor epoch of `ct2Sampled`,
-cannot occur: a recorded message is at most one epoch ahead of its receiver, and a sender one
-epoch ahead has a receiver in `ct2Sampled`. The second cell, a standalone `ct1Ack` in
-`ekReceivedCt1Sampled`, cannot occur either: its sender has received a chunk of `ct₂`, so the
-receiver has already reached `ct2Sampled`.
+Under these invariants, the first case of `RecvDivergence`, a future epoch outside the successor
+epoch of `ct2Sampled`, cannot occur: a recorded message is at most one epoch ahead of its receiver,
+and a sender one epoch ahead has a receiver in `ct2Sampled`. The second case, a standalone
+`ct1Ack` in `ekReceivedCt1Sampled`, cannot occur either: its sender has received a chunk of `ct₂`,
+so the receiver has already reached `ct2Sampled`.
 
-The third cell occurs. In the following run, A is the key generator of epoch `e` and B the
+The third case does occur. In the following run, A is the key generator of epoch `e` and B the
 encapsulator.
 
 ```text
@@ -171,8 +172,8 @@ variable [DecidableEq P.EpochKey] [DecidableEq P.Sym]
 
 /-! ### The relation of the two games -/
 
-/-- Unless query `t` delivers a message in `RecvDivergence`, the SPQR query followed by the
-translation equals the Braid query on the translated state. -/
+/-- Unless query `t` delivers a message in `RecvDivergence`, the translated SPQR successor state and
+the Braid successor state of the translated state have the same distribution. -/
 -- ANCHOR: Relation_sckaCorrectnessImpl_run_toMLKEMBraid
 theorem sckaCorrectnessImpl_run_toMLKEMBraid (s : GameState P AuthState)
     (t : (SCKAScheme.sckaCorrectnessSpec (Chunked.Message P.Sym)).Domain)
@@ -434,7 +435,7 @@ theorem sckaCorrectnessImpl_preserves_ct1AckInv :
       have hB := partyCt1Ack_recvSCKA auth hs.2 hr
       rcases keyOpt with _ | ⟨tI, key⟩ <;> exact ⟨hs.1, hB⟩
 
-/-! ### The divergent deliveries in reachable states -/
+/-! ### The divergent deliveries under the invariants -/
 
 omit [DecidableEq P.EpochKey] [DecidableEq P.Sym] in
 private theorem toMLKEMBraid_epoch (st : PartyState P AuthState) :
@@ -536,9 +537,9 @@ theorem DeliveryDivergence.ct1Acknowledged_ek {s : GameState P AuthState}
       (hack true n msg tsnd hmsg) hdiv
     exact ⟨false, n, core, dec, chunk, tsnd, rfl, hst, hmsg⟩
 
-/-- A plain vector chunk delivered to a party in `ct1Acknowledged` maps the translated state as the
-Braid game maps the translation in which that record is an acknowledging vector chunk. The Braid
-successor keeps the relabelled record, so the record is restored afterwards. -/
+/-- For a plain vector chunk delivered to a party in `ct1Acknowledged`, the translated SPQR
+successor state has the distribution of the Braid successor state of the translation in which that
+record is an acknowledging vector chunk, once the record is restored. -/
 -- ANCHOR: Relation_sckaCorrectnessImpl_run_toMLKEMBraidAck
 theorem sckaCorrectnessImpl_run_toMLKEMBraidAck (s : GameState P AuthState) (party : Bool)
     (n : ℕ) (core : CtSender.Ct1Sent P.inc AuthState) (dec : DecoderState P.inc.PKvector P.Sym)

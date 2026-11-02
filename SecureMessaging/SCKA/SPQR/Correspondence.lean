@@ -22,7 +22,7 @@ initialisation and every send agree.
 Receive is compared at the SCKA level, `SPQR.recvSCKA` against `MLKEMBraid.recvSCKA`. For an ignored
 message the transition reports differ: `st.epoch - 1` there and `msg.epoch - 1` here. Both adapters
 report `msg.epoch - 1` and refuse delivery on every failure, so they agree on deliveries that both
-ignore. The two receives agree on every delivery outside `RecvDivergence`, which has three cells:
+ignore. The two receives agree on every delivery outside `RecvDivergence`, which has three cases:
 
 * a future epoch other than the successor epoch of `ct2Sampled`: SPQR refuses it with
   `epochOutOfRange`, and `MLKEMBraid` ignores it;
@@ -31,10 +31,10 @@ ignore. The two receives agree on every delivery outside `RecvDivergence`, which
 * a plain `ek` chunk in `ct1Acknowledged`: SPQR adds the chunk to its vector decoder
   (`states.rs:487`), and `MLKEMBraid` ignores it.
 
-In the third cell SPQR acts as `MLKEMBraid` acts on the same chunk sent as an acknowledging vector
+In the third case SPQR acts as `MLKEMBraid` acts on the same chunk sent as an acknowledging vector
 chunk (`recvSCKA_ct1Acknowledged_ek_toMLKEMBraid`). `SPQR.Correctness.Relation` lifts these facts
-to the correctness games. There the first two cells cannot occur, and the third is handled by this
-relabelling.
+to the correctness games. Under the invariants of the correctness proof the first two cases cannot
+occur, and the third is handled by this relabelling.
 
 There is no translation in the other direction: rebuilding an encapsulation key from its vector
 needs a `validPK` witness.
@@ -48,9 +48,7 @@ namespace SPQR.Chunked
 
 variable {m : Type → Type u} [Monad m] {P : MLKEMBraid.Parameters m} {InitKey AuthState : Type}
 
-/-- The `MLKEMBraid` message with the same epoch and chunk. Each payload constructor becomes the
-message type of the same name, except `ct1Ack`, which becomes an empty message: where SPQR sends
-`Ct1Ack(true)`, `MLKEMBraid` sends an empty message (`states.rs:182`). -/
+/-- Translate a message into `MLKEMBraid`; `ct1Ack` becomes an empty message. -/
 -- ANCHOR: Correspondence_Message_toMLKEMBraid
 def Message.toMLKEMBraid {Sym : Type} (msg : Message Sym) : MLKEMBraid.Message Sym :=
   match msg.payload with
@@ -136,10 +134,7 @@ open Chunked
 
 variable {m : Type → Type u} [Monad m] {P : MLKEMBraid.Parameters m} {InitKey AuthState : Type}
 
-/-- The deliveries on which `recvSCKA` and `MLKEMBraid.recvSCKA` can disagree after translation:
-a future epoch other than the successor epoch of `ct2Sampled`, which SPQR refuses and
-`MLKEMBraid` ignores; a standalone `ct1Ack` in `ekReceivedCt1Sampled`; and a plain `ek` chunk in
-`ct1Acknowledged`. SPQR accepts the last two and `MLKEMBraid` ignores them. -/
+/-- The deliveries on which `recvSCKA` and `MLKEMBraid.recvSCKA` can disagree after translation. -/
 -- ANCHOR: Correspondence_RecvDivergence
 def RecvDivergence (st : PartyState P AuthState) (msg : Message P.Sym) : Prop :=
   (st.epoch < msg.epoch ∧ ¬ ((∃ core enc, st = .ct2Sampled core enc) ∧ msg.epoch = st.epoch + 1)) ∨
