@@ -194,7 +194,7 @@ lemma prEvent_indCPAExpProb_reduction_eq (adv : SecurityAdversary leak Sym) (t :
     rw [prEvent_stoppedEagerExp_eq_reductionRun kem hDet ecEk ecCt hEk hCt leak t ht pk sk
       dummy c kReal r (!bb) adv hx hy]
     cases bb <;> rfl
-  · exact (evalDistEq_bind_const_probComp _ _).prEvent_eq _
+  · exact (OracleComp.EvalDistEq.bind_const _ _).prEvent_eq _
 
 include hEk hCt in
 /-- At every positive target, the real-minus-random IND-CPA acceptance gap is the

@@ -65,14 +65,6 @@ variable {K PK SK C Sym : Type}
 
 /-! ## Distribution helpers -/
 
-/-- A draw that is not used integrates out of the output distribution: the `ProbComp` instance of
-VCVio's `ProgramLogic.Relational.evalDist_bind_const_of_no_failure`, which lives in the relational
-program logic outside this module's imports. -/
-lemma evalDistEq_bind_const_probComp {α β : Type} (mx : ProbComp α) (my : ProbComp β) :
-    (mx >>= fun _ => my) =ᵈ my :=
-  EvalDistEq.of_forall_prEvent_eq fun _ => by
-    simp only [map_bind, OracleComp.prEvent_bind_const]
-
 /-- The support of a `ProbComp` is nonempty. -/
 lemma support_nonempty_probComp {α : Type} (mx : ProbComp α) : (support mx).Nonempty :=
   support_nonempty mx
@@ -539,7 +531,7 @@ lemma sendWith_hitEncaps_evalDist {RK : Type} (role : Role) (keygen : ProbComp (
     cases o with
     | none =>
       dsimp only
-      exact evalDistEq_bind_const_probComp _ _
+      exact OracleComp.EvalDistEq.bind_const _ _
     | some peerEk =>
       obtain rfl := hpk peerEk hpeer
       dsimp only
@@ -561,7 +553,7 @@ lemma sendWith_hitEncaps_evalDist {RK : Type} (role : Role) (keygen : ProbComp (
     cases o with
     | none =>
       dsimp only
-      exact evalDistEq_bind_const_probComp _ _
+      exact OracleComp.EvalDistEq.bind_const _ _
     | some peerEk =>
       obtain rfl := hpk peerEk hpeer
       dsimp only
@@ -981,7 +973,7 @@ lemma prEvent_stopped_eager_eq_injected (inj : TargetInjection PK SK C K) (b : B
       fun r => eagerSecurityImpl_run_eq_injected_of_not_hitRand kem hDet ecEk ecCt leak t inj b
         r s q hh
     simp only [heq]
-    exact evalDistEq_bind_const_probComp _ _
+    exact OracleComp.EvalDistEq.bind_const _ _
   | true =>
     rcases q with (((((q | u) | u) | e) | u) | u) <;>
       simp only [hitRand, Bool.false_eq_true, Bool.and_eq_true, decide_eq_true_eq,
@@ -1289,7 +1281,7 @@ lemma prEvent_stopped_injected_eq_keygenInjected (ht : 0 < t) (x : PK × SK)
         fun y => injectedSecurityImpl_run_eq_keygenInjected_of_not_hitEncaps kem hDet ecEk ecCt
           leak t x.1 x.2 y _ s q hh
       simp only [heq]
-      exact evalDistEq_bind_const_probComp _ _
+      exact OracleComp.EvalDistEq.bind_const _ _
     | true =>
       obtain ⟨y', -, hs'⟩ := hs
       exact injected_hitEncaps_evalDist kem hDet ecEk ecCt leak t x _ s q hh
@@ -1465,7 +1457,7 @@ lemma prEvent_stopped_hybrid_eq_keygenInjected (b : Bool) (adv : SecurityAdversa
           q).run s :=
         fun x => keygenInjected_run_eq_hybrid_of_not_hitKeygen kem hDet ecEk ecCt leak t x _ s q hh
       simp only [heq]
-      exact evalDistEq_bind_const_probComp _ _
+      exact OracleComp.EvalDistEq.bind_const _ _
     | true =>
       rw [keygenInjected_hitKeygen_eq kem hDet ecEk ecCt leak t _ s q hh]
 
