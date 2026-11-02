@@ -238,6 +238,8 @@ S \gets \mathsf{GHASH}_H(\mathsf{encode}(a, C)); \\
 \end{array}`
 :::::
 
+::::::
+
 :::leanPillCaption "one-time AEAD scheme $`\\mathsf{GCM}[P, \\mathit{IV}, L]`"
 :::
 
@@ -287,11 +289,6 @@ def gcmDecrypt {K : Type} (ciph : CIPH K) (k : K)
     if t = gctr ciph.perm k j₀ s then some p else none
   else none
 ```
-::::::
-
-The first test in $`\Dec` comes from GCM-AD. In $`\mathsf{GCM}[P, \mathit{IV}, L]` it never
-returns $`\bot`, because $`L` is supported and the associated data space contains only
-bitstrings of supported length.
 
 :::leanPillCaption "supported message length"
 :::
@@ -322,8 +319,7 @@ The scheme covers a part of what {Informal.citet NIST_GCM}[] allows:
   $`J_0` for other IV lengths is out of scope;
 - the IV is fixed and public, which is safe because each key encrypts one message, so no
   key and IV pair repeats;
-- the message length $`L` is fixed and supported, and the associated data has any supported
-  length;
+- the message length $`L` is fixed for the scheme, not chosen per message;
 - the tag is the full 128 bits; the shorter tags $`T = \mathsf{MSB}_t(\mathsf{GCTR}_K(J_0, S))`
   with $`t < 128` are out of scope.
 :::::
