@@ -123,9 +123,14 @@ theorem exposure_positive
 
 * `some (key, msg, epoch, st', rand)` is a supported output of `sendWith`.
 
-Then the randomness flags equal the initial-state operation guards, the responder epoch records
-the key-generation advance, a generated secret key is stored at its integer epoch, and an emitted
-key is present exactly when encapsulation randomness is present, at the responder epoch's `toNat`.
+Then:
+
+* the randomness flags equal the initial-state operation guards;
+* the responder epoch records the key-generation advance;
+* a generated secret key is stored at its integer epoch;
+* a key is emitted exactly when encapsulation randomness is present;
+* an emitted key's epoch is the responder epoch's `toNat`.
+
 No reachability or positivity of the generated or emitted epochs is assumed. -/
 theorem sendWith_operation_facts
     {RK RE : Type} (role : Role)
