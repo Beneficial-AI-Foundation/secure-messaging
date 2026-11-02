@@ -43,11 +43,19 @@ $$`\mathsf{Adv}^{\textsf{prg}}_{G}(\adv)
 for the experiments below. The Lean definitions are VCVio's `PRGScheme`.
 
 ::::::gameGrid
-:::::gameCell "\\Exp{\\textsf{prg}\\text{-}\\textsf{real}}{G}(\\adv)" (kind := "game")
-$`s \sample \mathcal S;\quad b' \gets \adv(G(s));\quad \Return b'`
+:::::gameCell "\\Exp{\\textsf{prg}\\text{-}\\textsf{real}}{G}(\\adv)" (kind := "compact")
+$`\begin{array}{l}
+s \sample \mathcal S; \\
+b' \gets \adv(G(s)); \\
+\Return b'
+\end{array}`
 :::::
-:::::gameCell "\\Exp{\\textsf{prg}\\text{-}\\textsf{ideal}}{G}(\\adv)" (kind := "game")
-$`r \sample \mathcal R;\quad b' \gets \adv(r);\quad \Return b'`
+:::::gameCell "\\Exp{\\textsf{prg}\\text{-}\\textsf{ideal}}{G}(\\adv)" (kind := "compact")
+$`\begin{array}{l}
+r \sample \mathcal R; \\
+b' \gets \adv(r); \\
+\Return b'
+\end{array}`
 :::::
 ::::::
 :::::::

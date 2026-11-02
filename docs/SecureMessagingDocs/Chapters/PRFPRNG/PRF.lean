@@ -58,11 +58,19 @@ $`\rho(x)` at the first query on $`x` and caches it. The Lean definitions are VC
 `PRFScheme` and `PRFScheme.prfAdvantage`.
 
 ::::::gameGrid
-:::::gameCell "\\Exp{\\textsf{prf}\\text{-}\\textsf{real}}{F}(\\adv)" (kind := "game")
-$`k \gets \mathsf{keygen};\quad b' \gets \adv^{F(k, \cdot)};\quad \Return b'`
+:::::gameCell "\\Exp{\\textsf{prf}\\text{-}\\textsf{real}}{F}(\\adv)" (kind := "compact")
+$`\begin{array}{l}
+k \gets \mathsf{keygen}; \\
+b' \gets \adv^{F(k, \cdot)}; \\
+\Return b'
+\end{array}`
 :::::
-:::::gameCell "\\Exp{\\textsf{prf}\\text{-}\\textsf{ideal}}{F}(\\adv)" (kind := "game")
-$`\rho \sample \mathsf{Func}(\mathcal D, \mathcal R);\quad b' \gets \adv^{\rho};\quad \Return b'`
+:::::gameCell "\\Exp{\\textsf{prf}\\text{-}\\textsf{ideal}}{F}(\\adv)" (kind := "compact")
+$`\begin{array}{l}
+\rho \sample \mathsf{Func}(\mathcal D, \mathcal R); \\
+b' \gets \adv^{\rho}; \\
+\Return b'
+\end{array}`
 :::::
 ::::::
 :::::::

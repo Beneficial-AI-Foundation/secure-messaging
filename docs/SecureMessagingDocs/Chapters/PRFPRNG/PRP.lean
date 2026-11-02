@@ -75,11 +75,19 @@ structure PRPScheme (K X : Type) extends BlockCipher K X where
 ```
 
 ::::::gameGrid
-:::::gameCell "\\Exp{\\textsf{prp}\\text{-}\\textsf{real}}{\\textsf{PRP}}(\\adv)" (kind := "game")
-$`k \sample \mathsf{keygen};\quad b' \gets \adv^{\mathsf{perm}\ k};\quad \Return b'`
+:::::gameCell "\\Exp{\\textsf{prp}\\text{-}\\textsf{real}}{\\textsf{PRP}}(\\adv)" (kind := "compact")
+$`\begin{array}{l}
+k \sample \mathsf{keygen}; \\
+b' \gets \adv^{\mathsf{perm}\ k}; \\
+\Return b'
+\end{array}`
 :::::
-:::::gameCell "\\Exp{\\textsf{prp}\\text{-}\\textsf{ideal}}{\\textsf{PRP}}(\\adv)" (kind := "game")
-$`\pi \sample \mathsf{Perm}(\mathcal X);\quad b' \gets \adv^{\pi};\quad \Return b'`
+:::::gameCell "\\Exp{\\textsf{prp}\\text{-}\\textsf{ideal}}{\\textsf{PRP}}(\\adv)" (kind := "compact")
+$`\begin{array}{l}
+\pi \sample \mathsf{Perm}(\mathcal X); \\
+b' \gets \adv^{\pi}; \\
+\Return b'
+\end{array}`
 :::::
 ::::::
 
