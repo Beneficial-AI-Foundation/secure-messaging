@@ -41,6 +41,9 @@ query like `impl a` for a fresh `a ← sample`:
 ```text
 Pr[a ← sample; stoppedRun (impl a) stop oa s = true] = Pr[stoppedRun target stop oa s = true]
 ```
+
+`evalDistEq_sampleEachQuery_stopOnState` transfers equality of base query distributions
+through fresh sampling and a common stop test.
 -/
 
 open OracleSpec ENNReal
@@ -69,6 +72,20 @@ theorem sampleEachQuery_run (sample : ProbComp τ)
       let a ← sample
       ((impl a t).run).run s) := by
   rfl
+
+/-- Lift a per-query sampling equivalence through a common stop test.
+If sampling `a` and running `base a` matches `base'`, their stopped query distributions agree. -/
+lemma evalDistEq_sampleEachQuery_stopOnState {ι σ τ : Type} {spec : OracleSpec ι}
+    (sample : ProbComp τ) (base : τ → QueryImpl spec (StateT σ ProbComp))
+    (base' : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool) (q : spec.Domain) (s : σ)
+    (h : (do let a ← sample; (base a q).run s) =ᵈ (base' q).run s) :
+    ((sampleEachQuery sample (fun a => stopOnState (base a) stop) q).run).run s =ᵈ
+      ((stopOnState base' stop q).run).run s := by
+  have h' : (do let a ← sample; base a q s) =ᵈ base' q s := h
+  rw [sampleEachQuery_run]
+  simp only [stopOnState, OptionT.run_mk, StateT.run]
+  rw [← bind_assoc]
+  exact h'.bind_left _
 
 /-- Computations equal in distribution give the same event probability after a common
 continuation. -/

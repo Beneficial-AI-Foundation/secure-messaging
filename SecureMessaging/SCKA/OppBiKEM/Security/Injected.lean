@@ -39,80 +39,12 @@ these runs by the state map of `Simulation`; the invariant is never claimed for 
 The module also provides the state-level facts of one `sendWith` step with arbitrary samplers
 (`SendWithFacts`) and of one `recvWith` step (`RecvWithFacts`), and the first-use predicates
 `targetGenerated` and `targetEncapsulated` with their monotonicity and first-use lemmas, which
-the eager-sampling argument consumes (`Eager`).
+the eager-sampling argument consumes (`Eager`). It also establishes when the target key
+tables are empty and when the injected ciphertext and key can change while preserving
+`InjInv`.
 -/
 
 open OracleSpec OracleComp KEMScheme
-
-namespace SCKAScheme
-
-/-! ## Support of the leaking-send oracles -/
-
-/-- Support of A's leaking-send query from `s`: a rejection leaves the state unchanged, and an
-acceptance is a supported leaking send whose leaked epochs avoid the challenged set, applied as
-the ordinary send is, with the leaked epochs exposed. -/
-lemma oracleSendArleak_support' {IK StA StB I Rho Rand : Type} [DecidableEq I]
-    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) (leak : StA → Rand → Finset ℕ)
-    (s : SCKAScheme.GameState StA StB I Rho)
-    (z : Option (ℕ × Option ℕ × Rho × Rand) × SCKAScheme.GameState StA StB I Rho)
-    (hz : z ∈ support ((SCKAScheme.oracleSendArleak leak scka ()).run s)) :
-    z = (none, s) ∨
-      ∃ key? ρ tsnd stA' rand,
-        some (key?, ρ, tsnd, stA', rand) ∈ support (scka.sendArleak s.stA) ∧
-        leak s.stA rand ∩ s.challenged = ∅ ∧
-        z.2 = { SCKAScheme.sendAUpdate s key? ρ tsnd stA' with
-          exposed := s.exposed ∪ leak s.stA rand } := by
-  simp only [SCKAScheme.oracleSendArleak, StateT.run_bind, StateT.run_get, pure_bind,
-    StateT.run_monadLift, monadLift_self, bind_assoc] at hz
-  rw [mem_support_bind_iff] at hz
-  obtain ⟨out, hout, hz⟩ := hz
-  cases out with
-  | none => exact Or.inl (by simpa using (mem_support_pure_iff _ _).mp hz)
-  | some out =>
-      rcases out with ⟨key, msg, epoch, state, coins⟩
-      dsimp only at hz
-      split at hz
-      · exact Or.inl (by simpa using (mem_support_pure_iff _ _).mp hz)
-      · rename_i hvuln
-        cases key <;>
-          simp only [StateT.run_bind, StateT.run_set, pure_bind,
-            StateT.run_pure, mem_support_pure_iff] at hz
-        all_goals
-          obtain rfl := hz
-          exact Or.inr ⟨_, _, _, _, _, hout, not_not.mp hvuln, rfl⟩
-
-/-- The version of `oracleSendArleak_support'` for B. -/
-lemma oracleSendBrleak_support' {IK StA StB I Rho Rand : Type} [DecidableEq I]
-    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) (leak : StB → Rand → Finset ℕ)
-    (s : SCKAScheme.GameState StA StB I Rho)
-    (z : Option (ℕ × Option ℕ × Rho × Rand) × SCKAScheme.GameState StA StB I Rho)
-    (hz : z ∈ support ((SCKAScheme.oracleSendBrleak leak scka ()).run s)) :
-    z = (none, s) ∨
-      ∃ key? ρ tsnd stB' rand,
-        some (key?, ρ, tsnd, stB', rand) ∈ support (scka.sendBrleak s.stB) ∧
-        leak s.stB rand ∩ s.challenged = ∅ ∧
-        z.2 = { SCKAScheme.sendBUpdate s key? ρ tsnd stB' with
-          exposed := s.exposed ∪ leak s.stB rand } := by
-  simp only [SCKAScheme.oracleSendBrleak, StateT.run_bind, StateT.run_get, pure_bind,
-    StateT.run_monadLift, monadLift_self, bind_assoc] at hz
-  rw [mem_support_bind_iff] at hz
-  obtain ⟨out, hout, hz⟩ := hz
-  cases out with
-  | none => exact Or.inl (by simpa using (mem_support_pure_iff _ _).mp hz)
-  | some out =>
-      rcases out with ⟨key, msg, epoch, state, coins⟩
-      dsimp only at hz
-      split at hz
-      · exact Or.inl (by simpa using (mem_support_pure_iff _ _).mp hz)
-      · rename_i hvuln
-        cases key <;>
-          simp only [StateT.run_bind, StateT.run_set, pure_bind,
-            StateT.run_pure, mem_support_pure_iff] at hz
-        all_goals
-          obtain rfl := hz
-          exact Or.inr ⟨_, _, _, _, _, hout, not_not.mp hvuln, rfl⟩
-
-end SCKAScheme
 
 namespace oppBiKemCKA
 
@@ -1109,7 +1041,7 @@ lemma injInv_sendArleak_step
     SCKAScheme.oracleSendArleak_preservesInv_at _ _ (sendWith_rleak_forget kem .A ecEk ecCt leak)
       (GameInv kem ecEk ecCt) (fun _ _ h => h) s hs.1
       (gameInv_sendA_step kem hDet ecEk ecCt leak s hs.1) z hz
-  rcases SCKAScheme.oracleSendArleak_support' _ _ s z hz with
+  rcases SCKAScheme.oracleSendArleak_run_cases _ _ s z hz with
     rfl | ⟨key?, ρ, tsnd, stA', rand, hout, -, hz2⟩
   · exact hs
   rw [hz2] at hexp hG ⊢
@@ -1148,7 +1080,7 @@ lemma injInv_sendBrleak_step
     SCKAScheme.oracleSendBrleak_preservesInv_at _ _ (sendWith_rleak_forget kem .B ecEk ecCt leak)
       (GameInv kem ecEk ecCt) (fun _ _ h => h) s hs.1
       (gameInv_sendB_step kem hDet ecEk ecCt leak s hs.1) z hz
-  rcases SCKAScheme.oracleSendBrleak_support' _ _ s z hz with
+  rcases SCKAScheme.oracleSendBrleak_run_cases _ _ s z hz with
     rfl | ⟨key?, ρ, tsnd, stB', rand, hout, -, hz2⟩
   · exact hs
   rw [hz2] at hexp hG ⊢
@@ -1419,5 +1351,78 @@ lemma targetEncapsulated_recvWith [DecidableEq Sym] (role : Role) (t : ℕ)
     · rw [hc]; exact Or.inl hsome
     · rw [← heq] at hack; exact Or.inr hack
   · exact Or.inr ⟨heq, Or.inr (f.ctRec_mono hmem)⟩
+
+/-! ## Changing the injected encapsulation -/
+
+section SwitchKey
+
+variable {kem : KEMScheme ProbComp K PK SK C}
+  {ecEk : ErasureCodePayload PK Sym} {ecCt : ErasureCodePayload C Sym}
+
+/-- Change the injected ciphertext and key while both target key-table entries are empty.
+The injected key pair and game state stay fixed, and `InjInv` is preserved. -/
+lemma injInv_switch_key {t : ℕ} {pk : PK} {sk : SK} {c c' : C} {k k' : K}
+    {s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)}
+    (hA : s.keyA t = none) (hB : s.keyB t = none)
+    (h : InjInv kem ecEk ecCt t ⟨pk, sk, c, k⟩ s) : InjInv kem ecEk ecCt t ⟨pk, sk, c', k'⟩ s := by
+  cases ho : targetOwner t
+  · rw [injInv_A ho] at h ⊢
+    exact ⟨h.1, h.2.ek_pinned, h.2.ekPeer_pinned, h.2.secret_pinned, Or.inl hA, Or.inl hB,
+      h.2.ctRec_decoded, h.2.ctMsg_decoded, h.2.ct_decoded⟩
+  · rw [injInv_B ho] at h ⊢
+    exact ⟨h.1, h.2.ek_pinned, h.2.ekPeer_pinned, h.2.secret_pinned, Or.inl hB, Or.inl hA,
+      h.2.ctRec_decoded, h.2.ctMsg_decoded, h.2.ct_decoded⟩
+
+/-- If the peer is about to encapsulate for a positive epoch with the owner's requester parity,
+both key tables are empty there, assuming both parties satisfy `PartyInv`. -/
+lemma tables_empty_of_encapsulates {role : Role} {T : Transcript kem}
+    {own peer : State PK SK C Sym} {ownMsgs peerMsgs : ℕ → Option (Message Sym × ℕ)}
+    {ownKey peerKey : ℕ → Option K} {tcurO tcurP : ℕ}
+    (hO : PartyInv role ecEk ecCt T own peer ownMsgs ownKey peerKey tcurO)
+    (hP : PartyInv role.peer ecEk ecCt T peer own peerMsgs peerKey ownKey tcurP)
+    {t : ℕ} (ht : 0 < t) (htpar : (t : ℤ) % 2 = role.reqParity)
+    (h : sendEncapsulatesTarget role.peer t peer = true) :
+    ownKey t = none ∧ peerKey t = none := by
+  have hnot : ¬ targetEncapsulated t peer := fun he => by
+    rw [sendEncapsulatesTarget_eq_false_of_encapsulated role.peer t peer he] at h
+    cases h
+  have hparP : (t : ℤ) % 2 = role.peer.resParity := by simpa using htpar
+  have henc : ∀ c k, (T t).enc = some (c, k) → False := by
+    intro c k henc
+    apply hnot
+    rcases lt_trichotomy (t : ℤ) peer.res.resEpoch with hlt | heq | hgt
+    · exact Or.inl hlt
+    · refine Or.inr ⟨heq, ?_⟩
+      rcases hP.enc_current c k (by rw [← heq]; exact henc) with hct | hack
+      · exact Or.inl (by rw [hct]; rfl)
+      · exact Or.inr (by rw [heq]; exact hack)
+    · have := hP.enc_future t hparP hgt
+      rw [henc] at this
+      cases this
+  have hpos : (0 : ℤ) < t := by omega
+  constructor
+  · cases hk : ownKey t with
+    | none => rfl
+    | some k =>
+      exfalso
+      have hreq := hO.key_req t hpos htpar
+      simp only [Int.toNat_natCast] at hreq
+      rw [hk] at hreq
+      split_ifs at hreq with hmem
+      · cases henc' : (T t).enc with
+        | none => simp [EpochTranscript.key, henc'] at hreq
+        | some ck => exact henc ck.1 ck.2 (by rw [henc'])
+  · cases hk : peerKey t with
+    | none => rfl
+    | some k =>
+      exfalso
+      have hres := hP.key_res t hpos hparP
+      simp only [Int.toNat_natCast] at hres
+      rw [hk] at hres
+      cases henc' : (T t).enc with
+      | none => simp [EpochTranscript.key, henc'] at hres
+      | some ck => exact henc ck.1 ck.2 (by rw [henc'])
+
+end SwitchKey
 
 end oppBiKemCKA

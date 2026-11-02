@@ -54,7 +54,12 @@ The random-key and key-pair peels use `True` and `GameInv` as invariants. The en
 peel uses the injected-state invariant of `Injected` through its existential closure over
 supported encapsulations (`encapsInv`): at the encapsulation for the target both tables are
 empty, so the witness switches to the sample (`injInv_switch_key`); elsewhere the sample is not
-read.
+read. `IdealReceive` supplies the shared oracle families and state-preservation lemmas;
+`Injected` supplies the facts about changing the injected encapsulation. The stopped-simulation
+support lemmas (`stopOnState_run_run_eq`, `mem_support_stopOnState`,
+`exists_of_mem_support_stopOnState`) come from `ToVCVio.OracleComp.SimSemantics.StateT.Stop`, and
+the per-query sampling bridge `evalDistEq_sampleEachQuery_stopOnState` from
+`ToVCVio.OracleComp.QueryTracking.OneUseSampling`.
 -/
 
 open OracleSpec OracleComp KEMScheme SCKAScheme ENNReal
@@ -62,45 +67,6 @@ open OracleSpec OracleComp KEMScheme SCKAScheme ENNReal
 namespace oppBiKemCKA
 
 variable {K PK SK C Sym : Type}
-
-/-! ## Distribution helpers -/
-
-/-- The support of a `ProbComp` is nonempty. -/
-lemma support_nonempty_probComp {α : Type} (mx : ProbComp α) : (support mx).Nonempty :=
-  support_nonempty mx
-
-/-- Two base oracles with the same query computation from `s` give the same stopped query
-computation. -/
-lemma stopOnState_run_run_eq {ι σ : Type} {spec : OracleSpec ι}
-    (base base' : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool) (q : spec.Domain)
-    (s : σ) (h : (base q).run s = (base' q).run s) :
-    ((stopOnState base stop q).run).run s = ((stopOnState base' stop q).run).run s := by
-  have h' : base q s = base' q s := h
-  simp only [stopOnState, OptionT.run_mk, StateT.run, h']
-
-/-- Membership in the support of a stopped query. -/
-lemma mem_support_stopOnState {ι σ : Type} {spec : OracleSpec ι}
-    (base : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool) (q : spec.Domain) (s : σ)
-    (z : Option (spec.Range q) × σ) :
-    z ∈ support (((stopOnState base stop q).run).run s) ↔
-      ∃ w ∈ support ((base q).run s), z = (if stop w.2 then none else some w.1, w.2) := by
-  simp only [stopOnState, OptionT.run_mk, StateT.run, mem_support_bind_iff, support_pure,
-    Set.mem_singleton_iff]
-
-/-- Per-query bridge between sampling at every query and a lazy base oracle, under stopping:
-it suffices that drawing the sample and running the sampled base oracle has the distribution
-of the lazy base oracle. -/
-lemma evalDistEq_sampleEachQuery_stopOnState {ι σ τ : Type} {spec : OracleSpec ι}
-    (sample : ProbComp τ) (base : τ → QueryImpl spec (StateT σ ProbComp))
-    (base' : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool) (q : spec.Domain) (s : σ)
-    (h : (do let a ← sample; (base a q).run s) =ᵈ (base' q).run s) :
-    ((sampleEachQuery sample (fun a => stopOnState (base a) stop) q).run).run s =ᵈ
-      ((stopOnState base' stop q).run).run s := by
-  have h' : (do let a ← sample; base a q s) =ᵈ base' q s := h
-  rw [sampleEachQuery_run]
-  simp only [stopOnState, OptionT.run_mk, StateT.run]
-  rw [← bind_assoc]
-  exact h'.bind_left _
 
 /-! ## The intermediate oracle families -/
 
@@ -172,44 +138,7 @@ def keygenInjectedScheme (t : ℕ) (pk : PK) (sk : SK) :
       sendA := keygenInjectedSend kem .A ecEk ecCt t pk sk
       sendB := keygenInjectedSend kem .B ecEk ecCt t pk sk }
 
-/-- The correctness oracles of a scheme with the ideal receives: uniform sampling, the
-scheme's ordinary sends and the ideal receives. -/
-def idealRecvCorrectnessImpl
-    (scka : SCKAScheme ProbComp Unit (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)
-      (SendRand leak.KeygenRand leak.EncapsRand)) :
-    QueryImpl (SCKAScheme.sckaCorrectnessSpec (Message Sym))
-      (StateT (SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
-        ProbComp) :=
-  SCKAScheme.oracleUnif (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)
-    + SCKAScheme.oracleSendA scka + SCKAScheme.oracleSendB scka
-    + oracleRecvAIdeal kem hDet ecEk ecCt leak + oracleRecvBIdeal kem hDet ecEk ecCt leak
-
 variable [SampleableType K]
-
-/-- The security oracles over a scheme with the ideal receives and the selection-indexed
-challenge: the hybrid, injected and keygen-injected families are its instances. -/
-def idealRecvSecurityImpl
-    (scka : SCKAScheme ProbComp Unit (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)
-      (SendRand leak.KeygenRand leak.EncapsRand)) (random : ℕ → Bool) :
-    QueryImpl (securitySpec leak Sym)
-      (StateT (SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
-        ProbComp) :=
-  SCKAScheme.securityImplOf (idealRecvCorrectnessImpl kem hDet ecEk ecCt leak scka)
-    (SCKAScheme.oracleChallOn random _ _ _ _) (exposure .A leak) (exposure .B leak)
-    (scheme kem hDet ecEk ecCt leak)
-
-/-- The hybrid oracles are the ideal-receive oracles of the honest scheme. -/
-lemma hybridSecurityImpl_eq (random : ℕ → Bool) :
-    hybridSecurityImpl kem hDet ecEk ecCt leak random =
-      idealRecvSecurityImpl kem hDet ecEk ecCt leak (scheme kem hDet ecEk ecCt leak) random :=
-  rfl
-
-/-- The injected oracles are the ideal-receive oracles of the injected scheme. -/
-lemma injectedSecurityImpl_eq (t : ℕ) (inj : TargetInjection PK SK C K) (random : ℕ → Bool) :
-    injectedSecurityImpl kem hDet ecEk ecCt leak t inj random =
-      idealRecvSecurityImpl kem hDet ecEk ecCt leak (injectedScheme kem hDet ecEk ecCt leak t inj)
-        random :=
-  rfl
 
 /-- The eager challenge answer for target `t`: random below `t`, the eager random key at `t`
 when `b` is set, and the recorded key otherwise. -/
@@ -236,7 +165,7 @@ def stoppedEagerExp (t : ℕ) (b : Bool) (pk : PK) (sk : SK) (c : C) (kReal kRan
 
 end Families
 
-/-! ## Query indices and hit tests -/
+/-! ## Hit predicates -/
 
 section Hits
 
@@ -283,45 +212,6 @@ variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
   (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
   (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym) (leak : kem.RandLeak)
   (t : ℕ)
-
-/-- A's ordinary send query of the ideal-receive oracles is A's send oracle. -/
-lemma idealRecvSecurityImpl_run_OSendA
-    (scka : SCKAScheme ProbComp Unit (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)
-      (SendRand leak.KeygenRand leak.EncapsRand)) (random : ℕ → Bool)
-    (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)) (u : Unit) :
-    (idealRecvSecurityImpl kem hDet ecEk ecCt leak scka random
-      (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl
-        (Sum.inr u)))))))))).run s = (SCKAScheme.oracleSendA scka ()).run s :=
-  rfl
-
-/-- B's ordinary send query of the ideal-receive oracles is B's send oracle. -/
-lemma idealRecvSecurityImpl_run_OSendB
-    (scka : SCKAScheme ProbComp Unit (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)
-      (SendRand leak.KeygenRand leak.EncapsRand)) (random : ℕ → Bool)
-    (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)) (u : Unit) :
-    (idealRecvSecurityImpl kem hDet ecEk ecCt leak scka random
-      (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inr u))))))))).run s =
-      (SCKAScheme.oracleSendB scka ()).run s :=
-  rfl
-
-/-- Two schemes with the same ordinary sends at the current states give the same ideal-receive
-security query computation; schemes differ only in those sends. -/
-lemma idealRecvSecurityImpl_run_eq
-    (scka scka' : SCKAScheme ProbComp Unit (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)
-      (SendRand leak.KeygenRand leak.EncapsRand)) (random : ℕ → Bool)
-    (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
-    (q : (securitySpec leak Sym).Domain)
-    (hA : q = sckaSecuritySpec.OCorrectness sckaCorrectnessSpec.OSendA →
-      scka.sendA s.stA = scka'.sendA s.stA)
-    (hB : q = sckaSecuritySpec.OCorrectness sckaCorrectnessSpec.OSendB →
-      scka.sendB s.stB = scka'.sendB s.stB) :
-    (idealRecvSecurityImpl kem hDet ecEk ecCt leak scka random q).run s =
-      (idealRecvSecurityImpl kem hDet ecEk ecCt leak scka' random q).run s := by
-  rcases q with (((((((((n | ⟨⟩) | ⟨⟩) | n) | n) | ⟨⟩) | ⟨⟩) | e) | ⟨⟩) | ⟨⟩) <;> (try rfl)
-  · rw [idealRecvSecurityImpl_run_OSendA, idealRecvSecurityImpl_run_OSendA,
-      SCKAScheme.oracleSendA_run_eq, SCKAScheme.oracleSendA_run_eq, hA rfl]
-  · rw [idealRecvSecurityImpl_run_OSendB, idealRecvSecurityImpl_run_OSendB,
-      SCKAScheme.oracleSendB_run_eq, SCKAScheme.oracleSendB_run_eq, hB rfl]
 
 /-- If `hitEncaps t q s = false`, the injected query computation is independent of the
 injected encapsulation. -/
@@ -629,161 +519,6 @@ lemma injected_hitEncaps_evalDist (x : PK × SK) (random : ℕ → Bool)
 
 end AtHits
 
-/-! ## Party-state facts along ideal-receive runs -/
-
-section PartyState
-
-variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
-  (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
-  (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym) (leak : kem.RandLeak)
-  (scka : SCKAScheme ProbComp Unit (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)
-    (SendRand leak.KeygenRand leak.EncapsRand)) (random : ℕ → Bool)
-
-/-- A predicate on A's state preserved by the scheme's send, by the honest leaking send and
-by every receive is preserved along every ideal-receive security query. -/
-lemma idealRecvSecurityImpl_stA_step (Q : State PK SK C Sym → Prop)
-    (hsend : ∀ st key? ρ tsnd st', some (key?, ρ, tsnd, st') ∈ support (scka.sendA st) →
-      Q st → Q st')
-    (hrleak : ∀ st key? ρ tsnd st' (rand : SendRand leak.KeygenRand leak.EncapsRand),
-      some (key?, ρ, tsnd, st', rand) ∈
-        support (sendWith .A leak.keygenRleak leak.encapsRleak ecEk ecCt st) → Q st → Q st')
-    (hrecv : ∀ (recover : ℤ → SK → C → Option K) st ρ key? trcv st',
-      recvWith .A recover ecEk ecCt st ρ = some (key?, trcv, st') → Q st → Q st')
-    (q : (securitySpec leak Sym).Domain)
-    (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
-    (hQ : Q s.stA) :
-    ∀ z ∈ support ((idealRecvSecurityImpl kem hDet ecEk ecCt leak scka random q).run s),
-      Q z.2.stA := by
-  intro z hz
-  rcases q with (((((((((n | ⟨⟩) | ⟨⟩) | n) | n) | ⟨⟩) | ⟨⟩) | e) | ⟨⟩) | ⟨⟩)
-  · exact SCKAScheme.oracleUnif_preservesInv (fun u => Q u.stA) n s hQ z hz
-  · obtain ⟨out, hout, rfl⟩ := (SCKAScheme.mem_support_oracleSendA_run_iff _ s z).1 hz
-    rcases out with _ | ⟨key?, ρ, tsnd, stA'⟩
-    · exact hQ
-    · rcases key? with _ | ⟨tI, k⟩ <;> exact hsend s.stA _ _ _ _ hout hQ
-  · obtain ⟨out, -, rfl⟩ := (SCKAScheme.mem_support_oracleSendB_run_iff _ s z).1 hz
-    rcases out with _ | ⟨_ | ⟨tI, k⟩, ρ, tsnd, stB'⟩ <;> exact hQ
-  · change z ∈ support ((SCKAScheme.oracleRecvA (schemeWithRecv kem hDet ecEk ecCt leak
-      (recvWith .A (idealRecover s.keyB) ecEk ecCt) (recvB kem hDet ecEk ecCt)) n).run s) at hz
-    rcases (SCKAScheme.mem_support_oracleRecvA_run_iff _ s n z).1 hz with
-      ⟨-, rfl⟩ | ⟨ρ, tsnd, -, -, rfl⟩ | ⟨ρ, tsnd, key?, trcv, stA', -, hrecv', rfl⟩
-    · exact hQ
-    · exact hQ
-    · rcases key? with _ | ⟨tI, k⟩ <;> exact hrecv _ s.stA ρ _ trcv stA' hrecv' hQ
-  · change z ∈ support ((SCKAScheme.oracleRecvB (schemeWithRecv kem hDet ecEk ecCt leak
-      (recvA kem hDet ecEk ecCt) (recvWith .B (idealRecover s.keyA) ecEk ecCt)) n).run s) at hz
-    rcases (SCKAScheme.mem_support_oracleRecvB_run_iff _ s n z).1 hz with
-      ⟨-, rfl⟩ | ⟨ρ, tsnd, -, -, rfl⟩ | ⟨ρ, tsnd, key?, trcv, stB', -, -, rfl⟩
-    · exact hQ
-    · exact hQ
-    · rcases key? with _ | ⟨tI, k⟩ <;> exact hQ
-  · rcases SCKAScheme.oracleSendArleak_support' _ _ s z hz with
-      rfl | ⟨key?, ρ, tsnd, stA', rand, hout, -, hz2⟩
-    · exact hQ
-    · rw [hz2]
-      rcases key? with _ | ⟨tI, k⟩ <;> exact hrleak s.stA _ _ _ _ rand hout hQ
-  · rcases SCKAScheme.oracleSendBrleak_support' _ _ s z hz with
-      rfl | ⟨key?, ρ, tsnd, stB', rand, -, -, hz2⟩
-    · exact hQ
-    · rw [hz2]
-      rcases key? with _ | ⟨tI, k⟩ <;> exact hQ
-  · rcases SCKAScheme.oracleChall_support (random e) s e z hz with ⟨rfl, -⟩ | ⟨-, -, h⟩
-    · exact hQ
-    · rw [h]
-      exact hQ
-  · rcases SCKAScheme.oracleCorruptA_support _ s z hz with rfl | ⟨-, rfl⟩ <;> exact hQ
-  · rcases SCKAScheme.oracleCorruptB_support _ s z hz with rfl | ⟨-, rfl⟩ <;> exact hQ
-
-/-- The version of `idealRecvSecurityImpl_stA_step` for B's state. -/
-lemma idealRecvSecurityImpl_stB_step (Q : State PK SK C Sym → Prop)
-    (hsend : ∀ st key? ρ tsnd st', some (key?, ρ, tsnd, st') ∈ support (scka.sendB st) →
-      Q st → Q st')
-    (hrleak : ∀ st key? ρ tsnd st' (rand : SendRand leak.KeygenRand leak.EncapsRand),
-      some (key?, ρ, tsnd, st', rand) ∈
-        support (sendWith .B leak.keygenRleak leak.encapsRleak ecEk ecCt st) → Q st → Q st')
-    (hrecv : ∀ (recover : ℤ → SK → C → Option K) st ρ key? trcv st',
-      recvWith .B recover ecEk ecCt st ρ = some (key?, trcv, st') → Q st → Q st')
-    (q : (securitySpec leak Sym).Domain)
-    (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
-    (hQ : Q s.stB) :
-    ∀ z ∈ support ((idealRecvSecurityImpl kem hDet ecEk ecCt leak scka random q).run s),
-      Q z.2.stB := by
-  intro z hz
-  rcases q with (((((((((n | ⟨⟩) | ⟨⟩) | n) | n) | ⟨⟩) | ⟨⟩) | e) | ⟨⟩) | ⟨⟩)
-  · exact SCKAScheme.oracleUnif_preservesInv (fun u => Q u.stB) n s hQ z hz
-  · obtain ⟨out, -, rfl⟩ := (SCKAScheme.mem_support_oracleSendA_run_iff _ s z).1 hz
-    rcases out with _ | ⟨_ | ⟨tI, k⟩, ρ, tsnd, stA'⟩ <;> exact hQ
-  · obtain ⟨out, hout, rfl⟩ := (SCKAScheme.mem_support_oracleSendB_run_iff _ s z).1 hz
-    rcases out with _ | ⟨key?, ρ, tsnd, stB'⟩
-    · exact hQ
-    · rcases key? with _ | ⟨tI, k⟩ <;> exact hsend s.stB _ _ _ _ hout hQ
-  · change z ∈ support ((SCKAScheme.oracleRecvA (schemeWithRecv kem hDet ecEk ecCt leak
-      (recvWith .A (idealRecover s.keyB) ecEk ecCt) (recvB kem hDet ecEk ecCt)) n).run s) at hz
-    rcases (SCKAScheme.mem_support_oracleRecvA_run_iff _ s n z).1 hz with
-      ⟨-, rfl⟩ | ⟨ρ, tsnd, -, -, rfl⟩ | ⟨ρ, tsnd, key?, trcv, stA', -, -, rfl⟩
-    · exact hQ
-    · exact hQ
-    · rcases key? with _ | ⟨tI, k⟩ <;> exact hQ
-  · change z ∈ support ((SCKAScheme.oracleRecvB (schemeWithRecv kem hDet ecEk ecCt leak
-      (recvA kem hDet ecEk ecCt) (recvWith .B (idealRecover s.keyA) ecEk ecCt)) n).run s) at hz
-    rcases (SCKAScheme.mem_support_oracleRecvB_run_iff _ s n z).1 hz with
-      ⟨-, rfl⟩ | ⟨ρ, tsnd, -, -, rfl⟩ | ⟨ρ, tsnd, key?, trcv, stB', -, hrecv', rfl⟩
-    · exact hQ
-    · exact hQ
-    · rcases key? with _ | ⟨tI, k⟩ <;> exact hrecv _ s.stB ρ _ trcv stB' hrecv' hQ
-  · rcases SCKAScheme.oracleSendArleak_support' _ _ s z hz with
-      rfl | ⟨key?, ρ, tsnd, stA', rand, -, -, hz2⟩
-    · exact hQ
-    · rw [hz2]
-      rcases key? with _ | ⟨tI, k⟩ <;> exact hQ
-  · rcases SCKAScheme.oracleSendBrleak_support' _ _ s z hz with
-      rfl | ⟨key?, ρ, tsnd, stB', rand, hout, -, hz2⟩
-    · exact hQ
-    · rw [hz2]
-      rcases key? with _ | ⟨tI, k⟩ <;> exact hrleak s.stB _ _ _ _ rand hout hQ
-  · rcases SCKAScheme.oracleChall_support (random e) s e z hz with ⟨rfl, -⟩ | ⟨-, -, h⟩
-    · exact hQ
-    · rw [h]
-      exact hQ
-  · rcases SCKAScheme.oracleCorruptA_support _ s z hz with rfl | ⟨-, rfl⟩ <;> exact hQ
-  · rcases SCKAScheme.oracleCorruptB_support _ s z hz with rfl | ⟨-, rfl⟩ <;> exact hQ
-
-variable (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
-
-include hEk hCt in
-/-- Assume:
-
-* `ecEk` and `ecCt` are correct erasure codes;
-* the scheme's ordinary sends have the supports of the honest sends.
-
-Then every ideal-receive security query preserves `GameInv`. -/
-lemma gameInv_idealRecv_step
-    (hA : ∀ st, support (scka.sendA st) ⊆ support (send .A kem ecEk ecCt st))
-    (hB : ∀ st, support (scka.sendB st) ⊆ support (send .B kem ecEk ecCt st)) :
-    QueryImpl.PreservesInv (idealRecvSecurityImpl kem hDet ecEk ecCt leak scka random)
-      (GameInv kem ecEk ecCt) := by
-  intro q s hs z hz
-  refine SCKAScheme.securityImplOf_preserves_at_of_book _ _ _ _ _ (GameInv kem ecEk ecCt)
-    (fun _ E C h => gameInv_with_security_bookkeeping h E C)
-    (sendWith_rleak_forget kem .A ecEk ecCt leak)
-    (sendWith_rleak_forget kem .B ecEk ecCt leak) s hs (fun q z hz => ?_)
-    (fun e => SCKAScheme.oracleChallOn_preservesInv random _
-      (fun s C h => by simpa using gameInv_with_security_bookkeeping h s.exposed C) e s hs)
-    (gameInv_sendA_step kem hDet ecEk ecCt leak s hs)
-    (gameInv_sendB_step kem hDet ecEk ecCt leak s hs) q z hz
-  rcases q with (((n | ⟨⟩) | ⟨⟩) | n) | n
-  · exact SCKAScheme.oracleUnif_preservesInv (GameInv kem ecEk ecCt) n s hs z hz
-  · obtain ⟨out, hout, rfl⟩ := (SCKAScheme.mem_support_oracleSendA_run_iff _ s z).1 hz
-    exact gameInv_sendA_step kem hDet ecEk ecCt leak s hs _
-      ((SCKAScheme.mem_support_oracleSendA_run_iff _ s _).2 ⟨out, hA s.stA hout, rfl⟩)
-  · obtain ⟨out, hout, rfl⟩ := (SCKAScheme.mem_support_oracleSendB_run_iff _ s z).1 hz
-    exact gameInv_sendB_step kem hDet ecEk ecCt leak s hs _
-      ((SCKAScheme.mem_support_oracleSendB_run_iff _ s _).2 ⟨out, hB s.stB hout, rfl⟩)
-  · exact gameInv_ideal_step kem hDet ecEk ecCt hEk hCt leak (Sum.inl (Sum.inr n)) s hs z hz
-  · exact gameInv_ideal_step kem hDet ecEk ecCt hEk hCt leak (Sum.inr n) s hs z hz
-
-end PartyState
-
 /-! ## The keygen-injected sends within the honest sends -/
 
 section KeygenSubset
@@ -810,81 +545,6 @@ lemma keygenInjectedSend_support_subset (role : Role) (x : PK × SK)
   · exact hy
 
 end KeygenSubset
-
-/-! ## The invariant across the encapsulation sample -/
-
-section SwitchKey
-
-variable {kem : KEMScheme ProbComp K PK SK C}
-  {ecEk : ErasureCodePayload PK Sym} {ecCt : ErasureCodePayload C Sym}
-
-/-- `InjInv` for an injection and `InjInv` for the same key pair with another encapsulation
-coincide while both tables are empty at the target: the pinning clauses read the injected key
-only through the tables. -/
-lemma injInv_switch_key {t : ℕ} {pk : PK} {sk : SK} {c c' : C} {k k' : K}
-    {s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)}
-    (hA : s.keyA t = none) (hB : s.keyB t = none)
-    (h : InjInv kem ecEk ecCt t ⟨pk, sk, c, k⟩ s) : InjInv kem ecEk ecCt t ⟨pk, sk, c', k'⟩ s := by
-  cases ho : targetOwner t
-  · rw [injInv_A ho] at h ⊢
-    exact ⟨h.1, h.2.ek_pinned, h.2.ekPeer_pinned, h.2.secret_pinned, Or.inl hA, Or.inl hB,
-      h.2.ctRec_decoded, h.2.ctMsg_decoded, h.2.ct_decoded⟩
-  · rw [injInv_B ho] at h ⊢
-    exact ⟨h.1, h.2.ek_pinned, h.2.ekPeer_pinned, h.2.secret_pinned, Or.inl hB, Or.inl hA,
-      h.2.ctRec_decoded, h.2.ctMsg_decoded, h.2.ct_decoded⟩
-
-/-- On a state satisfying the party invariants where the peer is about to encapsulate for the
-target, both tables are empty at the target: a recorded key would mean an encapsulation in the
-transcript, hence a target already encapsulated for. -/
-lemma tables_empty_of_encapsulates {role : Role} {T : Transcript kem}
-    {own peer : State PK SK C Sym} {ownMsgs peerMsgs : ℕ → Option (Message Sym × ℕ)}
-    {ownKey peerKey : ℕ → Option K} {tcurO tcurP : ℕ}
-    (hO : PartyInv role ecEk ecCt T own peer ownMsgs ownKey peerKey tcurO)
-    (hP : PartyInv role.peer ecEk ecCt T peer own peerMsgs peerKey ownKey tcurP)
-    {t : ℕ} (ht : 0 < t) (htpar : (t : ℤ) % 2 = role.reqParity)
-    (h : sendEncapsulatesTarget role.peer t peer = true) :
-    ownKey t = none ∧ peerKey t = none := by
-  have hnot : ¬ targetEncapsulated t peer := fun he => by
-    rw [sendEncapsulatesTarget_eq_false_of_encapsulated role.peer t peer he] at h
-    cases h
-  have hparP : (t : ℤ) % 2 = role.peer.resParity := by simpa using htpar
-  have henc : ∀ c k, (T t).enc = some (c, k) → False := by
-    intro c k henc
-    apply hnot
-    rcases lt_trichotomy (t : ℤ) peer.res.resEpoch with hlt | heq | hgt
-    · exact Or.inl hlt
-    · refine Or.inr ⟨heq, ?_⟩
-      rcases hP.enc_current c k (by rw [← heq]; exact henc) with hct | hack
-      · exact Or.inl (by rw [hct]; rfl)
-      · exact Or.inr (by rw [heq]; exact hack)
-    · have := hP.enc_future t hparP hgt
-      rw [henc] at this
-      cases this
-  have hpos : (0 : ℤ) < t := by omega
-  constructor
-  · cases hk : ownKey t with
-    | none => rfl
-    | some k =>
-      exfalso
-      have hreq := hO.key_req t hpos htpar
-      simp only [Int.toNat_natCast] at hreq
-      rw [hk] at hreq
-      split_ifs at hreq with hmem
-      · cases henc' : (T t).enc with
-        | none => simp [EpochTranscript.key, henc'] at hreq
-        | some ck => exact henc ck.1 ck.2 (by rw [henc'])
-  · cases hk : peerKey t with
-    | none => rfl
-    | some k =>
-      exfalso
-      have hres := hP.key_res t hpos hparP
-      simp only [Int.toNat_natCast] at hres
-      rw [hk] at hres
-      cases henc' : (T t).enc with
-      | none => simp [EpochTranscript.key, henc'] at hres
-      | some ck => exact henc ck.1 ck.2 (by rw [henc'])
-
-end SwitchKey
 
 /-! ## Peel 1: the eager random key -/
 
@@ -1024,31 +684,6 @@ lemma exists_rand_of_mem_keygenInjectedSend (role : Role) (pk : PK) (sk : SK)
       Prod.mk.injEq] at hpure
     obtain ⟨rfl, rfl, rfl, rfl⟩ := hpure
     exact ⟨rand, hmem⟩
-
-omit [DecidableEq K] [DecidableEq Sym] [SampleableType K] hDet in
-/-- A continuing stopped answer comes from a base answer whose successor is unexposed. -/
-lemma exists_base_of_stopped {ι : Type} {spec : OracleSpec ι}
-    {base : QueryImpl spec (StateT (SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K
-      (Message Sym)) ProbComp)} {q : spec.Domain}
-    {s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)}
-    {z : Option (spec.Range q) × SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K
-      (Message Sym)}
-    (hz : z ∈ support (((stopOnState base (targetExposed t) q).run).run s))
-    (hsome : z.1.isSome = true) :
-    ∃ w ∈ support ((base q).run s), z.2 = w.2 ∧ t ∉ w.2.exposed := by
-  obtain ⟨w, hw, rfl⟩ := (mem_support_stopOnState _ _ q s z).1 hz
-  refine ⟨w, hw, rfl, fun h => ?_⟩
-  simp [targetExposed, h] at hsome
-
-omit [DecidableEq K] [DecidableEq Sym] [SampleableType K] hDet leak t in
-/-- A stopped answer comes from a base answer with the same successor. -/
-lemma exists_base_of_mem {ι σ : Type} {spec : OracleSpec ι}
-    {base : QueryImpl spec (StateT σ ProbComp)} {stop : σ → Bool} {q : spec.Domain} {s : σ}
-    {z : Option (spec.Range q) × σ}
-    (hz : z ∈ support (((stopOnState base stop q).run).run s)) :
-    ∃ w ∈ support ((base q).run s), z.2 = w.2 := by
-  obtain ⟨w, hw, rfl⟩ := (mem_support_stopOnState _ _ q s z).1 hz
-  exact ⟨w, hw, rfl⟩
 
 /-! ### Peel 2: the encapsulation -/
 
@@ -1217,7 +852,7 @@ lemma prEvent_stopped_injected_eq_keygenInjected (ht : 0 < t) (x : PK × SK)
            (keygenInjectedScheme kem hDet ecEk ecCt leak t x.1 x.2) (hybridRandom (t + b.toNat)))
            (targetExposed t) adv
            (initState (K := K) (PK := PK) (SK := SK) (C := C) (Sym := Sym))}[w = true] := by
-  obtain ⟨y₀, hy₀⟩ := support_nonempty_probComp (kem.encaps x.1)
+  obtain ⟨y₀, hy₀⟩ := OracleComp.support_nonempty (kem.encaps x.1)
   have hinit : encapsInv kem ecEk ecCt t x initState := ⟨y₀, hy₀, injInv_init kem ecEk ecCt t ht _⟩
   unfold stoppedRun
   rw [map_bind, optionRun_sample_once_eq_sampleEachQuery (kem.encaps x.1)
@@ -1225,11 +860,13 @@ lemma prEvent_stopped_injected_eq_keygenInjected (ht : 0 < t) (x : PK × SK)
       ⟨x.1, x.2, y.1, y.2⟩ (hybridRandom (t + b.toNat))) (targetExposed t))
     (encapsInv kem ecEk ecCt t x) (usedEncaps t) (hitEncaps t)
     (fun y hy q s hs z hz hsome => by
-      obtain ⟨w, hw, hzw, hexp⟩ := exists_base_of_stopped (t := t) hz hsome
+      obtain ⟨w, hw, hexp, hzw⟩ :=
+        exists_of_mem_support_stopOnState _ _ _ _ _ hz hsome
+      simp only [targetExposed, decide_eq_false_iff_not] at hexp
       rw [hzw]
       exact encapsInv_step kem hDet ecEk ecCt hEk hCt leak t ht x hx y hy _ q s hs w hw hexp)
     (fun y _ q s _ hu z hz _ => by
-      obtain ⟨w, hw, hzw⟩ := exists_base_of_mem hz
+      obtain ⟨w, hw, hzw⟩ := exists_base_of_mem_stopOnState hz
       rw [hzw]
       exact usedEncaps_step kem hDet ecEk ecCt leak t _ _ q s hu w hw)
     (fun q s _ hh (y : C × K) _ (y' : C × K) _ => by
@@ -1240,7 +877,7 @@ lemma prEvent_stopped_injected_eq_keygenInjected (ht : 0 < t) (x : PK × SK)
       obtain ⟨y', -, hs'⟩ := hs
       exact hitEncaps_eq_false_of_used kem ecEk ecCt leak t s hs'.1 hu q)
     (fun y hy q s hs hh z hz _ => by
-      obtain ⟨w, hw, hzw⟩ := exists_base_of_mem hz
+      obtain ⟨w, hw, hzw⟩ := exists_base_of_mem_stopOnState hz
       rw [hzw]
       obtain ⟨y', -, hs'⟩ := hs
       exact usedEncaps_of_hit kem hDet ecEk ecCt leak t x hx y hy _ _ q s hs' rfl hh w hw)
@@ -1256,7 +893,9 @@ lemma prEvent_stopped_injected_eq_keygenInjected (ht : 0 < t) (x : PK × SK)
     (fun q s hs z hz hsome => ?_) (fun q s hs => ?_) adv initState hinit).symm
   · rw [sampleEachQuery_run, mem_support_bind_iff] at hz
     obtain ⟨y, hy, hz⟩ := hz
-    obtain ⟨w, hw, hzw, hexp⟩ := exists_base_of_stopped (t := t) hz hsome
+    obtain ⟨w, hw, hexp, hzw⟩ :=
+      exists_of_mem_support_stopOnState _ _ _ _ _ hz hsome
+    simp only [targetExposed, decide_eq_false_iff_not] at hexp
     rw [hzw]
     exact encapsInv_step kem hDet ecEk ecCt hEk hCt leak t ht x hx y hy _ q s hs w hw hexp
   · simp only [id, Prod.map_id, id_map]
@@ -1407,11 +1046,11 @@ lemma prEvent_stopped_hybrid_eq_keygenInjected (b : Bool) (adv : SecurityAdversa
       (targetExposed t))
     (GameInv kem ecEk ecCt) (usedKeygen t) (hitKeygen t)
     (fun x hx q s hs z hz _ => by
-      obtain ⟨w, hw, hzw⟩ := exists_base_of_mem hz
+      obtain ⟨w, hw, hzw⟩ := exists_base_of_mem_stopOnState hz
       rw [hzw]
       exact hpres x hx q s hs w hw)
     (fun x _ q s _ hu z hz _ => by
-      obtain ⟨w, hw, hzw⟩ := exists_base_of_mem hz
+      obtain ⟨w, hw, hzw⟩ := exists_base_of_mem_stopOnState hz
       rw [hzw]
       exact usedKeygen_step kem hDet ecEk ecCt leak t x _ q s hu w hw)
     (fun q s _ hh x _ x' _ => by
@@ -1419,7 +1058,7 @@ lemma prEvent_stopped_hybrid_eq_keygenInjected (b : Bool) (adv : SecurityAdversa
         (keygenInjected_run_eq_of_not_hitKeygen kem hDet ecEk ecCt leak t x x' _ s q hh)])
     (fun q s hs hu => hitKeygen_eq_false_of_used kem ecEk ecCt leak t s hs hu q)
     (fun x hx q s hs hh z hz _ => by
-      obtain ⟨w, hw, hzw⟩ := exists_base_of_mem hz
+      obtain ⟨w, hw, hzw⟩ := exists_base_of_mem_stopOnState hz
       rw [hzw]
       exact usedKeygen_of_hit kem hDet ecEk ecCt leak t x hx _ q s hs hh w hw)
     adv initState hinit]
@@ -1434,7 +1073,7 @@ lemma prEvent_stopped_hybrid_eq_keygenInjected (b : Bool) (adv : SecurityAdversa
     (fun q s hs z hz _ => ?_) (fun q s hs => ?_) adv initState hinit
   · rw [sampleEachQuery_run, mem_support_bind_iff] at hz
     obtain ⟨x, hx, hz⟩ := hz
-    obtain ⟨w, hw, hzw⟩ := exists_base_of_mem hz
+    obtain ⟨w, hw, hzw⟩ := exists_base_of_mem_stopOnState hz
     rw [hzw]
     exact hpres x hx q s hs w hw
   · simp only [id, Prod.map_id, id_map]

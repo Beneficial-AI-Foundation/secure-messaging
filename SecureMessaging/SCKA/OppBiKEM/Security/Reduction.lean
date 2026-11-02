@@ -81,6 +81,13 @@ variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
   (hDet : kem.DeterministicDecaps)
   (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym) (leak : kem.RandLeak)
 
+/-- The injected oracles are the ideal-receive oracles of the injected scheme. -/
+lemma injectedSecurityImpl_eq (t : ℕ) (inj : TargetInjection PK SK C K) (random : ℕ → Bool) :
+    injectedSecurityImpl kem hDet ecEk ecCt leak t inj random =
+      idealRecvSecurityImpl kem hDet ecEk ecCt leak (injectedScheme kem hDet ecEk ecCt leak t inj)
+        random :=
+  rfl
+
 /-- The reduction does nothing before the challenge. -/
 @[simp] lemma reduction_preChallenge (adv : SecurityAdversary leak Sym) (t : ℕ) (pk : PK) :
     (reduction kem hDet ecEk ecCt leak adv t).preChallenge pk = pure pk := rfl

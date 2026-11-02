@@ -62,6 +62,9 @@ stopOnState(base, stop)(t; s) =
 It returns `false` at the first query whose successor state satisfies `stop`, and otherwise the
 output bit of `oa`: `stoppedRun base stop oa s = optionRun (stopOnState base stop) oa s`.
 
+The support lemmas recover the underlying base query and its successor state, including when
+the stopped response is `none`.
+
 The same run without stopping is `(simulateQ base oa).run' s : ProbComp Bool`: `simulateQ base oa`
 replaces each query `t` of `oa` by `base t`, and `.run' s` starts from `s` and discards the final
 state.
@@ -180,6 +183,36 @@ def stopOnState (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool
     let (answer, next) ← (impl t).run s
     pure (if stop next then none else some answer, next)
 
+/-- Equal base query computations remain equal after applying the same stop test. -/
+lemma stopOnState_run_run_eq {ι σ : Type} {spec : OracleSpec ι}
+    (base base' : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool) (q : spec.Domain)
+    (s : σ) (h : (base q).run s = (base' q).run s) :
+    ((stopOnState base stop q).run).run s = ((stopOnState base' stop q).run).run s := by
+  have h' : base q s = base' q s := h
+  simp only [stopOnState, OptionT.run_mk, StateT.run, h']
+
+/-- Characterize each possible stopped response by an underlying base response.
+The stop test can replace the answer with `none`, while keeping the successor state. -/
+lemma mem_support_stopOnState {ι σ : Type} {spec : OracleSpec ι}
+    (base : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool) (q : spec.Domain) (s : σ)
+    (z : Option (spec.Range q) × σ) :
+    z ∈ support (((stopOnState base stop q).run).run s) ↔
+      ∃ w ∈ support ((base q).run s), z = (if stop w.2 then none else some w.1, w.2) := by
+  simp only [stopOnState, OptionT.run_mk, StateT.run, mem_support_bind_iff, support_pure,
+    Set.mem_singleton_iff]
+
+/-- Every stopped response has the successor state of a possible base response.
+This includes responses that stop the simulation; it is the projection of
+`mem_support_stopOnState` that forgets the answer. For continuing responses, see
+`exists_of_mem_support_stopOnState`, which also gives `stop y.2 = false`. -/
+lemma exists_base_of_mem_stopOnState {ι σ : Type} {spec : OracleSpec ι}
+    {base : QueryImpl spec (StateT σ ProbComp)} {stop : σ → Bool} {q : spec.Domain} {s : σ}
+    {z : Option (spec.Range q) × σ}
+    (hz : z ∈ support (((stopOnState base stop q).run).run s)) :
+    ∃ w ∈ support ((base q).run s), z.2 = w.2 := by
+  obtain ⟨w, hw, rfl⟩ := (mem_support_stopOnState _ _ q s z).1 hz
+  exact ⟨w, hw, rfl⟩
+
 /-- A possible result `(a, s')` of `impl t` from `s` with `stop s' = false` gives the possible
 result `(some a, s')` of `stopOnState impl stop t` from `s`. -/
 theorem mem_support_stopOnState_of_mem
@@ -191,7 +224,8 @@ theorem mem_support_stopOnState_of_mem
     pure (if stop y.2 then none else some y.1, y.2))
   exact (mem_support_bind_iff _ _ _).mpr ⟨z, hz, by simp [hstop]⟩
 
-/-- Converse of `mem_support_stopOnState_of_mem`: a possible result `z` of
+/-- Converse of `mem_support_stopOnState_of_mem` (see also `exists_base_of_mem_stopOnState`
+for responses that stop): a possible result `z` of
 `stopOnState impl stop t` with `z.1 ≠ none` has `z.2 = y.2` for some
 `y ∈ support ((impl t).run s)` with `stop y.2 = false`. -/
 theorem exists_of_mem_support_stopOnState

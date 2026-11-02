@@ -78,6 +78,12 @@ def hybridSecurityImpl (random : ℕ → Bool) :
     (SCKAScheme.oracleChallOn random _ _ _ _) (exposure .A leak) (exposure .B leak)
     (scheme kem hDet ecEk ecCt leak)
 
+/-- The hybrid oracles are the ideal-receive oracles of the honest scheme. -/
+lemma hybridSecurityImpl_eq (random : ℕ → Bool) :
+    hybridSecurityImpl kem hDet ecEk ecCt leak random =
+      idealRecvSecurityImpl kem hDet ecEk ecCt leak (scheme kem hDet ecEk ecCt leak) random :=
+  rfl
+
 /-- A constant selection is the fixed-bit ideal game. -/
 lemma hybridSecurityImpl_const (b : Bool) :
     hybridSecurityImpl kem hDet ecEk ecCt leak (fun _ => b) =

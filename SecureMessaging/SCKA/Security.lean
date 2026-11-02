@@ -21,8 +21,9 @@ s = (stA, stB, keyA, keyB, msgA, msgB, nA, nB, tcurA, tcurB,
 where `exposed` holds the epochs exposed by corruption or leakage and `challenged` the answered
 challenges.
 
-- **Individual oracles:** possible results of challenge, corruption, and leaking-send queries;
-  challenge oracles that record challenges (`RecordsChallenges`).
+- **Individual oracles:** possible results of challenge, corruption, and leaking-send queries,
+  including the local send behind an accepted leakage query; challenge oracles that record
+  challenges (`RecordsChallenges`).
 - **Epoch-dependent challenges:** the challenge oracle `oracleChallOn`, whose query at epoch
   `t` is the fixed-bit challenge with bit `random t`.
 - **Expected scores:** ordinary-send bounds extend to leaking sends.
@@ -540,6 +541,71 @@ theorem oracleCorruptB_challenged_nA_eq (vuln : StB → Finset ℕ) (u : Unit)
   rcases oracleCorruptB_support vuln s z hz with h | ⟨_, h⟩ <;> rw [h] <;> exact ⟨rfl, rfl⟩
 
 /-! ### Leaking sends -/
+
+/-- Support of A's leaking-send query from `s`: a rejection leaves the state unchanged, and an
+acceptance is a supported leaking send whose leaked epochs avoid the challenged set, applied as
+the ordinary send is, with the leaked epochs exposed. This gives the successor state exactly;
+`oracleSendArleak_support` below only bounds its bookkeeping. -/
+lemma oracleSendArleak_run_cases {IK StA StB I Rho Rand : Type} [DecidableEq I]
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) (leak : StA → Rand → Finset ℕ)
+    (s : SCKAScheme.GameState StA StB I Rho)
+    (z : Option (ℕ × Option ℕ × Rho × Rand) × SCKAScheme.GameState StA StB I Rho)
+    (hz : z ∈ support ((SCKAScheme.oracleSendArleak leak scka ()).run s)) :
+    z = (none, s) ∨
+      ∃ key? ρ tsnd stA' rand,
+        some (key?, ρ, tsnd, stA', rand) ∈ support (scka.sendArleak s.stA) ∧
+        leak s.stA rand ∩ s.challenged = ∅ ∧
+        z.2 = { SCKAScheme.sendAUpdate s key? ρ tsnd stA' with
+          exposed := s.exposed ∪ leak s.stA rand } := by
+  simp only [SCKAScheme.oracleSendArleak, StateT.run_bind, StateT.run_get, pure_bind,
+    StateT.run_monadLift, monadLift_self, bind_assoc] at hz
+  rw [mem_support_bind_iff] at hz
+  obtain ⟨out, hout, hz⟩ := hz
+  cases out with
+  | none => exact Or.inl (by simpa using (mem_support_pure_iff _ _).mp hz)
+  | some out =>
+      rcases out with ⟨key, msg, epoch, state, coins⟩
+      dsimp only at hz
+      split at hz
+      · exact Or.inl (by simpa using (mem_support_pure_iff _ _).mp hz)
+      · rename_i hvuln
+        cases key <;>
+          simp only [StateT.run_bind, StateT.run_set, pure_bind,
+            StateT.run_pure, mem_support_pure_iff] at hz
+        all_goals
+          obtain rfl := hz
+          exact Or.inr ⟨_, _, _, _, _, hout, not_not.mp hvuln, rfl⟩
+
+/-- The version of `oracleSendArleak_run_cases` for B. -/
+lemma oracleSendBrleak_run_cases {IK StA StB I Rho Rand : Type} [DecidableEq I]
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) (leak : StB → Rand → Finset ℕ)
+    (s : SCKAScheme.GameState StA StB I Rho)
+    (z : Option (ℕ × Option ℕ × Rho × Rand) × SCKAScheme.GameState StA StB I Rho)
+    (hz : z ∈ support ((SCKAScheme.oracleSendBrleak leak scka ()).run s)) :
+    z = (none, s) ∨
+      ∃ key? ρ tsnd stB' rand,
+        some (key?, ρ, tsnd, stB', rand) ∈ support (scka.sendBrleak s.stB) ∧
+        leak s.stB rand ∩ s.challenged = ∅ ∧
+        z.2 = { SCKAScheme.sendBUpdate s key? ρ tsnd stB' with
+          exposed := s.exposed ∪ leak s.stB rand } := by
+  simp only [SCKAScheme.oracleSendBrleak, StateT.run_bind, StateT.run_get, pure_bind,
+    StateT.run_monadLift, monadLift_self, bind_assoc] at hz
+  rw [mem_support_bind_iff] at hz
+  obtain ⟨out, hout, hz⟩ := hz
+  cases out with
+  | none => exact Or.inl (by simpa using (mem_support_pure_iff _ _).mp hz)
+  | some out =>
+      rcases out with ⟨key, msg, epoch, state, coins⟩
+      dsimp only at hz
+      split at hz
+      · exact Or.inl (by simpa using (mem_support_pure_iff _ _).mp hz)
+      · rename_i hvuln
+        cases key <;>
+          simp only [StateT.run_bind, StateT.run_set, pure_bind,
+            StateT.run_pure, mem_support_pure_iff] at hz
+        all_goals
+          obtain rfl := hz
+          exact Or.inr ⟨_, _, _, _, _, hout, not_not.mp hvuln, rfl⟩
 
 section LeakingSend
 

@@ -1279,7 +1279,9 @@ theorem prEvent_stoppedEagerExp_eq_reductionRun (adv : SecurityAdversary leak Sy
     (fun s => InjInv kem ecEk ecCt t ⟨pk, sk, c, kReal⟩ s ∧ t ∉ s.exposed) ?_ ?_ adv _
     ⟨injInv_init kem ecEk ecCt t ht _, by simp [initState, SCKAScheme.initGameState]⟩).symm
   · intro q s hs z hz hsome
-    obtain ⟨w, hw, hzw, hexp⟩ := exists_base_of_stopped (t := t) hz hsome
+    obtain ⟨w, hw, hexp, hzw⟩ :=
+      exists_of_mem_support_stopOnState _ _ _ _ _ hz hsome
+    simp only [targetExposed, decide_eq_false_iff_not] at hexp
     rw [hzw]
     exact ⟨eagerSecurityImpl_preservesInv_continuing kem hDet ecEk ecCt hEk hCt leak t _ hx hy ht
       b kRand q s hs.1 w hw hexp, hexp⟩
