@@ -60,9 +60,8 @@ message space $`\mathcal M` and ciphertext space $`\mathcal C`, where
 $`\Enc` and $`\Dec` are deterministic. $`\mathsf{SE}` is correct if
 $`\Dec(K, \Enc(K, m)) = m` for all keys $`K` and messages $`m`.
 
-Each ciphertext $`c` has a length $`|c|`, and the ciphertexts of each length form a finite
-nonempty set, so that the security game can sample from it uniformly. Let $`|m|` denote a
-fixed length function on messages, and let $`\mathit{clen} : \mathbb N \to \mathbb N` be a
+Each ciphertext $`c` has a length $`|c|`. Let $`|m|` denote a fixed length function on
+messages, and let $`\mathit{clen} : \mathbb N \to \mathbb N` be a
 ciphertext length function. Let
 $`\mathcal C(\ell) = \{c \in \mathcal C : |c| = \mathit{clen}(\ell)\}`. $`\mathsf{SE}`
 is length-regular if $`|\Enc(K, m)| = \mathit{clen}(|m|)` for all keys $`K` and messages $`m`.
