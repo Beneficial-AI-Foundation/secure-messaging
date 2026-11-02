@@ -42,7 +42,7 @@ intermediate oracle families: the injected oracles with the hybrid challenge sel
 - a hit test naming the query that consumes the sample (`hitRand`, `hitEncaps`, `hitKeygen`)
   and a monotone used predicate excluding a second consumption (the challenged set,
   `usedEncaps`, `usedKeygen`);
-- away from the hit, equal query computations of the sampled family for all samples
+- when the hit predicate is false, equal query computations of the sampled family for all samples
   (`…_of_not_hit…`);
 - at the hit, the distribution of drawing the sample and running the sampled oracles equals that
   of the lazy oracles (`eager_hitRand_evalDist`, `injected_hitEncaps_evalDist`,
@@ -132,7 +132,8 @@ def keygenInjectedSend (role : Role) (ecEk : ErasureCodePayload PK Sym)
   let out ← sendWith role (targetKeygen kem role t pk sk st) (honestEncaps kem) ecEk ecCt st
   pure (out.map fun (key?, ρ, epoch, st', _) => (key?, ρ, epoch, st'))
 
-/-- Away from an encapsulation for the target, the injected send is the keygen-injected send. -/
+/-- If `sendEncapsulatesTarget role t st = false`, the injected send is the keygen-injected
+send. -/
 lemma injectedSend_eq_keygenInjectedSend (role : Role) (ecEk : ErasureCodePayload PK Sym)
     (ecCt : ErasureCodePayload C Sym) (t : ℕ) (inj : TargetInjection PK SK C K)
     (st : State PK SK C Sym) (henc : sendEncapsulatesTarget role t st = false) :
@@ -143,8 +144,7 @@ lemma injectedSend_eq_keygenInjectedSend (role : Role) (ecEk : ErasureCodePayloa
     simp only [injectedEncaps, henc, Bool.false_eq_true, ↓reduceIte, honestEncaps]
   simp only [injectedSend, keygenInjectedSend, injectedKeygen_eq_targetKeygen, henc']
 
-/-- Away from a generation of the target's key pair, the keygen-injected send is the honest
-send. -/
+/-- If `sendGeneratesTarget role t st = false`, the keygen-injected send is the honest send. -/
 lemma keygenInjectedSend_eq_send (role : Role) (ecEk : ErasureCodePayload PK Sym)
     (ecCt : ErasureCodePayload C Sym) (t : ℕ) (pk : PK) (sk : SK) (st : State PK SK C Sym)
     (hgen : sendGeneratesTarget role t st = false) :
@@ -275,9 +275,9 @@ def hitKeygen (t : ℕ) :
 
 end Hits
 
-/-! ## Query computations away from the hits -/
+/-! ## Query computations when the hit predicate is false -/
 
-section AwayFromHits
+section HitFalse
 
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
   (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
@@ -323,8 +323,8 @@ lemma idealRecvSecurityImpl_run_eq
   · rw [idealRecvSecurityImpl_run_OSendB, idealRecvSecurityImpl_run_OSendB,
       SCKAScheme.oracleSendB_run_eq, SCKAScheme.oracleSendB_run_eq, hB rfl]
 
-/-- Away from an encapsulation for the target, the injected oracles do not read the injected
-encapsulation. -/
+/-- If `hitEncaps t q s = false`, the injected query computation is independent of the
+injected encapsulation. -/
 lemma injectedSecurityImpl_run_eq_of_not_hitEncaps (pk : PK) (sk : SK) (y y' : C × K)
     (random : ℕ → Bool)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
@@ -342,8 +342,8 @@ lemma injectedSecurityImpl_run_eq_of_not_hitEncaps (pk : PK) (sk : SK) (y y' : C
     rw [injectedSend_eq_keygenInjectedSend kem .B ecEk ecCt t _ s.stB hq,
       injectedSend_eq_keygenInjectedSend kem .B ecEk ecCt t _ s.stB hq]
 
-/-- Away from an encapsulation for the target, the injected oracles are the keygen-injected
-oracles. -/
+/-- If `hitEncaps t q s = false`, the injected and keygen-injected oracles give the same
+query computation from `s`. -/
 lemma injectedSecurityImpl_run_eq_keygenInjected_of_not_hitEncaps (pk : PK) (sk : SK)
     (y : C × K) (random : ℕ → Bool)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
@@ -358,8 +358,8 @@ lemma injectedSecurityImpl_run_eq_keygenInjected_of_not_hitEncaps (pk : PK) (sk 
   · rintro rfl
     exact injectedSend_eq_keygenInjectedSend kem .B ecEk ecCt t _ s.stB hq
 
-/-- Away from a generation of the target's key pair, the keygen-injected oracles do not read the
-injected pair. -/
+/-- If `hitKeygen t q s = false`, the keygen-injected query computation is independent of the
+injected key pair. -/
 lemma keygenInjected_run_eq_of_not_hitKeygen (x x' : PK × SK) (random : ℕ → Bool)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (q : (securitySpec leak Sym).Domain) (hq : hitKeygen (leak := leak) t q s = false) :
@@ -379,8 +379,8 @@ lemma keygenInjected_run_eq_of_not_hitKeygen (x x' : PK × SK) (random : ℕ →
     rw [keygenInjectedSend_eq_send kem .B ecEk ecCt t _ _ s.stB hq,
       keygenInjectedSend_eq_send kem .B ecEk ecCt t _ _ s.stB hq]
 
-/-- Away from a generation of the target's key pair, the keygen-injected oracles are the hybrid
-oracles. -/
+/-- If `hitKeygen t q s = false`, the keygen-injected and hybrid oracles give the same query
+computation from `s`. -/
 lemma keygenInjected_run_eq_hybrid_of_not_hitKeygen (x : PK × SK) (random : ℕ → Bool)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (q : (securitySpec leak Sym).Domain) (hq : hitKeygen (leak := leak) t q s = false) :
@@ -394,8 +394,8 @@ lemma keygenInjected_run_eq_hybrid_of_not_hitKeygen (x : PK × SK) (random : ℕ
   · rintro rfl
     exact keygenInjectedSend_eq_send kem .B ecEk ecCt t _ _ s.stB hq
 
-/-- Away from an eligible challenge of the target with `b` set, the eager oracles do not read
-the eager random key. -/
+/-- If `hitRand t b q s = false`, the eager query computation is independent of the eager
+random key. -/
 lemma eagerSecurityImpl_run_eq_of_not_hitRand (inj : TargetInjection PK SK C K) (b : Bool)
     (r r' : K) (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (q : (securitySpec leak Sym).Domain) (hq : hitRand (leak := leak) t b q s = false) :
@@ -416,8 +416,8 @@ lemma eagerSecurityImpl_run_eq_of_not_hitRand (inj : TargetInjection PK SK C K) 
     simp [eagerAnswer, hb]
   · simp [eagerAnswer, hne]
 
-/-- Away from an eligible challenge of the target with `b` set, the eager oracles are the
-injected oracles with the hybrid selection of threshold `t + b`. -/
+/-- If `hitRand t b q s = false`, the eager and injected oracles give the same query
+computation from `s`, with the hybrid selection of threshold `t + b`. -/
 lemma eagerSecurityImpl_run_eq_injected_of_not_hitRand (inj : TargetInjection PK SK C K)
     (b : Bool) (r : K)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
@@ -445,7 +445,7 @@ lemma eagerSecurityImpl_run_eq_injected_of_not_hitRand (inj : TargetInjection PK
       have hlt : e < t + 1 ↔ e < t := by omega
       simp [eagerAnswer, hybridRandom, hne, hlt]
 
-end AwayFromHits
+end HitFalse
 
 /-! ## Query computations at the hits -/
 
