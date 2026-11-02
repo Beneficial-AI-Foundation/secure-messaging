@@ -16,8 +16,8 @@ symmetric encryption schemes `DetSymmEncAlg M K C`.
 VCVio defines the scheme, its correctness `DetSymmEncAlg.PerfectlyCorrect`, and an IND$-CPA
 game. That game samples one key for the whole run, and its random ciphertext is uniform on
 all of `C`. The one-time secrecy game below samples a fresh key for each encryption query,
-and its random ciphertext has the length of the real one. The game uses VCVio's oracle
-interface `INDDollarOracleSpec` and adversary type `INDDollarAdversary`.
+and its random ciphertext is uniform among the ciphertexts of length `clen |m|`. The game
+uses VCVio's oracle interface `INDDollarOracleSpec` and adversary type `INDDollarAdversary`.
 
 ## References
 
