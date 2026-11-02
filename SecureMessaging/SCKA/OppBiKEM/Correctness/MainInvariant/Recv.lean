@@ -1033,9 +1033,7 @@ Then `recvWith recover` succeeds, and every result has the following properties:
 * the reported epoch is the recorded sending epoch;
 * the known-prefix check passes;
 * any emitted key is fresh for the receiver and consistent with the peer's key table;
-* both parties satisfy `PartyInv`, with the transcript unchanged.
-
-The only hypothesis on `recover` is `hrec`. -/
+* both parties satisfy `PartyInv`, with the transcript unchanged. -/
 lemma partyInv_recvWith_step [DecidableEq Sym] (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
     (recover : ℤ → SK → C → Option K)
     (hrec : ρ.tRes ∉ stR.ack.ctRec → ∀ pk sk c k, (T ρ.tRes).keypair = some (pk, sk) →
@@ -1274,9 +1272,7 @@ Then `recv` succeeds, and every result has the following properties:
 * the reported epoch is the recorded sending epoch;
 * the known-prefix check passes;
 * any emitted key is fresh for the receiver and consistent with the peer's key table;
-* both parties satisfy `PartyInv`, with the transcript unchanged.
-
-The only KEM correctness hypothesis is `hdec`. -/
+* both parties satisfy `PartyInv`, with the transcript unchanged. -/
 lemma partyInv_recv_step [DecidableEq Sym] (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
     (hdec : ρ.tRes ∉ stR.ack.ctRec → ∀ pk sk c k, (T ρ.tRes).keypair = some (pk, sk) →
       (T ρ.tRes).enc = some (c, k) → hDet.decapsDet sk c = some k) :

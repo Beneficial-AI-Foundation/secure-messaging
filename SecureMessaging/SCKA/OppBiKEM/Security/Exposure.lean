@@ -129,9 +129,7 @@ Then:
 * the responder epoch records the key-generation advance;
 * a generated secret key is stored at its integer epoch;
 * a key is emitted exactly when encapsulation randomness is present;
-* an emitted key's epoch is the responder epoch's `toNat`.
-
-No reachability or positivity of the generated or emitted epochs is assumed. -/
+* an emitted key's epoch is the responder epoch's `toNat`. -/
 theorem sendWith_operation_facts
     {RK RE : Type} (role : Role)
     (keygen : ProbComp ((PK × SK) × RK))

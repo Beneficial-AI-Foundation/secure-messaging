@@ -64,7 +64,7 @@ how they ensure this:
   `ToVCVio.OracleComp.SimSemantics.StateT.BadFlag` (specialised to SCKA in
   `SCKA.Correctness.Tracked`) and the conditional KEM error of `KEM.CorrectnessError`;
 * the perfect-KEM proof uses that no instance of a perfectly correct KEM can fail, so the
-  invariant holds at every reachable state and no query bound is needed.
+  invariant holds at every reachable state for every correctness adversary.
 
 For more details on the proof and gentler exposition, check
 [the tutorial](https://github.com/Beneficial-AI-Foundation/secure-messaging/blob/main/docs/tutorials/oppbikem-correctness-tutorial.md).
@@ -129,8 +129,8 @@ theorem correctness_true_ge
 * `adv` makes at most `q` `SendA` and `SendB` queries combined.
 
 Then the Opp-BiKEM-CKA correctness game succeeds with probability one. This is the `ε = 0`
-instance of `correctness_true_ge`; `correctness_of_perfectKEM` proves the same without a query
-bound. -/
+instance of `correctness_true_ge`; `correctness_of_perfectKEM` proves the same for every
+correctness adversary. -/
 theorem correctness_of_perfectKEM'
     (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
@@ -149,8 +149,8 @@ theorem correctness_of_perfectKEM'
 * `kem` has deterministic decapsulation and is perfectly correct;
 * `ecEk` and `ecCt` are correct erasure codes.
 
-Then the Opp-BiKEM-CKA correctness game succeeds with probability one for every adversary,
-without a query bound. -/
+Then the Opp-BiKEM-CKA correctness game succeeds with probability one for every correctness
+adversary. -/
 theorem correctness_of_perfectKEM
     (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym) (leak : kem.RandLeak)

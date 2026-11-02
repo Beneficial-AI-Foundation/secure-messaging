@@ -28,7 +28,7 @@ successor that leaves `t` unexposed:
 Pinning the key the peer decodes follows from the owner's retained public key, which the owner
 clears only after the peer decoded it, together with three state clauses saying that the peer
 decoded `t`'s key before any ciphertext for `t` could exist (`ctRec_decoded`, `ctMsg_decoded`,
-`ct_decoded`); no transcript tracking is needed.
+`ct_decoded`).
 
 Successors exposing `t` carry no obligation: an honest leaking send that generates or
 encapsulates for `t` stores fresh honest values, and it exposes `t`
@@ -1115,8 +1115,7 @@ include hEk hCt ht hpk hct in
 * `0 < t`, and the injected key pair and encapsulation are supported.
 
 Then every injected security query, for every selection, keeps `InjInv` on every successor
-that leaves `t` unexposed. Successors exposing `t` carry no obligation: the stopped run
-discards them. -/
+that leaves `t` unexposed. -/
 theorem injectedSecurityImpl_preservesInv_continuing (random : ℕ → Bool)
     (q : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))

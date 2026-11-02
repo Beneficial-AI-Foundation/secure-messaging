@@ -14,8 +14,8 @@ import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Recv
 
 Every correctness-game oracle preserves `GameInv`, provided both parties can decapsulate every
 ciphertext they have yet to receive (`DecapsReady`, `gameInv_step_of`). The per-oracle steps are
-stated separately: sends need nothing beyond the invariant, and receives are stated for any scheme
-whose receive is `recvWith recover`, under the proviso that `recover` returns the transcript key
+stated separately. Receives are stated for any scheme whose receive is `recvWith recover`,
+under the proviso that `recover` returns the transcript key
 (`gameInv_recvA_step_of`, `gameInv_recvB_step_of`). For the real receive this proviso is where
 KEM correctness enters, and the two correctness proofs discharge it differently:
 `Quantitative.RecvStep` from `kemFailure s = false`, which leads to the `q · ε` bound, and

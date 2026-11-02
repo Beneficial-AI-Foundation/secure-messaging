@@ -20,9 +20,9 @@ policy and the honest leaking sends and corruptions.
 
 - On every state satisfying `GameInv` without current KEM failure, the real and ideal oracles
   have the same query computation (`securityImpl_eq_ideal_of_noFailure`).
-- With correct erasure codes, every ideal security query preserves `GameInv`, with no KEM
-  correctness and no no-failure premise (`idealSecurityImpl_preservesInv`): the ideal receive
-  returns the peer's recorded key, which is the transcript key.
+- With correct erasure codes, every ideal security query preserves `GameInv`
+  (`idealSecurityImpl_preservesInv`): the ideal receive returns the peer's recorded key, which
+  is the transcript key.
 
 `idealRecvSecurityImpl` also supports variants with modified ordinary sends and selected
 random-key challenges. Query-comparison and state-preservation lemmas let later proofs
@@ -265,8 +265,8 @@ lemma securityImpl_eq_ideal_of_noFailure [DecidableEq K] [DecidableEq Sym] [Samp
 
 /-! ## The ideal invariant -/
 
-/-- Every ideal correctness query preserves `GameInv`, with no KEM correctness or no-failure
-premise: the ideal receive returns the peer's recorded key, which is the transcript key. -/
+/-- Every ideal correctness query preserves `GameInv`: the ideal receive returns the peer's
+recorded key, which is the transcript key. -/
 lemma gameInv_ideal_step [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
@@ -307,8 +307,7 @@ lemma gameInv_ideal_step [DecidableEq K] [DecidableEq Sym]
 
 * `ecEk` and `ecCt` are correct erasure codes.
 
-Then, for either challenge bit `b`, every ideal security query preserves `GameInv`. No KEM
-correctness and no no-failure premise is needed. -/
+Then, for either challenge bit `b`, every ideal security query preserves `GameInv`. -/
 theorem idealSecurityImpl_preservesInv [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)

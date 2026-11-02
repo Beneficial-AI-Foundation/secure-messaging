@@ -20,10 +20,9 @@ key for every key pair and encapsulation the KEM can output (`DecapsCorrectOnSup
 from `decapsCorrectOnSupport_of_perfectlyCorrect`). The `DecapsReady` hypothesis of
 `gameInv_step_of` therefore holds at every state (`transcriptDecaps_of_support`), every oracle
 preserves `GameInv` (`gameInv_preserved`), and `GameInv` holds at every reachable state
-(`simulateQ_gameInv`). The argument needs no failure flag and no potential, hence no query
-bound. Since `GameInv s` contains `s.correct = true`, the game succeeds with probability one
-(`correctness_of_perfectKEM` in `Correctness`); since `GameInv` also gives `send_ne_none`,
-neither party's `send` is ever rejected (`sends_never_rejected_of_perfectKEM`).
+(`simulateQ_gameInv`). Since `GameInv s` contains `s.correct = true`, the game succeeds with
+probability one (`correctness_of_perfectKEM` in `Correctness`); since `GameInv` also gives
+`send_ne_none`, neither party's `send` is ever rejected (`sends_never_rejected_of_perfectKEM`).
 -/
 
 open OracleSpec OracleComp KEMScheme
