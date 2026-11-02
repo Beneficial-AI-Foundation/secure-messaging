@@ -358,6 +358,18 @@ $`h : \mathcal K \times \mathcal D \to \bit^t` is $`\varepsilon`-almost-XOR-univ
 $$`\Pr_{k \sample \mathcal K}\bigl[\, h(k, x) \oplus h(k, y) = \Delta \,\bigr] \le \varepsilon`
 
 where $`\oplus` is bitwise XOR.
+
+:::leanPillCaption "$`\\varepsilon`-AXU in VCVio"
+:::
+
+```quotedLean
+open OracleComp ENNReal in
+def IsAlmostXorUniversal {K D T : Type} [SampleableType K] [XorOp T]
+    (hash : K → D → T) (ε : ℝ≥0∞) : Prop :=
+  ∀ x y : D, x ≠ y → ∀ Δ : T, Pr{let k ← $ᵗ K}[hash k x ^^^ hash k y = Δ] ≤ ε
+
+example : @IsAlmostXorUniversal = @UniversalHash.IsAlmostXorUniversal := rfl
+```
 ::::
 
 :::defTitle "aead_gcm_ghash_hash" "GHASH as a keyed hash"
