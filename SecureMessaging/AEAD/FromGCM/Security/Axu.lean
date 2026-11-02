@@ -32,8 +32,8 @@ open OracleComp OracleSpec ENNReal ToVCVio
 
 namespace GCM
 
-/-- The keyed hash that GCM uses for its tag on `L`-bit ciphertexts: key `H`, input
-`(ad, c)`, output `GHASH_H(gcmEncode ad c)`. -/
+/-- The keyed hash that GCM uses for its tag: key `H`, input `(ad, c)` with `c : BitVec L`,
+output `GHASH_H(gcmEncode ad c)`. -/
 -- ANCHOR: gcmHash
 abbrev gcmHash (L : ℕ) (H : BitVec 128) (p : SupportedAAD × BitVec L) : BitVec 128 :=
   ghash H (gcmEncode p.1 p.2)

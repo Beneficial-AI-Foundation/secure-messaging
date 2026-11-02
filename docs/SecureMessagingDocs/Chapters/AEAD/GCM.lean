@@ -376,13 +376,12 @@ example : @IsAlmostXorUniversal = @UniversalHash.IsAlmostXorUniversal := rfl
 :::
 
 ::::definition "aead_gcm_ghash_hash" (parent := "aead_gcm") (lean := "GCM.gcmEncode, GCM.gcmHash, GCM.GhashIsAXU") (uses := "aead_gcm_axu, aead_gcm_components, aead_gcm_spec")
-Let $`L` be a supported message length and $`\mathcal A` the set of supported associated
-data. The GCM tag hash for $`L`-bit ciphertexts is the keyed hash
-$`h_L : \bit^{128} \times (\mathcal A \times \bit^L) \to \bit^{128}` with
+Let $`L` be a supported length and $`\mathcal A` the set of supported associated data. The
+GCM tag hash is the keyed hash
+$`h_L : \bit^{128} \times (\mathcal A \times \bit^L) \to \bit^{128}` with key $`H` and
+input $`(a, c)`, defined by
 
 $$`h_L(H, (a, c)) = \mathsf{GHASH}_H(\mathsf{encode}(a, c)).`
-
-GCM computes its tag from $`h_L` with the hash key $`H = \mathsf{CIPH}_K(0^{128})`.
 
 :::leanPillCaption "GHASH input $`\\mathsf{encode}(a, c)`"
 :::
@@ -415,7 +414,7 @@ def GhashIsAXU (L : ℕ) (ε : ℝ≥0∞) : Prop :=
 ::::theorem "aead_gcm_ghash_axu" (parent := "aead_gcm") (lean := "GCM.ghash_isAXU_unconditional, GCM.nistPoly_irreducible") (uses := "aead_gcm_ghash_hash, aead_gcm_axu")
 Adapted from {Informal.citet IOM12}[], Corollary 4.
 
-Let $`L` be a supported message length and $`n = \lceil L / 128 \rceil`. Then the
+Let $`L` be a supported length and $`n = \lceil L / 128 \rceil`. Then the
 {bpref "aead_gcm_ghash_hash"}[GCM tag hash] $`h_L` is
 {bpref "aead_gcm_axu"}[$`\varepsilon`-AXU], with
 
@@ -423,7 +422,7 @@ $$`\varepsilon = \frac{2^{57} + n + 1}{2^{128}}.`
 
 The numerator bounds the number of blocks of $`\mathsf{encode}(a, c)`. The longest supported
 associated data has $`2^{64} - 8` bits, which is $`2^{57}` blocks after zero-padding. The
-ciphertext is $`n` blocks after zero-padding, and one block holds the two lengths.
+input $`c \in \bit^L` is $`n` blocks after zero-padding, and one block holds the two lengths.
 
 :::leanPillCaption "AXU bound of $`h_L`"
 :::
