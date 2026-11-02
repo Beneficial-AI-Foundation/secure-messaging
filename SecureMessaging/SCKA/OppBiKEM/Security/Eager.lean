@@ -57,7 +57,7 @@ empty, so the witness switches to the sample (`injInv_switch_key`); elsewhere th
 read.
 -/
 
-open OracleSpec OracleComp KEMScheme ENNReal
+open OracleSpec OracleComp KEMScheme SCKAScheme ENNReal
 
 namespace oppBiKemCKA
 
@@ -242,24 +242,12 @@ section Hits
 
 variable {kem : KEMScheme ProbComp K PK SK C} {leak : kem.RandLeak}
 
-/-- A's ordinary send query index. -/
-@[match_pattern] abbrev OSendA : (securitySpec leak Sym).Domain :=
-  Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inr ()))))))))
-
-/-- B's ordinary send query index. -/
-@[match_pattern] abbrev OSendB : (securitySpec leak Sym).Domain :=
-  Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inr ())))))))
-
-/-- The challenge query index at epoch `e`. -/
-@[match_pattern] abbrev OChall (e : ℕ) : (securitySpec leak Sym).Domain :=
-  Sum.inl (Sum.inl (Sum.inr e))
-
 /-- The query that first uses the eager random key: an eligible challenge of `t` with `b`
 set. -/
 def hitRand (t : ℕ) (b : Bool) :
     (securitySpec leak Sym).Domain →
       SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym) → Bool
-  | OChall e, s =>
+  | sckaSecuritySpec.OChall e, s =>
       b && decide (e = t) && !decide (t ∈ s.exposed ∨ t ∈ s.challenged) &&
         ((s.keyA t).isSome || (s.keyB t).isSome)
   | _, _ => false
@@ -269,9 +257,9 @@ for `t`. -/
 def hitEncaps (t : ℕ) :
     (securitySpec leak Sym).Domain →
       SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym) → Bool
-  | Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inr _)))))))), s =>
+  | sckaSecuritySpec.OCorrectness sckaCorrectnessSpec.OSendA, s =>
       sendEncapsulatesTarget .A t s.stA
-  | Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inr _))))))), s =>
+  | sckaSecuritySpec.OCorrectness sckaCorrectnessSpec.OSendB, s =>
       sendEncapsulatesTarget .B t s.stB
   | _, _ => false
 
@@ -279,9 +267,9 @@ def hitEncaps (t : ℕ) :
 def hitKeygen (t : ℕ) :
     (securitySpec leak Sym).Domain →
       SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym) → Bool
-  | Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inr _)))))))), s =>
+  | sckaSecuritySpec.OCorrectness sckaCorrectnessSpec.OSendA, s =>
       sendGeneratesTarget .A t s.stA
-  | Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inl (Sum.inr _))))))), s =>
+  | sckaSecuritySpec.OCorrectness sckaCorrectnessSpec.OSendB, s =>
       sendGeneratesTarget .B t s.stB
   | _, _ => false
 
@@ -323,8 +311,10 @@ lemma idealRecvSecurityImpl_run_eq
       (SendRand leak.KeygenRand leak.EncapsRand)) (random : ℕ → Bool)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (q : (securitySpec leak Sym).Domain)
-    (hA : q = OSendA → scka.sendA s.stA = scka'.sendA s.stA)
-    (hB : q = OSendB → scka.sendB s.stB = scka'.sendB s.stB) :
+    (hA : q = sckaSecuritySpec.OCorrectness sckaCorrectnessSpec.OSendA →
+      scka.sendA s.stA = scka'.sendA s.stA)
+    (hB : q = sckaSecuritySpec.OCorrectness sckaCorrectnessSpec.OSendB →
+      scka.sendB s.stB = scka'.sendB s.stB) :
     (idealRecvSecurityImpl kem hDet ecEk ecCt leak scka random q).run s =
       (idealRecvSecurityImpl kem hDet ecEk ecCt leak scka' random q).run s := by
   rcases q with (((((((((n | ⟨⟩) | ⟨⟩) | n) | n) | ⟨⟩) | ⟨⟩) | e) | ⟨⟩) | ⟨⟩) <;> (try rfl)
@@ -473,9 +463,10 @@ lemma eager_hitRand_evalDist (inj : TargetInjection PK SK C K)
     (helig : ¬(t ∈ s.exposed ∨ t ∈ s.challenged))
     (hkey : (s.keyA t).isSome = true ∨ (s.keyB t).isSome = true) :
     (($ᵗ K : ProbComp K) >>= fun r =>
-        (eagerSecurityImpl kem hDet ecEk ecCt leak t inj true r (OChall t)).run s) =ᵈ
+        (eagerSecurityImpl kem hDet ecEk ecCt leak t inj true r
+          (sckaSecuritySpec.OChall t)).run s) =ᵈ
       (injectedSecurityImpl kem hDet ecEk ecCt leak t inj (hybridRandom (t + 1))
-        (OChall t)).run s := by
+        (sckaSecuritySpec.OChall t)).run s := by
   refine ToVCVio.evalDistEq_of_eq ?_
   change (($ᵗ K : ProbComp K) >>= fun r =>
       (SCKAScheme.oracleChallWith (eagerAnswer t true r) _ _ _ t).run s) =
