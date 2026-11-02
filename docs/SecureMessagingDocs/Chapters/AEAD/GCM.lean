@@ -175,24 +175,72 @@ def gctr {K : Type} (ciph : K → BitVec 128 → BitVec 128) (k : K) (icb : BitV
 :::::::definition "aead_gcm_spec" (parent := "aead_gcm") (lean := "GCM.gcmEncrypt, GCM.gcmDecrypt, GCM.gcmOneTimeAEAD") (tags := "gh-21") (uses := "aead, prp, aead_gcm_components")
 Adapted from {Informal.citet NIST_GCM}[], Section 7, Algorithms 4 and 5.
 
+A message or ciphertext length is supported when it is at most $`2^{39} - 256` bits and a
+multiple of 8. An associated data length is supported when it is at most $`2^{64} - 1` bits
+and a multiple of 8.
+
+Let $`P` be a {bpref "prp"}[PRP scheme] on 128-bit blocks with key space $`\mathcal K`, let
+$`\mathit{IV}` be a 96-bit IV, and let $`L` be a supported message length. Then
+$`\mathsf{GCM}[P, \mathit{IV}, L]` is the one-time {bpref "aead"}[AEAD scheme] with key
+space $`\mathcal K`, message space $`\bit^L`, associated data space the bitstrings of
+supported length, ciphertext space $`\bit^L \times \bit^{128}` and the algorithms below.
+
 GCM encrypts the message in counter mode and authenticates the associated data and the
-ciphertext with $`\mathsf{GHASH}`. Both use the block cipher $`\mathsf{CIPH}_K` of a
-{bpref "prp"}[PRP scheme] on 128-bit blocks. The tag is 128 bits. For a bitstring $`X`, let $`0^{v_X}` be the
-fewest zero bits that make $`|X| + v_X` a multiple of 128. GHASH hashes the associated data
-$`A` and the ciphertext $`C` as
+ciphertext with $`\mathsf{GHASH}`. Both use the block cipher $`\mathsf{CIPH}_K`, the
+permutation of $`P` under the key $`K`. The tag is 128 bits. For a bitstring $`X`, let
+$`0^{v_X}` be the fewest zero bits that make $`|X| + v_X` a multiple of 128. GHASH hashes the
+associated data $`A` and the ciphertext $`C` as
 
 $$`\mathsf{encode}(A, C) = A \concat 0^{v_A} \concat C \concat 0^{v_C} \concat [|A|]_{64} \concat [|C|]_{64}`
 
+$`\Enc` is GCM-AE (Algorithm 4) and $`\Dec` is GCM-AD (Algorithm 5) of
+{Informal.citet NIST_GCM}[], with the IV fixed to $`\mathit{IV}`.
+
 ::::::gameGrid
-:::::gameCell "\\mathsf{GCM\\text{-}AE}_K(\\mathit{IV}, P, A)" (kind := "compact")
+:::::gameCell "\\mathsf{KeyGen}()" (kind := "compact-third")
+$`\begin{array}{l}
+K \gets P.\mathsf{keygen}; \\
+\Return K
+\end{array}`
+:::::
+
+:::::gameCell "\\Enc(K, a, m)" (kind := "compact-third")
 $`\begin{array}{l}
 H \gets \mathsf{CIPH}_K(0^{128}); \\
 J_0 \gets \mathit{IV} \concat 0^{31} \concat 1; \\
-C \gets \mathsf{GCTR}_K(\mathsf{inc}_{32}(J_0), P); \\
-S \gets \mathsf{GHASH}_H(\mathsf{encode}(A, C)); \\
+C \gets \mathsf{GCTR}_K(\mathsf{inc}_{32}(J_0), m); \\
+S \gets \mathsf{GHASH}_H(\mathsf{encode}(a, C)); \\
 T \gets \mathsf{GCTR}_K(J_0, S); \\
 \Return (C, T)
 \end{array}`
+:::::
+
+:::::gameCell "\\Dec(K, a, (C, T))" (kind := "compact-third")
+$`\begin{array}{l}
+\pif\;|C|, |a| \text{ are not supported}\;\pthen \\
+\quad\Return \bot; \\
+H \gets \mathsf{CIPH}_K(0^{128}); \\
+J_0 \gets \mathit{IV} \concat 0^{31} \concat 1; \\
+m \gets \mathsf{GCTR}_K(\mathsf{inc}_{32}(J_0), C); \\
+S \gets \mathsf{GHASH}_H(\mathsf{encode}(a, C)); \\
+\pif\;T \neq \mathsf{GCTR}_K(J_0, S)\;\pthen \\
+\quad\Return \bot; \\
+\Return m
+\end{array}`
+:::::
+
+:::leanPillCaption "one-time AEAD scheme $`\\mathsf{GCM}[P, \\mathit{IV}, L]`"
+:::
+
+```anchor gcmOneTimeAEAD (project := ".") (module := SecureMessaging.AEAD.FromGCM.Construction)
+def gcmOneTimeAEAD {K : Type} (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
+    (_hL : ValidMsgLength L) :
+    AEADScheme ProbComp (BitVec L) SupportedAAD
+      K (BitVec L × BitVec 128) where
+  keygen := prp.keygen
+  encrypt := fun k ad m => gcmEncrypt prp.toBlockCipher k iv ad.1.2 m
+  decrypt := fun k ad c => gcmDecrypt prp.toBlockCipher k iv ad.1.2 c
+```
 
 :::leanPillCaption "GCM-AE (authenticated encryption)"
 :::
@@ -210,20 +258,6 @@ def gcmEncrypt {K : Type} (ciph : CIPH K) (k : K)
   let t := gctr ciph.perm k j₀ s
   (c, t)
 ```
-:::::
-
-:::::gameCell "\\mathsf{GCM\\text{-}AD}_K(\\mathit{IV}, C, A, T)" (kind := "compact")
-$`\begin{array}{l}
-\pif\;|C|, |A| \text{ are not supported}\;\pthen \\
-\quad\Return \bot; \\
-H \gets \mathsf{CIPH}_K(0^{128}); \\
-J_0 \gets \mathit{IV} \concat 0^{31} \concat 1; \\
-P \gets \mathsf{GCTR}_K(\mathsf{inc}_{32}(J_0), C); \\
-S \gets \mathsf{GHASH}_H(\mathsf{encode}(A, C)); \\
-\pif\;T \neq \mathsf{GCTR}_K(J_0, S)\;\pthen \\
-\quad\Return \bot; \\
-\Return P
-\end{array}`
 
 :::leanPillCaption "GCM-AD (authenticated decryption)"
 :::
@@ -244,12 +278,11 @@ def gcmDecrypt {K : Type} (ciph : CIPH K) (k : K)
     if t = gctr ciph.perm k j₀ s then some p else none
   else none
 ```
-:::::
 ::::::
 
-A message or ciphertext length is supported when it is at most $`2^{39} - 256` bits and a
-multiple of 8. An associated data length is supported when it is at most $`2^{64} - 1` bits
-and a multiple of 8.
+The first test in $`\Dec` comes from GCM-AD. In $`\mathsf{GCM}[P, \mathit{IV}, L]` it never
+returns $`\bot`, because $`L` is supported and the associated data space contains only
+bitstrings of supported length.
 
 :::leanPillCaption "supported message length"
 :::
@@ -271,47 +304,6 @@ and a multiple of 8.
 ```anchor SupportedAAD (project := ".") (module := SecureMessaging.AEAD.GCM)
 abbrev SupportedAAD := { x : (a : ℕ) × BitVec a // ValidAADLength x.1 }
 ```
-
-Let $`P` be a PRP scheme on 128-bit blocks with key space $`\mathcal K`, let $`\mathit{IV}`
-be a 96-bit IV, and let $`L` be a supported message length. Then
-$`\mathsf{GCM}[P, \mathit{IV}, L]` is the one-time {bpref "aead"}[AEAD scheme] with key
-space $`\mathcal K`, message space $`\bit^L`, associated data space the bitstrings of
-supported length, ciphertext space $`\bit^L \times \bit^{128}` and the algorithms below.
-The block cipher $`\mathsf{CIPH}_K` of GCM-AE and GCM-AD is the permutation of $`P`.
-
-::::::gameGrid
-:::::gameCell "\\mathsf{KeyGen}()" (kind := "compact-third")
-$`\begin{array}{l}
-K \gets P.\mathsf{keygen}; \\
-\Return K
-\end{array}`
-:::::
-
-:::::gameCell "\\Enc(K, a, m)" (kind := "compact-third")
-$`\begin{array}{l}
-\Return \mathsf{GCM\text{-}AE}_K(\mathit{IV}, m, a)
-\end{array}`
-:::::
-
-:::::gameCell "\\Dec(K, a, (C, T))" (kind := "compact-third")
-$`\begin{array}{l}
-\Return \mathsf{GCM\text{-}AD}_K(\mathit{IV}, C, a, T)
-\end{array}`
-:::::
-
-:::leanPillCaption "one-time AEAD scheme $`\\mathsf{GCM}[P, \\mathit{IV}, L]`"
-:::
-
-```anchor gcmOneTimeAEAD (project := ".") (module := SecureMessaging.AEAD.FromGCM.Construction)
-def gcmOneTimeAEAD {K : Type} (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
-    (_hL : ValidMsgLength L) :
-    AEADScheme ProbComp (BitVec L) SupportedAAD
-      K (BitVec L × BitVec 128) where
-  keygen := prp.keygen
-  encrypt := fun k ad m => gcmEncrypt prp.toBlockCipher k iv ad.1.2 m
-  decrypt := fun k ad c => gcmDecrypt prp.toBlockCipher k iv ad.1.2 c
-```
-::::::
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Scope}" (kind := "scheme-notation")
