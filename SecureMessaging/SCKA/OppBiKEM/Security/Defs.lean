@@ -87,8 +87,11 @@ def SecuritySendQueryBound
 
 /-! ## The exposure policy -/
 
-/-- Positive epochs excluded by the presence of key-generation or encapsulation randomness.
-The flags identify operations; the exclusion does not assert key reconstruction. -/
+/-- The epochs that an accepted leaking send marks as exposed in the security game.
+
+The set contains the positive key-generation and encapsulation epochs indicated by `rand`,
+computed from the sender's state `st` before the send. Membership does not assert that the
+leaked randomness reconstructs a key. -/
 def rleakEpochs {RK RE : Type} (role : Role)
     (st : State PK SK C Sym) (rand : SendRand RK RE) : Finset ℕ :=
   let keyEpoch := st.res.resEpoch + 2 + role.offset
@@ -98,8 +101,8 @@ def rleakEpochs {RK RE : Type} (role : Role)
     (if rand.encapsRand.isSome then {encEpoch} else ∅)
   (epochs.filter fun e => 0 < e).image Int.toNat
 
-/-- Build the conservative epoch-exclusion policy for state exposure and send randomness leakage.
-Membership alone does not certify reconstruction or satisfy the oracle's acceptance guard. -/
+/-- Opp-BiKEM's exposure policy for the SCKA security game. It specifies which epochs must be
+excluded from key challenges after state corruption or leakage of send randomness. -/
 def exposure {kem : KEMScheme ProbComp K PK SK C}
     (role : Role) (leak : kem.RandLeak) :
     SCKAScheme.VulnerableEpochs (State PK SK C Sym)
