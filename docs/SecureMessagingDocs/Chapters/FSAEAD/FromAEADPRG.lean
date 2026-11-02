@@ -46,7 +46,10 @@ Let $`\mathsf{AE} = (\mathsf{KeyGen}, \Enc, \Dec)` be an {bpref "aead"}[AEAD] sc
 $`\mathcal K`. Let $`\mathcal W` be a set, and let
 $`G : \mathcal W \to \mathcal W \times \mathcal K` be a {bpref "prg"}[PRG] with seed space
 $`\mathcal S = \mathcal W` and output space $`\mathcal R = \mathcal W \times \mathcal K`. The {bpref "fs_aead_scheme"}[FS-AEAD scheme] below has key space
-$`\mathcal W`. The state of each party consists of the variables set by its initialisation.
+$`\mathcal W`. The construction does not call $`\mathsf{KeyGen}`, because $`G` derives the
+keys. The state of each party consists of the variables set by its initialisation. When
+$`\mathsf{FS\text{-}Rcv}` raises $`\mathsf{error}`, B's state goes back to what it was before
+the call.
 
 :::::::gameGrid
 ::::::gameCell "\\mathsf{Init}\\text{-}\\A(k)" (kind := "compact")
@@ -207,26 +210,16 @@ def skipSteps (prg : PRGScheme W (W × Kae)) : ℕ → RecvState W Kae → RecvS
 :::::::
 
 :::::::gameGrid
-::::::gameCell "\\textsf{Changes to Figure 6}" (kind := "scheme-notation")
-Corrections, marked by boxes in the pseudocode:
+::::::gameCell "\\textsf{Deviations}" (kind := "scheme-notation")
+We change {Informal.citet ACD19}[], Figure 6, in three places. Boxes in pseudocode mark the
+first two:
 
-- $`\mathsf{skip}` stores each skipped key at its own index, $`D[i_\B] \gets K`. Figure 6
-  stores all of them at $`D[u]`, so each one overwrites the one before.
-- $`\mathsf{FS\text{-}Rcv}` rejects an index $`i \le i_\B` that is not in $`D`. Figure 6
-  derives the next chain key for it instead.
-
-Ambiguity resolved: Figure 6 initialises $`D[\cdot] \gets \lambda`, but
-$`\mathsf{try\text{-}skipped}` and $`\mathsf{FS\text{-}Rcv}` use $`\bot` for an empty
-entry. We write $`\bot` for both.
-
-Key generation: {Informal.citet ACD19}[] write $`\mathsf{AE} = (\Enc, \Dec)`. Our AEAD
-definition adds $`\mathsf{KeyGen}`, but the construction does not call it, because $`G`
-derives the keys.
-
-Rollback: when $`\mathsf{FS\text{-}Rcv}` raises $`\mathsf{error}`, B's state goes back to
-what it was before the call, as {Informal.citet ACD19}[] specify in the prose before
-Figure 6. So a failed $`\Dec` puts back the key that $`\mathsf{try\text{-}skipped}` removed,
-and the honest message at that index can still arrive.
+1. $`\mathsf{skip}` stores each skipped key at its own index, $`D[i_\B] \gets K`. Figure 6
+   stores all of them at $`D[u]`, so each one overwrites the one before.
+2. $`\mathsf{FS\text{-}Rcv}` rejects an index $`i \le i_\B` that is not in $`D`. Figure 6
+   derives the next chain key for it instead.
+3. $`\mathsf{Init}\text{-}\B` sets $`D[\cdot] \gets \bot`. Figure 6 writes $`\lambda` there,
+   but $`\mathsf{try\text{-}skipped}` and $`\mathsf{FS\text{-}Rcv}` test for $`\bot`.
 ::::::
 :::::::
 ::::::::
