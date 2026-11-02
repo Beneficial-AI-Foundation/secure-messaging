@@ -10,8 +10,10 @@ import SecureMessaging.SCKA.OppBiKEM.Security.Reduction
 # Opp-BiKEM — The injected-state invariant
 
 **Setting.** Fix a target epoch `t > 0` and a *supported honest injection*: a key pair
-`(pk, sk) ∈ support kem.keygen` and an encapsulation `(c, k) ∈ support (kem.encaps pk)`. The
-injected oracles `injectedSecurityImpl t ⟨pk, sk, c, k⟩ random` (`Reduction`) are the ideal
+`(pk, sk) ∈ support kem.keygen` and an encapsulation `(c, k) ∈ support (kem.encaps pk)`.
+The injection determines values sampled upfront, which will be used once the algorithms needs to
+generate key or encapsulate.
+Concretely, the injected oracles `injectedSecurityImpl t ⟨pk, sk, c, k⟩ random` (`Reduction`) are the ideal
 security oracles whose ordinary sends return `(pk, sk)` at the generation of `t`'s key pair and
 `(c, k)` at the encapsulation for `t`, for any challenge selection `random`.
 
@@ -25,23 +27,10 @@ successor that leaves `t` unexposed:
   (`TargetInv`): the owner's retained public key while its key epoch is `t`, the owner's
   retained secret for `t`, the peer's decoded key for `t`, and both tables at `t`.
 
-Pinning the key the peer decodes follows from the owner's retained public key, which the owner
-clears only after the peer decoded it, together with three state clauses saying that the peer
-decoded `t`'s key before any ciphertext for `t` could exist (`ctRec_decoded`, `ctMsg_decoded`,
-`ct_decoded`).
+Accepted leaking sends that generate or encapsulate for `t` expose it and end the stopped run.
+The state map in `Simulation` relates these injected runs to the reduction.
 
-Successors exposing `t` carry no obligation: an honest leaking send that generates or
-encapsulates for `t` stores fresh honest values, and it exposes `t`
-(`mem_rleakEpochs_of_target`), so the stopped run discards it before the adversary continues.
-The reduction's own injection, with its placeholder secret and candidate key, is related to
-these runs by the state map of `Simulation`; the invariant is never claimed for it directly.
-
-The module also provides the state-level facts of one `sendWith` step with arbitrary samplers
-(`SendWithFacts`) and of one `recvWith` step (`RecvWithFacts`), and the first-use predicates
-`targetGenerated` and `targetEncapsulated` with their monotonicity and first-use lemmas, which
-the eager-sampling argument consumes (`Eager`). It also establishes when the target key
-tables are empty and when the injected ciphertext and key can change while preserving
-`InjInv`.
+Supporting facts about sends, receives, and target epochs are used in `Eager`.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -1283,7 +1272,8 @@ lemma targetGenerated_recvWith [DecidableEq Sym] (role : Role) (t : ℕ)
   rw [recvWith_resEpoch role recover ecEk ecCt st ρ key? trcv st' hout]
   exact h
 
-/-- A send that encapsulates for the target leaves it encapsulated for. -/
+/-- A successful send that encapsulates at target epoch `t` stores the resulting ciphertext
+and establishes `targetEncapsulated t st'` for its successor state. -/
 lemma targetEncapsulated_of_sendWith {RK RE : Type} (role : Role) (t : ℕ)
     (keygen : ProbComp ((PK × SK) × RK)) (encaps : PK → ProbComp ((C × K) × RE))
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
