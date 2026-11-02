@@ -372,21 +372,17 @@ example : @IsAlmostXorUniversal = @UniversalHash.IsAlmostXorUniversal := rfl
 ```
 ::::
 
-:::defTitle "aead_gcm_ghash_hash" "GHASH as a keyed hash"
+:::defTitle "aead_gcm_ghash_hash" "GCM tag hash"
 :::
 
-::::definition "aead_gcm_ghash_hash" (parent := "aead_gcm") (lean := "GCM.gcmEncode, GCM.GhashIsAXU") (uses := "aead_gcm_axu, aead_gcm_components, aead_gcm_spec")
-GHASH is $`\varepsilon`-AXU for $`L`-bit ciphertexts if
-$`(H, (a, c)) \mapsto \mathsf{GHASH}_H(\mathsf{encode}(a, c))` is
-{bpref "aead_gcm_axu"}[$`\varepsilon`-AXU] on supported associated data $`a` and
-$`c \in \bit^L`. Here the hash key $`H` is uniform in $`\bit^{128}`. In GCM,
-$`H = \mathsf{CIPH}_K(0^{128})`, and the security proof replaces it by a uniform block before
-it uses this property.
+::::definition "aead_gcm_ghash_hash" (parent := "aead_gcm") (lean := "GCM.gcmEncode, GCM.gcmHash, GCM.GhashIsAXU") (uses := "aead_gcm_axu, aead_gcm_components, aead_gcm_spec")
+Let $`L` be a supported message length and $`\mathcal A` the set of supported associated
+data. The GCM tag hash for $`L`-bit ciphertexts is the keyed hash
+$`h_L : \bit^{128} \times (\mathcal A \times \bit^L) \to \bit^{128}` with
 
-Let $`n = \lceil L / 128 \rceil`. Then $`\mathsf{encode}(a, c)` has at most $`2^{57} + n + 1`
-blocks, for every supported $`a`. The longest supported associated data has $`2^{64} - 8`
-bits, which is $`2^{57}` blocks after zero-padding. The ciphertext is $`n` blocks after
-zero-padding, and one block holds the two lengths.
+$$`h_L(H, (a, c)) = \mathsf{GHASH}_H(\mathsf{encode}(a, c)).`
+
+GCM computes its tag from $`h_L` with the hash key $`H = \mathsf{CIPH}_K(0^{128})`.
 
 :::leanPillCaption "GHASH input $`\\mathsf{encode}(a, c)`"
 :::
@@ -396,28 +392,40 @@ def gcmEncode {L : ℕ} (ad : SupportedAAD) (c : BitVec L) : List (BitVec 128) :
   padBlocks ad.1.2 ++ padBlocks c ++ [BitVec.ofNat 64 ad.1.1 ++ BitVec.ofNat 64 L]
 ```
 
-:::leanPillCaption "GHASH is $`\\varepsilon`-AXU for $`L`-bit ciphertexts"
+:::leanPillCaption "the tag hash $`h_L`"
+:::
+
+```anchor gcmHash (project := ".") (module := SecureMessaging.AEAD.FromGCM.Security.Axu)
+abbrev gcmHash (L : ℕ) (H : BitVec 128) (p : SupportedAAD × BitVec L) : BitVec 128 :=
+  ghash H (gcmEncode p.1 p.2)
+```
+
+:::leanPillCaption "$`h_L` is $`\\varepsilon`-AXU"
 :::
 
 ```anchor GhashIsAXU (project := ".") (module := SecureMessaging.AEAD.FromGCM.Security.Axu)
 def GhashIsAXU (L : ℕ) (ε : ℝ≥0∞) : Prop :=
-  UniversalHash.IsAlmostXorUniversal
-    (fun (H : BitVec 128) (p : SupportedAAD × BitVec L) => ghash H (gcmEncode p.1 p.2)) ε
+  UniversalHash.IsAlmostXorUniversal (gcmHash L) ε
 ```
 ::::
 
-:::defTitle "aead_gcm_ghash_axu" "GHASH is almost-XOR-universal"
+:::defTitle "aead_gcm_ghash_axu" "The GCM tag hash is almost-XOR-universal"
 :::
 
-::::theorem "aead_gcm_ghash_axu" (parent := "aead_gcm") (lean := "GCM.ghash_isAXU_unconditional, GCM.nistPoly_irreducible") (uses := "aead_gcm_ghash_hash")
+::::theorem "aead_gcm_ghash_axu" (parent := "aead_gcm") (lean := "GCM.ghash_isAXU_unconditional, GCM.nistPoly_irreducible") (uses := "aead_gcm_ghash_hash, aead_gcm_axu")
 Adapted from {Informal.citet IOM12}[], Corollary 4.
 
-Let $`L` be a supported message length and $`n = \lceil L / 128 \rceil`. Then GHASH is
-{bpref "aead_gcm_ghash_hash"}[$`\varepsilon`-AXU for $`L`-bit ciphertexts], with
+Let $`L` be a supported message length and $`n = \lceil L / 128 \rceil`. Then the
+{bpref "aead_gcm_ghash_hash"}[GCM tag hash] $`h_L` is
+{bpref "aead_gcm_axu"}[$`\varepsilon`-AXU], with
 
-$$`\varepsilon = \frac{2^{57} + n + 1}{2^{128}}`
+$$`\varepsilon = \frac{2^{57} + n + 1}{2^{128}}.`
 
-:::leanPillCaption "AXU bound of GHASH"
+The numerator bounds the number of blocks of $`\mathsf{encode}(a, c)`. The longest supported
+associated data has $`2^{64} - 8` bits, which is $`2^{57}` blocks after zero-padding. The
+ciphertext is $`n` blocks after zero-padding, and one block holds the two lengths.
+
+:::leanPillCaption "AXU bound of $`h_L`"
 :::
 
 ```anchor ghash_isAXU_unconditional (project := ".") (module := SecureMessaging.AEAD.FromGCM.Security.NistIrreducible)
@@ -467,13 +475,14 @@ theorem prfAdvantage_le_prpAdvantage_switching {K : Type}
 :::defTitle "aead_gcm_security_of_axu" "AEAD-GCM security for any AXU bound"
 :::
 
-:::::theorem "aead_gcm_security_of_axu" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_security_of_axu, GCM.prfReduction") (uses := "aead_gcm_spec, aead_gcm_ghash_hash, prf, aead_security_exp, aead_dist_advantage, aead_oracles")
+:::::theorem "aead_gcm_security_of_axu" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_security_of_axu, GCM.prfReduction") (uses := "aead_gcm_spec, aead_gcm_ghash_hash, aead_gcm_axu, prf, aead_security_exp, aead_dist_advantage, aead_oracles")
 Adapted from {Informal.citet IOM12}[], Corollaries 3 and 4, with one encryption query and an
 abstract AXU bound $`\varepsilon` in place of the GHASH bound.
 
 Let $`P` be a PRP scheme on 128-bit blocks, $`\mathit{IV}` a 96-bit IV, $`L` a supported
-message length, $`\varepsilon` a non-negative real such that GHASH is
-{bpref "aead_gcm_ghash_hash"}[$`\varepsilon`-AXU for $`L`-bit ciphertexts], and $`\adv` an
+message length, $`\varepsilon` a non-negative real such that the
+{bpref "aead_gcm_ghash_hash"}[GCM tag hash] $`h_L` is
+{bpref "aead_gcm_axu"}[$`\varepsilon`-AXU], and $`\adv` an
 adversary in the {bpref "aead_security_exp"}[one-time IND-CCA game] of
 $`\mathsf{GCM}[P, \mathit{IV}, L]` that makes at most $`q_d` queries to the decryption oracle
 $`\Odec`. Let $`\mathcal B` be the PRF adversary of
@@ -484,7 +493,7 @@ $`\Odec`. Let $`\mathcal B` be the PRF adversary of
 $$`\mathsf{Adv}^{\textsf{dist}}_{\textsf{GCM}}(\adv)
   \le \mathsf{Adv}^{\textsf{prf}}_{P}(\mathcal B) + q_d \cdot \varepsilon.`
 
-There is no separate tag-guessing term, because $`\varepsilon \ge 2^{-128}` for every AXU bound of GHASH.
+There is no separate tag-guessing term, because $`\varepsilon \ge 2^{-128}` for every AXU bound of $`h_L`.
 
 The bound holds for every message length $`|m|` and ciphertext length function
 $`\mathit{clen}` of the game, because all ciphertexts in $`\bit^L \times \bit^{128}` have
@@ -536,7 +545,7 @@ $$`\mathsf{Adv}^{\textsf{dist}}_{\textsf{GCM}}(\adv)
   + \frac{(n+2)(n+1)}{2^{129}}
   + q_d \cdot \frac{2^{57} + n + 1}{2^{128}}.`
 
-The second term is the switching bound, and the third is $`q_d` times the GHASH AXU bound.
+The second term is the switching bound, and the third is $`q_d` times the AXU bound of $`h_L`.
 
 The bound holds for every message length $`|m|` and ciphertext length function
 $`\mathit{clen}` of the game, because all ciphertexts in $`\bit^L \times \bit^{128}` have
