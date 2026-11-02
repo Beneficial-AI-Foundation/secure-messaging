@@ -441,36 +441,6 @@ theorem nistPoly_irreducible : Irreducible nistPoly
 ```
 ::::
 
-:::defTitle "aead_gcm_prp_switching" "AEAD-GCM PRP/PRF switching"
-:::
-
-::::theorem "aead_gcm_prp_switching" (parent := "aead_gcm") (lean := "GCM.prfAdvantage_le_prpAdvantage_switching") (uses := "aead_gcm_spec, prp, prf")
-Adapted from {Informal.citet BR06}[], the PRP/PRF switching lemma.
-
-Let $`P` be a PRP scheme on 128-bit blocks, $`L` a supported message length,
-$`n = \lceil L / 128 \rceil`, and $`\adv` an adversary in the
-{bpref "aead_security_exp"}[one-time IND-CCA game] of $`\mathsf{GCM}[P, \mathit{IV}, L]`. Let
-$`\mathcal B` be the PRF adversary against $`P` built from $`\adv`, which queries its function
-oracle on $`n + 2` distinct blocks. Then the {bpref "prf"}[PRF advantage] and the
-{bpref "prp"}[PRP advantage] of $`\mathcal B` satisfy
-
-$$`\mathsf{Adv}^{\textsf{prf}}_{P}(\mathcal B)
-  \le \mathsf{Adv}^{\textsf{prp}}_{P}(\mathcal B) + \frac{(n + 2)(n + 1)}{2^{129}}.`
-
-:::leanPillCaption "switching bound"
-:::
-
-```anchor prfAdvantage_le_prpAdvantage_switching (project := ".") (module := SecureMessaging.AEAD.FromGCM.Security.PrpSwitch)
-theorem prfAdvantage_le_prpAdvantage_switching {K : Type}
-    (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ) (hL : ValidMsgLength L)
-    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    (PRFScheme.prfAdvantage prp.toPRFScheme (prfReduction iv L adv)).toReal ≤
-      (PRPScheme.prpAdvantage prp (prfReduction iv L adv)).toReal +
-      ((((L + 127) / 128 : ℕ) : ℝ) + 2) * ((((L + 127) / 128 : ℕ) : ℝ) + 1)
-        / 2 ^ (129 : ℕ)
-```
-::::
-
 :::defTitle "aead_gcm_security_of_axu" "AEAD-GCM security for any AXU bound"
 :::
 
@@ -484,8 +454,11 @@ message length, $`\varepsilon` a non-negative real such that the
 {bpref "aead_gcm_axu"}[$`\varepsilon`-AXU], and $`\adv` an
 adversary in the {bpref "aead_security_exp"}[one-time IND-CCA game] of
 $`\mathsf{GCM}[P, \mathit{IV}, L]` that makes at most $`q_d` queries to the decryption oracle
-$`\Odec`. Let $`\mathcal B` be the PRF adversary of
-{bpref "aead_gcm_prp_switching"}[PRP/PRF switching]. Then the
+$`\Odec`. Let $`n = \lceil L / 128 \rceil`, and let $`\mathcal B` be the PRF adversary
+against $`P` that queries its function oracle at $`0^{128}`, $`J_0` and
+$`\mathsf{inc}_{32}(J_0), \ldots, \mathsf{inc}_{32}^n(J_0)`, and then runs $`\adv`. It
+answers the encryption and decryption queries of $`\adv` by GCM computed from these
+$`n + 2` answers in place of the values of $`\mathsf{CIPH}_K`. Then the
 {bpref "aead_dist_advantage"}[distinguishing advantage] of $`\adv` and the
 {bpref "prf"}[PRF advantage] of $`\mathcal B` satisfy
 
@@ -526,7 +499,7 @@ noncomputable def prfReduction (iv : BitVec 96) (L : ℕ)
 :::defTitle "aead_gcm_security" "AEAD-GCM security"
 :::
 
-::::theorem "aead_gcm_security" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_security, GCM.prfReduction") (tags := "gh-23") (uses := "aead_gcm_spec, aead_gcm_security_of_axu, aead_gcm_ghash_axu, aead_gcm_prp_switching, aead_security_exp, aead_dist_advantage, prp, aead_oracles")
+::::theorem "aead_gcm_security" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_security, GCM.prfReduction, GCM.prfAdvantage_le_prpAdvantage_switching") (tags := "gh-23") (uses := "aead_gcm_spec, aead_gcm_security_of_axu, aead_gcm_ghash_axu, prp_switching, aead_security_exp, aead_dist_advantage, prp, aead_oracles")
 Adapted from {Informal.citet IOM12}[], Corollary 3 (privacy) and Corollary 4 (authenticity)
 for 96-bit nonces, with one encryption query. We prove one bound for the one-time IND-CCA
 game instead of two separate bounds.
@@ -535,7 +508,8 @@ Let $`P` be a PRP scheme on 128-bit blocks, $`\mathit{IV}` a 96-bit IV, $`L` a s
 message length, $`n = \lceil L / 128 \rceil`, and $`\adv` an adversary in the
 {bpref "aead_security_exp"}[one-time IND-CCA game] of $`\mathsf{GCM}[P, \mathit{IV}, L]` that
 makes at most $`q_d` queries to the decryption oracle $`\Odec`. Let $`\mathcal B` be the
-adversary of {bpref "aead_gcm_prp_switching"}[PRP/PRF switching]. Then the
+PRF adversary of {bpref "aead_gcm_security_of_axu"}[AEAD-GCM security for any AXU bound].
+Then the
 {bpref "aead_dist_advantage"}[distinguishing advantage] of $`\adv` and the
 {bpref "prp"}[PRP advantage] of $`\mathcal B` satisfy
 
@@ -544,7 +518,9 @@ $$`\mathsf{Adv}^{\textsf{dist}}_{\textsf{GCM}}(\adv)
   + \frac{(n+2)(n+1)}{2^{129}}
   + q_d \cdot \frac{2^{57} + n + 1}{2^{128}}.`
 
-The second term is the switching bound, and the third is $`q_d` times the AXU bound of $`h_L`.
+The second term is the {bpref "prp_switching"}[PRP/PRF switching] bound for the
+$`q = n + 2` queries of $`\mathcal B` and $`N = 2^{128}`. These $`n + 2` blocks are distinct
+because $`L` is supported. The third term is $`q_d` times the AXU bound of $`h_L`.
 
 The bound holds for every message length $`|m|` and ciphertext length function
 $`\mathit{clen}` of the game, because all ciphertexts in $`\bit^L \times \bit^{128}` have
