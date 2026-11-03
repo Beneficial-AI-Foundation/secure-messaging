@@ -201,8 +201,42 @@ Incremental KEM from ML-KEM.
 :::defTitle "incremental_kem_from_ml_kem_spec" "Incremental KEM from ML-KEM construction"
 :::
 
-::::definition "incremental_kem_from_ml_kem_spec" (parent := "incremental_kem_incremental_kem_from_ml_kem") (lean := "MLKEM.incrementalHeader, MLKEM.EncapsulationState, MLKEM.incrementalEncaps1, MLKEM.incrementalEncaps2, MLKEM.mlkemIncremental, MLKEM.mlkemIncrementalDet") (tags := "gh-226") (uses := "incremental_kem_scheme, ml_kem_scheme, incremental_kem_det")
-$`\todo`
+:::::::definition "incremental_kem_from_ml_kem_spec" (parent := "incremental_kem_incremental_kem_from_ml_kem") (lean := "MLKEM.incrementalHeader, MLKEM.EncapsulationState, MLKEM.incrementalEncaps1, MLKEM.incrementalEncaps2, MLKEM.mlkemIncremental, MLKEM.mlkemIncrementalDet") (tags := "gh-226") (uses := "incremental_kem_scheme, ml_kem_scheme, incremental_kem_det")
+An {bpref "ml_kem_scheme"}[ML-KEM] encapsulation key is $`ek=(\hat{\mathbf t},\rho)`, the encoded
+NTT-domain public vector and the matrix seed, and a ciphertext is $`c=(c_1,c_2)`, the encoded
+$`\mathbf u` and $`v`. The *incremental KEM from ML-KEM* is the
+{bpref "incremental_kem_scheme"}[incremental structure] of ML-KEM with
+
+- header $`h=(\rho,\mathsf H(ek))\in H` and vector $`v=\hat{\mathbf t}\in V`, where
+  $`\mathsf{Valid}((\rho,\eta),\hat{\mathbf t})` holds if and only if $`\mathsf H((\hat{\mathbf t},\rho))=\eta`;
+- ciphertext components $`c_1\in C_1` and $`c_2\in C_2`;
+- state space $`S\ni(\hat{\mathbf y},e_2,m)`: the NTT of the ephemeral vector, the second noise
+  polynomial, and the message;
+- the stages below, with $`\mathsf H`, $`\mathsf G`, $`\mathsf{PRF}`, the samplers, $`\mathsf{NTT}`,
+  and the byte encodings of FIPS 203, and $`\hat{\mathbf A}` the matrix expanded from $`\rho`.
+
+:::::gameGrid
+::::gameCell "\\mathsf{Encaps}_1((\\rho,\\eta);m)" (kind := "compact") (open := true)
+$`\begin{array}{l}
+(K,r)\gets\mathsf G(m\mathbin\|\eta)\\
+\mathbf y\gets\mathsf{SampleVec}_{\eta_1}(r,0)\\
+\mathbf e_1\gets\mathsf{SampleVec}_{\eta_2}(r,k)\\
+e_2\gets\mathsf{PRF}_{\eta_2}(r,2k)\\
+\hat{\mathbf y}\gets\mathsf{NTT}(\mathbf y)\\
+\mathbf u\gets\mathsf{NTT}^{-1}(\hat{\mathbf A}^{\mathsf T}\hat{\mathbf y})+\mathbf e_1\\
+\Return((\hat{\mathbf y},e_2,m),\ \mathsf{ByteEncode}_{d_u}(\mathsf{Compress}_{d_u}(\mathbf u)),\ K)
+\end{array}`
+::::
+::::gameCell "\\mathsf{Encaps}_2((\\hat{\\mathbf y},e_2,m),(\\rho,\\eta),\\hat{\\mathbf t})" (kind := "compact") (open := true)
+$`\begin{array}{l}
+\mu\gets\mathsf{Decompress}_1(\mathsf{ByteDecode}_1(m))\\
+v\gets\mathsf{NTT}^{-1}(\hat{\mathbf t}^{\mathsf T}\hat{\mathbf y})+e_2+\mu\\
+\Return\mathsf{ByteEncode}_{d_v}(\mathsf{Compress}_{d_v}(v))
+\end{array}`
+::::
+:::::
+
+The two stages compose to ML-KEM encapsulation, and $`\mathsf{Decaps}` is ML-KEM decapsulation.
 
 :::leanPillCaption "public-key header (ρ, H(ek))"
 :::
@@ -300,11 +334,10 @@ def mlkemIncremental (p : ParameterSet) (ring : NTTRingOps)
     rfl
 ```
 
-Its variant {bpref "incremental_kem_det"}[with explicit coins] keeps the header $`(\rho,\mathsf H(ek))`
-and the vector $`\hat{\mathbf t}`, and takes the seeds of FIPS 203 as coins:
-
-- $`r_K=d\mathbin\|z`, uniform over 64-byte strings, with $`d,z` the key-generation seeds;
-- $`r_1=m`, uniform over 32-byte strings, with $`m` the encapsulation message.
+The {bpref "incremental_kem_det"}[variant with explicit coins] has the same header, vector, and stages,
+and the seeds of FIPS 203 as coins: $`\mathsf{KeyGen}(;d\mathbin\|z)` is ML-KEM key generation from the
+seeds $`d,z`, with $`\mathcal D_K` uniform on 64-byte strings, and $`\mathsf{Encaps}_1(h;m)` is the first
+stage above, with $`\mathcal D_1` uniform on 32-byte strings.
 
 :::leanPillCaption "ML-KEM instantiation"
 :::
@@ -340,7 +373,7 @@ def mlkemIncrementalDet (p : ParameterSet) (ring : NTTRingOps)
     sampleKeygen := $ᵗ Bytes 64
     sampleEncaps1 := $ᵗ Message }
 ```
-::::
+:::::::
 
 :::defTitle "incremental_kem_from_ml_kem_correctness" "Incremental ML-KEM-768 correctness from EasyCrypt assumptions"
 :::
