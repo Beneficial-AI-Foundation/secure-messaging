@@ -39,7 +39,7 @@ $`\todo`
 :::defTitle "optimised_katana_rkem_forward_security" "Optimised Katana RKEM forward security"
 :::
 
-::::theorem "optimised_katana_rkem_forward_security" (parent := "rkem_katana_rkem_optimised") (tags := "gh-87") (uses := "optimised_katana_rkem_spec, rkem_scheme, rkem_forward_security")
+::::theorem "optimised_katana_rkem_forward_security" (parent := "rkem_katana_rkem_optimised") (tags := "gh-87") (uses := "optimised_katana_rkem_spec, rkem_scheme, rkem_security")
 $`\todo`
 
 :::leanPill "missing"
