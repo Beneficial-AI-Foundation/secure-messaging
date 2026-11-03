@@ -140,7 +140,7 @@ theorem deltaCorrect [DecidableEq K] (kem : KEMScheme ProbComp K PK SK C)
 :::defTitle "rkem_from_kem_forward_security" "RKEM from KEM forward security"
 :::
 
-::::theorem "rkem_from_kem_forward_security" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.FSINDCPASecure") (tags := "gh-77") (uses := "rkem_from_kem_spec, rkem_scheme, rkem_forward_security")
+::::theorem "rkem_from_kem_forward_security" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.FSINDCPASecure") (tags := "gh-77") (uses := "rkem_from_kem_spec, rkem_scheme, rkem_security")
 $`\todo`
 
 :::leanPillCaption "IND-CPA reduction adversary"
