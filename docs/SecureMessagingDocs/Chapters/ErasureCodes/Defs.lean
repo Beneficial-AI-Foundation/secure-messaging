@@ -92,11 +92,20 @@ structure ErasureCodePayload (M Sym : Type) where
 
 :::::::definition "erasure_code_streaming" (parent := "erasure_codes") (lean := "ErasureCodePayload.Streaming.EncoderState, ErasureCodePayload.Streaming.EncoderState.init, ErasureCodePayload.Streaming.EncoderState.nextChunk, ErasureCodePayload.Streaming.DecoderState, ErasureCodePayload.Streaming.DecoderState.empty, ErasureCodePayload.Streaming.DecoderState.addChunk, ErasureCodePayload.Streaming.DecoderState.decodedPayload, ErasureCodePayload.Streaming.DecoderState.hasMessage") (tags := "gh-251") (uses := "erasure_code_payload")
 Let $`\mathsf{Code}_X` be an {bpref "erasure_code_payload"}[erasure-code payload] over a symbol
-alphabet $`\Sigma`, with payload space $`Y_X` and chunk encoding
-$`\Encode_X:Y_X\times\mathbb N\to\mathbb N\times\Sigma`, giving the indexed chunk of a payload.
-Its *stateful streaming* sends a payload $`y\in Y_X` as a sequence of chunks
-$`\chunk\in\mathbb N\times\Sigma` and recovers $`y` from the chunks received, with the encoder
-and decoder below.
+alphabet $`\Sigma`, with payload space $`Y_X`, chunk encoding
+$`\Encode_X:Y_X\times\mathbb N\to\mathbb N\times\Sigma`, and decoding
+$`\Decode_X:\mathcal P_{\mathrm{fin}}(\mathbb N\times\Sigma)\to Y_X\cup\{\bot\}` from finite sets of
+indexed chunks. The *stateful streaming* of $`\mathsf{Code}_X` consists of the encoder state space
+$`\mathcal E_X=Y_X\times\mathbb N`, the decoder state space
+$`\mathcal D_X=\mathcal P_{\mathrm{fin}}(\mathbb N\times\Sigma)`, and the algorithms
+
+- $`\mathsf{Enc}_X:Y_X\to\mathcal E_X` and $`\mathsf{Next}:\mathcal E_X\to(\mathbb N\times\Sigma)\times\mathcal E_X`,
+  the initial encoder state of a payload, and the next chunk with the advanced state;
+- $`\mathsf{Empty}_X\in\mathcal D_X`, $`\mathsf{Add}:\mathcal D_X\times(\mathbb N\times\Sigma)\to\mathcal D_X`, and
+  $`\mathsf{Decode}:\mathcal D_X\to Y_X\cup\{\bot\}`, the empty decoder state, the state with a chunk
+  recorded, and the payload decoded from the chunks recorded,
+
+defined as follows.
 
 :::::gameGrid
 ::::gameCell "\\textsf{Encoder}" (kind := "compact") (open := true)
@@ -114,7 +123,7 @@ $`\begin{array}{l}
 \delta&\text{if }(j,s')\in\delta\text{ for some }s'\\
 \delta\cup\{(j,s)\}&\text{otherwise}
 \end{cases}\\
-\mathsf{Decode}(\delta)\in Y_X\cup\{\bot\}\pcomment{\text{payload recovered by }\mathsf{Code}_X}
+\mathsf{Decode}(\delta)=\Decode_X(\delta)
 \end{array}`
 ::::
 :::::
