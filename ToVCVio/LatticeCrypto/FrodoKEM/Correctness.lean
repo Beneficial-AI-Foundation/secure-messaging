@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Basic
 import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Deterministic
 import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Sampling
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Ideal
+import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.IndepNoise
 import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.FailureProbability
 import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Numerical
 import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.RandomOracle.Correctness
@@ -75,18 +75,18 @@ error sampler.
 
 The proof cuts these two answers at the matrix boundaries. The five noise matrices that result
 have the joint distribution of five independent samples (`ROM.finiteLaw_samplesFromCoins`).
-The ideal experiment `Ideal.noiseBadProb` samples the five matrices independently. Thus, on
-average over the table, large noise has the same probability as in the ideal experiment.
+The experiment `IndepNoise.noiseBadProb` samples the five matrices independently. Thus, on
+average over the table, large noise has the same probability as in that experiment.
 -/
 
-recall ROM.honestNoiseBadProb_eq_ideal (ps : ParameterSet) (gen : ROM.Generator ps) :
-    ROM.honestNoiseBadProb ps gen = Ideal.noiseBadProb ps
+recall ROM.honestNoiseBadProb_eq_indepNoise (ps : ParameterSet) (gen : ROM.Generator ps) :
+    ROM.honestNoiseBadProb ps gen = IndepNoise.noiseBadProb ps
 
 /-!
 ## Step 4: from the noise matrix to one entry
 
 The noise matrix has `8 × 8 = 64` entries. As an integer, each entry has the distribution of
-`Ideal.entryNoiseExp`. This distribution is two sums of `n` products of independent errors,
+`IndepNoise.entryNoiseExp`. This distribution is two sums of `n` products of independent errors,
 plus one more error.
 
 The noise is large only if an entry is outside the interval `[-threshold, threshold)`. The union
@@ -94,8 +94,8 @@ bound gives the result: the probability for the matrix is at most 64 times the p
 one entry.
 -/
 
-recall Ideal.noiseBadProb_le (ps : ParameterSet) :
-    Ideal.noiseBadProb ps ≤ 64 * Ideal.entryFailureProb ps
+recall IndepNoise.noiseBadProb_le (ps : ParameterSet) :
+    IndepNoise.noiseBadProb ps ≤ 64 * IndepNoise.entryFailureProb ps
 
 /-!
 ## Step 5: the exact distribution of one entry
@@ -110,7 +110,7 @@ entry is a power of a counting measure, divided by `2 ^ (16 · (4n + 1))`.
 -/
 
 recall Certificate.probOutput_entryNoiseExp (ps : ParameterSet) (z : ℤ) :
-    Pr{let x ← Ideal.entryNoiseExp ps}[x = z] =
+    Pr{let x ← IndepNoise.entryNoiseExp ps}[x = z] =
       (((ToVCVio.productMeasure
           (FailureCertificate.RoundedConvolution.counts (Certificate.config ps))
           (FailureCertificate.RoundedConvolution.counts (Certificate.config ps))) ^
@@ -147,7 +147,7 @@ recall Certificate.certificate640 :
         (10891243206164296039, 4220411)
 
 recall Certificate.noiseBadProb_le_failureBound (ps : ParameterSet) :
-    Ideal.noiseBadProb ps ≤ Certificate.failureBound ps
+    IndepNoise.noiseBadProb ps ≤ Certificate.failureBound ps
 
 /-!
 ## Result

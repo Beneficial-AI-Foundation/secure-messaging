@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Ideal
+import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.IndepNoise
 import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.RoundedConvolution
 
 /-! # Certificate parameters for each FrodoKEM family -/
@@ -39,7 +39,7 @@ def config (ps : ParameterSet) :
 
 /-- `1` outside the decoding interval `[-threshold, threshold)` and `0` inside it. -/
 def badWeight (ps : ParameterSet) (z : ℤ) : ℕ :=
-  if Ideal.entryBad ps z then 1 else 0
+  if IndepNoise.entryBad ps z then 1 else 0
 
 /-- Numerator of `failureBound`, the certified bound on decryption failure. -/
 def numerator : ParameterSet → ℕ

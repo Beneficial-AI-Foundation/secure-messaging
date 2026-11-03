@@ -20,7 +20,7 @@ namespace FrodoKEM.ROM
 theorem honestFailureProb_le_failureBound
     (ps : ParameterSet) (gen : Generator ps) :
     honestFailureProb ps gen ≤ Certificate.failureBound ps :=
-  (honestFailureProb_le_idealNoiseBadProb ps gen).trans
+  (honestFailureProb_le_indepNoiseBadProb ps gen).trans
     (Certificate.noiseBadProb_le_failureBound ps)
 
 /-- The oracle-averaged honest KEM experiment meets all three exact fractional-bit targets. -/

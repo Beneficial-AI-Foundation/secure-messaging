@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 import ToVCVio.Probability.FiniteXOF
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Ideal
+import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.IndepNoise
 import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.FailureProbability
 
 /-!
@@ -106,7 +106,7 @@ def operations (ps : ParameterSet) (gen : Generator ps)
 /-- Split key-generation and encryption bit streams into the five sampled error matrices. -/
 def samplesFromStreams (ps : ParameterSet)
     (kg : Bits (outputLength ps .keygenNoise))
-    (enc : Bits (outputBits ps)) : Ideal.NoiseSamples ps :=
+    (enc : Bits (outputBits ps)) : IndepNoise.NoiseSamples ps :=
   let kgParts := splitBits
     (a := nbar * ps.params.n * lenChi)
     (b := ps.params.n * nbar * lenChi) kg
@@ -129,7 +129,7 @@ def samplesFromCoins (ps : ParameterSet) (gen : Generator ps)
     (H : Table ps) (fallback : SharedSecretBits ps)
     (keySeed : SeedSEBits ps) (z : Bits lenZ)
     (message : MessageBits ps) (salt : SaltBits ps) :
-    Ideal.NoiseSamples ps :=
+    IndepNoise.NoiseSamples ps :=
   let ops := operations ps gen H
   let pk := (KEM.keygenFromCoins ops fallback keySeed z).1
   let encSeed :=
@@ -144,7 +144,7 @@ theorem samplesFromCoins_residual_eq
     (ps : ParameterSet) (gen : Generator ps) (H : Table ps)
     (fallback : SharedSecretBits ps) (keySeed : SeedSEBits ps)
     (z : Bits lenZ) (message : MessageBits ps) (salt : SaltBits ps) :
-    (Ideal.residual
+    (IndepNoise.residual
       (samplesFromCoins ps gen H fallback keySeed z message salt)).map
         (fun a : ℤ => (a : ZMod ps.params.q)) =
       PKE.decryptionNoise (operations ps gen H) keySeed
@@ -154,7 +154,7 @@ theorem samplesFromCoins_residual_eq
               (operations ps gen H) fallback keySeed z).1)
           message salt).1 := by
   ext i j
-  simp [Ideal.residual, samplesFromCoins, samplesFromStreams,
+  simp [IndepNoise.residual, samplesFromCoins, samplesFromStreams,
     PKE.decryptionNoise, PKE.keygenSamples, PKE.encryptionSamples,
     outputLength, outputBits, Matrix.mul_apply, Matrix.map_apply,
     Matrix.transpose_apply, Int.cast_sum, Int.cast_add, Int.cast_sub, Int.cast_mul]

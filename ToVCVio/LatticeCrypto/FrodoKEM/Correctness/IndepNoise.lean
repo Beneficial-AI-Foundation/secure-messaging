@@ -8,16 +8,16 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Sampling
 import VCVio.EvalDist.ProbabilityBounds
 
 /-!
-# Ideal-model decryption failure for FrodoKEM
+# Decryption failure for FrodoKEM with independent noise
 
 This file bounds decryption failure when the five error matrices come from independent
 uniform bit strings. It makes no claim about how SHAKE expands a seed.
 -/
 
-namespace FrodoKEM.Ideal
+namespace FrodoKEM.IndepNoise
 open OracleComp LatticeCrypto ToVCVio
 open scoped ENNReal
-/-- The five integer error matrices used by ideal key generation and encryption. -/
+/-- The five integer error matrices of key generation and encryption. -/
 structure NoiseSamples (ps : ParameterSet) where
   /-- Transposed secret matrix sampled during key generation. -/
   st : Matrix (Fin nbar) (Fin ps.params.n) ℤ
@@ -50,12 +50,12 @@ def residual {ps : ParameterSet} (t : NoiseSamples ps) :
     Matrix (Fin mbar) (Fin nbar) ℤ :=
   t.sp * t.e + t.epp - t.ep * t.st.transpose
 
-/-- Reduce the ideal transposed secret matrix modulo the scheme modulus. -/
+/-- Reduce the transposed secret matrix modulo the scheme modulus. -/
 def secretTranspose {ps : ParameterSet} (t : NoiseSamples ps) :
     PKESecretKey ps :=
   t.st.map (fun z : ℤ => (z : ZMod ps.params.q))
 
-/-- Construct an ideal PKE ciphertext from a fixed public matrix, message, and error matrices. -/
+/-- Construct a PKE ciphertext from a fixed public matrix, message, and error matrices. -/
 def ciphertext {ps : ParameterSet}
     (A : FrodoMatrix ps.params ps.params.n ps.params.n)
     (message : MessageBits ps) (t : NoiseSamples ps) :
@@ -92,17 +92,17 @@ def entryNoiseExp (ps : ParameterSet) : ProbComp ℤ := do
   let extra ← sampleError ps
   return (∑ k, s1 k * e0 k) - (∑ k, e1 k * s0 k) + extra
 
-/-- Probability that the ideal integer residual entry lies outside its decoding interval. -/
+/-- Probability that one integer residual entry lies outside its decoding interval. -/
 noncomputable def entryFailureProb (ps : ParameterSet) : ℝ≥0∞ :=
   Pr{let z ← entryNoiseExp ps}[entryBad ps z]
 
-/-- Probability that the ideal modular residual violates the matrix noise bound. -/
+/-- Probability that the modular residual violates the matrix noise bound. -/
 noncomputable def noiseBadProb (ps : ParameterSet) : ℝ≥0∞ :=
   Pr{let t ← sampleNoise ps}[
     ¬ NoiseBound ps.params
       ((residual t).map (fun z : ℤ => (z : ZMod ps.params.q)))]
 
-/-- Ideal PKE decryption failure probability for a fixed public matrix and message. -/
+/-- PKE decryption failure probability for a fixed public matrix and message. -/
 noncomputable def pkeFailureProb (ps : ParameterSet)
     (A : FrodoMatrix ps.params ps.params.n ps.params.n)
     (message : MessageBits ps) : ℝ≥0∞ :=
@@ -262,4 +262,4 @@ theorem pkeFailureProb_le_noiseBadProb (ps : ParameterSet)
   intro t hfail hnoise
   exact hfail (decrypt_eq_of_noiseBound A message t hnoise)
 
-end FrodoKEM.Ideal
+end FrodoKEM.IndepNoise
