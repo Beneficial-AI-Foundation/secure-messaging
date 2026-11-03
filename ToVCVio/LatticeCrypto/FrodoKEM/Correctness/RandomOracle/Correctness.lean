@@ -15,7 +15,7 @@ With SHAKE replaced by a uniformly random table, the KEM makes five table lookup
 noise is fixed. This file proves that the resulting error matrices have the same joint
 distribution as five independently sampled ones. Averaging the bound of
 `FailureProbability.lean` over the table then bounds the KEM failure probability by the
-probability of large noise in the ideal experiment.
+probability of large noise in the independent-noise experiment.
 -/
 
 namespace FrodoKEM.ROM
@@ -43,7 +43,7 @@ private def streamPairEquiv (ps : ParameterSet) :
           (mbar * nbar * lenChi))))
 
 private def streamsToSamples (ps : ParameterSet)
-    (s : NoiseStreams ps) : Ideal.NoiseSamples ps :=
+    (s : NoiseStreams ps) : IndepNoise.NoiseSamples ps :=
   {
     st := SampleMatrix ps.errorTable nbar ps.params.n s.1.1
     e := SampleMatrix ps.errorTable ps.params.n nbar s.1.2
@@ -58,7 +58,7 @@ theorem finiteLaw_samplesFromStreams_uniform (ps : ParameterSet) :
         let kg ← $ᵗ (Bits (outputLength ps .keygenNoise))
         let enc ← $ᵗ (Bits (outputBits ps))
         return samplesFromStreams ps kg enc) =
-      ToVCVio.finiteLaw (Ideal.sampleNoise ps) := by
+      ToVCVio.finiteLaw (IndepNoise.sampleNoise ps) := by
   let : MeasurableSpace
       (Bits (outputLength ps .keygenNoise) × Bits (outputBits ps)) := ⊤
   let : MeasurableSpace (NoiseStreams ps) := ⊤
@@ -70,7 +70,7 @@ theorem finiteLaw_samplesFromStreams_uniform (ps : ParameterSet) :
   · rw [SampleableType.uniformSample_prod_eq_bind]
     simp only [map_eq_bind_pure_comp, bind_assoc, Function.comp_apply, pure_bind]
     rfl
-  · simp only [SampleableType.uniformSample_prod_eq_bind, Ideal.sampleNoise,
+  · simp only [SampleableType.uniformSample_prod_eq_bind, IndepNoise.sampleNoise,
       streamsToSamples, map_eq_bind_pure_comp, bind_assoc, Function.comp_apply, pure_bind]
 
 private abbrev RawInput (ps : ParameterSet) :=
@@ -115,7 +115,7 @@ private def publicKeyFromStreams (ps : ParameterSet) (gen : Generator ps)
 private def fixedCoinsProgram (ps : ParameterSet) (gen : Generator ps)
     (_fallback : SharedSecretBits ps) (keySeed : SeedSEBits ps)
     (z : Bits lenZ) (message : MessageBits ps) (salt : SaltBits ps) :
-    OracleComp (RawOracle ps) (Ideal.NoiseSamples ps) := do
+    OracleComp (RawOracle ps) (IndepNoise.NoiseSamples ps) := do
   let seedALong ← longQuery ps .seedA z.toList (by simp [inputLength])
   let seedA := ToVCVio.FiniteXOF.prefix seedALong lenSeedA
   let kgLong ← longQuery ps .keygenNoise
@@ -244,7 +244,7 @@ private def coinQuery₄ (ps : ParameterSet) (_u₀ _u₁ _u₂ u₃ : RawAnswer
     (encryptionPrefix.toList ++ derived.1.toList) (by simp [inputLength])
 
 private def coinOutput (ps : ParameterSet)
-    (_u₀ u₁ _u₂ _u₃ u₄ : RawAnswer ps) : Ideal.NoiseSamples ps :=
+    (_u₀ u₁ _u₂ _u₃ u₄ : RawAnswer ps) : IndepNoise.NoiseSamples ps :=
   samplesFromStreams ps
     (ToVCVio.FiniteXOF.prefix u₁ (outputLength ps .keygenNoise))
     (ToVCVio.FiniteXOF.prefix u₄ (outputBits ps))
@@ -356,7 +356,7 @@ private theorem finiteLaw_lazy_fixedCoins
     finiteLaw
         ((simulateQ (RawOracle ps).randomOracle
           (fixedCoinsProgram ps gen fallback keySeed z message salt)).run' ∅) =
-      finiteLaw (Ideal.sampleNoise ps) := by
+      finiteLaw (IndepNoise.sampleNoise ps) := by
   rw [fixedCoinsProgram_run_eq]
   exact (finiteLaw_fiveAnswers ps).trans
     (finiteLaw_samplesFromStreams_uniform ps)
@@ -370,9 +370,9 @@ theorem finiteLaw_samplesFromCoins
           samplesFromCoins ps gen H fallback keySeed z message salt) <$>
       ToVCVio.FiniteXOF.sampleTable
           (inputLengths ps) (outputBits ps)) =
-      ToVCVio.finiteLaw (Ideal.sampleNoise ps) := by
+      ToVCVio.finiteLaw (IndepNoise.sampleNoise ps) := by
   let : MeasurableSpace (Table ps) := ⊤
-  let : MeasurableSpace (Ideal.NoiseSamples ps) := ⊤
+  let : MeasurableSpace (IndepNoise.NoiseSamples ps) := ⊤
   have htable : finiteLaw
       (ToVCVio.FiniteXOF.sampleTable (inputLengths ps) (outputBits ps)) =
       finiteLaw ($ᵗ (Table ps)) := by
@@ -452,10 +452,10 @@ private theorem five_coin_average {T A B C D E : Type}
     refine prob_bind_const _ _ fun _ => ?_
   simpa only [← bind_pure_comp] using h _ _ _ _ _
 
-/-- Averaged over the table, large noise is exactly as likely as in the ideal experiment. -/
-theorem honestNoiseBadProb_eq_ideal
+/-- Averaged over the table, large noise is exactly as likely as with independent noise. -/
+theorem honestNoiseBadProb_eq_indepNoise
     (ps : ParameterSet) (gen : Generator ps) :
-    honestNoiseBadProb ps gen = Ideal.noiseBadProb ps := by
+    honestNoiseBadProb ps gen = IndepNoise.noiseBadProb ps := by
   let P (H : Table ps) (fallback : SharedSecretBits ps) (keySeed : SeedSEBits ps)
       (z : Bits lenZ) (message : MessageBits ps) (salt : SaltBits ps) : Prop :=
     ¬ NoiseBound ps.params
@@ -467,12 +467,12 @@ theorem honestNoiseBadProb_eq_ideal
   have hpoint (fallback : SharedSecretBits ps) (keySeed : SeedSEBits ps)
       (z : Bits lenZ) (message : MessageBits ps) (salt : SaltBits ps) :
       Pr{let H ← ToVCVio.FiniteXOF.sampleTable (inputLengths ps) (outputBits ps)}[
-        P H fallback keySeed z message salt] = Ideal.noiseBadProb ps := by
+        P H fallback keySeed z message salt] = IndepNoise.noiseBadProb ps := by
     have h := (EvalDistEq.of_evalDist_eq
       (finiteLaw_samplesFromCoins ps gen fallback keySeed z message salt)).prEvent_eq
         (fun t => ¬ NoiseBound ps.params
-          ((Ideal.residual t).map (fun z : ℤ => (z : ZMod ps.params.q))))
-    simpa only [prEvent_map, samplesFromCoins_residual_eq, Ideal.noiseBadProb, P] using h
+          ((IndepNoise.residual t).map (fun z : ℤ => (z : ZMod ps.params.q))))
+    simpa only [prEvent_map, samplesFromCoins_residual_eq, IndepNoise.noiseBadProb, P] using h
   exact five_coin_average _ _ _ _ _ _ P hpoint
 
 private theorem honestFailureProb_le_honestNoiseBadProb
@@ -483,11 +483,11 @@ private theorem honestFailureProb_le_honestNoiseBadProb
   intro H _
   exact KEM.honestFailureProb_le_honestNoiseBadProb (operations ps gen H)
 
-/-- In the random-oracle model, KEM failure is at most as likely as large ideal noise. -/
-theorem honestFailureProb_le_idealNoiseBadProb
+/-- In the random-oracle model, KEM failure is at most as likely as large independent noise. -/
+theorem honestFailureProb_le_indepNoiseBadProb
     (ps : ParameterSet) (gen : Generator ps) :
-    honestFailureProb ps gen ≤ Ideal.noiseBadProb ps := by
-  rw [← honestNoiseBadProb_eq_ideal]
+    honestFailureProb ps gen ≤ IndepNoise.noiseBadProb ps := by
+  rw [← honestNoiseBadProb_eq_indepNoise]
   exact honestFailureProb_le_honestNoiseBadProb ps gen
 
 end FrodoKEM.ROM

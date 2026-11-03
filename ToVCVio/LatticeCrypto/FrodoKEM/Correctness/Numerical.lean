@@ -74,12 +74,12 @@ private theorem matrixBound_eq (ps : ParameterSet) :
     | exact blockBound_eq 97175197777440479084 6213051 256
     | exact blockBound_eq 198663617378549905966698 4264645 320
 
-/-- In the ideal experiment, large decryption noise has probability at most `failureBound`. -/
+/-- With independent noise, large decryption noise has probability at most `failureBound`. -/
 theorem noiseBadProb_le_failureBound (ps : ParameterSet) :
-    Ideal.noiseBadProb ps ≤ failureBound ps := by
+    IndepNoise.noiseBadProb ps ≤ failureBound ps := by
   have hbits : 0 < (config ps).seedBits := by cases ps <;> decide
   have hlaw (z : ℤ) :
-      Pr{let x ← Ideal.entryNoiseExp ps}[x = z] =
+      Pr{let x ← IndepNoise.entryNoiseExp ps}[x = z] =
         (((ToVCVio.productMeasure
             (FailureCertificate.RoundedConvolution.counts (config ps))
             (FailureCertificate.RoundedConvolution.counts (config ps))) ^
@@ -88,10 +88,11 @@ theorem noiseBadProb_le_failureBound (ps : ParameterSet) :
           (2 ^ (config ps).seedBits) ^ (2 * (config ps).steps + 1) := by
     simpa only [config, ← Nat.mul_assoc] using probOutput_entryNoiseExp ps z
   have hentry := FailureCertificate.RoundedConvolution.probEvent_le_certificate
-    (config ps) (Ideal.entryNoiseExp ps) (Ideal.entryBad ps)
+    (config ps) (IndepNoise.entryNoiseExp ps) (IndepNoise.entryBad ps)
     hbits (counts_totalMass ps) hlaw
   calc
-    Ideal.noiseBadProb ps ≤ 64 * Ideal.entryFailureProb ps := Ideal.noiseBadProb_le ps
+    IndepNoise.noiseBadProb ps ≤ 64 * IndepNoise.entryFailureProb ps :=
+        IndepNoise.noiseBadProb_le ps
     _ ≤ 64 *
         (((FailureCertificate.RoundedConvolution.certificateValues
             (config ps) (badWeight ps)).1 : ℝ≥0∞) / 2 ^ (precision ps + lenChi) +
@@ -100,18 +101,18 @@ theorem noiseBadProb_le_failureBound (ps : ParameterSet) :
       mul_le_mul' le_rfl hentry
     _ = failureBound ps := matrixBound_eq ps
 
-/-- Ideal independent-error PKE decryption meets the checked rational bound for every message. -/
+/-- With independent errors, PKE decryption meets the checked rational bound for every message. -/
 theorem pkeFailureProb_le_failureBound (ps : ParameterSet)
     (A : FrodoMatrix ps.params ps.params.n ps.params.n)
     (message : MessageBits ps) :
-    Ideal.pkeFailureProb ps A message ≤ failureBound ps :=
-  (Ideal.pkeFailureProb_le_noiseBadProb ps A message).trans (noiseBadProb_le_failureBound ps)
+    IndepNoise.pkeFailureProb ps A message ≤ failureBound ps :=
+  (IndepNoise.pkeFailureProb_le_noiseBadProb ps A message).trans (noiseBadProb_le_failureBound ps)
 
-/-- Ideal independent-error PKE decryption meets all three exact fractional-bit targets. -/
+/-- With independent errors, PKE decryption meets all three exact fractional-bit targets. -/
 theorem pkeFailureProb_tenth_power_le (ps : ParameterSet)
     (A : FrodoMatrix ps.params ps.params.n ps.params.n)
     (message : MessageBits ps) :
-    Ideal.pkeFailureProb ps A message ^ 10 *
+    IndepNoise.pkeFailureProb ps A message ^ 10 *
       2 ^ exponentTenths ps ≤ 1 :=
   (mul_le_mul' (pow_le_pow_left' (pkeFailureProb_le_failureBound ps A message) 10)
     le_rfl).trans (failureBound_tenth_power_le ps)

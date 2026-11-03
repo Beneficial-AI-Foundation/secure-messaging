@@ -162,14 +162,14 @@ open FailureCertificate.RoundedConvolution
 /-- For a FrodoKEM family, the bad-event weight splits at the decoding threshold `t` around the
 extended-window centre `m`, so its certificate reduces to `closedValues`. -/
 theorem certificateValues_eq_closed (ps : ParameterSet) (t m : ℕ)
-    (ht : Ideal.threshold ps = t) (hm : (config ps).window + (config ps).a = m) (htm : t ≤ m) :
+    (ht : IndepNoise.threshold ps = t) (hm : (config ps).window + (config ps).a = m) (htm : t ≤ m) :
     certificateValues (config ps) (badWeight ps) =
       closedValues (config ps) (m - t) (2 * t) (m - t + 1) := by
   apply certificateValues_eq_closedValues
   · omega
   all_goals
     intro i hi
-    simp only [badWeight, Ideal.entryBad, ht, hm]
+    simp only [badWeight, IndepNoise.entryBad, ht, hm]
     split_ifs <;> omega
 
 end FrodoKEM.Certificate

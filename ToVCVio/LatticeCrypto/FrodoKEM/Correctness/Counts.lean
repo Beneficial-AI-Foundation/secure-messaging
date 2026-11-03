@@ -47,7 +47,7 @@ theorem counts_totalMass (ps : ParameterSet) :
 
 /-- One noise entry is distributed as a sum of `2n` products of two errors and one more error. -/
 theorem probOutput_entryNoiseExp (ps : ParameterSet) (z : ℤ) :
-    Pr{let x ← Ideal.entryNoiseExp ps}[x = z] =
+    Pr{let x ← IndepNoise.entryNoiseExp ps}[x = z] =
       (((ToVCVio.productMeasure
           (FailureCertificate.RoundedConvolution.counts (config ps))
           (FailureCertificate.RoundedConvolution.counts (config ps))) ^
