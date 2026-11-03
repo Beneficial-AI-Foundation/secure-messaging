@@ -99,12 +99,12 @@ table, the five matrices are independent samples. The result does not apply to o
 The proof of this step is in four files. The first three paths start at `ToVCVio/`, and the last
 path starts at `VCVio/OracleComp/QueryTracking/`.
 
-| File | Content |
-|---|---|
-| `Probability/FiniteXOF.lean` | A general table that answers SHAKE calls |
-| `…/RandomOracle/Model.lean` | The table in FrodoKEM, the six kinds of call, their domains |
-| `…/RandomOracle/Correctness.lean` | The proof of this step |
-| `RandomOracle/EagerTable.lean` | Lazy sampling equals full-table sampling |
+| File                              | Content                                                     |
+|-----------------------------------|-------------------------------------------------------------|
+| `Probability/FiniteXOF.lean`      | A general table that answers SHAKE calls                    |
+| `…/RandomOracle/Model.lean`       | The table in FrodoKEM, the six kinds of call, their domains |
+| `…/RandomOracle/Correctness.lean` | The proof of this step                                      |
+| `RandomOracle/EagerTable.lean`    | Lazy sampling equals full-table sampling                    |
 
 Here `…` is `LatticeCrypto/FrodoKEM/Correctness`.
 
@@ -183,13 +183,13 @@ recall ROM.honestNoiseBadProb (ps : ParameterSet) (gen : ROM.Generator ps) : ℝ
 When the coins and `H` are fixed, the KEM reads five entries of `H` before the noise is known. The
 private program `fixedCoinsProgram` makes these five queries in this order.
 
-| # | Input | Depends on | Use of the answer |
-|---|---|---|---|
-| 0 | `z` | coin `z` | `seedA`, then `A = gen(seedA)` |
-| 1 | `0x5F ‖ seedSE` | coin `seedSE` | `S` and `E` |
-| 2 | `pk` | answers 0 and 1 | `pkh` |
-| 3 | `pkh ‖ μ ‖ salt` | answer 2, coins `μ` and salt | the encryption seed |
-| 4 | `0x96 ‖ encryption seed` | answer 3 | `S′`, `E′` and `E″` |
+| # | Input                    | Depends on                   | Use of the answer              |
+|---|--------------------------|------------------------------|--------------------------------|
+| 0 | `z`                      | coin `z`                     | `seedA`, then `A = gen(seedA)` |
+| 1 | `0x5F ‖ seedSE`          | coin `seedSE`                | `S` and `E`                    |
+| 2 | `pk`                     | answers 0 and 1              | `pkh`                          |
+| 3 | `pkh ‖ μ ‖ salt`         | answer 2, coins `μ` and salt | the encryption seed            |
+| 4 | `0x96 ‖ encryption seed` | answer 3                     | `S′`, `E′` and `E″`            |
 
 A sixth query gives the shared secret. It comes after the noise is known, so it has no effect on
 the noise.
