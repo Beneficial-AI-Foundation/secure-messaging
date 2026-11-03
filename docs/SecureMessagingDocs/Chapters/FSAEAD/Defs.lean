@@ -128,14 +128,14 @@ structure GameState (StS StR AD M C : Type) where
 ```
 :::::
 
-:::::gameCell "\\textsf{Corrections}" (kind := "scheme-notation")
+:::::gameCell "\\textsf{Deviations}" (kind := "scheme-notation")
 A sends its $`i`-th message at index $`i`, so the indices $`i > i_\A` are the ones A has
 not used yet. Once the adversary corrupts A at counter $`i_\A^c`, it knows A's state. It
 can then compute the ciphertext that A would send at an index $`i > i_\A^c` and inject it
 before A sends it, and B must accept it. In {Informal.citet ACD19}[], Figure 5, this
 counts as a forgery, because $`\mathsf{comp}` only holds indices that A has already sent,
-so every correct scheme loses. We make two corrections for this case, marked by boxes in
-pseudocode:
+so every correct scheme loses. We change the game in two places for this case, marked by
+boxes in pseudocode:
 
 - $`\OCorrA` adds every index $`i > i_\A^c` to $`\mathsf{comp}`, so injecting at these
   indices does not count as a forgery, and $`\mathsf{record}` no longer adds to

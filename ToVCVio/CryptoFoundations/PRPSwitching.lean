@@ -12,6 +12,9 @@ public import ToVCVio.EvalDist.UniformInjection
 public import VCVio.EvalDist.MeasureTVDist.Event
 public import Mathlib.Logic.Equiv.Fintype
 public import Mathlib.Data.Fintype.CardEmbedding
+public import VCVio.OracleComp.EvalDist.Sum
+public import ToVCVio.CryptoFoundations.PRP
+public import ToVCVio.OracleComp.QueryTracking.RandomOracle.FreshQueries
 
 /-!
 # Fixed-list PRP/PRF switching
@@ -44,6 +47,9 @@ message-block count.
 * `evalDistEq_map_uniformPerm_uniformDistinct`: `P` is sampling without replacement.
 * `measureTVDist_map_uniformPerm_mapM_const_uniform_le`: the bound on the distance between `P`
   and `F`.
+* `PRPScheme.prfAdvantage_le_prpAdvantage_fixedQuery`: the same bound between the PRF and the
+  PRP advantages of a `fixedQueryAdversary`, which queries its function oracle at `pts` and
+  then computes its output from the answers alone.
 
 ## Reference
 
@@ -241,3 +247,83 @@ theorem measureTVDist_map_uniformPerm_mapM_const_uniform_le {X : Type} [FinEnum 
         * (Fintype.card X : ℝ) ^ pts.length := hB4
 
 end OracleComp
+
+/-! ## Switching for the advantages of a fixed-query adversary -/
+
+namespace PRPScheme
+
+open OracleSpec
+
+/-- The adversary that queries its function oracle at the points `pts`, then runs `tail` on the
+answers. `tail` makes no further function-oracle query. -/
+-- ANCHOR: fixedQueryAdversary
+def fixedQueryAdversary {X : Type} (pts : List X) (tail : List X → ProbComp Bool) :
+    PRPAdversary X
+-- ANCHOR_END: fixedQueryAdversary
+    :=
+  (pts.mapM (fun t => liftM (OracleSpec.query (Sum.inr t) :
+      OracleQuery (PRFScheme.PRFOracleSpec X X) X)) >>= fun ys =>
+    OracleComp.liftComp (tail ys) (PRFScheme.PRFOracleSpec X X) :
+    OracleComp (PRFScheme.PRFOracleSpec X X) Bool)
+
+/-- In the PRP-ideal experiment, `fixedQueryAdversary pts tail` runs `tail` on the values of a
+uniformly random permutation at `pts`. -/
+theorem prpIdealExp_fixedQueryAdversary {X : Type} [SampleableType (Equiv.Perm X)]
+    (pts : List X) (tail : List X → ProbComp Bool) :
+    prpIdealExp (fixedQueryAdversary pts tail) =
+      ((fun π : Equiv.Perm X => pts.map π) <$> ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X)))
+        >>= tail := by
+  unfold prpIdealExp fixedQueryAdversary
+  rw [bind_map_left]
+  refine bind_congr fun π => ?_
+  simp only [simulateQ_bind, simulateQ_prpQueryImpl_mapM_inr, simulateQ_prpQueryImpl_liftComp,
+    pure_bind]
+
+/-- Let `pts` be pairwise-distinct points. In the PRF-ideal experiment,
+`fixedQueryAdversary pts tail` runs `tail` on one independent uniform value per point. -/
+theorem prfIdealExperiment_fixedQueryAdversary {X : Type} [DecidableEq X] [SampleableType X]
+    (pts : List X) (hpts : pts.Nodup) (tail : List X → ProbComp Bool) :
+    PRFScheme.prfIdealExperiment (fixedQueryAdversary pts tail) =
+      pts.mapM (fun _ => ($ᵗ X : ProbComp X)) >>= tail := by
+  unfold PRFScheme.prfIdealExperiment fixedQueryAdversary
+  simp only [simulateQ_bind, simulateQ_list_mapM, simulateQ_query, OracleQuery.input_query,
+    OracleQuery.cont_query, PRFScheme.prfIdealQueryImpl_apply_inr, id_map,
+    PRFScheme.simulateQ_prfIdealQueryImpl_liftComp]
+  exact randomOracle.run'_mapM_randomOracle_fresh pts ∅ hpts
+    (fun _ _ => QueryCache.empty_apply _) tail
+
+/-- PRP/PRF switching for a fixed-query adversary, adapted from Lemma 1 of the reference. Let
+`X` be a finite nonempty set of size `N`, `prp` a PRP scheme on `X`, and `pts = x₁, …, x_q`
+pairwise-distinct points of `X`. Then the PRF and PRP advantages of
+`fixedQueryAdversary pts tail` differ by at most `q(q − 1)/(2N)`. -/
+theorem abs_prfAdvantage_sub_prpAdvantage_fixedQuery_le {K X : Type} [FinEnum X] [Nonempty X]
+    (prp : PRPScheme K X) (pts : List X) (hpts : pts.Nodup) (tail : List X → ProbComp Bool) :
+    |(PRFScheme.prfAdvantage prp.toPRFScheme (fixedQueryAdversary pts tail)).toReal -
+      (prpAdvantage prp (fixedQueryAdversary pts tail)).toReal| ≤
+      (pts.length * (pts.length - 1) : ℝ) / (2 * Fintype.card X) := by
+  -- The two advantages share their real experiment, so their difference is at most the
+  -- distance between the two ideal experiments.
+  rw [PRFScheme.toReal_prfAdvantage, toReal_prpAdvantage]
+  unfold prpRealExp
+  refine (abs_abs_sub_abs_le_abs_sub _ _).trans ?_
+  rw [show ∀ r i j : ℝ, r - i - (r - j) = j - i from fun _ _ _ => by ring]
+  refine (abs_prEvent_toReal_sub_le_measureTVDist _ _ (· = true) Measurable.of_discrete).trans ?_
+  -- Both ideal experiments run `tail` on the answers at `pts`; data processing removes `tail`.
+  rw [prpIdealExp_fixedQueryAdversary, prfIdealExperiment_fixedQueryAdversary pts hpts]
+  let _ : MeasurableSpace (List X) := ⊤
+  refine (OracleComp.measureTVDist_bind_right_le _ _ _).trans ?_
+  exact OracleComp.measureTVDist_map_uniformPerm_mapM_const_uniform_le pts hpts
+
+/-- One-sided form of `abs_prfAdvantage_sub_prpAdvantage_fixedQuery_le`. -/
+-- ANCHOR: prfAdvantage_le_prpAdvantage_fixedQuery
+theorem prfAdvantage_le_prpAdvantage_fixedQuery {K X : Type} [FinEnum X] [Nonempty X]
+    (prp : PRPScheme K X) (pts : List X) (hpts : pts.Nodup) (tail : List X → ProbComp Bool) :
+    (PRFScheme.prfAdvantage prp.toPRFScheme (fixedQueryAdversary pts tail)).toReal ≤
+      (prpAdvantage prp (fixedQueryAdversary pts tail)).toReal +
+      (pts.length * (pts.length - 1) : ℝ) / (2 * Fintype.card X)
+-- ANCHOR_END: prfAdvantage_le_prpAdvantage_fixedQuery
+    := by
+  have h := (abs_le.mp (abs_prfAdvantage_sub_prpAdvantage_fixedQuery_le prp pts hpts tail)).2
+  linarith
+
+end PRPScheme

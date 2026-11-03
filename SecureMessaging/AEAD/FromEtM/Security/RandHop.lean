@@ -19,7 +19,7 @@ open ToVCVio OracleSpec OracleComp ENNReal PRFScheme AEADScheme
 variable {K_e K_m M AD C_e T : Type}
   [DecidableEq AD] [DecidableEq C_e] [DecidableEq T]
   [Inhabited C_e] [Inhabited T]
-  [SampleableType C_e] [SampleableType T]
+  [LenSampleable C_e] [SampleableType T]
 
 omit [Inhabited C_e] [Inhabited T] in
 /-- `game3` (the final endpoint of the game-hop sequence) coincides with the real
@@ -30,10 +30,10 @@ whole key pair — including the tag key, which sits idle on the random side —
 `game3` never generates it. That extra key generation leaves the output distribution unchanged
 because it cannot fail: every `OracleComp` is lossless. -/
 theorem game3_eq_rand
-    (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
+    (se : DetSymmEncAlg M K_e C_e) (prf : PRFScheme K_m (AD × C_e) T) (lenM : M → ℕ) (clen : ℕ → ℕ)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
-    Pr{let x ← game3 se adv}[x = true] =
-      Pr{let x ← AEADScheme.securityExpFixedBit (etmAEAD se prf) adv true}[x = true] := by
+    Pr{let x ← game3 se lenM clen adv}[x = true] =
+      Pr{let x ← AEADScheme.securityExpFixedBit (etmAEAD se prf) lenM clen adv true}[x = true] := by
   -- NRS14 Figure 4, right column: ideal nAE experiment.
   have hkg : (etmAEAD se prf).keygen
       = (se.keygen >>= fun ke => prf.keygen >>= fun km =>
@@ -49,7 +49,7 @@ theorem game3_eq_rand
   rw [← OracleComp.prEvent_bind_const prf.keygen, map_bind]
   refine congrArg prEvent (bind_congr fun km => ?_)
   rw [run'_simulateQ_eq_of_query_map_eq _
-    (AEADScheme.aeadSecurityImpl (etmAEAD se prf) true (ke, km)) Prod.fst ?_ adv]
+    (AEADScheme.aeadSecurityImpl (etmAEAD se prf) lenM clen true (ke, km)) Prod.fst ?_ adv]
   · -- per-query projection
     intro t s
     obtain ⟨ch, qc⟩ := s
@@ -63,7 +63,7 @@ theorem game3_eq_rand
         simp [AEADScheme.aeadSecurityImpl, AEADScheme.oracleEncrypt, etmAEAD,
           QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
           StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_pure,
-          SampleableType.uniformSample_prod_eq_bind, bind_assoc, map_pure, Prod.map]
+          LenSampleable.unifOfLen_prod, bind_assoc, map_pure, Prod.map]
     · -- decryption oracle: both always reject
       obtain ⟨ad, c, t⟩ := ac
       cases ch <;>

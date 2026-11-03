@@ -78,7 +78,10 @@ theorem reflectN_sqIter (n : ℕ) (x : BitVec 128) :
 
 /-- `x¹²⁸ + x⁷ + x² + x + 1` is irreducible over `𝔽₂`. The proof uses only the axioms
 `propext`, `Classical.choice` and `Quot.sound`. -/
-theorem nistPoly_irreducible : Irreducible nistPoly := by
+-- ANCHOR: nistPoly_irreducible
+theorem nistPoly_irreducible : Irreducible nistPoly
+-- ANCHOR_END: nistPoly_irreducible
+    := by
   have hcard : Nat.card (ZMod 2) = 2 := Nat.card_zmod 2
   have hpos : 0 < nistPoly.natDegree := by rw [nistPoly_natDegree]; omega
   refine ToVCVio.irreducible_of_rabin_root hpos ?_ (fun p hp hpn => ?_)
@@ -100,8 +103,10 @@ theorem nistPoly_irreducible : Irreducible nistPoly := by
 
 /-! ### Unconditional GHASH almost-XOR-universality -/
 
+-- ANCHOR: ghash_isAXU_unconditional
 theorem ghash_isAXU_unconditional (L : ℕ) :
     GhashIsAXU L ((maxBlocks L : ℝ≥0∞) / 2 ^ (128 : ℕ)) :=
   ghash_isAXU L nistPoly_irreducible
+-- ANCHOR_END: ghash_isAXU_unconditional
 
 end GCM

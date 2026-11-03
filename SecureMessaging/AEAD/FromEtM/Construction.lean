@@ -12,7 +12,7 @@ import VCVio.CryptoFoundations.PRF
 # Encrypt-then-MAC (EtM) Construction
 
 Constructs an `AEADScheme` from a deterministic symmetric encryption scheme
-(`DetSEAlg`) and a pseudorandom function (`PRFScheme`) using the
+(`DetSymmEncAlg`) and a pseudorandom function (`PRFScheme`) using the
 Encrypt-then-MAC paradigm.
 
 ## Paper References
@@ -49,7 +49,7 @@ NRS14 Figure 2, scheme A5 (outer-tag EtM), adapted: one-time, no nonce.
 - `decrypt(ke, km, ad, (c, t))`: if `t == prf.eval km (ad, c)` then `se.decrypt ke c` else `none`
 - `keygen`: independent `ke ← se.keygen; km ← prf.keygen` -/
 -- ANCHOR: etmAEAD
-def etmAEAD (se : DetSEAlg K_e M C_e)
+def etmAEAD (se : DetSymmEncAlg M K_e C_e)
     (prf : PRFScheme K_m (AD × C_e) T) :
     AEADScheme ProbComp M AD (K_e × K_m) (C_e × T) where
   keygen := do

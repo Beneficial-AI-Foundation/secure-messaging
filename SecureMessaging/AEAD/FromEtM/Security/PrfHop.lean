@@ -21,7 +21,7 @@ open OracleSpec OracleComp ENNReal PRFScheme AEADScheme
 variable {K_e K_m M AD C_e T : Type}
   [DecidableEq AD] [DecidableEq C_e] [DecidableEq T]
   [Inhabited C_e] [Inhabited T]
-  [SampleableType C_e] [SampleableType T]
+  [LenSampleable C_e] [SampleableType T]
 
 /-! ## Game-hop lemma signatures -/
 
@@ -33,10 +33,11 @@ The skeleton's `(challenge, TagCache)` state projects via `Prod.fst` onto the AE
 `TagCache`.
 (Proof: swap the independent `km`/`ke` samples, then apply `run'_simulateQ_eq_of_query_map_eq`.) -/
 theorem game0_eq_real
-    (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
+    (se : DetSymmEncAlg M K_e C_e) (prf : PRFScheme K_m (AD × C_e) T) (lenM : M → ℕ) (clen : ℕ → ℕ)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     Pr{let x ← game0 se prf adv}[x = true] =
-      Pr{let x ← AEADScheme.securityExpFixedBit (etmAEAD se prf) adv false}[x = true] := by
+      Pr{let x ←
+        AEADScheme.securityExpFixedBit (etmAEAD se prf) lenM clen adv false}[x = true] := by
   -- Tail helper: `(simulateQ impl adv).run s >>= take-fst = (simulateQ impl adv).run' s`.
   -- Unfold only `etmAEAD.keygen` (keep `aeadSecurityImpl` folded to match the RHS
   -- `securityExpFixedBit` impl).
@@ -54,7 +55,7 @@ theorem game0_eq_real
   refine prEvent_bind_congr prf.keygen _ _ _ _ (fun km => ?_)
   -- Inner: project away the invariant `TagCache` via `Prod.fst`.
   rw [run'_simulateQ_eq_of_query_map_eq _
-        (AEADScheme.aeadSecurityImpl (etmAEAD se prf) false (ke, km))
+        (AEADScheme.aeadSecurityImpl (etmAEAD se prf) lenM clen false (ke, km))
         Prod.fst ?hproj adv (none, ∅)]
   case hproj =>
     intro t s
@@ -79,11 +80,11 @@ theorem game0_eq_real
         split_ifs <;>
         simp [StateT.run_pure, map_pure, Prod.map]
 
-omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
+omit [Inhabited C_e] [Inhabited T] [LenSampleable C_e] in
 /-- Game 0 → real PRF experiment: the `game0` distribution equals the real PRF experiment run on
 `prfReduction`. The "real" half of NRS14 Lemma 3, eq. (4). -/
 theorem game0_eq_prfRealExperiment
-    (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
+    (se : DetSymmEncAlg M K_e C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     Pr{let x ← game0 se prf adv}[x = true] =
       Pr{let x ← prf.prfRealExperiment (prfReduction se adv)}[x = true] := by
@@ -135,12 +136,12 @@ theorem game0_eq_prfRealExperiment
         simp [*, StateT.run_pure, map_pure, simulateQ_bind,
           simulateQ_pure]
 
-omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
+omit [Inhabited C_e] [Inhabited T] [LenSampleable C_e] in
 /-- Game 1 → ideal PRF experiment: the `game1` distribution equals the ideal PRF experiment run
 on `prfReduction`. The "ideal" half of NRS14 Lemma 3, eq. (4); this is the heavier of the two
 halves, since it must relocate the outer lazy-RO cache into the (always-`∅`) inner `TagCache`. -/
 theorem game1_eq_prfIdealExperiment
-    (se : DetSEAlg K_e M C_e)
+    (se : DetSymmEncAlg M K_e C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     Pr{let x ← game1 se adv}[x = true] =
       Pr{let x ← PRFScheme.prfIdealExperiment (prfReduction se adv)}[x = true] := by
@@ -289,14 +290,14 @@ theorem game1_eq_prfIdealExperiment
           refine bind_congr fun a => ?_
           split_ifs <;> simp [StateT.run_pure, simulateQ_pure]
 
-omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
+omit [Inhabited C_e] [Inhabited T] [LenSampleable C_e] in
 /-- Game 0 → 1: PRF hop. Gap bounded by PRF advantage.
 
 NRS14 Lemma 3, eq. (4): replace F^tag with random ρ. The two reduction-equals-experiment
 equalities `game0_eq_prfRealExperiment` and `game1_eq_prfIdealExperiment` combine here, since
 both sides share the same `prfAdvantage` shape. -/
 theorem game0_game1_le_prf
-    (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
+    (se : DetSymmEncAlg M K_e C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     |(Pr{let x ← game0 se prf adv}[x = true]).toReal -
      (Pr{let x ← game1 se adv}[x = true]).toReal| ≤

@@ -4,149 +4,101 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.CryptoFoundations.SecExp
-import VCVio.OracleComp.Constructions.SampleableType
+import VCVio.CryptoFoundations.SymmEncAlg.Deterministic
+import ToVCVio.OracleComp.Constructions.LenSampleable
 
 /-!
-# Deterministic Symmetric Encryption (Local Placeholder)
+# Deterministic Symmetric Encryption: One-Time Secrecy
 
-Formalization of a deterministic symmetric encryption primitive with one-time
-IND$-CPA (real-or-random) security, following:
+A computational one-time secrecy game for VCVio's deterministic symmetric encryption schemes
+`DetSymmEncAlg M K C`.
 
-- [NRS14] Namprempre, Rogaway, Shrimpton.
-  *Reconsidering Generic Composition.*
-  EUROCRYPT 2014.
-  — Section 2: "ivE scheme" `E : K × {0,1}^η × M → {0,1}*`.
-  We omit the IV parameter because the key is one-time (IV absorbed into key).
+VCVio defines the scheme, its correctness `DetSymmEncAlg.PerfectlyCorrect`, and an IND$-CPA
+game. That game samples one key for the whole run, and its random ciphertext is uniform on
+all of `C`. The one-time secrecy game below samples a fresh key for each encryption query,
+and its random ciphertext is uniform among the ciphertexts of length `clen |m|`. The game
+uses VCVio's oracle interface `INDDollarOracleSpec` and adversary type `INDDollarAdversary`.
 
-- [ACD19] Alwen, Coretti, Dodis.
-  *The Double Ratchet: Security Notions, Proofs, and Modularization for the
-  Signal Protocol.*
-  EUROCRYPT 2019.
-  — One-time encryption setting where each key is used at most once.
+## References
 
-VCVio's `SymmEncAlg` has monadic, possibly randomized `encrypt`/`decrypt`
-operations and information-theoretic perfect-secrecy notions. The EtM proof
-instead uses a deterministic cipher with a computational one-time IND$-CPA
-assumption; `DetSEAlg` and its game below provide that interface.
+- [Ros26] Rosulek. *The Joy of Cryptography.* Online edition, 2026. Definition 5.3.2:
+  computational one-time secrecy. Definition 8.1.1: the set `Σ.C(ℓ)` of ciphertexts of
+  messages of length `ℓ`.
 
-## Deviations from NRS14
+## Differences from Ros26
 
-- **No IV parameter**: NRS14's ivE scheme has `E(K, IV, M)`. We use
-  `encrypt(K, M)` because the key is one-time and absorbs the IV role (as in
-  ACD19's deterministic AEAD).
-- **One query**: NRS14's ivE-security allows `q_e` encryption queries. We
-  restrict to `q_e = 1` (one-time security).
-- **No nonce**: NRS14 has a nonce `N` for multi-query freshness. Not needed
-  when each key is used once.
+The game below is the game of Ros26 Definition 5.3.2 when `keygen` is uniform on `K` and all
+ciphertexts have one length. It differs in two places.
+
+- Key generation: Ros26 samples the key uniformly from the key space. The game here samples
+  it with `keygen`, which can be any distribution.
+- Random ciphertexts by length: the game takes a message length `lenM : M → ℕ` and a
+  ciphertext length `clen : ℕ → ℕ`. The random branch returns a uniform ciphertext of length
+  `clen |m|`. The length and the uniform sample of each length come from the class
+  `LenSampleable C`. This is the sample from `Σ.C(|M|)` of Ros26 Definition 8.1.1, with
+  `Σ.C(ℓ) = {c ∈ C : |c| = clen ℓ}`. With one length (`LenSampleable.const C`), it is the
+  sampling of Ros26 Definition 5.3.2.
 -/
 
-open OracleSpec OracleComp ENNReal
+open OracleSpec OracleComp
 
-/-- A deterministic symmetric encryption scheme with key space `K`, message
-space `M`, and ciphertext space `C`.
+namespace DetSymmEncAlg
 
-NRS14 Section 2: ivE scheme `E : K × {0,1}^η × M → {0,1}*`.
-Deviation: no IV parameter (one-time key provides all randomness). -/
-structure DetSEAlg (K M C : Type) where
-  /-- Sample a fresh symmetric key. -/
-  keygen : ProbComp K
-  /-- Deterministic encryption: `Enc(K, M) = C`. -/
-  encrypt : K → M → C
-  /-- Deterministic decryption: `Dec(K, C) = some M` or `none`. -/
-  decrypt : K → C → Option M
+variable {M K C : Type}
 
-namespace DetSEAlg
+section OTS
 
-variable {K M C : Type}
+/-! ## One-Time Secrecy Game
 
-/-- A `DetSEAlg` is correct if decryption always recovers the plaintext. -/
-def Correct (se : DetSEAlg K M C) : Prop :=
-  ∀ (k : K) (m : M), se.decrypt k (se.encrypt k m) = some m
-
-section IndCPA
-
-/-! ## One-Time IND$-CPA Security Game
-
-NRS14 Section 2, "ivE-security" / Figure 4 encryption oracle.
-Deviation: one query (`q_e = 1`), no nonce, deterministic encryption.
-
-The adversary `A` has access to:
-- Uniform randomness (`unifSpec`).
-- A one-time encryption oracle `encrypt(m)`:
-  if `b = false`, returns `some (Enc(K, m))`;
-  if `b = true`, returns `some ($ᵗ C)` (uniform random ciphertext).
-  Returns `none` on subsequent calls.
-
-The game state is `Bool` tracking whether the encryption oracle has been called.
-
-Note: we write "IndCPA" in identifiers to avoid the Lean syntax issue with `$`
-in names, but the game is IND$-CPA (real ciphertext vs uniform random bits),
-which is strictly stronger than standard IND-CPA (left-or-right).
+The adversary has two oracles: uniform randomness, and an encryption oracle. Each encryption
+query `m` samples a fresh key `K ← keygen`. With `b = false`, the oracle returns `Enc(K, m)`.
+With `b = true`, it returns a ciphertext uniform among those of length `clen |m|`. The game
+has no state.
 -/
-
-/-! ### Oracle spec -/
-
-/-- Oracle spec (signatures only) for the one-time IND$-CPA game: uniform
-randomness plus an encryption oracle `M →ₒ Option C`. -/
-abbrev indCPASpec (M C : Type) := unifSpec + (M →ₒ Option C)
-
-/-! ### Adversary -/
-
-/-- One-time IND$-CPA adversary: a computation with access to uniform
-randomness and the encryption oracle, outputting a guess bit. -/
-abbrev IndCPAAdversary (M C : Type) :=
-  OracleComp (indCPASpec M C) Bool
 
 /-! ### Oracle implementations -/
 
-/-- Uniform-randomness oracle lifted to the game-state monad. -/
-def oracleUnif :
-    QueryImpl unifSpec (StateT Bool ProbComp) :=
-  (QueryImpl.ofLift unifSpec ProbComp).liftTarget (StateT Bool ProbComp)
+/-- Uniform-randomness oracle for the one-time secrecy game. -/
+def oracleUnif : QueryImpl unifSpec ProbComp :=
+  HasQuery.toQueryImpl (spec := unifSpec) (m := ProbComp)
 
-/-- One-time encryption oracle for the IND$-CPA game.
-First call: if `b = false`, returns `some (se.encrypt k m)`;
-            if `b = true`, returns `some ($ᵗ C)`.
-Subsequent calls: returns `none`. -/
-def oracleEncrypt [SampleableType C] (se : DetSEAlg K M C) (b : Bool) (k : K) :
-    QueryImpl (M →ₒ Option C) (StateT Bool ProbComp) :=
+/-- Encryption oracle for the one-time secrecy game. Each call samples a fresh key `k`. With
+`b = false`, it returns `se.encrypt k m`. With `b = true`, it returns a uniform ciphertext of
+length `clen (lenM m)`. -/
+-- ANCHOR: detSEOracleEncrypt
+def oracleEncrypt [LenSampleable C] (se : DetSymmEncAlg M K C) (lenM : M → ℕ)
+    (clen : ℕ → ℕ) (b : Bool) : QueryImpl (M →ₒ C) ProbComp :=
   fun m => do
-    if (← get) then pure none
-    else do
-      set true
-      let c ← if b
-        then liftM ($ᵗ C : ProbComp C)
-        else pure (se.encrypt k m)
-      return some c
+    let k ← se.keygen
+    if b then LenSampleable.unifOfLen (clen (lenM m))
+    else pure (se.encrypt k m)
+-- ANCHOR_END: detSEOracleEncrypt
 
-/-- Complete oracle set for the one-time IND$-CPA game. -/
-def indCPAImpl [SampleableType C] (se : DetSEAlg K M C) (b : Bool) (k : K) :
-    QueryImpl (indCPASpec M C) (StateT Bool ProbComp) :=
-  oracleUnif + oracleEncrypt se b k
+/-- Oracles of the one-time secrecy game: `oracleUnif` for uniform randomness and
+`oracleEncrypt se lenM clen b` for encryption. -/
+def otsImpl [LenSampleable C] (se : DetSymmEncAlg M K C) (lenM : M → ℕ) (clen : ℕ → ℕ)
+    (b : Bool) : QueryImpl (INDDollarOracleSpec M C) ProbComp :=
+  oracleUnif + oracleEncrypt se lenM clen b
 
 /-! ### Security experiment -/
 
-/-- One-time IND$-CPA experiment with a fixed challenge bit `b`.
-The branch `b = false` is the real experiment; `b = true` is the random
-experiment.
+/-- One-time secrecy experiment with a fixed challenge bit `b`. The branch `b = false` is
+`L_ots-real` of Ros26, and `b = true` is `L_ots-rand`. -/
+-- ANCHOR: detSESecurityExpFixedBit
+def securityExpFixedBit [LenSampleable C] (se : DetSymmEncAlg M K C) (lenM : M → ℕ)
+    (clen : ℕ → ℕ) (adversary : INDDollarAdversary M C) (b : Bool) : ProbComp Bool :=
+  simulateQ (otsImpl se lenM clen b) adversary
+-- ANCHOR_END: detSESecurityExpFixedBit
 
-NRS14 Section 2: ivE-security experiment, restricted to one query. -/
-def securityExpFixedBit [SampleableType C] (se : DetSEAlg K M C)
-    (adversary : IndCPAAdversary M C) (b : Bool) : ProbComp Bool := do
-  let k ← se.keygen
-  let (b', _) ← (simulateQ (indCPAImpl se b k) adversary).run false
-  return b'
+/-- One-time secrecy distinguishing advantage:
+`|Pr[A^{L_ots-rand} = 1] - Pr[A^{L_ots-real} = 1]|`. -/
+-- ANCHOR: detSEDistAdvantage
+noncomputable def distAdvantage [LenSampleable C] (se : DetSymmEncAlg M K C) (lenM : M → ℕ)
+    (clen : ℕ → ℕ) (adversary : INDDollarAdversary M C) : ℝ :=
+  |(Pr{let x ← securityExpFixedBit se lenM clen adversary true}[x = true]).toReal -
+   (Pr{let x ← securityExpFixedBit se lenM clen adversary false}[x = true]).toReal|
+-- ANCHOR_END: detSEDistAdvantage
 
-/-- One-time IND$-CPA distinguishing advantage:
-`|Pr[A^{rand} = 1] - Pr[A^{real} = 1]|`.
+end OTS
 
-NRS14 Section 2: `Adv^{ivE}_E(A)`, restricted to one query and no IV. -/
-noncomputable def distAdvantage [SampleableType C] (se : DetSEAlg K M C)
-    (adversary : IndCPAAdversary M C) : ℝ :=
-  |(Pr{let x ← securityExpFixedBit se adversary true}[x = true]).toReal -
-   (Pr{let x ← securityExpFixedBit se adversary false}[x = true]).toReal|
-
-end IndCPA
-
-end DetSEAlg
+end DetSymmEncAlg

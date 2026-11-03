@@ -13,9 +13,10 @@ public import ToVCVio.OracleComp.Constructions.BitVec
 /-!
 # GHASH: almost-XOR-universality statement
 
-`GhashIsAXU L ε` says that `ghash ∘ gcmEncode` is `ε`-almost-XOR-universal (AXU) on
-`SupportedAAD × BitVec L`: for distinct inputs and any target `Δ`, a uniform key `H` gives
-`ghash H (…) ⊕ ghash H (…) = Δ` with probability at most `ε`. The authenticity hop
+`GhashIsAXU L ε` says that the keyed hash `gcmHash L = ghash ∘ gcmEncode` is
+`ε`-almost-XOR-universal (AXU) on `SupportedAAD × BitVec L`: for distinct inputs and any
+target `Δ`, a uniform key `H` gives `ghash H (…) ⊕ ghash H (…) = Δ` with probability at most
+`ε`. The authenticity hop
 (`AuthHop.lean`) assumes it; `GhashAXU.lean` proves it from the irreducibility of `nistPoly`,
 which `NistIrreducible.lean` supplies.
 
@@ -31,11 +32,18 @@ open OracleComp OracleSpec ENNReal ToVCVio
 
 namespace GCM
 
-/-- `ghash` composed with the GHASH encoding is `ε`-almost-XOR-universal on the AEAD domain
-`SupportedAAD × BitVec L`. -/
+/-- The keyed hash that GCM uses for its tag: key `H`, input `(ad, c)` with `c : BitVec L`,
+output `GHASH_H(gcmEncode ad c)`. -/
+-- ANCHOR: gcmHash
+abbrev gcmHash (L : ℕ) (H : BitVec 128) (p : SupportedAAD × BitVec L) : BitVec 128 :=
+  ghash H (gcmEncode p.1 p.2)
+-- ANCHOR_END: gcmHash
+
+/-- `gcmHash L` is `ε`-almost-XOR-universal. -/
+-- ANCHOR: GhashIsAXU
 def GhashIsAXU (L : ℕ) (ε : ℝ≥0∞) : Prop :=
-  UniversalHash.IsAlmostXorUniversal
-    (fun (H : BitVec 128) (p : SupportedAAD × BitVec L) => ghash H (gcmEncode p.1 p.2)) ε
+  UniversalHash.IsAlmostXorUniversal (gcmHash L) ε
+-- ANCHOR_END: GhashIsAXU
 
 /-! ## Witnessed pair
 

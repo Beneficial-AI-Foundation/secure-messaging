@@ -5,6 +5,7 @@ import SecureMessagingDocs.Visuals.Notation
 import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
 import ToVCVio.CryptoFoundations.PRP
+import ToVCVio.CryptoFoundations.PRPSwitching
 
 /-! # Blueprint chapter: Pseudorandom Permutations -/
 
@@ -75,11 +76,19 @@ structure PRPScheme (K X : Type) extends BlockCipher K X where
 ```
 
 ::::::gameGrid
-:::::gameCell "\\Exp{\\textsf{prp}\\text{-}\\textsf{real}}{\\textsf{PRP}}(\\adv)" (kind := "game")
-$`k \sample \mathsf{keygen};\quad b' \gets \adv^{\mathsf{perm}\ k};\quad \Return b'`
+:::::gameCell "\\Exp{\\textsf{prp}\\text{-}\\textsf{real}}{\\textsf{PRP}}(\\adv)" (kind := "compact")
+$`\begin{array}{l}
+k \sample \mathsf{keygen}; \\
+b' \gets \adv^{\mathsf{perm}\ k}; \\
+\Return b'
+\end{array}`
 :::::
-:::::gameCell "\\Exp{\\textsf{prp}\\text{-}\\textsf{ideal}}{\\textsf{PRP}}(\\adv)" (kind := "game")
-$`\pi \sample \mathsf{Perm}(\mathcal X);\quad b' \gets \adv^{\pi};\quad \Return b'`
+:::::gameCell "\\Exp{\\textsf{prp}\\text{-}\\textsf{ideal}}{\\textsf{PRP}}(\\adv)" (kind := "compact")
+$`\begin{array}{l}
+\pi \sample \mathsf{Perm}(\mathcal X); \\
+b' \gets \adv^{\pi}; \\
+\Return b'
+\end{array}`
 :::::
 ::::::
 
@@ -93,3 +102,41 @@ noncomputable def prpAdvantage [SampleableType (Equiv.Perm X)]
 ```
 
 :::::::
+
+:::defTitle "prp_switching" "PRP/PRF switching"
+:::
+
+::::theorem "prp_switching" (parent := "prp") (lean := "PRPScheme.fixedQueryAdversary, PRPScheme.prfAdvantage_le_prpAdvantage_fixedQuery") (uses := "prp, prf")
+Adapted from {Informal.citet BR06}[], Lemma 1, for queries fixed in advance.
+
+Let $`P` be a PRP scheme on a finite block space $`\mathcal X` of $`N` blocks, and
+$`x_1, \ldots, x_q` distinct blocks. Let $`\mathcal B` be a PRF adversary that first queries
+its function oracle at $`x_1, \ldots, x_q` and then computes its output from the answers,
+with no further function-oracle query. Then the {bpref "prf"}[PRF advantage] and the
+{bpref "prp"}[PRP advantage] of $`\mathcal B` satisfy
+
+$$`\mathsf{Adv}^{\textsf{prf}}_{P}(\mathcal B)
+  \le \mathsf{Adv}^{\textsf{prp}}_{P}(\mathcal B) + \frac{q(q - 1)}{2N}.`
+
+Lemma 1 of {Informal.citet BR06}[] holds for every adversary that makes at most $`q` queries,
+adaptive ones included. Our statement covers only queries at blocks fixed in advance.
+
+:::leanPillCaption "adversary with fixed queries"
+:::
+
+```anchor fixedQueryAdversary (project := ".") (module := ToVCVio.CryptoFoundations.PRPSwitching)
+def fixedQueryAdversary {X : Type} (pts : List X) (tail : List X → ProbComp Bool) :
+    PRPAdversary X
+```
+
+:::leanPillCaption "switching bound"
+:::
+
+```anchor prfAdvantage_le_prpAdvantage_fixedQuery (project := ".") (module := ToVCVio.CryptoFoundations.PRPSwitching)
+theorem prfAdvantage_le_prpAdvantage_fixedQuery {K X : Type} [FinEnum X] [Nonempty X]
+    (prp : PRPScheme K X) (pts : List X) (hpts : pts.Nodup) (tail : List X → ProbComp Bool) :
+    (PRFScheme.prfAdvantage prp.toPRFScheme (fixedQueryAdversary pts tail)).toReal ≤
+      (prpAdvantage prp (fixedQueryAdversary pts tail)).toReal +
+      (pts.length * (pts.length - 1) : ℝ) / (2 * Fintype.card X)
+```
+::::
