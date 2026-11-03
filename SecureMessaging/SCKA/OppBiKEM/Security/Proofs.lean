@@ -15,45 +15,9 @@ games and notation used below. Each public theorem delegates to the lemma of the
 the namespace `Proofs`. The definitions live in their topic modules and are restated with
 `recall` in `Defs`.
 
-## Proof structure
+## Proof steps
 
 Paths are relative to `OppBiKEM/Security/`.
-
-**Notation.** Every game runs `adv` from the initial game state. It returns the adversary's
-output bit, or `false` if the run stops. The games at a target epoch `t` come in two *versions*
-`x ∈ {real, random}`: an eligible challenge at `t` returns the recorded key in `real` and an
-independent uniform key in `random`.
-
-- **`I_b`**, the *ideal game*: `G_b` without decapsulation. Each party's receive copies the
-  peer's recorded key for the received epoch instead of decapsulating
-  (`idealSecurityExp … b adv`, `IdealReceive`).
-- **`H_T`**, the *hybrid* with threshold `T`: the ideal game answering eligible challenges at
-  epochs below `T` with uniform keys and all others with recorded keys (`hybridExp … T adv`,
-  `Hybrid`). Let `p_T := Pr[H_T = true]`; then `H_0 = I_false`, and `p_T = Pr[I_true = true]`
-  for every `T > 2q` under the send bound.
-- **Exposure**: an epoch `t` is *exposed* once a permitted corruption or leaking send reveals
-  its secret key or coins (`Exposure`); the game then rejects challenges at `t`.
-- **`S_t^x`**, the *stopped hybrid*: the hybrids on either side of `t`, stopped at the first
-  query after which `t` is exposed. `S_t^real := stoppedHybridExp … t t adv` is the stopped
-  version of `H_t`, and `S_t^random := stoppedHybridExp … t (t + 1) adv` of `H_{t+1}`.
-  Both return `false` on stopping (`Cancellation`).
-- **`E_t^x(pk, sk, c, k, r)`**, the *eager hybrid*: `S_t^x` with the target's key pair
-  `(pk, sk)`, encapsulation `(c, k)` and uniform challenge key `r` drawn before the run and
-  looked up at the queries that would draw them (`stoppedEagerExp … t b pk sk c k r adv`, with
-  `b = true` for `random`, `Eager`).
-- **`Sim_t(pk, dummy, c, k*)`**, the *simulation*: the run of `adv` that `R_t` performs on the
-  challenge `(pk, c, k*)` with the placeholder secret `dummy` in place of the secret key it does
-  not have, stopped at the first exposure of `t` (`reductionRun` draws `dummy` from
-  `kem.keygen`; `Reduction`, `Simulation`).
-- **`R_t^x`**, the *fixed branch*: the IND-CPA experiment of `R_t` with the candidate key fixed
-  to the encapsulated key in `real` and to an independent uniform key in `random`
-  (`indCPAExpProb kem R_t true` and `… false`).
-
-Below, `(pk, sk) ← KeyGen`, `(c, k) ← Encaps(pk)` and `r ←$ K` are the target's values, and
-`k_real := k`, `k_random := r`. Steps 4 to 6 assume `t > 0`. The pointwise equality in step 5
-assumes `(pk, sk) ∈ support kem.keygen` and `(c, k) ∈ support (kem.encaps pk)`.
-
-**Proof steps.**
 
 1. *Correctness error* (`Invariant`, `Tracked`, `BadEvent`, `IdealReceive`, `Endpoints`).
    - The real and ideal oracles agree on every state satisfying the game invariant `GameInv`

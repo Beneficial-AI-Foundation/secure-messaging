@@ -11,16 +11,16 @@ import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
 /-!
 # Opp-BiKEM — Real-to-ideal endpoint
 
-**Setting.** Throughout this module, we consider:
+**Setting.** Throughout this module, we consider (as introduced in `Security`):
 
 - the Opp-BiKEM protocol (`scheme`) over a KEM `kem` with deterministic decapsulation and correct
   erasure codes `ecEk`, `ecCt`;
 - an SCKA security adversary `adv` making at most `q` ordinary or leaking send queries
   (`SecuritySendQueryBound adv q`);
-- the KEM correctness error `ε`, that is, `kem.correctnessError`.
+- the KEM correctness error `ε`, that is, `kem.correctnessError`;
 - for a challenge bit `b`, the *ideal game* `I_b` is the real game `G_b`
 (`SCKAScheme.securityExpFixedBit`) in which each party, upon receiving, outputs the peer's
-recorded key instead of decapsulating (`I_b := idealSecurityExp … b adv`, `IdealReceive`).
+recorded key instead of decapsulating (`I_b := idealSecurityExp … b adv`, `IdealReceive`)
 
 **Main result.** The real and ideal games differ in acceptance probability by at most the cumulative
 KEM correctness error over `q` sends: `|Pr[G_b = true] − Pr[I_b = true]| ≤ q · ε`
