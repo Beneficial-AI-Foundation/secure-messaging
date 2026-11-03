@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
+import SecureMessaging.SCKA.OppBiKEM.Security.Defs
 import SecureMessaging.SCKA.OppBiKEM.Security.Proofs
 
 /-!
@@ -59,7 +60,7 @@ size zero. Under the send bound, every recorded key has an epoch in `1, …, 2q`
 **Reduction.** A *reduction* constructs a KEM adversary from the SCKA adversary.
 For each fixed *target epoch* `t`, let `R_t := reduction … adv t`. This adversary embeds its
 KEM challenge in the key generation and encapsulation of epoch `t`, and runs a simulation of
-`adv` (`Defs`, explained in `Reduction`). The combined adversary `B := securityReduction … adv q`
+`adv` (`Reduction`). The combined adversary `B := securityReduction … adv q`
 chooses one target uniformly from `1, …, 2q` and runs that target's reduction once. For `q = 0`,
 it chooses target `1`.
 
@@ -68,10 +69,10 @@ it chooses target `1`.
 `AdvGuess_SCKA(scka, adv) ≤ q · ε + q · AdvINDCPA_KEM(kem, B)`.
 
 
-The proofs are in `Proofs`, whose module docstring gives the proof structure; the theorems here
-delegate to the lemmas of the same name in the namespace `Proofs`. Together with `Defs`, this
-module fixes what is proved: a change to a statement here or to a definition in `Defs` changes the
-meaning of the result, while the proof modules may change freely.
+The theorems here delegate to the lemmas of the same name in the namespace `Proofs`, whose
+module docstring gives the proof structure. `Defs` collects checked restatements of the
+definitions underlying these security statements. Their implementations live in the topic
+modules named there. Importing this module also checks those restatements.
 -/
 
 open OracleSpec OracleComp KEMScheme ENNReal

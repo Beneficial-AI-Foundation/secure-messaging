@@ -4,13 +4,13 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Security.Defs
+import SecureMessaging.SCKA.OppBiKEM.Security.Interface
 
 /-!
 # Opp-BiKEM — Exposure policy and leaking sends
 
-**Main results.** The exposure policy `exposure role leak` of Opp-BiKEM's security game
-(`Defs`) declares which epochs a corruption or an accepted leaking send exposes:
+This module defines the exposure policy `exposure role leak` of Opp-BiKEM's security game
+and proves which epochs a corruption or an accepted leaking send exposes:
 
 - a corruption of a party exposes the positive epochs whose secret keys it retains (`vuln`,
   `exposure_corrupt`, `mem_vuln_iff`);
@@ -19,7 +19,7 @@ import SecureMessaging.SCKA.OppBiKEM.Security.Defs
 
 The epochs exposed by a successful leaking send from a local state `st` depend on `st` alone:
 they are the epochs of the operations the send performs, decided by the guards
-`sendKeygenGuard` and `sendEncapsGuard` of `Defs` (`leakEpochs`, `sendWith_exposure`). Exposure
+`sendKeygenGuard` and `sendEncapsGuard` defined here (`leakEpochs`, `sendWith_exposure`). Exposure
 records which operations touched an epoch; it does not assert that the leaked coins reconstruct
 a secret, and the security oracle's acceptance guard is a separate condition.
 
@@ -32,6 +32,45 @@ open OracleSpec OracleComp KEMScheme
 namespace oppBiKemCKA
 
 variable {K PK SK C Sym : Type}
+
+/-- The epochs that an accepted leaking send marks as exposed in the security game.
+
+The set contains the positive key-generation and encapsulation epochs indicated by `rand`,
+computed from the sender's state `st` before the send. Membership does not assert that the
+leaked randomness reconstructs a key. -/
+def rleakEpochs {RK RE : Type} (role : Role)
+    (st : State PK SK C Sym) (rand : SendRand RK RE) : Finset ℕ :=
+  let keyEpoch := st.res.resEpoch + 2 + role.offset
+  let encEpoch := st.res.resEpoch + if rand.keygenRand.isSome then 2 else 0
+  let epochs : Finset ℤ :=
+    (if rand.keygenRand.isSome then {keyEpoch} else ∅) ∪
+    (if rand.encapsRand.isSome then {encEpoch} else ∅)
+  (epochs.filter fun e => 0 < e).image Int.toNat
+
+/-- Opp-BiKEM's exposure policy for the SCKA security game. It specifies which epochs must be
+excluded from key challenges after state corruption or leakage of send randomness. -/
+def exposure {kem : KEMScheme ProbComp K PK SK C}
+    (role : Role) (leak : kem.RandLeak) :
+    SCKAScheme.VulnerableEpochs (State PK SK C Sym)
+      (SendRand leak.KeygenRand leak.EncapsRand) where
+  corrupt := vuln
+  rleak := rleakEpochs role
+
+/-- Whether the send control flow generates a key pair and advances the responder epoch.
+This guard constrains the local public key and ciphertext acknowledgements. -/
+def sendKeygenGuard (role : Role) (st : State PK SK C Sym) : Bool :=
+  st.req.ek.isNone &&
+    decide (st.res.resEpoch ∈ st.ack.ctRec ∧
+      st.res.resEpoch + role.offset ∈ st.ack.ctRec)
+
+/-- The encapsulation control-flow guard, after any key-generation epoch advance and before
+peer-key lookup. It does not assert that the peer key exists or that the send succeeds. -/
+def sendEncapsGuard (role : Role) (st : State PK SK C Sym) : Bool :=
+  let tRes := st.res.resEpoch + if sendKeygenGuard role st then 2 else 0
+  decide (tRes + role.offset ∈ st.ack.ekRec) &&
+    decide (tRes ∉ st.ack.ctRec) &&
+    st.res.ct.isNone &&
+    decide (tRes ∈ st.ack.ekRec)
 
 /-- For either role and every local state, dropping the returned coins from the leaking-send
 engine gives the ordinary send computation, including effects preceding a failed send. -/

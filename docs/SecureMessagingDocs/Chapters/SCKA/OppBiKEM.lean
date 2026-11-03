@@ -519,7 +519,7 @@ zero.
 :::leanPillCaption "The constructed KEM adversary $`\\mathcal B`"
 :::
 
-```anchor securityReduction (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Security.Defs)
+```anchor securityReduction (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Security.Reduction)
 def securityReduction (adv : SecurityAdversary leak Sym) (q : ℕ) : kem.IND_CPA_Adversary where
   State := PK × ℕ
   preChallenge pk := do pure (pk, ← securityTargetChoice (2 * q))

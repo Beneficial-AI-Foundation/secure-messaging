@@ -5,11 +5,13 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.SCKA.OppBiKEM.Security.Cancellation
+import SecureMessaging.SCKA.OppBiKEM.Security.Injected
 
 /-!
 # Opp-BiKEM — The KEM reduction
 
-The definitions below are in `Defs`; this module records their basic laws.
+This module defines the fixed-target and combined IND-CPA adversaries and their pre- and
+post-challenge behavior. Their simulations use the oracle implementation from `Injected`.
 
 **Setting.** Fix a target epoch `t`. The IND-CPA adversary `R_t := reduction … adv t` against
 `kem` receives a public key `pkStar` and a challenge `(cStar, kStar)`, where `kStar` is either
@@ -33,13 +35,6 @@ The injected oracles answer as the ideal security game (`IdealReceive`), except:
 | eligible challenge at epoch `e`                | uniform if `e < t`, else the recorded key   |
 | corruption or leaking send exposing `t`        | stop with output `false`                    |
 
-In particular the challenge of `t` returns the recorded `kStar`. Whether a send generates the
-key pair of `t` or encapsulates for `t` is decided from the sender's state before the send, as
-`sendWith` decides its operations (`sendGeneratesTarget`, `sendEncapsulatesTarget`). Receives
-are ideal, so the placeholder secret is never read. The same injected oracles with the honest
-secret and the encapsulated key describe the hybrids with eagerly drawn samples (`Eager`), and
-the simulation theorem relating them to `R_t` is `prEvent_stoppedEagerExp_eq_reductionRun`
-(`Simulation`). Every definition is computable.
 
 The combined adversary `B := securityReduction … adv q` draws one target uniformly from
 `1, …, 2q` using `securityTargetChoice`, stores it with `pkStar`, and runs the same simulation:
@@ -61,34 +56,63 @@ namespace oppBiKemCKA
 
 variable {K PK SK C Sym : Type}
 
-section Injected
+section Reduction
 
 variable (kem : KEMScheme ProbComp K PK SK C)
 
-/-- With no injection at any send, the injected send is the ordinary send. -/
-lemma injectedSend_eq_send (role : Role) (ecEk : ErasureCodePayload PK Sym)
-    (ecCt : ErasureCodePayload C Sym) (t : ℕ) (inj : TargetInjection PK SK C K)
-    (st : State PK SK C Sym) (hgen : sendGeneratesTarget role t st = false)
-    (henc : sendEncapsulatesTarget role t st = false) :
-    injectedSend kem role ecEk ecCt t inj st = send role kem ecEk ecCt st := by
-  have henc' : injectedEncaps kem role t inj st =
-      (fun pk => (do let out ← kem.encaps pk; pure (out, ()))) := by
-    funext pk
-    simp only [injectedEncaps, henc, Bool.false_eq_true, ↓reduceIte]
-  simp only [injectedSend, injectedKeygen, hgen, Bool.false_eq_true, ↓reduceIte, henc', send]
+variable [DecidableEq K] [DecidableEq Sym]
+  (hDet : kem.DeterministicDecaps)
+  (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym) (leak : kem.RandLeak)
+
+variable [SampleableType K]
+
+/-- The reduction's simulation at target `t` for the KEM challenge `(pkStar, cStar, kStar)`: draw
+an independent key pair for the placeholder secret, then run the adversary against the injected
+oracles with selection `hybridRandom t`, stopping with output `false` once `t` is exposed. -/
+def reductionRun (adv : SecurityAdversary leak Sym) (t : ℕ) (pkStar : PK) (cStar : C)
+    (kStar : K) : ProbComp Bool := do
+  let (_, dummySk) ← kem.keygen
+  stoppedRun
+    (injectedSecurityImpl kem hDet ecEk ecCt leak t ⟨pkStar, dummySk, cStar, kStar⟩
+      (hybridRandom t))
+    (targetExposed t) adv (initState (K := K) (PK := PK) (SK := SK) (C := C) (Sym := Sym))
+
+/-- The IND-CPA reduction at target epoch `t`: it forwards the public key unchanged and runs
+`reductionRun` on the challenge. -/
+def reduction (adv : SecurityAdversary leak Sym) (t : ℕ) : kem.IND_CPA_Adversary where
+  State := PK
+  preChallenge := pure
+  postChallenge := fun pk c k => reductionRun kem hDet ecEk ecCt leak adv t pk c k
+
+/-- Choose uniformly from the positive epochs `1, …, n` when `n > 0`, and choose `1` when
+`n = 0`. The combined reduction calls this sampler with `n = 2 * q`. -/
+def securityTargetChoice (n : ℕ) : ProbComp ℕ :=
+  if hn : n = 0 then pure 1
+  else
+    letI : NeZero n := ⟨hn⟩
+    (fun i : Fin n => i.val + 1) <$> ($ᵗ (Fin n) : ProbComp (Fin n))
+
+/-- The combined IND-CPA reduction: choose a target uniformly from `1, …, 2q` before the
+challenge, retain it with the public key, and run that target's simulation on the challenge.
+For `q = 0`, the target is `1`. -/
+-- ANCHOR: securityReduction
+def securityReduction (adv : SecurityAdversary leak Sym) (q : ℕ) : kem.IND_CPA_Adversary where
+  State := PK × ℕ
+  preChallenge pk := do pure (pk, ← securityTargetChoice (2 * q))
+  postChallenge st c k := reductionRun kem hDet ecEk ecCt leak adv st.2 st.1 c k
+-- ANCHOR_END: securityReduction
+
+end Reduction
+
+section ReductionLemmas
+
+variable (kem : KEMScheme ProbComp K PK SK C)
 
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
   (hDet : kem.DeterministicDecaps)
   (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym) (leak : kem.RandLeak)
 
-/-- The injected oracles are the ideal-receive oracles of the injected scheme. -/
-lemma injectedSecurityImpl_eq (t : ℕ) (inj : TargetInjection PK SK C K) (random : ℕ → Bool) :
-    injectedSecurityImpl kem hDet ecEk ecCt leak t inj random =
-      idealRecvSecurityImpl kem hDet ecEk ecCt leak (injectedScheme kem hDet ecEk ecCt leak t inj)
-        random :=
-  rfl
-
-/-- The reduction does nothing before the challenge. -/
+/-- The reduction's pre-challenge phase returns the given public key. -/
 @[simp] lemma reduction_preChallenge (adv : SecurityAdversary leak Sym) (t : ℕ) (pk : PK) :
     (reduction kem hDet ecEk ecCt leak adv t).preChallenge pk = pure pk := rfl
 
@@ -98,6 +122,6 @@ lemma injectedSecurityImpl_eq (t : ℕ) (inj : TargetInjection PK SK C K) (rando
     (reduction kem hDet ecEk ecCt leak adv t).postChallenge pk c k =
       reductionRun kem hDet ecEk ecCt leak adv t pk c k := rfl
 
-end Injected
+end ReductionLemmas
 
 end oppBiKemCKA

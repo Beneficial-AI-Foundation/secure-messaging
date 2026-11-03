@@ -10,10 +10,10 @@ import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
 /-!
 # Opp-BiKEM — Security proofs
 
-The proofs of the theorems stated in `Security`, whose module docstring fixes the setting, the
-games and the notation used below. Each headline theorem there is proved by the lemma of the
-same name in the namespace `Proofs`; this module may change freely, `Security` only when a
-delegation changes.
+This module proves the theorems stated in `Security`, whose module docstring gives the setting,
+games and notation used below. Each public theorem delegates to the lemma of the same name in
+the namespace `Proofs`. The definitions live in their topic modules and are restated with
+`recall` in `Defs`.
 
 ## Proof structure
 
@@ -82,7 +82,7 @@ assumes `(pk, sk) ∈ support kem.keygen` and `(c, k) ∈ support (kem.encaps pk
    Main result: `p_{t+1} − p_t = Pr[S_t^random = true] − Pr[S_t^real = true]`
    (`hybridExp_sub_eq_stopped_sub`).
 
-4. *Eager sampling* (`Reduction`, `Injected`, `Eager`).
+4. *Eager sampling* (`Injected`, `Eager`).
    - `S_t^x` draws the target's key pair at the owner's generating send, the encapsulation at
      the peer's encapsulating send and, in `random`, the challenge key at the challenge of `t`;
      `E_t^x` holds them from the start. Each sample is consumed by at most one query.
@@ -118,7 +118,7 @@ assumes `(pk, sk) ∈ support kem.keygen` and `(c, k) ∈ support (kem.encaps pk
    - Substituting `δ t := AdvINDCPA_KEM(kem, R_t)` for `t > 0` and `δ 0 := 0` into step 2 gives
      `security_positive`.
 
-7. *One combined reduction* (`Defs`, this module).
+7. *One combined reduction* (`Reduction`, this module).
    - `B := securityReduction … adv q` chooses `t` uniformly from `1, …, 2q` and runs `R_t`.
      For `q > 0`, its fixed-branch acceptance probabilities are the corresponding averages
      (`securityReduction_acceptance_average`). Averaging the signed identity in step 6
@@ -140,9 +140,9 @@ The family bound `security_positive` instead applies the triangle inequality to 
 chain and sums the absolute per-target gaps. Signed averaging proves the bound for `B`
 without that additional inequality.
 
-Supporting modules: `Defs` (every definition the statements of the theorems depend on),
-`Basic` (send budget), `Exposure` (exposure policy), `SCKA.Security` (generic oracle facts),
-ToVCVio (sampling, stopping, identical-until-bad).
+Supporting modules: `Interface` (oracle interface and send budget), `Exposure` (exposure policy),
+`SCKA.Security` (generic oracle facts), and ToVCVio (sampling, stopping, identical-until-bad).
+`Defs` collects checked restatements of the definitions underlying the public security results.
 -/
 
 open OracleSpec OracleComp KEMScheme ENNReal

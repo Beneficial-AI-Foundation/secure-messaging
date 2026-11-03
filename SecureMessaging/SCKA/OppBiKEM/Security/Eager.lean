@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
+import SecureMessaging.SCKA.OppBiKEM.Security.Cancellation
 import SecureMessaging.SCKA.OppBiKEM.Security.Injected
 import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 import ToVCVio.EvalDist.Monad.Basic
@@ -21,7 +22,7 @@ E_t^x(pk, sk, c, k, r) := stoppedEagerExp … t b pk sk c k r adv
 ```
 
 holds all three from the start: it runs `adv` against the injected oracles with injection
-`⟨pk, sk, c, k⟩` (`Reduction`), whose challenge of `t` answers `r` in `random` (`eagerAnswer`,
+`⟨pk, sk, c, k⟩` (`Injected`), whose challenge of `t` answers `r` in `random` (`eagerAnswer`,
 `eagerSecurityImpl`), stopped at the first exposure of `t`. The IND-CPA experiment draws the key
 pair and the encapsulation, correlated, before the reduction's simulation starts; the reduction
 receives `pk`, `c` and a candidate key, never `sk` (`Simulation`).

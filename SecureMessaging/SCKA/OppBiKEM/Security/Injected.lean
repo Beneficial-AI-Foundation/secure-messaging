@@ -4,18 +4,21 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Security.Reduction
+import SecureMessaging.SCKA.OppBiKEM.Security.IdealReceive
 
 /-!
-# Opp-BiKEM — The injected-state invariant
+# Opp-BiKEM — Target injection and its invariant
 
-**Setting.** Fix a target epoch `t > 0` and a *supported honest injection*: a key pair
+This module defines the injected oracles used by the eager hybrids and the KEM reduction.
+An injection `TargetInjection` fixes the public key, stored secret, ciphertext and recorded key
+at a target epoch `t`.
+The ordinary sends of `injectedSecurityImpl t ⟨pk, sk, c, k⟩ random` use `(pk, sk)` when
+generating `t`'s key pair and `(c, k)` when encapsulating for `t`. Receives are ideal, and
+`random` selects which eligible challenges receive uniform keys.
+
+**Setting for the invariant.** Fix `t > 0` and a *supported honest injection*: a key pair
 `(pk, sk) ∈ support kem.keygen` and an encapsulation `(c, k) ∈ support (kem.encaps pk)`.
-The injection determines values sampled upfront, which will be used once the algorithms needs to
-generate key or encapsulate.
-Concretely, the injected oracles `injectedSecurityImpl t ⟨pk, sk, c, k⟩ random` (`Reduction`) are the ideal
-security oracles whose ordinary sends return `(pk, sk)` at the generation of `t`'s key pair and
-`(c, k)` at the encapsulation for `t`, for any challenge selection `random`.
+These values could have been drawn by the honest KEM operations at their usual send queries.
 
 **Main result** (`injectedSecurityImpl_preservesInv_continuing`). With correct erasure codes,
 every injected query keeps the *injected-state invariant* `InjInv ⟨pk, sk, c, k⟩` on every
@@ -38,6 +41,126 @@ open OracleSpec OracleComp KEMScheme
 namespace oppBiKemCKA
 
 variable {K PK SK C Sym : Type}
+
+/-! ## Injected oracles -/
+
+/-- Whether a send by `role` from `st` generates the key pair of key epoch `t`: the
+key-generation guard holds and the new key epoch is `t`. -/
+def sendGeneratesTarget (role : Role) (t : ℕ) (st : State PK SK C Sym) : Bool :=
+  sendKeygenGuard role st && decide (st.res.resEpoch + 2 + role.offset = (t : ℤ))
+
+/-- Whether a send by `role` from `st` encapsulates for epoch `t`: the encapsulation guard holds
+and the responder epoch after any key-generation advance is `t`. -/
+def sendEncapsulatesTarget (role : Role) (t : ℕ) (st : State PK SK C Sym) : Bool :=
+  sendEncapsGuard role st &&
+    decide (st.res.resEpoch + (if sendKeygenGuard role st then 2 else 0) = (t : ℤ))
+
+/-- The values injected at the target epoch: the public key and secret of its key pair, and the
+ciphertext and key of its encapsulation. -/
+structure TargetInjection (PK SK C K : Type) where
+  /-- The target epoch's public key. -/
+  pk : PK
+  /-- The secret stored for the target epoch. -/
+  sk : SK
+  /-- The target epoch's ciphertext. -/
+  ct : C
+  /-- The key recorded for the target epoch at encapsulation. -/
+  key : K
+
+section Injected
+
+variable (kem : KEMScheme ProbComp K PK SK C)
+
+/-- Key generation of an injected send from `st`: the injected pair if this send generates the
+target's key pair, honest key generation otherwise. -/
+def injectedKeygen (role : Role) (t : ℕ) (inj : TargetInjection PK SK C K)
+    (st : State PK SK C Sym) : ProbComp ((PK × SK) × Unit) :=
+  if sendGeneratesTarget role t st then pure ((inj.pk, inj.sk), ())
+  else do let keys ← kem.keygen; pure (keys, ())
+
+/-- Encapsulation of an injected send from `st`: the injected ciphertext and key if this send
+encapsulates for the target epoch, honest encapsulation to the given public key otherwise. -/
+def injectedEncaps (role : Role) (t : ℕ) (inj : TargetInjection PK SK C K)
+    (st : State PK SK C Sym) (pk : PK) : ProbComp ((C × K) × Unit) :=
+  if sendEncapsulatesTarget role t st then pure ((inj.ct, inj.key), ())
+  else do let out ← kem.encaps pk; pure (out, ())
+
+/-- The ordinary send with the target epoch's key generation and encapsulation replaced by the
+injected values; the operations performed are decided from the initial state as in `sendWith`. -/
+def injectedSend (role : Role) (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
+    (t : ℕ) (inj : TargetInjection PK SK C K) (st : State PK SK C Sym) :
+    ProbComp (Option (Option (ℕ × K) × Message Sym × ℕ × State PK SK C Sym)) := do
+  let out ← sendWith role (injectedKeygen kem role t inj st) (injectedEncaps kem role t inj st)
+    ecEk ecCt st
+  pure (out.map fun (key?, ρ, epoch, st', _) => (key?, ρ, epoch, st'))
+
+variable [DecidableEq K] [DecidableEq Sym]
+  (hDet : kem.DeterministicDecaps)
+  (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym) (leak : kem.RandLeak)
+
+/-- The Opp-BiKEM scheme with both ordinary sends injected at target epoch `t`. Leaking sends and
+receives are those of `scheme`. -/
+def injectedScheme (t : ℕ) (inj : TargetInjection PK SK C K) :
+    SCKAScheme ProbComp Unit (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)
+      (SendRand leak.KeygenRand leak.EncapsRand) :=
+  { scheme kem hDet ecEk ecCt leak with
+      sendA := injectedSend kem .A ecEk ecCt t inj
+      sendB := injectedSend kem .B ecEk ecCt t inj }
+
+/-- The injected correctness oracles: uniform sampling, the injected ordinary sends and the ideal
+receives. -/
+def injectedCorrectnessImpl (t : ℕ) (inj : TargetInjection PK SK C K) :
+    QueryImpl (SCKAScheme.sckaCorrectnessSpec (Message Sym))
+      (StateT (SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
+        ProbComp) :=
+  SCKAScheme.oracleUnif (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)
+    + SCKAScheme.oracleSendA (injectedScheme kem hDet ecEk ecCt leak t inj)
+    + SCKAScheme.oracleSendB (injectedScheme kem hDet ecEk ecCt leak t inj)
+    + oracleRecvAIdeal kem hDet ecEk ecCt leak + oracleRecvBIdeal kem hDet ecEk ecCt leak
+
+variable [SampleableType K]
+
+/-- The injected security oracles with challenge selection `random`: `securityImplOf` over the
+injected correctness oracles, with the Opp-BiKEM exposure policy and the honest leaking sends
+and corruptions of `scheme`. -/
+def injectedSecurityImpl (t : ℕ) (inj : TargetInjection PK SK C K) (random : ℕ → Bool) :
+    QueryImpl (securitySpec leak Sym)
+      (StateT (SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
+        ProbComp) :=
+  SCKAScheme.securityImplOf (injectedCorrectnessImpl kem hDet ecEk ecCt leak t inj)
+    (SCKAScheme.oracleChallOn random _ _ _ _) (exposure .A leak) (exposure .B leak)
+    (scheme kem hDet ecEk ecCt leak)
+
+end Injected
+
+section InjectedLemmas
+
+variable (kem : KEMScheme ProbComp K PK SK C)
+
+/-- When both target guards are false at `st`, the injected send equals the ordinary send. -/
+lemma injectedSend_eq_send (role : Role) (ecEk : ErasureCodePayload PK Sym)
+    (ecCt : ErasureCodePayload C Sym) (t : ℕ) (inj : TargetInjection PK SK C K)
+    (st : State PK SK C Sym) (hgen : sendGeneratesTarget role t st = false)
+    (henc : sendEncapsulatesTarget role t st = false) :
+    injectedSend kem role ecEk ecCt t inj st = send role kem ecEk ecCt st := by
+  have henc' : injectedEncaps kem role t inj st =
+      (fun pk => (do let out ← kem.encaps pk; pure (out, ()))) := by
+    funext pk
+    simp only [injectedEncaps, henc, Bool.false_eq_true, ↓reduceIte]
+  simp only [injectedSend, injectedKeygen, hgen, Bool.false_eq_true, ↓reduceIte, henc', send]
+
+variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
+  (hDet : kem.DeterministicDecaps)
+  (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym) (leak : kem.RandLeak)
+
+/-- The injected oracles are the ideal-receive oracles of the injected scheme. -/
+lemma injectedSecurityImpl_eq (t : ℕ) (inj : TargetInjection PK SK C K) (random : ℕ → Bool) :
+    injectedSecurityImpl kem hDet ecEk ecCt leak t inj random =
+      idealRecvSecurityImpl kem hDet ecEk ecCt leak (injectedScheme kem hDet ecEk ecCt leak t inj)
+        random :=
+  rfl
+
+end InjectedLemmas
 
 /-! ## One `sendWith` step with arbitrary samplers -/
 

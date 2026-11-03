@@ -5,6 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.SCKA.OppBiKEM.Security.Eager
+import SecureMessaging.SCKA.OppBiKEM.Security.Reduction
 
 /-!
 # Opp-BiKEM — The eager hybrid is the reduction's simulation
@@ -12,7 +13,7 @@ import SecureMessaging.SCKA.OppBiKEM.Security.Eager
 **Setting.** Fix a target epoch `t > 0`, a version `x ∈ {real, random}` (`b = true` for
 `random`), a supported key pair `(pk, sk)` and encapsulation `(c, kReal)`, a uniform key `kRand`
 and a placeholder secret `dummy`. Write `k_real := kReal` and `k_random := kRand`. Both
-experiments below run `adv` from the initial state against injected oracles (`Reduction`)
+experiments below run `adv` from the initial state against injected oracles (`Injected`)
 stopped at the first exposure of `t`, and differ only in what the game state holds at `t`:
 
 - the eager hybrid `E_t^x(pk, sk, c, kReal, kRand)` (`stoppedEagerExp`, `Eager`) stores the
@@ -20,7 +21,8 @@ stopped at the first exposure of `t`, and differ only in what the game state hol
   `eagerAnswer`;
 - the simulation `Sim_t(pk, dummy, c, k_x)`, the run of `adv` performed by the reduction on the
   challenge `(pk, c, k_x)` with placeholder `dummy` (`reductionRun` draws `dummy` from
-  `kem.keygen`), stores `dummy` and records `k_x`, answering the challenge of `t` from the table.
+  `kem.keygen`, `Reduction`), stores `dummy` and records `k_x`, answering the challenge of `t`
+  from the table.
 
 The *state map* `targetStateMap t dummy k_x` replaces the retained secret at `t` by `dummy` in
 both parties' states and the table entries at `t` by `k_x`.
