@@ -90,8 +90,34 @@ structure ErasureCodePayload (M Sym : Type) where
 :::defTitle "erasure_code_streaming" "Stateful erasure-code streaming"
 :::
 
-::::definition "erasure_code_streaming" (parent := "erasure_codes") (lean := "ErasureCodePayload.Streaming.EncoderState, ErasureCodePayload.Streaming.EncoderState.init, ErasureCodePayload.Streaming.EncoderState.nextChunk, ErasureCodePayload.Streaming.DecoderState, ErasureCodePayload.Streaming.DecoderState.empty, ErasureCodePayload.Streaming.DecoderState.addChunk, ErasureCodePayload.Streaming.DecoderState.decodedPayload, ErasureCodePayload.Streaming.DecoderState.hasMessage") (tags := "gh-251") (uses := "erasure_code_payload")
-$`\todo`
+:::::::definition "erasure_code_streaming" (parent := "erasure_codes") (lean := "ErasureCodePayload.Streaming.EncoderState, ErasureCodePayload.Streaming.EncoderState.init, ErasureCodePayload.Streaming.EncoderState.nextChunk, ErasureCodePayload.Streaming.DecoderState, ErasureCodePayload.Streaming.DecoderState.empty, ErasureCodePayload.Streaming.DecoderState.addChunk, ErasureCodePayload.Streaming.DecoderState.decodedPayload, ErasureCodePayload.Streaming.DecoderState.hasMessage") (tags := "gh-251") (uses := "erasure_code_payload")
+Let $`\mathsf{Code}_X` be an {bpref "erasure_code_payload"}[erasure-code payload] over a symbol
+alphabet $`\Sigma`, with payload space $`Y_X` and chunk encoding
+$`\Encode_X:Y_X\times\mathbb N\to\mathbb N\times\Sigma`, giving the indexed chunk of a payload.
+Its *stateful streaming* sends a payload $`y\in Y_X` as a sequence of chunks
+$`\chunk\in\mathbb N\times\Sigma` and recovers $`y` from the chunks received, with the encoder
+and decoder below.
+
+:::::gameGrid
+::::gameCell "\\textsf{Encoder}" (kind := "compact") (open := true)
+$`\begin{array}{l}
+\eta=(y,i)\in Y_X\times\mathbb N\\
+\mathsf{Enc}_X(y)=(y,0)\\
+\mathsf{Next}(y,i)=(\Encode_X(y,i),(y,i+1))
+\end{array}`
+::::
+::::gameCell "\\textsf{Decoder}" (kind := "compact") (open := true)
+$`\begin{array}{l}
+\delta\subseteq\mathbb N\times\Sigma\\
+\mathsf{Empty}_X=\emptyset\\
+\mathsf{Add}(\delta,(j,s))=\begin{cases}
+\delta&\text{if }(j,s')\in\delta\text{ for some }s'\\
+\delta\cup\{(j,s)\}&\text{otherwise}
+\end{cases}\\
+\mathsf{Decode}(\delta)\in Y_X\cup\{\bot\}\pcomment{\text{payload recovered by }\mathsf{Code}_X}
+\end{array}`
+::::
+:::::
 
 :::leanPillCaption "configured endpoint states"
 :::
@@ -172,7 +198,7 @@ def decodedPayload (state : DecoderState M Sym) : Option M :=
 def hasMessage (state : DecoderState M Sym) : Bool :=
   state.decodedPayload.isSome
 ```
-::::
+:::::::
 
 :::defTitle "erasure_code_correctness" "Erasure code correctness"
 :::

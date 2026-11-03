@@ -296,6 +296,112 @@ def smDocsCss : String := r#"
   }
 }
 
+/* Keep the epoch diagram at its designed scale on wide pages. */
+.diagram > svg.spqr-epoch {
+  max-width: 640px;
+  margin-inline: auto;
+}
+
+/* Keep the state diagram at its designed scale on wide pages. */
+.diagram > svg.spqr-states {
+  max-width: 1080px;
+  margin-inline: auto;
+}
+
+/* These definitions pair short algorithms according to the available content width. */
+:is(#--informal-preview-spqr_parameters--statement,
+    #--informal-preview-spqr_chunked_scheme--statement,
+    #--informal-preview-spqr_protocol_spec--statement,
+    #--informal-preview-incremental_kem_det--statement) {
+  container-type: inline-size;
+  container-name: spqr-protocol;
+}
+:is(#--informal-preview-spqr_parameters--statement,
+    #--informal-preview-spqr_chunked_scheme--statement,
+    #--informal-preview-spqr_protocol_spec--statement,
+    #--informal-preview-incremental_kem_det--statement) .game-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+#--informal-preview-spqr_chunked_scheme--statement .game-cell,
+#--informal-preview-spqr_chunked_spec--statement {
+  scroll-margin-top: 4rem;
+}
+@container spqr-protocol (min-width: 31rem) {
+  :is(#--informal-preview-spqr_parameters--statement,
+      #--informal-preview-spqr_chunked_scheme--statement,
+      #--informal-preview-spqr_protocol_spec--statement,
+    #--informal-preview-incremental_kem_det--statement) .game-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+:is(#--informal-preview-spqr_parameters--statement,
+    #--informal-preview-spqr_chunked_scheme--statement,
+    #--informal-preview-spqr_protocol_spec--statement,
+    #--informal-preview-incremental_kem_det--statement) .game-grid .game-cell-body > p {
+  max-width: 100%;
+  overflow-x: auto;
+}
+@container spqr-protocol (max-width: 48rem) {
+  :is(#--informal-preview-spqr_parameters--statement,
+      #--informal-preview-spqr_chunked_scheme--statement,
+      #--informal-preview-spqr_protocol_spec--statement,
+    #--informal-preview-incremental_kem_det--statement) .game-grid .katex {
+    font-size: 1em;
+  }
+}
+#--informal-preview-spqr_chunked_scheme--statement .game-cell-header {
+  flex-wrap: wrap;
+}
+
+/* Send and Receive sit beside the helper boxes they call: the transition in the left column,
+   spanning the rows of its helpers, which stack in the right column. The math takes the size of
+   the narrow layout so the longest pseudocode rows fit the column. */
+@container spqr-protocol (min-width: 48rem) {
+  .game-grid:has(> #spqr-send),
+  .game-grid:has(> #spqr-receive) {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 3fr);
+  }
+  /* The helper panel sizes to its content; a trailing flexible row takes the height the
+     transition has beyond it, so the panel stays at the top. */
+  .game-grid:has(> #spqr-send),
+  .game-grid:has(> #spqr-receive) {
+    grid-template-rows: max-content 1fr;
+  }
+  #spqr-send,
+  #spqr-receive {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+  #spqr-send ~ .game-cell,
+  #spqr-receive ~ .game-cell {
+    grid-column: 2;
+  }
+  .game-grid:has(> #spqr-send) .katex,
+  .game-grid:has(> #spqr-receive) .katex {
+    font-size: 1em;
+  }
+}
+
+/* Keep wide tables and unbroken state names inside their own scrollers. The relative
+   position also contains KaTeX's absolutely positioned MathML, which would otherwise widen the
+   page when a formula starts beyond the right edge. */
+#spqr-states table.tabular,
+#--informal-preview-spqr_protocol_spec--statement table.tabular {
+  display: block;
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+}
+#spqr-states table.tabular :is(th, td) {
+  vertical-align: top;
+}
+/* The epoch chart scrolls rather than widening the page on narrow windows. */
+#spqr-states .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
 /* Centre the communication diagram while retaining readable math on narrow screens. */
 .game-cell[data-kind="scheme-diagram"] .katex-display > .katex {
   width: max-content;
@@ -675,7 +781,7 @@ def smDocsJs : String := r#"
         marker.remove();
         return;
       }
-      var wrapper = document.querySelector('[title="' + CSS.escape(label) + '"]');
+      var wrapper = document.querySelector('.bp_wrapper[title="' + CSS.escape(label) + '"]');
       var row = wrapper && wrapper.querySelector(".bp_heading .bp_heading_title_row_statement");
       if (row && !row.querySelector(".bp-heading-display-title")) {
         var titleSpan = document.createElement("span");
@@ -811,10 +917,11 @@ def smDocsJs : String := r#"
       header.insertBefore(caret, header.firstChild);
       header.setAttribute("role", "button");
       header.setAttribute("tabindex", "0");
-      // Folded by default: only the header is visible until the user opens it.
-      body.hidden = true;
-      cell.classList.remove("is-open");
-      header.setAttribute("aria-expanded", "false");
+      // Cells opt into an expanded body; the default remains folded.
+      var initiallyOpen = cell.getAttribute("data-open") === "true";
+      body.hidden = !initiallyOpen;
+      cell.classList.toggle("is-open", initiallyOpen);
+      header.setAttribute("aria-expanded", initiallyOpen ? "true" : "false");
       function toggle() {
         var open = body.hidden;
         body.hidden = !open;
@@ -862,12 +969,17 @@ def smDocsJs : String := r#"
     }
     window.requestAnimationFrame(function () {
       if (window.location.hash === hash) {
-        // Section links align at the top; Verso's scroll margin clears the header.
-        // Keep individual declarations centered after opening their disclosures.
+        // Keep section and SPQR panel/table headings visible; declarations stay centered.
         var isSection = target.matches("h1, h2, h3, h4, h5, h6") ||
           (target.tagName === "SECTION" &&
             target.querySelector(":scope > :is(h1, h2, h3, h4, h5, h6)"));
-        target.scrollIntoView({ block: isSection ? "start" : "center", inline: "nearest" });
+        var isSpqrBlock = target.matches(".game-cell, table.tabular") &&
+          target.closest('#--informal-preview-spqr_chunked_scheme--statement') !== null;
+        target.scrollIntoView({
+          block: isSection || isSpqrBlock ? "start" : "center", inline: "nearest",
+          // Cancel Blueprint's concurrent smooth centering for these large targets.
+          behavior: isSpqrBlock ? "instant" : "auto"
+        });
       }
     });
   }

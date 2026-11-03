@@ -41,6 +41,28 @@ ML-KEM Braid ({Informal.citet MLKEM_Braid}[]).
 :::
 
 ::::definition "mlkem_braid_ratcheted_authenticator" (parent := "cka_protocols_mlkem_braid") (lean := "RatchetedAuthenticator") (tags := "gh-245") (uses := "scka_scheme")
+A *ratcheted authenticator* $`\mathsf{Auth}` is a stateful message authentication code for headers and
+ciphertexts whose state is initialized from an initial key and updated with the epoch key of each
+epoch. For an initial-key space $`\mathcal I_{\mathsf{CKA}}`, an epoch-key space $`E`, a header space
+$`H`, a ciphertext space $`C`, and a tag space $`T`, it consists of a state space
+$`\mathcal S_{\mathsf{Auth}}` and the following algorithms:
+
+- $`\mathsf{Init}:\mathcal I_{\mathsf{CKA}}\times\mathbb N\to\mathcal S_{\mathsf{Auth}}`, the initial state
+  for an initial key and an epoch;
+- $`\mathsf{Update}:\mathcal S_{\mathsf{Auth}}\times\mathbb N\times E\to\mathcal S_{\mathsf{Auth}}`, the state
+  updated with the epoch key of an epoch;
+- $`\mathsf{Tag}_H:\mathcal S_{\mathsf{Auth}}\times\mathbb N\times H\to T` and
+  $`\mathsf{Verify}_H:\mathcal S_{\mathsf{Auth}}\times\mathbb N\times H\times T\to\{\mathsf{true},\mathsf{false}\}`,
+  computing and verifying the tag of a header at an epoch;
+- $`\mathsf{Tag}_C:\mathcal S_{\mathsf{Auth}}\times\mathbb N\times C\to T` and
+  $`\mathsf{Verify}_C:\mathcal S_{\mathsf{Auth}}\times\mathbb N\times C\times T\to\{\mathsf{true},\mathsf{false}\}`,
+  computing and verifying the tag of a ciphertext at an epoch,
+
+satisfying the correctness condition that, for all $`s\in\mathcal S_{\mathsf{Auth}}`, $`\mathsf{ep}\in\mathbb N`,
+$`h\in H`, and $`c\in C`,
+
+$$`\mathsf{Verify}_H(s,\mathsf{ep},h,\mathsf{Tag}_H(s,\mathsf{ep},h))
+  =\mathsf{Verify}_C(s,\mathsf{ep},c,\mathsf{Tag}_C(s,\mathsf{ep},c))=\mathsf{true}.`
 
 :::leanPillCaption "ratcheted authenticator interface"
 :::

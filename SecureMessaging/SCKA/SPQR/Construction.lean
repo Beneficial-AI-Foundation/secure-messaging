@@ -43,11 +43,13 @@ def sendRleak (P : Parameters m)
 -- ANCHOR_END: SPQR_sendRleak
 
 /-- The send transition with its sampled coins discarded. -/
+-- ANCHOR: SPQR_send
 def send (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : PartyState P AuthState) : m (SendResult P AuthState) :=
   Prod.fst <$> sendRleak P auth st
+-- ANCHOR_END: SPQR_send
 
 /-- Discarding the disclosed randomness gives the ordinary send. -/
 theorem send_eq_map_sendRleak (P : Parameters m)

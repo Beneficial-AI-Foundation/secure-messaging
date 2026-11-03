@@ -35,8 +35,32 @@ Incremental Key Encapsulation Mechanism (Incremental KEM).
 :::defTitle "incremental_kem_scheme" "Incremental KEM scheme"
 :::
 
-::::definition "incremental_kem_scheme" (parent := "incremental_kem") (lean := "KEMScheme.IncrementalStructure") (tags := "gh-224")
-$`\todo`
+:::::::definition "incremental_kem_scheme" (parent := "incremental_kem") (lean := "KEMScheme.IncrementalStructure") (tags := "gh-224") (uses := "kem_scheme")
+Adapted from {Informal.citet MLKEM_Braid}[], Section 1.2.
+
+An *incremental KEM* is a {bpref "kem_scheme"}[KEM] with public-key space $`\mathsf{PK}`,
+secret-key space $`\mathsf{SK}`, shared-key space $`K`, ciphertext space $`C`, and algorithms
+$`(\mathsf{KeyGen},\mathsf{Encaps},\mathsf{Decaps})` for which there exist
+
+- a header space $`H`, a vector space $`V`, and a validity predicate
+  $`\mathsf{Valid}:H\times V\to\{\mathsf{true},\mathsf{false}\}` such that
+  $`\mathsf{PK}\simeq\{(h,v)\in H\times V\mid\mathsf{Valid}(h,v)\}`, so that every public key has
+  the form $`pk=(h,v)`;
+- component spaces $`C_1` and $`C_2` such that $`C\simeq C_1\times C_2`, so that every ciphertext
+  has the form $`c=(c_1,c_2)`;
+- a state space $`S` and randomized algorithms $`\mathsf{Encaps}_1:H\to S\times C_1\times K` and
+  $`\mathsf{Encaps}_2:S\times H\times V\to C_2` such that for every $`pk\in\mathsf{PK}`,
+  $`\mathsf{Encaps}(pk)` is equal, as a computation, to the staged encapsulation below.
+
+$$`
+\begin{array}{l}
+\mathsf{Encaps}(pk):\\
+\quad(h,v)\gets pk\\
+\quad(\sigma,c_1,k)\gets\mathsf{Encaps}_1(h)\\
+\quad c_2\gets\mathsf{Encaps}_2(\sigma,h,v)\\
+\quad\Return((c_1,c_2),k)
+\end{array}
+`
 
 :::leanPillCaption "incremental KEM interface"
 :::
@@ -71,23 +95,37 @@ structure IncrementalStructure (kem : KEMScheme m K PK SK C) where
     let c2 ← encaps2 st hdr vec
     pure (splitC.symm (c1, c2), k))
 ```
-
-::::
+:::::::
 
 :::defTitle "incremental_kem_det" "Incremental KEM with explicit coins"
 :::
 
-::::definition "incremental_kem_det" (parent := "incremental_kem") (lean := "KEMScheme.IncrementalKEMDet, MLKEM.mlkemIncrementalDet") (tags := "gh-224") (uses := "incremental_kem_scheme, ml_kem_scheme")
-An incremental KEM with explicit coins consists of deterministic key generation,
-first- and second-stage encapsulation, and decapsulation, together with samplers for
-key-generation and first-stage coins. Decapsulation may reject. The protocol draws the coins
-and supplies them to the corresponding deterministic block.
+:::::::definition "incremental_kem_det" (parent := "incremental_kem") (lean := "KEMScheme.IncrementalKEMDet, MLKEM.mlkemIncrementalDet") (tags := "gh-224") (uses := "incremental_kem_scheme, ml_kem_scheme")
+An *incremental KEM with explicit coins* is an {bpref "incremental_kem_scheme"}[incremental KEM]
+with header space $`H`, vector space $`V`, state space $`S`, and algorithms
+$`\mathsf{KeyGen}`, $`\mathsf{Encaps}_1`, $`\mathsf{Encaps}_2`, $`\mathsf{Decaps}` for which
+there exist coin spaces $`R_K` and $`R_1` with distributions $`\mathcal D_K` on $`R_K` and
+$`\mathcal D_1` on $`R_1` such that
 
-The derived KEM runs these blocks with their samplers. Its incremental witness factors
-encapsulation into the two stages. Its leakage witness returns the sampled coins, with no
-randomness in the second stage.
+- $`\mathsf{KeyGen}` and $`\mathsf{Encaps}_1` are deterministic given their coins, written
+  $`\mathsf{KeyGen}(;r_K)\to(pk,sk)` for $`r_K\in R_K` and
+  $`\mathsf{Encaps}_1(h;r_1)\to(\sigma,c_1,k)` for a header $`h\in H` and $`r_1\in R_1`;
+- $`\mathsf{Encaps}_2(\sigma,h,v)\to c_2` and $`\mathsf{Decaps}(sk,c)\to k` are deterministic,
+  with $`\bot` on rejection;
+- $`\mathsf{KeyGen}()` and $`\mathsf{Encaps}_1(h)` draw the coins and run the deterministic
+  algorithm on them, as below.
 
-:::leanPillCaption "deterministic blocks and coin samplers"
+$$`
+\begin{array}{l}
+\mathsf{KeyGen}():\quad r_K\sample\mathcal D_K;\quad\Return\mathsf{KeyGen}(;r_K)\\
+\mathsf{Encaps}_1(h):\quad r_1\sample\mathcal D_1;\quad\Return\mathsf{Encaps}_1(h;r_1)
+\end{array}
+`
+
+Its randomness-leaking variants return $`r_K` and $`r_1` and nothing for the second stage. A
+protocol may instead draw the coins at its own sending steps.
+
+:::leanPillCaption "algorithms with explicit coins and coin samplers"
 :::
 
 ```anchor IncrementalKEMDet (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.Derandomized)
@@ -126,12 +164,14 @@ structure IncrementalKEMDet (m : Type → Type u) (K PK SK C : Type) where
   sampleEncaps1 : m Encaps1Rand
 ```
 
-For ML-KEM, key generation draws one uniformly distributed 64-byte seed and splits it into
-$`d` and $`z`, in that order. First-stage encapsulation draws one uniformly distributed
-32-byte message. Splitting the key-generation seed has the same distribution as independently
-sampling $`d` and $`z` in the existing ML-KEM scheme.
+For ML-KEM, the header $`(\rho,\mathsf H(ek))` and vector $`\hat{\mathbf t}` are those of the
+{bpref "incremental_kem_from_ml_kem_spec"}[incremental KEM from ML-KEM], and the coins are the
+seeds of FIPS 203:
 
-:::leanPillCaption "ML-KEM blocks with the implementation's coin spaces"
+- $`r_K=d\mathbin\|z`, uniform over 64-byte strings, with $`d,z` the key-generation seeds;
+- $`r_1=m`, uniform over 32-byte strings, with $`m` the encapsulation message.
+
+:::leanPillCaption "ML-KEM instantiation"
 :::
 
 ```anchor mlkemIncrementalDet (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
@@ -165,7 +205,7 @@ def mlkemIncrementalDet (p : ParameterSet) (ring : NTTRingOps)
     sampleKeygen := $ᵗ Bytes 64
     sampleEncaps1 := $ᵗ Message }
 ```
-::::
+:::::::
 
 :::group "incremental_kem_incremental_kem_from_ml_kem"
 Incremental KEM from ML-KEM.
