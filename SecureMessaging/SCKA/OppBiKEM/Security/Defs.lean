@@ -17,19 +17,21 @@ import SecureMessaging.SCKA.OppBiKEM.Security.Reduction
 
 This module collects the definitions underlying the public security results in `Security`.
 Each `recall` checks an imported declaration against the signature and body written here, up to
-definitional equality. For the record `TargetInjection`, the checks cover its type, constructor
-signature and field projections.
+definitional equality.
 
 The implementations and their proofs live in the topic modules named in the sections below.
 Those modules import their dependencies directly. The public `Security` module imports this
 reference so that building its theorems also checks these restatements.
 
-The results also depend on definitions outside these security modules: the protocol and its
-exposure predicate (`Construction`); receive recovery and the initial game state
-(`Correctness.RecvSpec`, `Correctness.Quantitative.Main`); the generic SCKA games and advantage
-(`SCKA.Defs`, `SCKA.Security`); stopped runs (ToVCVio `Stop`); the KEM games, correctness error
-and leakage interface (VCVio and ToVCVio `KeyEncapMech`); and the erasure-code interface
-(`ErasureCode`). The hop theorem also mentions `hybridExp` (`Hybrid`).
+A definition is restated here when a public statement reaches it and it is defined in a
+`Security.*` module. The sections run in dependency order: each uses only earlier ones.
+
+The results also depend on definitions outside these security modules: the protocol `scheme`
+and its exposure predicate (`Construction`); receive recovery and the initial game state
+`initState` from which every run starts (`Correctness.RecvSpec`,
+`Correctness.Quantitative.Main`); the generic SCKA games and advantage (`SCKA.Defs`,
+`SCKA.Security`); stopped runs (ToVCVio `Stop`); the KEM games, correctness error and leakage
+interface (VCVio and ToVCVio `KeyEncapMech`); and the erasure-code interface (`ErasureCode`).
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -38,7 +40,10 @@ namespace oppBiKemCKA
 
 variable {K PK SK C Sym : Type}
 
-/-! ## The interface — `Security.Interface` -/
+/-! ## The interface — `Security.Interface`
+
+The SCKA oracle interface and adversary type specialized to Opp-BiKEM, and the budget on the
+adversary's send queries. -/
 
 recall securitySpec
     {kem : KEMScheme ProbComp K PK SK C}
@@ -61,7 +66,10 @@ recall SecuritySendQueryBound
   adv.IsQueryBoundP
     (fun t => SCKAScheme.sckaSecuritySpec.isSendQuery t = true) q
 
-/-! ## The exposure policy — `Security.Exposure` -/
+/-! ## The exposure policy — `Security.Exposure`
+
+`exposure role leak` says which epochs a corruption or an accepted leaking send exposes. A
+leaking send exposes the epochs of the key pair and encapsulation it performs (`rleakEpochs`). -/
 
 recall rleakEpochs {RK RE : Type} (role : Role)
     (st : State PK SK C Sym) (rand : SendRand RK RE) : Finset ℕ :=
@@ -79,6 +87,10 @@ recall exposure {kem : KEMScheme ProbComp K PK SK C}
   corrupt := vuln
   rleak := rleakEpochs role
 
+/-! ### Send guards
+
+These guards determine when a send generates a key pair or encapsulates. -/
+
 recall sendKeygenGuard (role : Role) (st : State PK SK C Sym) : Bool :=
   st.req.ek.isNone &&
     decide (st.res.resEpoch ∈ st.ack.ctRec ∧
@@ -91,7 +103,10 @@ recall sendEncapsGuard (role : Role) (st : State PK SK C Sym) : Bool :=
     st.res.ct.isNone &&
     decide (tRes ∈ st.ack.ekRec)
 
-/-! ## The ideal receive — `Security.IdealReceive` -/
+/-! ## The ideal receive — `Security.IdealReceive`
+
+An ideal receive copies the peer's recorded key for the received epoch instead of
+decapsulating. `schemeWithRecv` replaces only the receive functions of the scheme. -/
 
 recall idealRecover (peerKey : ℕ → Option K) : ℤ → SK → C → Option K :=
   fun q _ _ => peerKey q.toNat
@@ -127,17 +142,56 @@ recall oracleRecvBIdeal [DecidableEq K] [DecidableEq Sym]
     SCKAScheme.oracleRecvB (schemeWithRecv kem hDet ecEk ecCt leak
       (recvA kem hDet ecEk ecCt) (recvWith .B (idealRecover s.keyA) ecEk ecCt)) n
 
-/-! ## Challenge selection — `Security.Hybrid` -/
+recall idealCorrectnessImpl [DecidableEq K] [DecidableEq Sym]
+    (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
+    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym) (leak : kem.RandLeak) :
+    QueryImpl (SCKAScheme.sckaCorrectnessSpec (Message Sym))
+      (StateT (SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
+        ProbComp) :=
+  SCKAScheme.oracleUnif (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)
+    + SCKAScheme.oracleSendA (scheme kem hDet ecEk ecCt leak)
+    + SCKAScheme.oracleSendB (scheme kem hDet ecEk ecCt leak)
+    + oracleRecvAIdeal kem hDet ecEk ecCt leak + oracleRecvBIdeal kem hDet ecEk ecCt leak
+
+/-! ## Hybrids — `Security.Hybrid`
+
+The hybrid with threshold `T` is the ideal game answering eligible challenges at epochs below
+`T` with independent uniform keys and all others with recorded keys. -/
 
 recall hybridRandom (T : ℕ) : ℕ → Bool := fun t => decide (t < T)
 
-/-! ## The stopping test — `Security.Cancellation` -/
+recall hybridSecurityImpl [DecidableEq K] [DecidableEq Sym] [SampleableType K]
+    (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
+    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym) (leak : kem.RandLeak)
+    (random : ℕ → Bool) :
+    QueryImpl (securitySpec leak Sym)
+      (StateT (SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
+        ProbComp) :=
+  SCKAScheme.securityImplOf (idealCorrectnessImpl kem hDet ecEk ecCt leak)
+    (SCKAScheme.oracleChallOn random _ _ _ _) (exposure .A leak) (exposure .B leak)
+    (scheme kem hDet ecEk ecCt leak)
+
+recall hybridExp [DecidableEq K] [DecidableEq Sym] [SampleableType K]
+    (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
+    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym) (leak : kem.RandLeak)
+    (T : ℕ) (adv : SecurityAdversary leak Sym) : ProbComp Bool :=
+  (simulateQ (hybridSecurityImpl kem hDet ecEk ecCt leak (hybridRandom T)) adv).run'
+    (initState (K := K) (PK := PK) (SK := SK) (C := C) (Sym := Sym))
+
+/-! ## The stopping test — `Security.Cancellation`
+
+A run is stopped at the first query after which the target epoch is exposed. -/
 
 recall targetExposed (t : ℕ)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)) : Bool :=
   decide (t ∈ s.exposed)
 
-/-! ## Target injection — `Security.Injected` -/
+/-! ## Target injection — `Security.Injected`
+
+The injected oracles fix the public key, stored secret, ciphertext and recorded key at a target
+epoch `t`. The owner's key generation for `t` returns the injected key pair, and the peer's
+encapsulation for `t` returns the injected ciphertext and key. Receives are ideal, and `random`
+selects the uniform challenge answers. -/
 
 recall sendGeneratesTarget (role : Role) (t : ℕ) (st : State PK SK C Sym) : Bool :=
   sendKeygenGuard role st && decide (st.res.resEpoch + 2 + role.offset = (t : ℤ))
@@ -210,7 +264,11 @@ recall injectedSecurityImpl (t : ℕ) (inj : TargetInjection PK SK C K) (random 
 
 end Injected
 
-/-! ## The KEM reductions — `Security.Reduction` -/
+/-! ## The KEM reductions — `Security.Reduction`
+
+`reduction` embeds its KEM challenge at a fixed target `t` and runs the adversary against the
+injected oracles, stopped when `t` is exposed. `securityReduction` draws one target uniformly
+from `1, …, 2q` and runs that reduction. -/
 
 section Reduction
 

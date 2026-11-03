@@ -26,7 +26,7 @@ R_t.post(cStar, kStar):   (_, dummySk) ← kem.keygen
                           return false if stopped, else the output of adv
 ```
 
-The injected oracles answer as the ideal security game (`IdealReceive`), except:
+The injected oracles (`Injected`) answer as the ideal security game (`IdealReceive`), except:
 
 | Operation                                      | Answer                                      |
 | ---------------------------------------------- | ------------------------------------------- |
