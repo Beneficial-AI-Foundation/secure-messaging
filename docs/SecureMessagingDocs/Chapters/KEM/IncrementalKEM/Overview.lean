@@ -100,7 +100,7 @@ structure IncrementalStructure (kem : KEMScheme m K PK SK C) where
 :::defTitle "incremental_kem_det" "Incremental KEM with explicit coins"
 :::
 
-:::::::definition "incremental_kem_det" (parent := "incremental_kem") (lean := "KEMScheme.IncrementalKEMDet, MLKEM.mlkemIncrementalDet") (tags := "gh-224") (uses := "incremental_kem_scheme, ml_kem_scheme")
+:::::::definition "incremental_kem_det" (parent := "incremental_kem") (lean := "KEMScheme.IncrementalKEMDet") (tags := "gh-224") (uses := "incremental_kem_scheme")
 An *incremental KEM with explicit coins* is an {bpref "incremental_kem_scheme"}[incremental KEM]
 with header space $`H`, vector space $`V`, state space $`S`, and algorithms
 $`\mathsf{KeyGen}`, $`\mathsf{Encaps}_1`, $`\mathsf{Encaps}_2`, $`\mathsf{Decaps}` for which
@@ -164,47 +164,6 @@ structure IncrementalKEMDet (m : Type → Type u) (K PK SK C : Type) where
   sampleEncaps1 : m Encaps1Rand
 ```
 
-For ML-KEM, the header $`(\rho,\mathsf H(ek))` and vector $`\hat{\mathbf t}` are those of the
-{bpref "incremental_kem_from_ml_kem_spec"}[incremental KEM from ML-KEM], and the coins are the
-seeds of FIPS 203:
-
-- $`r_K=d\mathbin\|z`, uniform over 64-byte strings, with $`d,z` the key-generation seeds;
-- $`r_1=m`, uniform over 32-byte strings, with $`m` the encapsulation message.
-
-:::leanPillCaption "ML-KEM instantiation"
-:::
-
-```anchor mlkemIncrementalDet (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
-def mlkemIncrementalDet (p : ParameterSet) (ring : NTTRingOps)
-    (prims : Primitives (ParameterSet.params p)
-      (Concrete.concreteEncoding (ParameterSet.params p))) :
-    IncrementalKEMDet ProbComp SharedSecret
-      (EncapsulationKey (ParameterSet.params p)
-        (Concrete.concreteEncoding (ParameterSet.params p)))
-      (DecapsulationKey (ParameterSet.params p)
-        (Concrete.concreteEncoding (ParameterSet.params p)))
-      (Ciphertext (ParameterSet.params p)
-        (Concrete.concreteEncoding (ParameterSet.params p))) :=
-  let inc := mlkemIncremental p ring prims
-  { PKheader := inc.PKheader
-    PKvector := inc.PKvector
-    C₁ := inc.C₁
-    C₂ := inc.C₂
-    St := inc.St
-    KeygenRand := Bytes 64
-    Encaps1Rand := Message
-    validPK := inc.validPK
-    splitPK := inc.splitPK
-    splitC := inc.splitC
-    keygenDet := fun r => keygenInternal ring
-      (Concrete.concreteEncoding (ParameterSet.params p)) prims (r.take 32) (r.drop 32)
-    encaps1Det := incrementalEncaps1 ring prims
-    encaps2Det := fun st _hdr vec => incrementalEncaps2 ring st vec
-    decapsDet := fun sk c => some (decapsInternal ring
-      (Concrete.concreteEncoding (ParameterSet.params p)) prims sk c)
-    sampleKeygen := $ᵗ Bytes 64
-    sampleEncaps1 := $ᵗ Message }
-```
 :::::::
 
 :::group "incremental_kem_incremental_kem_from_ml_kem"
@@ -214,7 +173,7 @@ Incremental KEM from ML-KEM.
 :::defTitle "incremental_kem_from_ml_kem_spec" "Incremental KEM from ML-KEM construction"
 :::
 
-::::definition "incremental_kem_from_ml_kem_spec" (parent := "incremental_kem_incremental_kem_from_ml_kem") (lean := "MLKEM.incrementalHeader, MLKEM.EncapsulationState, MLKEM.incrementalEncaps1, MLKEM.incrementalEncaps2, MLKEM.mlkemIncremental") (tags := "gh-226") (uses := "incremental_kem_scheme, ml_kem_scheme")
+::::definition "incremental_kem_from_ml_kem_spec" (parent := "incremental_kem_incremental_kem_from_ml_kem") (lean := "MLKEM.incrementalHeader, MLKEM.EncapsulationState, MLKEM.incrementalEncaps1, MLKEM.incrementalEncaps2, MLKEM.mlkemIncremental, MLKEM.mlkemIncrementalDet") (tags := "gh-226") (uses := "incremental_kem_scheme, ml_kem_scheme, incremental_kem_det")
 $`\todo`
 
 :::leanPillCaption "public-key header (ρ, H(ek))"
@@ -311,6 +270,47 @@ def mlkemIncremental (p : ParameterSet) (ring : NTTRingOps)
     simp only [mlkemScheme, asKEMScheme, Equiv.coe_fn_symm_mk,
       bind_assoc, pure_bind]
     rfl
+```
+
+Its variant {bpref "incremental_kem_det"}[with explicit coins] keeps the header $`(\rho,\mathsf H(ek))`
+and the vector $`\hat{\mathbf t}`, and takes the seeds of FIPS 203 as coins:
+
+- $`r_K=d\mathbin\|z`, uniform over 64-byte strings, with $`d,z` the key-generation seeds;
+- $`r_1=m`, uniform over 32-byte strings, with $`m` the encapsulation message.
+
+:::leanPillCaption "ML-KEM instantiation"
+:::
+
+```anchor mlkemIncrementalDet (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
+def mlkemIncrementalDet (p : ParameterSet) (ring : NTTRingOps)
+    (prims : Primitives (ParameterSet.params p)
+      (Concrete.concreteEncoding (ParameterSet.params p))) :
+    IncrementalKEMDet ProbComp SharedSecret
+      (EncapsulationKey (ParameterSet.params p)
+        (Concrete.concreteEncoding (ParameterSet.params p)))
+      (DecapsulationKey (ParameterSet.params p)
+        (Concrete.concreteEncoding (ParameterSet.params p)))
+      (Ciphertext (ParameterSet.params p)
+        (Concrete.concreteEncoding (ParameterSet.params p))) :=
+  let inc := mlkemIncremental p ring prims
+  { PKheader := inc.PKheader
+    PKvector := inc.PKvector
+    C₁ := inc.C₁
+    C₂ := inc.C₂
+    St := inc.St
+    KeygenRand := Bytes 64
+    Encaps1Rand := Message
+    validPK := inc.validPK
+    splitPK := inc.splitPK
+    splitC := inc.splitC
+    keygenDet := fun r => keygenInternal ring
+      (Concrete.concreteEncoding (ParameterSet.params p)) prims (r.take 32) (r.drop 32)
+    encaps1Det := incrementalEncaps1 ring prims
+    encaps2Det := fun st _hdr vec => incrementalEncaps2 ring st vec
+    decapsDet := fun sk c => some (decapsInternal ring
+      (Concrete.concreteEncoding (ParameterSet.params p)) prims sk c)
+    sampleKeygen := $ᵗ Bytes 64
+    sampleEncaps1 := $ᵗ Message }
 ```
 ::::
 
