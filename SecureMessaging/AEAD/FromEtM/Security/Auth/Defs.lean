@@ -20,7 +20,7 @@ open ToVCVio OracleSpec OracleComp ENNReal PRFScheme AEADScheme
 variable {K_e K_m M AD C_e T : Type}
   [DecidableEq AD] [DecidableEq C_e] [DecidableEq T]
   [Inhabited C_e] [Inhabited T]
-  [SampleableType C_e] [SampleableType T]
+  [LenSampleable C_e] [SampleableType T]
 
 /-! ### Auth hop: bad-flag-instrumented games
 
@@ -38,7 +38,7 @@ noncomputable def authUnifImpl :
 
 /-- Encryption oracle on the flag-augmented state (real encryption, random-oracle tag);
 the flag is threaded unchanged. -/
-noncomputable def authEncImpl (se : DetSEAlg K_e M C_e) (ke : K_e) :
+noncomputable def authEncImpl (se : DetSymmEncAlg M K_e C_e) (ke : K_e) :
     QueryImpl (AD × M →ₒ Option (C_e × T))
       (StateT (EtmGameState AD C_e T × Bool) ProbComp) :=
   fun (ad, m) => do
@@ -54,7 +54,7 @@ noncomputable def authEncImpl (se : DetSEAlg K_e M C_e) (ke : K_e) :
 `(ad, (c, t))` equal to the recorded challenge `(ad*, (c*, t*))`; otherwise the random oracle
 is queried, the `forged` flag is set on a successful verify, and
 (`b = true`) the real decryption is returned or (`b = false`) the query is rejected. -/
-noncomputable def authDecImpl (se : DetSEAlg K_e M C_e) (b : Bool) (ke : K_e) :
+noncomputable def authDecImpl (se : DetSymmEncAlg M K_e C_e) (b : Bool) (ke : K_e) :
     QueryImpl (AD × (C_e × T) →ₒ Option M)
       (StateT (EtmGameState AD C_e T × Bool) ProbComp) :=
   fun (ad, (c, t)) => do
@@ -68,7 +68,7 @@ noncomputable def authDecImpl (se : DetSEAlg K_e M C_e) (b : Bool) (ke : K_e) :
 
 /-- Complete flag-instrumented oracle set for the auth hop (`b = true` ≈ `game1`,
 `b = false` ≈ `game2'`). -/
-noncomputable def authInstImpl (se : DetSEAlg K_e M C_e) (b : Bool) (ke : K_e) :
+noncomputable def authInstImpl (se : DetSymmEncAlg M K_e C_e) (b : Bool) (ke : K_e) :
     QueryImpl (aeadOneTimeCCASpec AD M (C_e × T))
       (StateT (EtmGameState AD C_e T × Bool) ProbComp) :=
   authUnifImpl (AD := AD) (C_e := C_e) (T := T) + authEncImpl (AD := AD) (T := T) se ke +
@@ -77,7 +77,7 @@ noncomputable def authInstImpl (se : DetSEAlg K_e M C_e) (b : Bool) (ke : K_e) :
 /-- Fixed-key auth handler without the `forged` bookkeeping flag. The parameter
 `b` selects real decryption on a valid tag (`true`) or unconditional rejection
 after the random-oracle query (`false`). -/
-noncomputable def authPlainImpl (se : DetSEAlg K_e M C_e) (b : Bool) (ke : K_e) :
+noncomputable def authPlainImpl (se : DetSymmEncAlg M K_e C_e) (b : Bool) (ke : K_e) :
     QueryImpl (aeadOneTimeCCASpec AD M (C_e × T))
       (StateT (EtmGameState AD C_e T) ProbComp) :=
   let encImpl : QueryImpl (AD × M →ₒ Option (C_e × T))
@@ -119,7 +119,7 @@ in the forge experiment's state matters). Structurally analogous to `prfReductio
 NRS14 Appendix A.2: the reduction `B(A)` witnessing the forge bound. Each decrypt query becomes
 one verify query, so `B`'s verify-query count matches `A`'s decrypt-query count `q_d`. -/
 noncomputable def forgeReduction
-    (se : DetSEAlg K_e M C_e)
+    (se : DetSymmEncAlg M K_e C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
     (ke : K_e) : OracleComp.ForgeAdversary (AD × C_e) T :=
   let spec := OracleComp.forgeSpec (AD × C_e) T
@@ -151,7 +151,7 @@ the nested `StateT` yields exactly this handler (cf. the PRF hop's `hideal`). Th
 forwards the tag computation to the forge **eval** oracle (recording the challenge point as the
 unique eval'd point); the decrypt oracle forwards verification to the forge **verify** oracle
 (setting `forged` on a successful verify at a not-eval'd point). -/
-noncomputable def forgeJointImpl (se : DetSEAlg K_e M C_e) (ke : K_e) :
+noncomputable def forgeJointImpl (se : DetSymmEncAlg M K_e C_e) (ke : K_e) :
     QueryImpl (aeadOneTimeCCASpec AD M (C_e × T))
       (StateT (EtmGameState AD C_e T × OracleComp.ForgeState (AD × C_e) T) ProbComp) :=
   -- unif oracle: thread both states unchanged

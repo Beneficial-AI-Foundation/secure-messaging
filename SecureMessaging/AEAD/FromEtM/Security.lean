@@ -17,26 +17,32 @@ Security theorem for the EtM construction `etmAEAD se prf`.
 ## Main result
 
 `etmAEAD_security`: the one-time IND-CCA distinguishing advantage of
-`etmAEAD se prf` is bounded by the PRF advantage of `prf`, the IND$-CPA
+`etmAEAD se prf` is bounded by the PRF advantage of `prf`, the one-time secrecy
 advantage of `se`, and a tag-guessing term:
 
-  `Adv^{ot-cca-ror}(A) ≤ Adv^{prf}(B) + q_d/|T| + Adv^{ind$-cpa}(D)`
+  `Adv^{ot-cca-ror}(A) ≤ Adv^{prf}(B) + q_d/|T| + Adv^{ots}(D)`
 
 where `B = prfReduction se A` and `D = encReduction se A`, and `q_d`
 upper-bounds the number of the adversary's decryption queries.
+
+Both advantages take a message length `lenM` and a ciphertext length `clen`, and sample the
+ideal ciphertext uniformly among the ciphertexts of length `clen |m|` (`LenSampleable C_e`). The
+bound holds for every `lenM` and `clen`. With the constant grading `LenSampleable.const C_e`,
+both samplers are uniform on the whole ciphertext type (`unifOfLen_const`,
+`unifOfLen_const_prod`), so the bound is the one for whole-space sampling.
 
 ## Notation
 
 | Symbol | Meaning |
 |---|---|
-| `se` | inner deterministic symmetric cipher (`DetSEAlg`) |
+| `se` | inner deterministic symmetric cipher (`DetSymmEncAlg`) |
 | `prf` | PRF used to compute the authentication tag (`PRFScheme`) |
 | `A` (`adv`) | the one-time IND-CCA adversary |
 | `q_d` | upper bound on `A`'s number of decryption queries (`decryptQueryBound`) |
 | `\|T\|` | size of the tag space (`Fintype.card T`) |
 | `Adv^{ot-cca-ror}` | one-time IND-CCA (real-or-random) advantage of the AEAD scheme |
 | `Adv^{prf}` | PRF distinguishing advantage |
-| `Adv^{ind$-cpa}` | one-time IND$-CPA advantage of `se` |
+| `Adv^{ots}` | one-time secrecy advantage of `se` (Ros26 Definition 5.3.2, sampled by length) |
 
 ## Reductions
 
@@ -44,7 +50,7 @@ The bound is witnessed by two explicit reductions (both defined in
 `Security/Games.lean` as instantiations of the shared game skeleton):
 
 - `prfReduction se A` — used for the `game0 → game1` hop; charges `Adv^{prf}`.
-- `encReduction se A` — used for the `game2 → game3` hop; charges `Adv^{ind$-cpa}`.
+- `encReduction se A` — used for the `game2 → game3` hop; charges `Adv^{ots}`.
 
 ## Proof sketch: game hops
 
@@ -64,12 +70,13 @@ game1   c = Enc_ke(m)       ρ(ad,c)         verify ρ, then Dec
   │                                                           q_d / |T|   (forgery bound)
   ▼   disable decryption: a fresh verify point accepts w.p. 1/|T|
 game2   c = Enc_ke(m)       ρ(ad,c)         ⊥ (always reject)
-  │                                                           Adv^{ind$}  (encReduction)
+  │                                                           Adv^{ots}   (encReduction)
   ▼   replace the real ciphertext and tag with uniform samples
-game3   c ←$ C_e            t ←$ T          ⊥ (always reject)
+game3   c ←$ C_e(ℓ)         t ←$ T          ⊥ (always reject), ℓ = |m|
 
   game0 = real one-time IND-CCA experiment
   game3 = ideal experiment ($ ciphertext, ⊥ decryption)
+  C_e(ℓ) = ciphertexts of length clen ℓ (`LenSampleable.unifOfLen (clen ℓ)`)
 ```
 
 ## Tag queries
@@ -86,7 +93,7 @@ and decrypt oracles.
 Games and reductions are both instantiations of one **OracleSpec-polymorphic
 game skeleton** (`etmGameSkeleton`, `Security/Games.lean`): the four `game*`
 instantiate it at `spec = unifSpec` (= `ProbComp`), while the reductions
-instantiate the *same* skeleton at the PRF / IND$-CPA spec, forwarding only the
+instantiate the *same* skeleton at the PRF / one-time secrecy spec, forwarding only the
 adversary's uniform-sampling queries through a `unifImpl` (the `SubSpec` lift).
 So a reduction is itself a game, just over a richer oracle spec.
 
@@ -103,8 +110,8 @@ lemmas live under `ToVCVio/`.
 
 The *notion* targeted here is one-time IND-CCA (`AEAD/Defs.securityExp`, adapted from ACD19
 Definition 2). The adversary makes at most one encryption query `(a*, m)` and receives
-`e* = Enc(K, a*, m)` if `b = 0` or a uniform `e*` if `b = 1`. A decryption query `(a, e)` returns
-`⊥` if `b = 1` or `(a, e) = (a*, e*)`, and `Dec(K, a, e)` otherwise.
+`e* = Enc(K, a*, m)` if `b = 0` or a uniform `e*` of the same length if `b = 1`. A decryption
+query `(a, e)` returns `⊥` if `b = 1` or `(a, e) = (a*, e*)`, and `Dec(K, a, e)` otherwise.
 
 The *proof* is an EtM argument adapted from **NRS14 scheme A5**. The two line up because the
 one-time real-or-random notion and NRS14's ivE/nAE rest on the same
@@ -122,7 +129,7 @@ The security proof adapts **Theorem 1** (for A5), with:
 | Lean definition | NRS14 reference |
 |---|---|
 | `etmAEAD` | Figure 2, scheme A5, adapted: no nonce, one-time keys |
-| `DetSEAlg` / `distAdvantage` | Section 2, ivE scheme / `Adv^ivE` (one query) |
+| `DetSymmEncAlg` / `distAdvantage` | Section 2, ivE scheme / `Adv^ivE`; game: Ros26 Def. 5.3.2 |
 | `PRFScheme` / `prfAdvantage` | Section 2, function family F / `Adv^prf` |
 | `decryptQueryBound` / `q_d` | `q_d` in Appendix A.2; `IsQueryBoundP` on decrypt index |
 | `game0` | Lemma 3 starting game (Figure 4 left: `Enc` + `Dec`) |
@@ -150,8 +157,8 @@ open OracleSpec OracleComp ENNReal PRFScheme AEADScheme
 
 variable {K_e K_m M AD C_e T : Type}
   [DecidableEq AD] [DecidableEq C_e] [DecidableEq T]
-  [Inhabited C_e] [Inhabited T]
-  [SampleableType C_e] [SampleableType T]
+  [Inhabited T]
+  [LenSampleable C_e] [SampleableType T]
 
 /-! ## Main security theorem -/
 
@@ -159,27 +166,32 @@ variable {K_e K_m M AD C_e T : Type}
 
 The one-time IND-CCA distinguishing advantage of `etmAEAD se prf` is bounded
 by the PRF advantage, the tag-guessing probability per decryption query, and
-the IND$-CPA advantage:
+the one-time secrecy advantage:
 
-  `Adv^{ot-cca-ror}_{EtM}(A) ≤ Adv^{prf}(B) + q_d/|T| + Adv^{ind$}(D)`
+  `Adv^{ot-cca-ror}_{EtM}(A) ≤ Adv^{prf}(B) + q_d/|T| + Adv^{ots}(D)`
 
 where `B = prfReduction se adv` and `D = encReduction se adv` are explicit
 reductions (skeleton instantiations), and `q_d` upper-bounds the adversary's
 number of decryption queries (tied to `adv` via `decryptQueryBound`, i.e.
 `IsQueryBoundP` on the decrypt-oracle index).
 
+`D` makes at most one encryption query, because it forwards only the challenge encryption of
+`adv`. So the bound needs one-time secrecy of `se` only against adversaries that make one query,
+although the game `DetSymmEncAlg.distAdvantage` allows any number of queries.
+
 NRS14 Figure 9 bound: `Adv^nAE ≤ Adv^prf_F(B) + Adv^ivE_E(D₁) + q_d/2^τ`.
-Our one-time adaptation: `Adv^ivE → Adv^{ind$-cpa}`, `2^τ → |T|`. -/
+Our one-time adaptation: `Adv^ivE → Adv^{ots}`, `2^τ → |T|`. -/
 -- ANCHOR: etmAEAD_security
 theorem etmAEAD_security
-    (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
+    (se : DetSymmEncAlg M K_e C_e) (prf : PRFScheme K_m (AD × C_e) T)
+    (lenM : M → ℕ) (clen : ℕ → ℕ)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
     (q_d : ℕ) [Fintype T]
     (hqd : AEADScheme.decryptQueryBound adv q_d) :
-    AEADScheme.distAdvantage (etmAEAD se prf) adv ≤
+    AEADScheme.distAdvantage (etmAEAD se prf) lenM clen adv ≤
       (PRFScheme.prfAdvantage prf (prfReduction se adv)).toReal +
       ↑q_d * (Fintype.card T : ℝ)⁻¹ +
-      DetSEAlg.distAdvantage se (encReduction se adv)
+      DetSymmEncAlg.distAdvantage se lenM clen (encReduction se adv)
 -- ANCHOR_END: etmAEAD_security
   := by
   -- NRS14 Theorem 1 / Figure 9: triangle inequality over the game sequence.
@@ -189,19 +201,19 @@ theorem etmAEAD_security
   --   |game3 - game0| ≤ |game0 - game1| + |game1 - game2| + |game2 - game3|
   -- Substituting the three hop bounds gives the result.
   unfold AEADScheme.distAdvantage
-  rw [← game3_eq_rand se prf adv, ← game0_eq_real se prf adv]
-  calc |(Pr{let x ← game3 se adv}[x = true]).toReal -
+  rw [← game3_eq_rand se prf lenM clen adv, ← game0_eq_real se prf lenM clen adv]
+  calc |(Pr{let x ← game3 se lenM clen adv}[x = true]).toReal -
         (Pr{let x ← game0 se prf adv}[x = true]).toReal|
     _ ≤ |(Pr{let x ← game0 se prf adv}[x = true]).toReal -
          (Pr{let x ← game1 se adv}[x = true]).toReal| +
         |(Pr{let x ← game1 se adv}[x = true]).toReal -
          (Pr{let x ← game2 se adv}[x = true]).toReal| +
         |(Pr{let x ← game2 se adv}[x = true]).toReal -
-         (Pr{let x ← game3 se adv}[x = true]).toReal| := by
+         (Pr{let x ← game3 se lenM clen adv}[x = true]).toReal| := by
           set g0 := (Pr{let x ← game0 se prf adv}[x = true]).toReal
           set g1 := (Pr{let x ← game1 se adv}[x = true]).toReal
           set g2 := (Pr{let x ← game2 se adv}[x = true]).toReal
-          set g3 := (Pr{let x ← game3 se adv}[x = true]).toReal
+          set g3 := (Pr{let x ← game3 se lenM clen adv}[x = true]).toReal
           have h1 := abs_sub_le g3 g2 g0
           have h2 := abs_sub_le g2 g1 g0
           have h3 : |g2 - g3| = |g3 - g2| := abs_sub_comm g2 g3
@@ -210,8 +222,8 @@ theorem etmAEAD_security
           linarith
     _ ≤ (PRFScheme.prfAdvantage prf (prfReduction se adv)).toReal +
         ↑q_d * (Fintype.card T : ℝ)⁻¹ +
-        DetSEAlg.distAdvantage se (encReduction se adv) :=
+        DetSymmEncAlg.distAdvantage se lenM clen (encReduction se adv) :=
       add_le_add (add_le_add (game0_game1_le_prf se prf adv)
-        (game1_game2_le_auth se adv q_d hqd)) (game2_game3_le_enc se adv)
+        (game1_game2_le_auth se adv q_d hqd)) (game2_game3_le_enc se lenM clen adv)
 
 end EtM
