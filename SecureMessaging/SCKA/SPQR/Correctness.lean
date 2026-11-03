@@ -58,9 +58,9 @@ which is late enough for an acknowledging chunk. The potential does not read rec
 
 ## References
 
-The protocol is Signal's SparsePostQuantumRatchet at revision `f2589fe`, which implements
-*The ML-KEM Braid Protocol* (https://signal.org/docs/specifications/mlkembraid/), sections 2.3 to
-2.6. The correctness game follows Definition 3.1, Figure 1, and Appendix B.1 of:
+The protocol is Signal's SparsePostQuantumRatchet at release v1.6.0 (commit `06959b47`), which
+implements *The ML-KEM Braid Protocol* (https://signal.org/docs/specifications/mlkembraid/),
+sections 2.3 to 2.6. The correctness game follows Definition 3.1, Figure 1, and Appendix B.1 of:
 
 - [SCKA] Auerbach, Dodis, Jost, Katsumata, Schmidt.
   *How to Compare Bandwidth Constrained Two-Party Secure Messaging Protocols.*
