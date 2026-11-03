@@ -69,12 +69,9 @@ it chooses target `1`.
 
 `AdvGuess_SCKA(scka, adv) ≤ q · ε + q · AdvINDCPA_KEM(kem, B)`.
 
-
 The theorems here delegate to the lemmas of the same name in the namespace `Proofs`, whose
 module docstring gives the proof structure. `Defs` collects checked restatements of the
-definitions underlying these security statements. Their implementations live in the topic
-modules named there. Importing this module also checks those restatements.
--/
+definitions underlying these security statements. -/
 
 open OracleSpec OracleComp KEMScheme ENNReal
 
