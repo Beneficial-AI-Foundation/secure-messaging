@@ -80,11 +80,13 @@ first $`\Oenc` call, $`(a^*, e^*) = (\bot, \bot)`.
 In the oracles, $`\req\varphi` means: if $`\varphi` is false, the oracle returns
 $`\bot` and the game state does not change.
 
-The ciphertext space has a length function $`|\cdot| : \mathcal C \to \mathbb N`, and
-$`|e|` is the length of the ciphertext $`e`. The game also takes a message length
-$`|m|` ($`\mathit{lenM}` in Lean) and a ciphertext length function
-$`\mathit{clen} : \mathbb N \to \mathbb N`. Let
-$`\mathcal C(\ell) = \{e \in \mathcal C : |e| = \mathit{clen}(\ell)\}`.
+We write $`|x|` for the length of a message or ciphertext $`x`, in a unit fixed by the
+scheme: bits, bytes or blocks. The game has a parameter
+$`\mathit{clen} : \mathbb N \to \mathbb N`, which can be any function from message lengths to
+ciphertext lengths. For a message length $`\ell`, let
+$`\mathcal C(\ell) = \{e \in \mathcal C : |e| = \mathit{clen}(\ell)\},` the set of all
+ciphertexts of length $`\mathit{clen}(\ell)`. If all ciphertexts have the same length,
+$`\mathcal C(\ell) = \mathcal C.`
 :::::
 
 :::::gameCell "\\textsf{Deviations}" (kind := "scheme-notation")
@@ -97,7 +99,9 @@ We change {Informal.citet ACD19}[], Figure 1, in two places, marked by boxes in 
    also keys decryption on the pair of associated data and ciphertext.
 2. With $`b = 1`, $`\Oenc` samples $`e^*` uniformly from $`\mathcal C(|m|)`, not from all
    of $`\mathcal C`, as in {Informal.citet Ros26}[], Definition 9.6.5. The random branch
-   reads only the message length $`|m|`.
+   reads only the message length $`|m|`. In Ros26, $`\mathcal C(\ell)` is the set of possible
+   ciphertexts for messages of length $`\ell`. In our formalization, it is the set of all ciphertexts of length
+   $`\mathit{clen}(\ell)`.
 :::::
 ::::::
 

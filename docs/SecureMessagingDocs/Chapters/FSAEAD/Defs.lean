@@ -128,7 +128,7 @@ structure GameState (StS StR AD M C : Type) where
 ```
 :::::
 
-:::::gameCell "\\textsf{Deviation}" (kind := "scheme-notation")
+:::::gameCell "\\textsf{Deviations}" (kind := "scheme-notation")
 A sends its $`i`-th message at index $`i`, so the indices $`i > i_\A` are the ones A has
 not used yet. Once the adversary corrupts A at counter $`i_\A^c`, it knows A's state. It
 can then compute the ciphertext that A would send at an index $`i > i_\A^c` and inject it

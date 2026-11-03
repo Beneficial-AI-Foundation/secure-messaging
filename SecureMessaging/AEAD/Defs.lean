@@ -178,16 +178,6 @@ def Correct (ae : AEADScheme m M AD K C) : Prop :=
   ∀ (k : K) (a : AD) (msg : M), ae.decrypt k a (ae.encrypt k a msg) = some msg
 -- ANCHOR_END: Correct
 
-/-- Let `lenM : M → ℕ` be a message length and `clen : ℕ → ℕ` a ciphertext length. `ae` is
-length-regular for `lenM` and `clen` if every ciphertext of a message of length `ℓ` has length
-`clen ℓ`: `|Enc(K, a, m)| = clen |m|` for all keys `K`, associated data `a` and messages `m`.
-Then `{e ∈ C : |e| = clen ℓ}` is `Σ.C(ℓ)` of [Ros26] Definition 9.6.5. -/
--- ANCHOR: LengthRegular
-def LengthRegular [LenSampleable C] (lenM : M → ℕ) (clen : ℕ → ℕ)
-    (ae : AEADScheme m M AD K C) : Prop :=
-  ∀ (k : K) (a : AD) (msg : M), LenSampleable.len (ae.encrypt k a msg) = clen (lenM msg)
--- ANCHOR_END: LengthRegular
-
 section OneTime_CCA
 
 /-! ## One-Time IND-CCA Security Game

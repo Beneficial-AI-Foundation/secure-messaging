@@ -46,7 +46,7 @@ Encrypt-then-MAC.
 :::defTitle "aead_etm_det_se" "Deterministic symmetric encryption"
 :::
 
-:::::::definition "aead_etm_det_se" (parent := "aead_encrypt_then_mac") (lean := "DetSymmEncAlg, DetSymmEncAlg.PerfectlyCorrect, DetSymmEncAlg.LengthRegular")
+:::::::definition "aead_etm_det_se" (parent := "aead_encrypt_then_mac") (lean := "DetSymmEncAlg, DetSymmEncAlg.PerfectlyCorrect")
 A deterministic symmetric encryption scheme $`\mathsf{SE}` is a tuple of algorithms
 $`(\KeyGen, \Enc, \Dec)` with key space $`\mathcal K`,
 message space $`\mathcal M` and ciphertext space $`\mathcal C`, where
@@ -59,29 +59,6 @@ message space $`\mathcal M` and ciphertext space $`\mathcal C`, where
 
 $`\Enc` and $`\Dec` are deterministic. $`\mathsf{SE}` is correct if
 $`\Dec(K, \Enc(K, m)) = m` for all keys $`K` and messages $`m`.
-
-Each ciphertext $`c` has a length $`|c|`. Let $`|m|` denote a fixed length function on
-messages, and let $`\mathit{clen} : \mathbb N \to \mathbb N` be a
-ciphertext length function. Let
-$`\mathcal C(\ell) = \{c \in \mathcal C : |c| = \mathit{clen}(\ell)\}`. $`\mathsf{SE}`
-is length-regular if $`|\Enc(K, m)| = \mathit{clen}(|m|)` for all keys $`K` and messages $`m`.
-Then the ciphertext length depends only on the message length
-({Informal.citet NRS14}[], Section 2).
-
-The Lean definitions of the scheme and of correctness are VCVio's `DetSymmEncAlg` and
-`DetSymmEncAlg.PerfectlyCorrect`. VCVio has no length regularity, so
-`DetSymmEncAlg.LengthRegular` is defined here. Its argument `lenM` is the message length
-$`|m|`, and the class `LenSampleable C` gives the ciphertext length and the uniform sample of
-each length.
-
-:::leanPillCaption "length regularity"
-:::
-
-```anchor DetSymmEncAlgLengthRegular (project := ".") (module := SecureMessaging.SymEnc.Defs)
-def LengthRegular [LenSampleable C] (lenM : M → ℕ) (clen : ℕ → ℕ)
-    (se : DetSymmEncAlg M K C) : Prop :=
-  ∀ (k : K) (m : M), LenSampleable.len (se.encrypt k m) = clen (lenM m)
-```
 :::::::
 
 :::defTitle "aead_etm_det_se_ots" "One-time secrecy"
@@ -90,7 +67,9 @@ def LengthRegular [LenSampleable C] (lenM : M → ℕ) (clen : ℕ → ℕ)
 :::::::definition "aead_etm_det_se_ots" (parent := "aead_encrypt_then_mac") (lean := "DetSymmEncAlg.oracleEncrypt, DetSymmEncAlg.securityExpFixedBit, DetSymmEncAlg.distAdvantage") (uses := "aead_etm_det_se")
 One-time secrecy ({Informal.citet Ros26}[], Definition 5.3.2), with the key drawn by
 $`\KeyGen` instead of uniformly from the key space, and the random ciphertext uniform on
-$`\mathcal C(|m|)`, as in {Informal.citet Ros26}[], Definition 8.1.1.
+$`\mathcal C(|m|)`, as in {Informal.citet Ros26}[], Definition 8.1.1. In Ros26,
+$`\mathcal C(\ell)` is the set of possible ciphertexts for messages of length $`\ell`. In our
+formalization, it is the set of all ciphertexts of length $`\mathit{clen}(\ell)`, defined below.
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Game state and notation}" (kind := "scheme-notation")
@@ -98,6 +77,14 @@ There is one experiment $`\Exp{\textsf{ots}\text{-}b}{\textsf{SE}}` for each bit
 $`b \in \bit`. Each call to $`\Oenc` samples a fresh key $`K`. For $`b = 0`, $`\Oenc`
 encrypts the message under $`K`. For $`b = 1`, it returns a uniformly random ciphertext in
 $`\mathcal C(|m|)`. The adversary can call $`\Oenc` any number of times.
+
+We write $`|x|` for the length of a message or ciphertext $`x`, in a unit fixed by the
+scheme: bits, bytes or blocks. The game has a parameter
+$`\mathit{clen} : \mathbb N \to \mathbb N`, which can be any function from message lengths to
+ciphertext lengths. For a message length $`\ell`, let
+$`\mathcal C(\ell) = \{c \in \mathcal C : |c| = \mathit{clen}(\ell)\},` the set of all
+ciphertexts of length $`\mathit{clen}(\ell)`. If all ciphertexts have the same length,
+$`\mathcal C(\ell) = \mathcal C.`
 :::::
 ::::::
 
@@ -177,7 +164,7 @@ for every adversary $`\adv`. This is adapted from {Informal.citet Ros26}[], Clai
 ::::::gameGrid
 :::::gameCell "\\textsf{Example: AES-CBC in libsignal}" (kind := "scheme-notation")
 Adapted from {Informal.citet Ros26}[], Construction 8.5.3 (CBC mode) with PKCS#7 padding
-(Example 8.6.3). There, $`\mathsf{Enc}` samples $`C_0` at random and sends it as the first
+(Example 8.6.3). In Ros26, $`\mathsf{Enc}` samples $`C_0` at random and sends it as the first
 block of the ciphertext, and $`\mathsf{Dec}` reads $`C_0` from the
 ciphertext. libsignal derives the AES key and the IV from a fresh per-message key, so in the
 scheme below the IV is part of the key. In both $`\Enc` and $`\Dec` below,
@@ -215,24 +202,6 @@ C_0 \gets \mathit{iv}; \\
 
 Here $`M_i` and $`C_i` are 128-bit blocks, and $`\mathsf{Pad}^{-1}` returns $`\bot` if the
 padding is invalid.
-
-Let $`|m|` be the length of $`m` in bytes. Then $`m` becomes
-$`\ell = \lfloor |m| / 16 \rfloor + 1` blocks, so the ciphertext has $`128\ell` bits. Its
-length depends only on $`|m|`, so the scheme is length-regular for
-$`\mathit{clen}(n) = 128(\lfloor n / 16 \rfloor + 1)`. For $`b = 1`, $`\Oenc` returns a
-uniformly random string of $`128\ell` bits, the same length as the real ciphertext.
-
-For $`\ell = 1`, let $`P` be the padded block. The map
-$`\mathit{iv} \mapsto \mathsf{AES}_k(P \oplus \mathit{iv})` is a bijection for every key $`k`,
-so a uniform $`\mathit{iv}` gives an exactly uniform ciphertext. For two or more blocks, the
-ciphertext need not be exactly uniform, because AES under $`k` is a fixed permutation and not
-a uniform random function. For an adversary that makes one query, with $`k` and
-$`\mathit{iv}` sampled uniformly, the standard CBC analysis bounds the advantage by the PRP
-advantage of AES plus a collision term of order $`\ell^2 / 2^{128}`. Each query uses a fresh
-key, so for $`q` queries a hybrid argument multiplies these terms by $`q`. The reduction
-$`\mathcal D` in the security theorem below makes one query. For the pair that libsignal
-derives, add the advantage of distinguishing the derivation from uniform. This repository does
-not prove these bounds and does not instantiate AES-CBC in Lean.
 :::::
 ::::::
 :::::::
@@ -343,8 +312,8 @@ $$`\mathsf{Adv}^{\textsf{dist}}_{\mathsf{EtM}[\mathsf{SE}, F]}(\adv)
   + \frac{q_d}{|\mathcal T|}
   + \mathsf{Adv}^{\textsf{ots}}_{\textsf{SE}}(\mathcal D).`
 
-Both games use the same message length $`|m|` and ciphertext length function
-$`\mathit{clen}`. The bound holds for every choice of the two.
+Both games use the same functions $`|\cdot|` and $`\mathit{clen}`. The bound holds for every
+choice of the two.
 
 :::leanPillCaption "security theorem"
 :::

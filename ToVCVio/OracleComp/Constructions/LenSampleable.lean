@@ -14,8 +14,9 @@ public import VCVio.EvalDist.ProbabilityBounds
 # Uniform sampling by length
 
 `LenSampleable C` gives each element of `C` a length and samples uniformly among the elements
-of a given length. The ideal branch of an ind$ game uses it to return a random ciphertext of the
-same length as the real one, as the `$` oracle of [NRS14] Figure 4 does ("`|C|` random bits").
+of a given length. The random branch of the one-time secrecy game and of the AEAD game uses it to
+return a uniform ciphertext of length `clen ℓ`, where `ℓ` is the message length and `clen` is a
+ciphertext length function, as in [Ros26] Definition 8.1.1.
 
 Instances:
 
@@ -25,7 +26,7 @@ Instances:
   the shape of a ciphertext with a fixed-size tag.
 * `(n : ℕ) × BitVec n`: bit strings of every length, with `len = Sigma.fst`.
 
-[NRS14] Namprempre, Rogaway, Shrimpton. *Reconsidering Generic Composition.* EUROCRYPT 2014.
+[Ros26] Rosulek. *The Joy of Cryptography.* Online edition, 2026.
 -/
 
 @[expose] public section
@@ -37,9 +38,8 @@ open OracleComp ENNReal
 `unifOfLen (len c)` is uniform on `{c' | len c' = len c}`: its outputs have length `len c`, and
 any two elements of that length have the same probability.
 
-`len` is the leakage that an ind$ game allows. The laws make the sample uniform within each
-length class. They do not restrict the choice of `len`: if `len` is injective, every class has
-one element, and the sample is that element. -/
+The laws make the sample uniform within each length class. They do not restrict the choice of
+`len`: if `len` is injective, every class has one element, and the sample is that element. -/
 class LenSampleable (C : Type) where
   /-- The length of an element. -/
   len : C → ℕ
@@ -53,9 +53,6 @@ class LenSampleable (C : Type) where
 
 namespace LenSampleable
 
-/-- A uniform sample among the elements with the same length as `c`. -/
-abbrev unifSameLen {C : Type} [LenSampleable C] (c : C) : ProbComp C := unifOfLen (len c)
-
 /-- The constant grading: every element has length `0`, and `unifOfLen` is `$ᵗ C`. With this
 grading, an ind$ game samples from the whole type. -/
 @[reducible] def const (C : Type) [SampleableType C] : LenSampleable C where
@@ -66,10 +63,6 @@ grading, an ind$ game samples from the whole type. -/
     let : Fintype C := Fintype.ofFinite C
     rw [SampleableType.prEvent_uniformSample_eq_singleton,
       SampleableType.prEvent_uniformSample_eq_singleton]
-
-/-- With the constant grading, the sampler is `$ᵗ C`. -/
-@[simp] lemma unifSameLen_const {C : Type} [SampleableType C] (c : C) :
-    @unifSameLen C (const C) c = $ᵗ C := rfl
 
 /-- With the constant grading, the sampler for every length is `$ᵗ C`. -/
 @[simp] lemma unifOfLen_const {C : Type} [SampleableType C] (n : ℕ) :
@@ -103,13 +96,6 @@ instance instProd (C T : Type) [LenSampleable C] [SampleableType T] :
       simpa only [prEvent_norm, bind_assoc, pure_bind, Prod.ext_iff, and_comm] using this
     rw [key p' h, key p rfl, prEvent_eq p.1 p'.1 h]
 
-/-- The sampler for a pair draws the first component by length and the second uniformly. -/
-lemma unifSameLen_prod {C T : Type} [LenSampleable C] [SampleableType T] (c : C) (t : T) :
-    unifSameLen (c, t) = (do
-      let c' ← unifSameLen c
-      let t' ← $ᵗ T
-      pure (c', t')) := rfl
-
 /-- The sampler for pairs of length `n` draws the first component by length and the second
 uniformly. -/
 @[simp] lemma unifOfLen_prod {C T : Type} [LenSampleable C] [SampleableType T] (n : ℕ) :
@@ -117,19 +103,6 @@ uniformly. -/
       let c' ← unifOfLen n
       let t' ← $ᵗ T
       pure (c', t')) := rfl
-
-/-- `BitVec n` has one length, so the sampler is `$ᵗ BitVec n`. -/
-@[simp] lemma unifSameLen_bitVec {n : ℕ} (x : BitVec n) : unifSameLen x = $ᵗ BitVec n := rfl
-
-/-- With the constant grading on the first component, the sampler for a pair is `$ᵗ (C × T)`. -/
-lemma unifSameLen_const_prod {C T : Type} [SampleableType C] [SampleableType T] (p : C × T) :
-    @unifSameLen (C × T) (@instProd C T (const C) _) p = $ᵗ (C × T) :=
-  (SampleableType.uniformSample_prod_eq_bind C T).symm
-
-/-- A pair with a `BitVec n` first component has one length, so the sampler is `$ᵗ`. -/
-lemma unifSameLen_bitVec_prod {n : ℕ} {T : Type} [SampleableType T] (p : BitVec n × T) :
-    unifSameLen p = $ᵗ (BitVec n × T) :=
-  unifSameLen_const_prod p
 
 /-- With the constant grading on the first component, the sampler for pairs of every length is
 `$ᵗ (C × T)`. -/

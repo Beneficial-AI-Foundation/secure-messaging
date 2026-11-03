@@ -8,10 +8,10 @@ import VCVio.CryptoFoundations.SymmEncAlg.Deterministic
 import ToVCVio.OracleComp.Constructions.LenSampleable
 
 /-!
-# Deterministic Symmetric Encryption: Length Regularity and One-Time Secrecy
+# Deterministic Symmetric Encryption: One-Time Secrecy
 
-Length regularity and a computational one-time secrecy game for VCVio's deterministic
-symmetric encryption schemes `DetSymmEncAlg M K C`.
+A computational one-time secrecy game for VCVio's deterministic symmetric encryption schemes
+`DetSymmEncAlg M K C`.
 
 VCVio defines the scheme, its correctness `DetSymmEncAlg.PerfectlyCorrect`, and an IND$-CPA
 game. That game samples one key for the whole run, and its random ciphertext is uniform on
@@ -24,9 +24,6 @@ uses VCVio's oracle interface `INDDollarOracleSpec` and adversary type `INDDolla
 - [Ros26] Rosulek. *The Joy of Cryptography.* Online edition, 2026. Definition 5.3.2:
   computational one-time secrecy. Definition 8.1.1: the set `Σ.C(ℓ)` of ciphertexts of
   messages of length `ℓ`.
-- [NRS14] Namprempre, Rogaway, Shrimpton. *Reconsidering Generic Composition.*
-  EUROCRYPT 2014. Section 2: the ivE scheme `E : K × {0,1}^η × M → {0,1}*` and length
-  regularity. The schemes here have no IV, because each key encrypts one message.
 
 ## Differences from Ros26
 
@@ -48,16 +45,6 @@ open OracleSpec OracleComp
 namespace DetSymmEncAlg
 
 variable {M K C : Type}
-
-/-- Let `lenM : M → ℕ` be a length function on messages and `clen : ℕ → ℕ` a ciphertext length,
-and write `|m| = lenM m` and `|c| = LenSampleable.len c`. The scheme `se` is length-regular for
-`lenM` and `clen` if `|Enc(K, m)| = clen |m|` for all keys `K` and messages `m`. Then the
-ciphertext length depends only on the message length [NRS14, Section 2]. -/
--- ANCHOR: DetSymmEncAlgLengthRegular
-def LengthRegular [LenSampleable C] (lenM : M → ℕ) (clen : ℕ → ℕ)
-    (se : DetSymmEncAlg M K C) : Prop :=
-  ∀ (k : K) (m : M), LenSampleable.len (se.encrypt k m) = clen (lenM m)
--- ANCHOR_END: DetSymmEncAlgLengthRegular
 
 section OTS
 

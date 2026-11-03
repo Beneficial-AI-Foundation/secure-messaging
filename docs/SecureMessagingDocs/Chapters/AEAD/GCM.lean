@@ -49,8 +49,8 @@ GCM.
 ::::::::definition "aead_gcm_components" (parent := "aead_gcm") (lean := "GCM.gfmul, GCM.ghash, GCM.inc32, GCM.gctr")
 {Informal.citet NIST_GCM}[], Sections 6.2 to 6.5.
 
-GCM uses the following building blocks. A block is a bitstring of length 128, and
-$`\bit^*` is the set of bitstrings.
+GCM uses the following building blocks. A block is a bit string of length 128, and
+$`\bit^*` is the set of bit strings.
 
 - The counter increment $`\mathsf{inc}_{32} : \bit^{128} \to \bit^{128}`.
 - Block multiplication $`\bullet : \bit^{128} \times \bit^{128} \to \bit^{128}`.
@@ -59,20 +59,20 @@ $`\bit^*` is the set of bitstrings.
   blocks.
 - The counter mode $`\mathsf{GCTR}_K : \bit^{128} \times \bit^* \to \bit^*` under a
   block-cipher key $`K`. Its inputs are an initial counter block $`\mathit{ICB}` and a
-  bitstring $`X`, and $`|\mathsf{GCTR}_K(\mathit{ICB}, X)| = |X|`.
+  bit string $`X`, and $`|\mathsf{GCTR}_K(\mathit{ICB}, X)| = |X|`.
 
 The boxes below give their algorithms.
 
 :::::::gameGrid
 ::::::gameCell "\\textsf{Notation}" (kind := "scheme-notation")
-For a bitstring $`X = x_0 x_1 \ldots x_{n-1}`:
+For a bit string $`X = x_0 x_1 \ldots x_{n-1}`:
 
 - $`|X| = n` is the length of $`X`, and $`x_0` is its leftmost and most significant bit;
 - $`\mathsf{MSB}_s(X)` and $`\mathsf{LSB}_s(X)` are the leftmost and the rightmost $`s` bits
   of $`X`;
 - $`X \gg 1` is $`X` shifted right by one bit: $`0 x_0 x_1 \ldots x_{n-2}`;
 - $`\mathrm{int}(X)` is the integer with binary representation $`X`, and for
-  $`0 \le k < 2^s`, $`[k]_s` is the $`s`-bit bitstring with $`\mathrm{int}([k]_s) = k`;
+  $`0 \le k < 2^s`, $`[k]_s` is the $`s`-bit string with $`\mathrm{int}([k]_s) = k`;
 - $`R = 11100001 \concat 0^{120}`.
 
 $`\mathsf{CIPH}_K = \mathsf{perm}(K, \cdot)` is the forward permutation of a
@@ -178,7 +178,7 @@ Adapted from {Informal.citet NIST_GCM}[], Section 7, Algorithms 4 and 5.
 Let $`P` be a {bpref "prp"}[PRP scheme] on 128-bit blocks with key space $`\mathcal K`, let
 $`\mathit{IV}` be a 96-bit IV, and let $`L` be a supported message length. Then
 $`\mathsf{GCM}[P, \mathit{IV}, L]` is the one-time {bpref "aead"}[AEAD scheme] with key
-space $`\mathcal K`, message space $`\bit^L`, associated data space the bitstrings of
+space $`\mathcal K`, message space $`\bit^L`, associated data space the bit strings of
 supported length, ciphertext space $`\bit^L \times \bit^{128}`, and the notation and
 algorithms below.
 
@@ -191,7 +191,7 @@ algorithms below.
   message and $`T \in \bit^{128}` the tag. The ciphertext is the pair $`(C, T)`.
 - $`\mathsf{CIPH}_K = P.\mathsf{perm}(K, \cdot)` is the block cipher on 128-bit blocks under
   the key $`K`.
-- For a bitstring $`X`, $`0^{v_X}` is the fewest zero bits that make $`|X| + v_X` a multiple
+- For a bit string $`X`, $`0^{v_X}` is the fewest zero bits that make $`|X| + v_X` a multiple
   of 128.
 - $`\mathsf{encode}(A, C) = A \concat 0^{v_A} \concat C \concat 0^{v_C} \concat [|A|]_{64} \concat [|C|]_{64}`
   is the input of $`\mathsf{GHASH}` for associated data $`A` and encrypted message $`C`.
@@ -467,9 +467,9 @@ $$`\mathsf{Adv}^{\textsf{dist}}_{\textsf{GCM}}(\adv)
 
 There is no separate tag-guessing term, because $`\varepsilon \ge 2^{-128}` for every AXU bound of $`h_L`.
 
-The bound holds for every message length $`|m|` and ciphertext length function
-$`\mathit{clen}` of the game, because all ciphertexts in $`\bit^L \times \bit^{128}` have
-the same length.
+The bound holds for every choice of the functions $`|\cdot|` and $`\mathit{clen}` of the
+game, because all ciphertexts in $`\bit^L \times \bit^{128}` have
+the same length, so $`\mathcal C(\ell) = \mathcal C.`
 
 :::leanPillCaption "security theorem for any AXU bound"
 :::
@@ -522,9 +522,9 @@ The second term is the {bpref "prp_switching"}[PRP/PRF switching] bound for the
 $`q = n + 2` queries of $`\mathcal B` and $`N = 2^{128}`. These $`n + 2` blocks are distinct
 because $`L` is supported. The third term is $`q_d` times the AXU bound of $`h_L`.
 
-The bound holds for every message length $`|m|` and ciphertext length function
-$`\mathit{clen}` of the game, because all ciphertexts in $`\bit^L \times \bit^{128}` have
-the same length.
+The bound holds for every choice of the functions $`|\cdot|` and $`\mathit{clen}` of the
+game, because all ciphertexts in $`\bit^L \times \bit^{128}` have
+the same length, so $`\mathcal C(\ell) = \mathcal C.`
 
 :::leanPillCaption "security theorem"
 :::

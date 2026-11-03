@@ -119,7 +119,7 @@ $$`\mathsf{Adv}^{\textsf{prf}}_{P}(\mathcal B)
   \le \mathsf{Adv}^{\textsf{prp}}_{P}(\mathcal B) + \frac{q(q - 1)}{2N}.`
 
 Lemma 1 of {Informal.citet BR06}[] holds for every adversary that makes at most $`q` queries,
-adaptive ones included. The statement here covers only queries at blocks fixed in advance.
+adaptive ones included. Our statement covers only queries at blocks fixed in advance.
 
 :::leanPillCaption "adversary with fixed queries"
 :::
