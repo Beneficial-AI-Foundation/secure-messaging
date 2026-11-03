@@ -55,6 +55,7 @@ private def spqrStatesSvg : String := r##"
       .spqr-states .ss-send { fill: none; stroke: #b7791f; stroke-width: 1.8; }
       .spqr-states .ss-label { font-size: 11.5px; fill: #374151; }
       .spqr-states .ss-send-label { font-size: 11.5px; fill: #935f10; font-weight: 600; }
+      .spqr-states .ss-rec { fill: #1f5f8b; font-weight: 600; }
     </style>
   </defs>
 
@@ -119,29 +120,29 @@ private def spqrStatesSvg : String := r##"
   <path class="ss-send" d="M324 55.0 H396" marker-end="url(#spqr-states-send-arrow)"/>
   <text class="ss-send-label" x="360" y="49" text-anchor="middle">Send</text>
   <path class="ss-recv" d="M686 55.0 H758" marker-end="url(#spqr-states-arrow)"/>
-  <text class="ss-label" x="722" y="49" text-anchor="middle">Rec(Ct1)</text>
+  <text class="ss-label" x="722" y="49" text-anchor="middle"><tspan class="ss-rec">Rec</tspan>(Ct1)</text>
   <path class="ss-recv" d="M903.0 86 V150" marker-end="url(#spqr-states-arrow)"/>
-  <text class="ss-label" x="909" y="122" text-anchor="start">Rec(Ct1)</text>
+  <text class="ss-label" x="909" y="122" text-anchor="start"><tspan class="ss-rec">Rec</tspan>(Ct1)</text>
   <path class="ss-recv" d="M903.0 212 V276" marker-end="url(#spqr-states-arrow)"/>
-  <text class="ss-label" x="909" y="248" text-anchor="start">Rec(Ct2)</text>
+  <text class="ss-label" x="909" y="248" text-anchor="start"><tspan class="ss-rec">Rec</tspan>(Ct2)</text>
   <path class="ss-recv" d="M903.0 338 V402" marker-end="url(#spqr-states-arrow)"/>
-  <text class="ss-label" x="909" y="374" text-anchor="start">Rec(Ct2) · next epoch</text>
+  <text class="ss-label" x="909" y="374" text-anchor="start"><tspan class="ss-rec">Rec</tspan>(Ct2) · next epoch</text>
   <path class="ss-recv" d="M758 433.0 H686" marker-end="url(#spqr-states-arrow)"/>
-  <text class="ss-label" x="722" y="427" text-anchor="middle">Rec(Hdr)</text>
+  <text class="ss-label" x="722" y="427" text-anchor="middle"><tspan class="ss-rec">Rec</tspan>(Hdr)</text>
   <path class="ss-send" d="M396 433.0 H324" marker-end="url(#spqr-states-send-arrow)"/>
   <text class="ss-send-label" x="360" y="427" text-anchor="middle">Send</text>
   <path class="ss-recv" d="M179.0 402 V338" marker-end="url(#spqr-states-arrow)"/>
-  <text class="ss-label" x="185" y="374" text-anchor="start">Rec(Ek)</text>
+  <text class="ss-label" x="185" y="374" text-anchor="start"><tspan class="ss-rec">Rec</tspan>(Ek)</text>
   <path class="ss-recv" d="M277.6 402 V370 H686 V338" marker-end="url(#spqr-states-arrow)"/>
-  <text class="ss-label" x="409.3" y="365" text-anchor="middle">Rec(EkCt1Ack)</text>
+  <text class="ss-label" x="409.3" y="365" text-anchor="middle"><tspan class="ss-rec">Rec</tspan>(EkCt1Ack)</text>
   <path class="ss-recv" d="M179.0 276 V193 H396" marker-end="url(#spqr-states-arrow)"/>
-  <text class="ss-label" x="287.5" y="188" text-anchor="middle">Rec(Ct1Ack / EkCt1Ack)</text>
+  <text class="ss-label" x="287.5" y="188" text-anchor="middle"><tspan class="ss-rec">Rec</tspan>(Ct1Ack / EkCt1Ack)</text>
   <path class="ss-recv" d="M541.0 276 V212" marker-end="url(#spqr-states-arrow)"/>
-  <text class="ss-label" x="547" y="248" text-anchor="start">Rec(Ek / EkCt1Ack)</text>
+  <text class="ss-label" x="547" y="248" text-anchor="start"><tspan class="ss-rec">Rec</tspan>(Ek / EkCt1Ack)</text>
   <path class="ss-recv" d="M34 445 H12 V169 H396" marker-end="url(#spqr-states-arrow)"/>
-  <text class="ss-label" x="218" y="164" text-anchor="middle">Rec(EkCt1Ack)</text>
+  <text class="ss-label" x="218" y="164" text-anchor="middle"><tspan class="ss-rec">Rec</tspan>(EkCt1Ack)</text>
   <path class="ss-recv" d="M541.0 150 V118 H179.0 V86" marker-end="url(#spqr-states-arrow)"/>
-  <text class="ss-label" x="304" y="132" text-anchor="middle">Rec(t = ep+1)</text>
+  <text class="ss-label" x="304" y="132" text-anchor="middle"><tspan class="ss-rec">Rec</tspan>(t = ep+1)</text>
 </svg>
 "##
 
