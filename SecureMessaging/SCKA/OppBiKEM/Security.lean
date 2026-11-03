@@ -49,7 +49,8 @@ receive recovery step replaced by a lookup of the peer's recorded key instead of
 (`IdealReceive`). For a threshold `T`, the *hybrid game* `H_T := hybridExp … T adv` uses these
 ideal receives and answers eligible challenges below `T` with independent uniform keys and
 all other eligible challenges with recorded keys (`Hybrid`). Each game returns the adversary's
-output bit. Write `p_T := Pr[hybridExp … T adv = true]` for its acceptance probability.
+output bit. Write `p_T := Pr[hybridExp … T adv = true]` for the probability that the adversary
+outputs true in hybrid H_T.
 
 A *hop at epoch `t`* compares the adjacent hybrids `H_t` and `H_{t+1}`. Their challenge oracles
 differ only in their answer to an eligible challenge at `t`: the former returns its recorded
@@ -134,7 +135,6 @@ include hEk hCt in
 
 Then `AdvGuess_SCKA(scka, adv) ≤ q · ε + (1/2) · Σ_{t=1}^{2q} AdvINDCPA_KEM(kem, R_t)`, where `ε`
 is the correctness error of `kem` and `R_t := reduction … adv t`. -/
--- ANCHOR: securityPositive
 theorem security_positive (adv : SecurityAdversary leak Sym) (q : ℕ)
     (hq : SecuritySendQueryBound adv q) :
     SCKAScheme.sckaGuessAdvantage (scheme kem hDet ecEk ecCt leak) adv
@@ -142,7 +142,6 @@ theorem security_positive (adv : SecurityAdversary leak Sym) (q : ℕ)
       (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal +
       (1 / 2 : ℝ) * ∑ i ∈ Finset.range (2 * q), (kem.IND_CPA_Advantage ProbCompRuntime.probComp
         (reduction kem hDet ecEk ecCt leak adv (i + 1))).toReal
--- ANCHOR_END: securityPositive
     :=
   Proofs.security_positive kem hDet ecEk ecCt hEk hCt leak adv q hq
 
@@ -176,7 +175,6 @@ include hEk hCt in
   most `δ`.
 
 Then `AdvGuess_SCKA(scka, adv) ≤ q · ε + q · δ`, where `ε` is the correctness error of `kem`. -/
--- ANCHOR: securityUniform
 theorem security_uniform (adv : SecurityAdversary leak Sym) (q : ℕ)
     (hq : SecuritySendQueryBound adv q) (δ : ℝ)
     (hδ : ∀ t, 0 < t → t ≤ 2 * q →
@@ -185,7 +183,6 @@ theorem security_uniform (adv : SecurityAdversary leak Sym) (q : ℕ)
     SCKAScheme.sckaGuessAdvantage (scheme kem hDet ecEk ecCt leak) adv
         (exposure .A leak) (exposure .B leak) ≤
       (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal + (q : ℝ) * δ
--- ANCHOR_END: securityUniform
     :=
   Proofs.security_uniform kem hDet ecEk ecCt hEk hCt leak adv q hq δ hδ
 
