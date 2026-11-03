@@ -100,7 +100,7 @@ structure IncrementalStructure (kem : KEMScheme m K PK SK C) where
 :::defTitle "incremental_kem_det" "Incremental KEM with explicit coins"
 :::
 
-:::::::definition "incremental_kem_det" (parent := "incremental_kem") (lean := "KEMScheme.IncrementalKEMDet") (tags := "gh-224") (uses := "incremental_kem_scheme")
+:::::::definition "incremental_kem_det" (parent := "incremental_kem") (lean := "KEMScheme.IncrementalKEMDet, KEMScheme.IncrementalKEMDet.toKEM, KEMScheme.IncrementalKEMDet.toIncremental") (tags := "gh-224") (uses := "incremental_kem_scheme")
 An *incremental KEM with explicit coins* is an {bpref "incremental_kem_scheme"}[incremental KEM]
 with header space $`H`, vector space $`V`, state space $`S`, and algorithms
 $`\mathsf{KeyGen}`, $`\mathsf{Encaps}_1`, $`\mathsf{Encaps}_2`, $`\mathsf{Decaps}` for which
@@ -121,9 +121,6 @@ $$`
 \mathsf{Encaps}_1(h):\quad r_1\sample\mathcal D_1;\quad\Return\mathsf{Encaps}_1(h;r_1)
 \end{array}
 `
-
-Its randomness-leaking variants return $`r_K` and $`r_1` and nothing for the second stage. A
-protocol may instead draw the coins at its own sending steps.
 
 :::leanPillCaption "algorithms with explicit coins and coin samplers"
 :::
@@ -162,6 +159,37 @@ structure IncrementalKEMDet (m : Type → Type u) (K PK SK C : Type) where
   sampleKeygen : m KeygenRand
   /-- Sampler for first-stage encapsulation coins. -/
   sampleEncaps1 : m Encaps1Rand
+```
+
+:::leanPillCaption "derived KEM and incremental structure"
+:::
+
+```anchor IncrementalKEMDet_toKEM (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.Derandomized)
+/-- KEM obtained by sampling coins and running the deterministic blocks. -/
+def toKEM : KEMScheme m K PK SK C where
+  keygen := det.keygenDet <$> det.sampleKeygen
+  encaps pk := do
+    let (hdr, vec) := (det.splitPK pk).1
+    let (st, c1, k) ← det.encaps1Det hdr <$> det.sampleEncaps1
+    let c2 ← pure (det.encaps2Det st hdr vec)
+    pure (det.splitC.symm (c1, c2), k)
+  decaps sk c := pure (det.decapsDet sk c)
+```
+
+```anchor IncrementalKEMDet_toIncremental (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.Derandomized)
+/-- Incremental structure obtained by sampling coins for the first stage. -/
+def toIncremental : det.toKEM.IncrementalStructure where
+  PKheader := det.PKheader
+  PKvector := det.PKvector
+  C₁ := det.C₁
+  C₂ := det.C₂
+  St := det.St
+  validPK := det.validPK
+  splitPK := det.splitPK
+  splitC := det.splitC
+  encaps1 hdr := det.encaps1Det hdr <$> det.sampleEncaps1
+  encaps2 st hdr vec := pure (det.encaps2Det st hdr vec)
+  factor _ := rfl
 ```
 
 :::::::

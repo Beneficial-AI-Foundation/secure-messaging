@@ -13,8 +13,7 @@ import SecureMessaging.KEM.IncrementalKEM.Defs
 stages, and deterministic decapsulation, together with samplers for key-generation and
 first-stage coins. A protocol can draw these coins at its own sampling sites.
 
-`toKEM` and `toIncremental` run the blocks with their samplers. `toRandLeak` additionally
-returns the sampled coins; its second stage returns `()` because it samples nothing.
+`toKEM` and `toIncremental` run the blocks with their samplers.
 -/
 
 namespace KEMScheme
@@ -69,6 +68,7 @@ def toHeader (pk : PK) : det.PKheader := (det.splitPK pk).1.1
 /-- The vector of a public key. -/
 def toVector (pk : PK) : det.PKvector := (det.splitPK pk).1.2
 
+-- ANCHOR: IncrementalKEMDet_toKEM
 /-- KEM obtained by sampling coins and running the deterministic blocks. -/
 def toKEM : KEMScheme m K PK SK C where
   keygen := det.keygenDet <$> det.sampleKeygen
@@ -78,7 +78,9 @@ def toKEM : KEMScheme m K PK SK C where
     let c2 ← pure (det.encaps2Det st hdr vec)
     pure (det.splitC.symm (c1, c2), k)
   decaps sk c := pure (det.decapsDet sk c)
+-- ANCHOR_END: IncrementalKEMDet_toKEM
 
+-- ANCHOR: IncrementalKEMDet_toIncremental
 /-- Incremental structure obtained by sampling coins for the first stage. -/
 def toIncremental : det.toKEM.IncrementalStructure where
   PKheader := det.PKheader
@@ -92,6 +94,7 @@ def toIncremental : det.toKEM.IncrementalStructure where
   encaps1 hdr := det.encaps1Det hdr <$> det.sampleEncaps1
   encaps2 st hdr vec := pure (det.encaps2Det st hdr vec)
   factor _ := rfl
+-- ANCHOR_END: IncrementalKEMDet_toIncremental
 
 /-- The derived KEM has the supplied deterministic decapsulation. -/
 def toDetDecaps : det.toKEM.DeterministicDecaps where
@@ -102,22 +105,6 @@ def toDetDecaps : det.toKEM.DeterministicDecaps where
 def toDetEncaps2 : det.toIncremental.DeterministicEncaps2 where
   encaps2Det := det.encaps2Det
   encaps2_eq _ _ _ := rfl
-
-/-- The derived algorithms paired with their sampled coins; the second-stage leak is `Unit`. -/
-def toRandLeak [LawfulMonad m] : det.toKEM.IncrementalRandLeak det.toIncremental where
-  KeygenRand := det.KeygenRand
-  Encaps1Rand := det.Encaps1Rand
-  Encaps2Rand := Unit
-  keygenRleak := do
-    let r ← det.sampleKeygen
-    pure (det.keygenDet r, r)
-  encaps1Rleak hdr := do
-    let r ← det.sampleEncaps1
-    pure (det.encaps1Det hdr r, r)
-  encaps2Rleak st hdr vec := pure (det.encaps2Det st hdr vec, ())
-  keygen_fst := by simp only [toKEM, map_eq_pure_bind, bind_assoc, pure_bind]
-  encaps1_fst _ := by simp only [toIncremental, map_eq_pure_bind, bind_assoc, pure_bind]
-  encaps2_fst _ _ _ := by simp [toIncremental]
 
 end IncrementalKEMDet
 
