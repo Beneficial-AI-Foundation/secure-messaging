@@ -210,7 +210,7 @@ $`\mathbf u` and $`v`. The *incremental KEM from ML-KEM* is the
 - header $`h=(\rho,\mathsf H(ek))\in H` and vector $`v=\hat{\mathbf t}\in V`, where
   $`\mathsf{Valid}((\rho,\eta),\hat{\mathbf t})` holds if and only if $`\mathsf H((\hat{\mathbf t},\rho))=\eta`;
 - ciphertext components $`c_1\in C_1` and $`c_2\in C_2`;
-- state space $`S\ni(\hat{\mathbf y},e_2,m)`: the NTT of the ephemeral vector, the second noise
+- states $`(\hat{\mathbf y},e_2,m)\in S`: the NTT of the ephemeral vector, the second noise
   polynomial, and the message;
 - the stages below, with $`\mathsf H`, $`\mathsf G`, $`\mathsf{PRF}`, the samplers, $`\mathsf{NTT}`,
   and the byte encodings of FIPS 203, and $`\hat{\mathbf A}` the matrix expanded from $`\rho`.
