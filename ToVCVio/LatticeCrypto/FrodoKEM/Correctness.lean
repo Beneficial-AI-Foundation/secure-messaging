@@ -54,12 +54,34 @@ recall Decode_Encode_add (p : Params) (hw : p.WellFormed)
 /-!
 ## Step 2: decapsulation fails only when the noise is large
 
-Honest decryption computes the encoded message plus the noise matrix `S′ E + E″ - E′ S`. Key
-generation and encryption sample the secret and error matrices in this sum. If the noise satisfies
-the condition of step 1, decryption returns the message. Encryption of that message then gives
-the same ciphertext again, and decapsulation returns the honest shared secret.
+The random inputs of the KEM are the fallback secret, the seeds `seedSE` and `z`, the message `μ`
+and the salt. The KEM samples no matrix. It computes the five matrices from these inputs with
+SHAKE:
+* `S` and `E` come from `SHAKE(0x5F ‖ seedSE)`.
+* The public matrix is `A = gen(SHAKE(z))`. The public key contains `A Sᵀ + E`, and `pkh` is
+  `SHAKE(pk)`.
+* The encryption seed is the first part of `SHAKE(pkh ‖ μ ‖ salt)`.
+* `S′`, `E′` and `E″` come from `SHAKE(0x96 ‖ encryption seed)`.
 
-Thus a failure is at most as probable as large noise. This step uses no property of SHAKE.
+Honest decryption computes the encoded message plus the noise matrix `S′ E + E″ - E′ S`. If the
+noise satisfies the condition of step 1, decryption returns the message. Encryption of that
+message then gives the same ciphertext again. Thus decapsulation returns the honest shared secret
+(`KEM.decaps_encapsFromCoins_of_noiseBound`).
+
+This result holds for each choice of the random inputs and for any `Gen` and `SHAKE` functions.
+Thus a failure is at most as probable as large noise (`KEM.honestNoiseBadProb`).
+
+For a fixed SHAKE, this step does not give the probability of large noise. There are two
+problems:
+* The seeds are short. For FrodoKEM-640, SHAKE expands the 256 bits of `seedSE` to 163,840 bits
+  for `S` and `E`. Thus `(S, E)` takes at most `2 ^ 256` values. Independent samples take far
+  more values.
+* The encryption seed depends on the public key, and thus on `S`, `E` and `A`. Thus `S′`, `E′`
+  and `E″` depend on `S` and `E`.
+
+No bound holds for every SHAKE. For example, a function in place of SHAKE can give the same
+error matrices for each input, with `E′ = 0` and the other matrices at their largest values.
+Then `S′ E` is large, and the noise is always large.
 -/
 
 recall KEM.honestFailureProb_le_honestNoiseBadProb {ps : ParameterSet} (ops : Operations ps) :
@@ -68,19 +90,45 @@ recall KEM.honestFailureProb_le_honestNoiseBadProb {ps : ParameterSet} (ops : Op
 /-!
 ## Step 3: in the random-oracle model, the noise is sampled independently
 
-From this step on, a table of uniformly random answers replaces SHAKE (`ROM.operations`).
-Before the noise is known, the KEM reads five entries of the table. These five inputs differ in
-length or in prefix, so each answer is a new uniform bit string. Two of these answers go to the
-error sampler.
+From this step on, a table `H` of uniformly random answers replaces SHAKE (`ROM.operations`).
+The function `gen` that makes the public matrix does not depend on the table. Step 2 holds for
+each table, so it also holds on average over the table. The result of this step is about the
+average over the table and the random inputs together. It does not apply to one fixed table.
 
-The proof cuts these two answers at the matrix boundaries. The five noise matrices that result
-have the joint distribution of five independent samples (`ROM.finiteLaw_samplesFromCoins`).
-The experiment `IndepNoise.noiseBadProb` samples the five matrices independently. Thus, on
-average over the table, large noise has the same probability as in that experiment.
+**The randomness comes from the table.** The proof fixes the random inputs of the KEM and takes
+the probability over the table only. For a fixed `seedSE`, the entry at `0x5F ‖ seedSE` is a
+uniform string, because the table is random. The seed only selects the entry. Thus the length of
+the seed has no effect on the result. This step needs a random table: with a fixed SHAKE and fixed
+inputs, nothing random is left.
+
+**The proof of this step.** For fixed random inputs, the proof has four parts:
+1. The computation of the five matrices is a program that asks five questions of an oracle
+   (`fixedCoinsProgram`).
+2. A VCVio theorem replaces the full table with a lazy oracle
+   (`evalDist_simulateQ_randomOracle_run'_empty_eq_uniformTable`). The lazy oracle gives a new
+   uniform answer to each new input, and it remembers that answer. The two oracles give the same
+   distribution.
+3. Only the first two inputs are fixed. The other three depend on earlier answers. For example,
+   `pkh` depends on the public key. But the five inputs of one run are all different. They
+   differ in length, or, for the two noise queries, in their first 8 bits (`ROM.domain_disjoint`).
+   Thus the lazy oracle gives five independent uniform answers. An earlier answer selects where
+   the oracle looks, but the value at that place is new.
+4. Each query reads only a prefix of its answer, and a prefix of a uniform string is uniform
+   (`ToVCVio.FiniteXOF.finiteLaw_prefix_uniform`). The proof cuts answer 2 into `S` and `E`, and
+   answer 5 into `S′`, `E′` and `E″`. The cut is a bijection (`splitBitsEquiv`), so the parts are
+   uniform and independent. The other three answers only select later inputs.
+
+Thus the five matrices have the distribution of `IndepNoise.sampleNoise`
+(`ROM.finiteLaw_samplesFromCoins`). This experiment samples the five matrices independently. Each
+choice of the random inputs gives the same probability `IndepNoise.noiseBadProb ps`. Thus the
+average over the random inputs has the same value.
 -/
 
 recall ROM.honestNoiseBadProb_eq_indepNoise (ps : ParameterSet) (gen : ROM.Generator ps) :
     ROM.honestNoiseBadProb ps gen = IndepNoise.noiseBadProb ps
+
+recall ROM.honestFailureProb_le_indepNoiseBadProb (ps : ParameterSet) (gen : ROM.Generator ps) :
+    ROM.honestFailureProb ps gen ≤ IndepNoise.noiseBadProb ps
 
 /-!
 ## Step 4: from the noise matrix to one entry
