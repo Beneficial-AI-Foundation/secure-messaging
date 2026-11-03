@@ -455,16 +455,16 @@ theorem stoppedRun_installKeygen (hHdrCorrect : P.ecpHdr.ec.Correct)
     (stopOnState (traceImplAt P hMac irl e none none xo m) (targetStop e))
     (TraceInv hMac true) (fun s => (s.transcript e).keypair ≠ none) (sendHit (isKeygenAt e) e)
     (fun x hx q s hs z hz _ => by
-      obtain ⟨w, hw, rfl⟩ := OracleComp.mem_support_stopOnState hz
+      obtain ⟨w, hw, rfl⟩ := (OracleComp.mem_support_stopOnState _ _ _ _ _).1 hz
       exact traceImplAt_traceInv hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct e
         (some x) none xo m (fun y h => by cases h; exact hx) q s hs
         (fun _ _ _ _ _ h => by cases h) w hw)
     (fun x _ q s _ hu z hz _ => by
-      obtain ⟨w, hw, rfl⟩ := OracleComp.mem_support_stopOnState hz
+      obtain ⟨w, hw, rfl⟩ := (OracleComp.mem_support_stopOnState _ _ _ _ _).1 hz
       exact (traceImplAt_transcriptStep hMac irl e (some x) none xo m q s w hw).keypair_ne hu)
     (fun q s hs hu => sendHit_false (fun p => isKeygenAt_false hMac hs hu p) q)
     (fun x _ q s _ hh z hz _ => by
-      obtain ⟨w, hw, rfl⟩ := OracleComp.mem_support_stopOnState hz
+      obtain ⟨w, hw, rfl⟩ := (OracleComp.mem_support_stopOnState _ _ _ _ _).1 hz
       exact keygen_hit_records hMac irl e x xo m q s hh w hw)
     (fun q s _ hh x _ => keygen_off hMac irl e xo m q s hh x)
     (fun q s _ hh => keygen_on hMac irl e xo m q s hh)
@@ -489,15 +489,15 @@ theorem stoppedRun_installEncaps1 (hHdrCorrect : P.ecpHdr.ec.Correct)
     (InstInv hMac e (some x) none) (fun s => (s.transcript e).encaps1 ≠ none)
     (sendHit (isEncaps1At e) e)
     (fun c hc q s hs z hz _ => by
-      obtain ⟨w, hw, rfl⟩ := OracleComp.mem_support_stopOnState hz
+      obtain ⟨w, hw, rfl⟩ := (OracleComp.mem_support_stopOnState _ _ _ _ _).1 hz
       exact traceImplAt_instInv hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct e x
         (some c) none xo m hx (fun c' h => by cases h; exact hc) (Or.inl rfl) q s hs w hw)
     (fun c _ q s _ hu z hz _ => by
-      obtain ⟨w, hw, rfl⟩ := OracleComp.mem_support_stopOnState hz
+      obtain ⟨w, hw, rfl⟩ := (OracleComp.mem_support_stopOnState _ _ _ _ _).1 hz
       exact (traceImplAt_transcriptStep hMac irl e (some x) (some c) xo m q s w hw).encaps1_ne hu)
     (fun q s hs hu => sendHit_false (fun p => isEncaps1At_false hMac hs.1 hu p) q)
     (fun c _ q s _ hh z hz _ => by
-      obtain ⟨w, hw, rfl⟩ := OracleComp.mem_support_stopOnState hz
+      obtain ⟨w, hw, rfl⟩ := (OracleComp.mem_support_stopOnState _ _ _ _ _).1 hz
       exact encaps1_hit_records hMac irl e (some x) c xo m q s hh w hw)
     (fun q s _ hh c _ => encaps1_off hMac irl e (some x) xo m q s hh c)
     (fun q s hs hh => encaps1_on hMac irl e x none xo m q s hs hh)

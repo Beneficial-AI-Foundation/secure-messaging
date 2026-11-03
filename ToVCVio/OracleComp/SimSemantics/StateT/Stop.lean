@@ -250,17 +250,6 @@ theorem stopOnState_run_eq_map
   rw [map_eq_bind_pure_comp]
   rfl
 
-/-- Every supported stopped outcome comes from a supported ordinary response/state pair. -/
-theorem mem_support_stopOnState {ι σ : Type} {spec : OracleSpec ι}
-    {impl : QueryImpl spec (StateT σ ProbComp)} {stop : σ → Bool}
-    {t : spec.Domain} {s : σ} {z : Option (spec.Range t) × σ}
-    (hz : z ∈ support (((stopOnState impl stop t).run).run s)) :
-    ∃ w ∈ support ((impl t).run s),
-      z = (if stop w.2 then none else some w.1, w.2) := by
-  rw [stopOnState_run_eq_map, support_map] at hz
-  obtain ⟨w, hw, rfl⟩ := hz
-  exact ⟨w, hw, rfl⟩
-
 /-- Stopping preserves equality of the joint response/state distribution. -/
 theorem stopped_congr {ι σ : Type} {spec : OracleSpec ι}
     {I L : QueryImpl spec (StateT σ ProbComp)}

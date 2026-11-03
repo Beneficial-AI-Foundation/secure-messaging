@@ -482,7 +482,7 @@ theorem stoppedRun_chalSample (e : ℕ) (kp : Option (P.PK × P.SK))
     (fun _ => True) (fun s => e ∈ s.game.challenged) (chalHit e)
     (fun _ _ _ _ _ _ _ _ => trivial)
     (fun x _ q s _ hu z hz _ => by
-      obtain ⟨w, hw, rfl⟩ := OracleComp.mem_support_stopOnState hz
+      obtain ⟨w, hw, rfl⟩ := (OracleComp.mem_support_stopOnState _ _ _ _ _).1 hz
       exact (traceImplAt_flagStep hMac irl e kp ec (some x) mode q s w hw).challenged hu)
     (fun q s _ hq x _ x' _ => by
       rw [stopOnState_run_congr _ (traceImplAt_offHit hMac irl e kp ec mode x q s hq),
@@ -498,7 +498,7 @@ theorem stoppedRun_chalSample (e : ℕ) (kp : Option (P.PK × P.SK))
       · exact absurd hq (by simp [chalHit])
       · obtain ⟨rfl, hexp, hch, hk⟩ := of_decide_eq_true hq
         obtain ⟨k, hk⟩ := Option.isSome_iff_exists.mp hk
-        obtain ⟨w, hw, rfl⟩ := OracleComp.mem_support_stopOnState hz
+        obtain ⟨w, hw, rfl⟩ := (OracleComp.mem_support_stopOnState _ _ _ _ _).1 hz
         change w ∈ support ((traceChallengeAt P mode t (some x) t).run s) at hw
         rw [traceChallengeAt_hit mode t (some x) s (fun h => h.elim hexp hch) hk,
           support_map] at hw

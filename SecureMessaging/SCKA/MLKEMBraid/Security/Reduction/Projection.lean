@@ -153,7 +153,7 @@ theorem simStep_eq (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.
     (stopOnState (simImpl P hMac irl e ch) (simStop e)) (simOf e v)
     (SimInv hMac e ch.pk sk es ch.ct1 k)
     (fun q s hs z hz _ => by
-      obtain ⟨w, hw, rfl⟩ := OracleComp.mem_support_stopOnState hz
+      obtain ⟨w, hw, rfl⟩ := (OracleComp.mem_support_stopOnState _ _ _ _ _).1 hz
       exact traceImplAt_instInv hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct e
         (ch.pk, sk) (some (es, ch.ct1, k)) (some (es, ch.ct1, k)) xo _ hkp
         (fun c h => by cases h; exact hec) (Or.inr rfl) q s hs w hw)
