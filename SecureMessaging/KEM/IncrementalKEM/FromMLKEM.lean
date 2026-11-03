@@ -25,9 +25,9 @@ The `factor` field of `mlkemIncremental` identifies the staged computation with 
 encapsulation. `mlkemIncrementalRandLeak` exposes the FIPS 203 coins of key
 generation and first-stage encapsulation for security games.
 
-`mlkemIncrementalDet` exposes the same pure blocks with explicit coins and separate samplers.
-Key generation draws one 64-byte seed, whose first and last 32 bytes supply `d` and `z`;
-first-stage encapsulation draws one 32-byte message.
+`mlkemIncrementalDet` is the incremental KEM with explicit coins built from the same
+deterministic algorithms: key generation takes one 64-byte seed, whose first and last 32 bytes are
+`d` and `z`, and first-stage encapsulation takes one 32-byte message.
 -/
 
 open OracleComp KEMScheme LatticeCrypto

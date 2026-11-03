@@ -3,7 +3,6 @@ import VersoManual
 import VersoBlueprint
 import SecureMessagingDocs.Bibliography
 import SecureMessagingDocs.Visuals.GameBoxes
-import SecureMessagingDocs.Visuals.SPQREpoch
 import SecureMessagingDocs.Visuals.SPQRStates
 import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessaging.SCKA.SPQR.Params
@@ -61,10 +60,15 @@ An *SPQR parameter set* $`P` consists of
   - encoder algorithms $`\mathsf{Enc}_X` and $`\mathsf{Next}`, decoder algorithms $`\mathsf{Empty}_X`,
     $`\mathsf{Add}`, and $`\mathsf{Decode}`;
 - a {bpref "mlkem_braid_ratcheted_authenticator"}[ratcheted authenticator] $`\mathsf{Auth}` with
-  initial-key space $`\mathcal I_{\mathsf{CKA}}`, state space $`\mathcal S_{\mathsf{Auth}}`, and
-  algorithms $`\mathsf{Init}`, $`\mathsf{Update}`, $`\mathsf{Tag}_H`, $`\mathsf{Verify}_H`,
-  $`\mathsf{Tag}_C`, $`\mathsf{Verify}_C` for epoch keys $`E`, headers $`H`, ciphertexts
-  $`C_1\times C_2`, and tags $`T`.
+  initial-key space $`\mathcal I_{\mathsf{CKA}}` and state space $`\mathcal S_{\mathsf{Auth}}`:
+  - $`\mathsf{Init}:\mathcal I_{\mathsf{CKA}}\times\mathbb N\to\mathcal S_{\mathsf{Auth}}` and
+    $`\mathsf{Update}:\mathcal S_{\mathsf{Auth}}\times\mathbb N\times E\to\mathcal S_{\mathsf{Auth}}`;
+  - $`\mathsf{Mac}_H:\mathcal S_{\mathsf{Auth}}\times\mathbb N\times H\to T` and
+    $`\mathsf{Verify}_H:\mathcal S_{\mathsf{Auth}}\times\mathbb N\times H\times T\to\{\mathsf{true},\mathsf{false}\}`
+    on headers;
+  - $`\mathsf{Mac}_C:\mathcal S_{\mathsf{Auth}}\times\mathbb N\times(C_1\times C_2)\to T` and
+    $`\mathsf{Verify}_C:\mathcal S_{\mathsf{Auth}}\times\mathbb N\times(C_1\times C_2)\times T\to\{\mathsf{true},\mathsf{false}\}`
+    on ciphertexts.
 
 :::leanPillCaption "Parameters"
 :::
@@ -79,7 +83,7 @@ structure Parameters (m : Type → Type u) [Monad m] where
   SK : Type
   /-- Ciphertext. -/
   C : Type
-  /-- Deterministic incremental KEM blocks and their coin samplers. -/
+  /-- Incremental KEM with explicit coins. -/
   det : KEMScheme.IncrementalKEMDet m K PK SK C
   /-- Epoch key output by `KDF_OK`. -/
   EpochKey : Type
@@ -472,7 +476,7 @@ $`\begin{array}{l}
 r_K\sample\mathcal D_K\\
 (\mathsf{pk},\mathsf{sk})\gets\mathsf{KeyGen}(;r_K)\\
 (\mathsf{hdr},\mathsf{vec})\gets \mathsf{pk}\\
-\mathsf{tag}\gets\mathsf{Tag}_H(\mathsf{auth},\mathsf{ep},\mathsf{hdr})\\
+\mathsf{tag}\gets\mathsf{Mac}_H(\mathsf{auth},\mathsf{ep},\mathsf{hdr})\\
 \Return((\mathsf{ep},\mathsf{auth},\mathsf{pk},\mathsf{sk}),(\mathsf{hdr},\mathsf{tag}),r_K)
 \end{array}`
 
@@ -914,7 +918,7 @@ $`\begin{array}{l}
 \hline
 \pcommentline{\text{ciphertext sender}}\\
 \mathsf{ct2}\gets\mathsf{Encaps}_2(\mathsf{encapsSt},\mathsf{hdr},\mathsf{vec})\\
-\mathsf{tag}\gets\mathsf{Tag}_C(\mathsf{auth},\mathsf{ep},(\mathsf{ct1},\mathsf{ct2}))\\
+\mathsf{tag}\gets\mathsf{Mac}_C(\mathsf{auth},\mathsf{ep},(\mathsf{ct1},\mathsf{ct2}))\\
 \Return((\mathsf{ep},\mathsf{auth}),(\mathsf{ct2},\mathsf{tag}))
 \end{array}`
 

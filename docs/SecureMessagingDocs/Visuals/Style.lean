@@ -296,12 +296,6 @@ def smDocsCss : String := r#"
   }
 }
 
-/* Keep the epoch diagram at its designed scale on wide pages. */
-.diagram > svg.spqr-epoch {
-  max-width: 640px;
-  margin-inline: auto;
-}
-
 /* Keep the state diagram at its designed scale on wide pages. */
 .diagram > svg.spqr-states {
   max-width: 1080px;

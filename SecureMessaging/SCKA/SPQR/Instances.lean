@@ -10,14 +10,13 @@ import SecureMessaging.SCKA.SPQR.Construction
 
 /-! # SPQR v1 instance
 
-`v1Parameters` fixes the deterministic ML-KEM-768 blocks and their coin samplers,
-uses `Chunk GF16` symbols, and supplies four SPQR Reed-Solomon codes. With 32-byte chunks, the
-96-byte header and MAC payload requires 3 chunks, the 1152-byte encapsulation-key vector requires
-36, `ct₁` at 960 bytes requires 30, and the 160-byte `ct₂` and MAC payload requires 5.
+`v1Parameters` fixes the incremental KEM with explicit coins to ML-KEM-768 (`v1Det`), uses
+`Chunk GF16` symbols, and supplies four SPQR Reed-Solomon codes. With 32-byte chunks, the 96-byte
+header and MAC payload requires 3 chunks, the 1152-byte encapsulation-key vector requires 36,
+`ct₁` at 960 bytes requires 30, and the 160-byte `ct₂` and MAC payload requires 5.
 
 `EpochKey`, `Mac`, `InitKey`, `AuthState`, `kdfOK`, the four serializer triples, `auth`, and
 `sampleInitKey` remain parameters.
-`v1Parameters` packages these with the ML-KEM blocks and four codes.
 -/
 
 open ErasureCode.SPQRReedSolomon (Chunk GF16 erasureCode)
@@ -30,7 +29,7 @@ abbrev v1Det :=
   MLKEM.mlkemIncrementalDet .MLKEM768 MLKEM.Concrete.concreteNTTRingOps
     MLKEM.Concrete.mlkem768Primitives
 
-/-- The incremental structure induced by the SPQR v1 KEM blocks. -/
+/-- The incremental structure of the KEM derived from `v1Det`. -/
 -- ANCHOR: SPQR_v1Incremental
 abbrev v1Incremental : v1Det.toKEM.IncrementalStructure := v1Det.toIncremental
 -- ANCHOR_END: SPQR_v1Incremental

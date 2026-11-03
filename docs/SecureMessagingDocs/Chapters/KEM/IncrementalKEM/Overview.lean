@@ -165,7 +165,7 @@ structure IncrementalKEMDet (m : Type → Type u) (K PK SK C : Type) where
 :::
 
 ```anchor IncrementalKEMDet_toKEM (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.Derandomized)
-/-- KEM obtained by sampling coins and running the deterministic blocks. -/
+/-- The KEM that samples the coins and runs the deterministic algorithms on them. -/
 def toKEM : KEMScheme m K PK SK C where
   keygen := det.keygenDet <$> det.sampleKeygen
   encaps pk := do
@@ -202,41 +202,22 @@ Incremental KEM from ML-KEM.
 :::
 
 :::::::definition "incremental_kem_from_ml_kem_spec" (parent := "incremental_kem_incremental_kem_from_ml_kem") (lean := "MLKEM.incrementalHeader, MLKEM.EncapsulationState, MLKEM.incrementalEncaps1, MLKEM.incrementalEncaps2, MLKEM.mlkemIncremental, MLKEM.mlkemIncrementalDet") (tags := "gh-226") (uses := "incremental_kem_scheme, ml_kem_scheme, incremental_kem_det")
-An {bpref "ml_kem_scheme"}[ML-KEM] encapsulation key is $`ek=(\hat{\mathbf t},\rho)`, the encoded
-NTT-domain public vector and the matrix seed, and a ciphertext is $`c=(c_1,c_2)`, the encoded
-$`\mathbf u` and $`v`. The *incremental KEM from ML-KEM* is the
-{bpref "incremental_kem_scheme"}[incremental structure] of ML-KEM with
+An {bpref "ml_kem_scheme"}[ML-KEM] encapsulation key is $`ek=\hat{\mathbf t}\mathbin\|\rho`, the
+encoded public vector followed by the matrix seed, and a ciphertext is $`c=(c_1,c_2)`;
+$`\mathsf H` is the hash function of ML-KEM ({Informal.citet FIPS203}[], §4.1). The
+*incremental KEM from ML-KEM* is the {bpref "incremental_kem_scheme"}[incremental structure] of
+ML-KEM with
 
-- header $`h=(\rho,\mathsf H(ek))\in H` and vector $`v=\hat{\mathbf t}\in V`, where
-  $`\mathsf{Valid}((\rho,\eta),\hat{\mathbf t})` holds if and only if $`\mathsf H((\hat{\mathbf t},\rho))=\eta`;
+- header $`h=(\rho,\mathsf H(ek))\in H` and vector $`\hat{\mathbf t}\in V`, where for every
+  header $`(\rho,\eta)` and vector $`\hat{\mathbf t}`,
+  $`\mathsf{Valid}((\rho,\eta),\hat{\mathbf t})` holds if and only if
+  $`\mathsf H(\hat{\mathbf t}\mathbin\|\rho)=\eta`;
 - ciphertext components $`c_1\in C_1` and $`c_2\in C_2`;
-- states $`(\hat{\mathbf y},e_2,m)\in S`: the NTT of the ephemeral vector, the second noise
-  polynomial, and the message;
-- the stages below, with $`\mathsf H`, $`\mathsf G`, $`\mathsf{PRF}`, the samplers, $`\mathsf{NTT}`,
-  and the byte encodings of FIPS 203, and $`\hat{\mathbf A}` the matrix expanded from $`\rho`.
+- stages $`\mathsf{Encaps}_1(h)\to(\sigma,c_1,k)` and
+  $`\mathsf{Encaps}_2(\sigma,h,\hat{\mathbf t})\to c_2` with states $`\sigma\in S`, whose
+  composition is ML-KEM encapsulation.
 
-:::::gameGrid
-::::gameCell "\\mathsf{Encaps}_1((\\rho,\\eta);m)" (kind := "compact") (open := true)
-$`\begin{array}{l}
-(K,r)\gets\mathsf G(m\mathbin\|\eta)\\
-\mathbf y\gets\mathsf{SampleVec}_{\eta_1}(r,0)\\
-\mathbf e_1\gets\mathsf{SampleVec}_{\eta_2}(r,k)\\
-e_2\gets\mathsf{PRF}_{\eta_2}(r,2k)\\
-\hat{\mathbf y}\gets\mathsf{NTT}(\mathbf y)\\
-\mathbf u\gets\mathsf{NTT}^{-1}(\hat{\mathbf A}^{\mathsf T}\hat{\mathbf y})+\mathbf e_1\\
-\Return((\hat{\mathbf y},e_2,m),\ \mathsf{ByteEncode}_{d_u}(\mathsf{Compress}_{d_u}(\mathbf u)),\ K)
-\end{array}`
-::::
-::::gameCell "\\mathsf{Encaps}_2((\\hat{\\mathbf y},e_2,m),(\\rho,\\eta),\\hat{\\mathbf t})" (kind := "compact") (open := true)
-$`\begin{array}{l}
-\mu\gets\mathsf{Decompress}_1(\mathsf{ByteDecode}_1(m))\\
-v\gets\mathsf{NTT}^{-1}(\hat{\mathbf t}^{\mathsf T}\hat{\mathbf y})+e_2+\mu\\
-\Return\mathsf{ByteEncode}_{d_v}(\mathsf{Compress}_{d_v}(v))
-\end{array}`
-::::
-:::::
-
-The two stages compose to ML-KEM encapsulation, and $`\mathsf{Decaps}` is ML-KEM decapsulation.
+$`\mathsf{Decaps}` is ML-KEM decapsulation.
 
 :::leanPillCaption "public-key header (ρ, H(ek))"
 :::
@@ -262,7 +243,7 @@ structure EncapsulationState (params : Params) where
   message : Message
 ```
 
-:::leanPillCaption "first stage: derive state, u, and the shared secret"
+:::leanPillCaption "first stage: state, $`c_1`, and shared key"
 :::
 
 ```anchor incrementalEncaps1 (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
@@ -279,7 +260,7 @@ def incrementalEncaps1 {params : Params} {encoding : Encoding params} (ring : NT
   ({ yHat, e2, message := m }, encoding.byteEncodeDUVec (encoding.compressDU u), k)
 ```
 
-:::leanPillCaption "second stage: derive v from the public-key vector"
+:::leanPillCaption "second stage: $`c_2` from the state and the vector"
 :::
 
 ```anchor incrementalEncaps2 (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
@@ -334,10 +315,11 @@ def mlkemIncremental (p : ParameterSet) (ring : NTTRingOps)
     rfl
 ```
 
-The {bpref "incremental_kem_det"}[variant with explicit coins] has the same header, vector, and stages,
-and the seeds of FIPS 203 as coins: $`\mathsf{KeyGen}(;d\mathbin\|z)` is ML-KEM key generation from the
-seeds $`d,z`, with $`\mathcal D_K` uniform on 64-byte strings, and $`\mathsf{Encaps}_1(h;m)` is the first
-stage above, with $`\mathcal D_1` uniform on 32-byte strings.
+The {bpref "incremental_kem_det"}[variant with explicit coins] has the same header, vector, stages,
+and decapsulation, and the random inputs of FIPS 203 as coins:
+$`\mathsf{KeyGen}(;d\mathbin\|z)` is ML-KEM key generation from the seeds $`d,z`, with
+$`\mathcal D_K` uniform on 64-byte strings, and $`\mathsf{Encaps}_1(h;m)` is the first stage with
+the message $`m`, with $`\mathcal D_1` uniform on 32-byte strings.
 
 :::leanPillCaption "ML-KEM instantiation"
 :::

@@ -10,9 +10,10 @@ import SecureMessaging.SCKA.MLKEMBraid.Basic
 /-!
 # SPQR parameters
 
-SPQR draws coins for deterministic incremental KEM blocks. The parameters also supply
-an epoch-key derivation and four erasure-coded payload streams. `Parameters.toBraid` packages
-these same algorithms for comparison with the ML-KEM Braid transition system.
+An SPQR parameter set `P : Parameters m` consists of an incremental KEM with explicit coins
+`P.det`, whose coins SPQR samples in its send steps, an epoch-key derivation `kdfOK`, a tag space,
+and four erasure-coded payloads. `Parameters.toBraid` gives the ML-KEM Braid parameters with the
+same algorithms, for comparison with the ML-KEM Braid transition system.
 -/
 
 universe u
@@ -31,7 +32,7 @@ structure Parameters (m : Type → Type u) [Monad m] where
   SK : Type
   /-- Ciphertext. -/
   C : Type
-  /-- Deterministic incremental KEM blocks and their coin samplers. -/
+  /-- Incremental KEM with explicit coins. -/
   det : KEMScheme.IncrementalKEMDet m K PK SK C
   /-- Epoch key output by `KDF_OK`. -/
   EpochKey : Type

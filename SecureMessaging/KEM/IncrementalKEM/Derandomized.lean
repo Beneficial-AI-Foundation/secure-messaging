@@ -9,11 +9,13 @@ import SecureMessaging.KEM.IncrementalKEM.Defs
 /-!
 # Incremental KEM with explicit coins
 
-`IncrementalKEMDet` consists of deterministic key generation, two deterministic encapsulation
-stages, and deterministic decapsulation, together with samplers for key-generation and
-first-stage coins. A protocol can draw these coins at its own sampling sites.
+An incremental KEM (`KEMScheme.IncrementalStructure`) splits public keys into a header and a
+vector, and encapsulation into two stages. `IncrementalKEMDet` gives one with explicit coins: key
+generation and the first stage are deterministic functions of their coins, which come with
+samplers, and the second stage and decapsulation are deterministic.
 
-`toKEM` and `toIncremental` run the blocks with their samplers.
+`toKEM` is the KEM that samples the coins and runs these functions on them, and `toIncremental`
+is its incremental structure.
 -/
 
 namespace KEMScheme
@@ -69,7 +71,7 @@ def toHeader (pk : PK) : det.PKheader := (det.splitPK pk).1.1
 def toVector (pk : PK) : det.PKvector := (det.splitPK pk).1.2
 
 -- ANCHOR: IncrementalKEMDet_toKEM
-/-- KEM obtained by sampling coins and running the deterministic blocks. -/
+/-- The KEM that samples the coins and runs the deterministic algorithms on them. -/
 def toKEM : KEMScheme m K PK SK C where
   keygen := det.keygenDet <$> det.sampleKeygen
   encaps pk := do

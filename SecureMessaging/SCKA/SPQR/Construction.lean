@@ -10,15 +10,25 @@ import SecureMessaging.SCKA.SPQR.Chunked
 
 /-! # SPQR as an SCKA scheme
 
-`SPQR.scheme` packages the chunked transitions as an `SCKAScheme` without changing them. A receive
-error maps to `none`, which refuses delivery and makes the SCKA correctness oracle clear the
-correctness flag (`SCKAScheme.oracleRecvA`, `SCKAScheme.oracleRecvB`). It cannot trigger
-renegotiation.
+`SPQR.scheme` presents SPQR, given by the chunked transitions of `SPQR.Chunked`, as an
+`SCKAScheme`, the interface of the SCKA correctness and security games. Both parties run the same
+algorithms from different initial states:
 
-The leak label is `.keygen` exactly in `keysUnsampled`, `.encaps1` exactly in `headerReceived`, and
-`.none` elsewhere. Stage two discloses nothing because it is pure.
-`Chunked.send` returns the coins drawn by `EkSender.sendHeader` or `CtSender.sendCt1`; the ordinary
-send discards them.
+- `initKeyGen` samples the initial key, and `initA` and `initB` derive the initial states;
+- `sendA` and `sendB` are `send`, the chunked send;
+- `sendArleak` and `sendBrleak` are `sendRleak`, the chunked send that also returns the coins it
+  samples: key-generation coins from `keysUnsampled`, first-stage encapsulation coins from
+  `headerReceived`, and none from every other state (`map_snd_sendRleak`);
+- `recvA` and `recvB` are `recvSCKA`, the chunked receive with every error mapped to `none`.
+
+The SCKA receive oracles `SCKAScheme.oracleRecvA` and `SCKAScheme.oracleRecvB` treat `none` on a
+sent message as a correctness violation: they keep the receiver's state and set `correct` to
+`false`, so `SCKAScheme.correctnessExp` returns `false`.
+
+The model fixes protocol version 1. Signal's Rust implementation,
+[SparsePostQuantumRatchet](https://github.com/signalapp/SparsePostQuantumRatchet), also negotiates
+the version at the start of a session and may downgrade it once to the peer's version, including
+version 0, which disables SPQR.
 -/
 
 open ErasureCodePayload.Streaming
@@ -32,7 +42,7 @@ open Chunked
 
 variable {m : Type → Type u} [Monad m] {InitKey AuthState : Type}
 
-/-- The send transition together with the coins drawn at its sampling site. -/
+/-- The send transition, also returning the coins it samples. -/
 -- ANCHOR: SPQR_sendRleak
 def sendRleak (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
