@@ -245,9 +245,11 @@ end ChallengeOn
 
 /-! ### Challenge with an arbitrary answer function -/
 
-/-- The challenge oracle whose eligible answer at epoch `t` with recorded key `k` is drawn from
-`answer t k`: the same guards and bookkeeping as `oracleChall`, which is the instance
-`answer t k = if b then $ᵗ I else pure k`. -/
+/-- A challenge oracle for security proofs that need to change how challenge keys are produced.
+
+The oracle rejects epochs that are exposed, already challenged, or have no recorded key.
+For an eligible epoch `t` with recorded key `k`, it runs `answer t k`, returns the resulting
+key to the adversary, and marks `t` as challenged. -/
 def oracleChallWith (answer : ℕ → I → ProbComp I) (StA StB Rho : Type) :
     QueryImpl (ℕ →ₒ Option I) (StateT (GameState StA StB I Rho) ProbComp) :=
   fun (t : ℕ) => do
@@ -355,8 +357,13 @@ lemma oracleChallWith_run_eq_of_eligible_imp (answer' : ℕ → I → ProbComp I
     rw [oracleChallWith_unavailable answer s t hA hB,
       oracleChallWith_unavailable answer' s t hA hB]
 
-/-- Drawing a value first and answering an eligible challenge with it is answering the
-challenge with the draw. -/
+/-- For an eligible challenge at epoch `t`, the following computations are equal:
+
+* draw `a ← sample`, then call the challenge oracle with answer function `answerOf a`;
+* call the challenge oracle with an answer function that draws `a ← sample` and returns `f a`.
+
+`h` and `hkey` ensure that the challenge is eligible. `hans` says that `answerOf a t k`
+returns `f a` for every sample `a` and recorded key `k`. -/
 lemma oracleChallWith_bind_eq_of_eligible {τ : Type} (sample : ProbComp τ)
     (answerOf : τ → ℕ → I → ProbComp I) (f : τ → I)
     (s : GameState StA StB I Rho) (t : ℕ)

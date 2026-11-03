@@ -10,19 +10,20 @@ import SecureMessaging.SCKA.OppBiKEM.Security.Reduction
 /-!
 # Opp-BiKEM — The eager hybrid is the reduction's simulation
 
-**Setting.** Fix a target epoch `t > 0`, a version `x ∈ {real, random}` (`b = true` for
-`random`), a supported key pair `(pk, sk)` and encapsulation `(c, kReal)`, a uniform key `kRand`
-and a placeholder secret `dummy`. Write `k_real := kReal` and `k_random := kRand`. Both
+**Setting.** Fix a target epoch `t > 0` and a Boolean branch selector `b : Bool`. Write
+`x = random` when `b = true` and `x = real` when `b = false`. Fix a supported key pair `(pk, sk)`
+and encapsulation `(c, kReal)`, a uniform key `kRand` and a placeholder secret `dummy`.
+Write `k_real := kReal` and `k_random := kRand`. Both
 experiments below run `adv` from the initial state against injected oracles (`Injected`)
 stopped at the first exposure of `t`, and differ only in what the game state holds at `t`:
 
 - the eager hybrid `E_t^x(pk, sk, c, kReal, kRand)` (`stoppedEagerExp`, `Eager`) stores the
   honest secret `sk` and records `kReal`, answering the challenge of `t` with `k_x` through
   `eagerAnswer`;
-- the simulation `Sim_t(pk, dummy, c, k_x)`, the run of `adv` performed by the reduction on the
-  challenge `(pk, c, k_x)` with placeholder `dummy` (`reductionRun` draws `dummy` from
-  `kem.keygen`, `Reduction`), stores `dummy` and records `k_x`, answering the challenge of `t`
-  from the table.
+- the simulation `Sim_t(pk, dummy, c, k_x)` runs `adv` against injected oracles built from the
+  KEM challenge `(pk, c, k_x)`. It stores `dummy` as the secret for epoch `t` and records `k_x`
+  in the key tables. An eligible challenge at `t` returns this recorded key.
+  `reductionRun` (`Reduction`) obtains `dummy` as the secret key from a fresh call to `kem.keygen`.
 
 The *state map* `targetStateMap t dummy k_x` replaces the retained secret at `t` by `dummy` in
 both parties' states and the table entries at `t` by `k_x`.
@@ -34,24 +35,6 @@ every placeholder `dummy`,
 Pr[E_t^x(pk, sk, c, kReal, kRand) = true] = Pr[Sim_t(pk, dummy, c, k_x) = true].
 ```
 
-Acceptance is transported through the state map with
-`prEvent_optionRun_eq_of_state_map_some`, whose per-query obligation compares the answer and
-the mapped successor on continuing answers only. Every oracle commutes with the map on an
-`InjInv` state with `t` unexposed:
-
-- ordinary sends: the injected sends from the two injections are related by
-  `sendWith_mapSecret`, a commutation of `sendWith` with the secret map for samplers that differ
-  exactly as the map prescribes at the target sites;
-- ideal receives: `recvWith` commutes with the map, since the ideal recovery ignores the secret
-  and copies the mapped table value;
-- challenges: both sides answer uniformly below `t`, from the equal tables above `t`, and `k_x`
-  at `t`, where the eager side reads the pinned entry `kReal`;
-- corruptions and leaking sends: honest on both sides; a query that touches the target's secret
-  or coins stops with equal mass, and every other query commutes with the map.
-
-The placeholder secret is never read, since the receives are ideal, and the secret map is
-discarded by every function of the state that the oracles compute (`vuln`, `rleakEpochs`, the
-send guards).
 -/
 
 open OracleSpec OracleComp KEMScheme ENNReal
