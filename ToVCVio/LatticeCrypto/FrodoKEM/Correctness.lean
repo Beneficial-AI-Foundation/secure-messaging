@@ -52,6 +52,31 @@ recall Decode_Encode_add (p : Params) (hw : p.WellFormed)
     Decode p (Encode p b + E) = b
 
 /-!
+## The role of SHAKE in steps 2 and 3
+
+Write `F` for the function that the KEM uses in place of SHAKE. Steps 2 and 3 use three numbers:
+* `fail(F)`, the probability of a failure with `F` (`KEM.honestFailureProb`).
+* `noise(F)`, the probability of large noise with `F` (`KEM.honestNoiseBadProb`).
+* `indep`, the probability of large noise when the five matrices are independent samples
+  (`IndepNoise.noiseBadProb`). This number does not depend on any `F`.
+
+Each probability is over the five random inputs (the coins) of the KEM. Steps 2 and 3 prove
+different kinds of claim, and the table gives them in order.
+
+| Claim                                            | For which `F`                 | Proof      |
+|--------------------------------------------------|-------------------------------|------------|
+| For each coin value, failure implies large noise | each `F`                      | step 2     |
+| `fail(F) ≤ noise(F)`                             | each `F`                      | step 2     |
+| The value of `noise(F)`                          | depends on `F`, can be `1`    | none       |
+| The average of `noise(F)` over `F` is `indep`    | `F` is a uniform random table | step 3     |
+| The average of `fail(F)` is at most `indep`      | `F` is a uniform random table | steps 2, 3 |
+| `fail(SHAKE)` is at most about `indep`           | `F` is SHAKE                  | not proved |
+
+Step 2 is about events. It says that only large noise causes a failure, for each `F`. It does not
+say how often the noise is large. That number depends on `F`, so step 2 does not bound it. Step 3
+is about this number. It does not compute `noise(F)` for one `F`. It computes the average of
+`noise(F)` over all `F`. The last row needs the assumption that SHAKE acts like a random table.
+
 ## Step 2: decapsulation fails only when the noise is large
 
 The random inputs of the KEM are the fallback secret, the seeds `seedSE` and `z`, the message `μ`
@@ -68,20 +93,21 @@ noise satisfies the condition of step 1, decryption returns the message. Encrypt
 message then gives the same ciphertext again. Thus decapsulation returns the honest shared secret
 (`KEM.decaps_encapsFromCoins_of_noiseBound`).
 
-This result holds for each choice of the random inputs and for any `Gen` and `SHAKE` functions.
-Thus a failure is at most as probable as large noise (`KEM.honestNoiseBadProb`).
+This implication holds for each value of the coins and for each `F` and `gen`. Thus, for each
+`F`, the failure event is contained in the large-noise event, and `fail(F) ≤ noise(F)`.
 
-For a fixed SHAKE, this step does not give the probability of large noise. There are two
-problems:
-* The seeds are short. For FrodoKEM-640, SHAKE expands the 256 bits of `seedSE` to 163,840 bits
+Step 2 gives no value for `noise(F)`. For one fixed `F`, the five matrices are not independent
+samples, for two reasons:
+* The seeds are short. For FrodoKEM-640, `F` expands the 256 bits of `seedSE` to 163,840 bits
   for `S` and `E`. Thus `(S, E)` takes at most `2 ^ 256` values. Independent samples take far
   more values.
 * The encryption seed depends on the public key, and thus on `S`, `E` and `A`. Thus `S′`, `E′`
   and `E″` depend on `S` and `E`.
 
-No bound holds for every SHAKE. For example, a function in place of SHAKE can give the same
-error matrices for each input, with `E′ = 0` and the other matrices at their largest values.
-Then `S′ E` is large, and the noise is always large.
+Thus `noise(F)` depends on `F`, and no bound holds for each `F`. For example, an `F` can give the
+same error matrices for each input, with `E′ = 0` and the other matrices at their largest
+values. Then `S′ E` is large, and `noise(F) = 1`. Step 2 still holds for this `F`: it gives
+`fail(F) ≤ 1`.
 -/
 
 recall KEM.honestFailureProb_le_honestNoiseBadProb {ps : ParameterSet} (ops : Operations ps) :
@@ -90,9 +116,13 @@ recall KEM.honestFailureProb_le_honestNoiseBadProb {ps : ParameterSet} (ops : Op
 /-!
 ## Step 3: in the random-oracle model, the noise is sampled independently
 
-From this step on, a table `H` of uniformly random answers replaces SHAKE. Step 2 holds for each
-table, so it also holds on average over the table. This step shows that, on average over the
-table, the five matrices are independent samples. The result does not apply to one fixed table.
+From this step on, `F` is a table `H` of uniformly random answers. For each table `H`, step 2
+gives `fail(H) ≤ noise(H)`. Thus the average of `fail(H)` over `H` is at most the average of
+`noise(H)` over `H`. This step proves that the average of `noise(H)` is exactly `indep`. It does
+not prove that `noise(H)` is near `indep` for one fixed `H`.
+
+In the Lean statements, `ROM.honestFailureProb` and `ROM.honestNoiseBadProb` are these averages.
+Each one samples `H` and the coins together.
 
 ### Where the proof is
 
