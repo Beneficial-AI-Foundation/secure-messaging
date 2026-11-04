@@ -5,19 +5,18 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.ErasureCode.SPQRReedSolomon.Construction
-import SecureMessaging.SCKA.MLKEMBraid.Instances
+import SecureMessaging.KEM.IncrementalKEM.FromMLKEM
 import SecureMessaging.SCKA.SPQR.Construction
 
 /-! # SPQR v1 instance
 
-`v1Parameters` fixes the ML-KEM-768 witnesses of `MLKEM.mlkem768Scheme`, uses `Chunk GF16` symbols,
-and supplies four SPQR Reed-Solomon codes. With 32-byte chunks, the 96-byte header and MAC payload
-requires 3 chunks, the 1152-byte encapsulation-key vector requires 36, `ct₁` at 960 bytes requires
-30, and the 160-byte `ct₂` and MAC payload requires 5.
+`v1Parameters` fixes the incremental KEM with explicit coins to ML-KEM-768 (`v1Det`), uses
+`Chunk GF16` symbols, and supplies four SPQR Reed-Solomon codes. With 32-byte chunks, the 96-byte
+header and MAC payload requires 3 chunks, the 1152-byte encapsulation-key vector requires 36,
+`ct₁` at 960 bytes requires 30, and the 160-byte `ct₂` and MAC payload requires 5.
 
 `EpochKey`, `Mac`, `InitKey`, `AuthState`, `kdfOK`, the four serializer triples, `auth`, and
-`sampleInitKey` remain parameters. `v1Parameters` applies `MLKEMBraid.mlkemBraidParameters` to the
-ML-KEM witnesses and these four codes.
+`sampleInitKey` remain parameters.
 -/
 
 open ErasureCode.SPQRReedSolomon (Chunk GF16 erasureCode)
@@ -25,11 +24,14 @@ open MLKEMBraid (SendRand)
 
 namespace SPQR
 
-/-- Incremental ML-KEM-768 over the witnesses of `MLKEM.mlkem768Scheme`. -/
--- ANCHOR: SPQR_v1Incremental
-abbrev v1Incremental : MLKEM.mlkem768Scheme.IncrementalStructure :=
-  MLKEM.mlkemIncremental .MLKEM768 MLKEM.Concrete.concreteNTTRingOps
+/-- ML-KEM-768 with one 64-byte key-generation draw and one 32-byte encapsulation draw. -/
+abbrev v1Det :=
+  MLKEM.mlkemIncrementalDet .MLKEM768 MLKEM.Concrete.concreteNTTRingOps
     MLKEM.Concrete.mlkem768Primitives
+
+/-- The incremental structure of the KEM derived from `v1Det`. -/
+-- ANCHOR: SPQR_v1Incremental
+abbrev v1Incremental : v1Det.toKEM.IncrementalStructure := v1Det.toIncremental
 -- ANCHOR_END: SPQR_v1Incremental
 
 /-- The SPQR erasure code at threshold `k` with a caller-supplied payload layout. -/
@@ -57,17 +59,24 @@ noncomputable def v1Parameters {EpochKey Mac : Type}
     (serializeCt2 : v1Incremental.C₂ × Mac → Fin 5 → Chunk GF16)
     (parseCt2 : (Fin 5 → Chunk GF16) → Option (v1Incremental.C₂ × Mac))
     (parseCt2_serializeCt2 : ∀ payload, parseCt2 (serializeCt2 payload) = some payload) :
-    MLKEMBraid.Parameters ProbComp :=
-  MLKEMBraid.mlkemBraidParameters .MLKEM768 MLKEM.Concrete.concreteNTTRingOps
-    MLKEM.Concrete.mlkem768Primitives kdfOK
-    (v1ErasureCodePayload 3 (by norm_num) (by norm_num) serializeHdr parseHdr
-      parseHdr_serializeHdr)
-    (v1ErasureCodePayload 36 (by norm_num) (by norm_num) serializeEk parseEk
-      parseEk_serializeEk)
-    (v1ErasureCodePayload 30 (by norm_num) (by norm_num) serializeCt1 parseCt1
-      parseCt1_serializeCt1)
-    (v1ErasureCodePayload 5 (by norm_num) (by norm_num) serializeCt2 parseCt2
-      parseCt2_serializeCt2)
+    Parameters ProbComp where
+  K := MLKEM.SharedSecret
+  PK := MLKEM.EncapsulationKey MLKEM.mlkem768 MLKEM.Concrete.mlkem768Encoding
+  SK := MLKEM.DecapsulationKey MLKEM.mlkem768 MLKEM.Concrete.mlkem768Encoding
+  C := MLKEM.Ciphertext MLKEM.mlkem768 MLKEM.Concrete.mlkem768Encoding
+  det := v1Det
+  EpochKey := EpochKey
+  Mac := Mac
+  Sym := Chunk GF16
+  kdfOK := kdfOK
+  ecpHdr := v1ErasureCodePayload 3 (by norm_num) (by norm_num) serializeHdr parseHdr
+    parseHdr_serializeHdr
+  ecpEk := v1ErasureCodePayload 36 (by norm_num) (by norm_num) serializeEk parseEk
+    parseEk_serializeEk
+  ecpCt1 := v1ErasureCodePayload 30 (by norm_num) (by norm_num) serializeCt1 parseCt1
+    parseCt1_serializeCt1
+  ecpCt2 := v1ErasureCodePayload 5 (by norm_num) (by norm_num) serializeCt2 parseCt2
+    parseCt2_serializeCt2
 -- ANCHOR_END: SPQR_v1Parameters
 
 /-- The SPQR v1 SCKA scheme; the authenticator and initial-key sampler remain parameters. -/
@@ -97,10 +106,7 @@ noncomputable def v1Scheme {InitKey AuthState EpochKey Mac : Type}
         serializeEk parseEk parseEk_serializeEk serializeCt1 parseCt1 parseCt1_serializeCt1
         serializeCt2 parseCt2 parseCt2_serializeCt2) AuthState)
       EpochKey (Chunked.Message (Chunk GF16))
-      (SendRand (MLKEM.mlkemIncrementalRandLeak .MLKEM768 MLKEM.Concrete.concreteNTTRingOps
-          MLKEM.Concrete.mlkem768Primitives).KeygenRand
-        (MLKEM.mlkemIncrementalRandLeak .MLKEM768 MLKEM.Concrete.concreteNTTRingOps
-          MLKEM.Concrete.mlkem768Primitives).Encaps1Rand) := by
+      (SendRand (MLKEM.Bytes 64) MLKEM.Message) := by
   letI : DecidableEq (v1Parameters kdfOK serializeHdr parseHdr parseHdr_serializeHdr
       serializeEk parseEk parseEk_serializeEk serializeCt1 parseCt1 parseCt1_serializeCt1
       serializeCt2 parseCt2 parseCt2_serializeCt2).Sym := by
@@ -111,8 +117,6 @@ noncomputable def v1Scheme {InitKey AuthState EpochKey Mac : Type}
       parseEk_serializeEk serializeCt1 parseCt1 parseCt1_serializeCt1 serializeCt2 parseCt2
       parseCt2_serializeCt2)
     auth
-    (MLKEM.mlkemIncrementalRandLeak .MLKEM768 MLKEM.Concrete.concreteNTTRingOps
-      MLKEM.Concrete.mlkem768Primitives)
     sampleInitKey
 -- ANCHOR_END: SPQR_v1Scheme
 

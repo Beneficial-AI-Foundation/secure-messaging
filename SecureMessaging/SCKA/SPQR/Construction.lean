@@ -10,14 +10,26 @@ import SecureMessaging.SCKA.SPQR.Chunked
 
 /-! # SPQR as an SCKA scheme
 
-`SPQR.scheme` packages the chunked transitions as an `SCKAScheme` without changing them. A receive
-error maps to `none`, which refuses delivery and makes the SCKA correctness oracle reject the trace
-(`SCKA/Defs.lean:511-514`). It cannot trigger renegotiation.
+`SPQR.scheme` presents SPQR, given by the chunked transitions of `SPQR.Chunked`, as an
+`SCKAScheme`, the interface of the SCKA correctness and security games. Both parties run the same
+algorithms from different initial states:
 
-The leak label is `.keygen` exactly in `keysUnsampled`, `.encaps1` exactly in `headerReceived`, and
-`.none` elsewhere. Stage two discloses nothing because `P.hEnc2` is pure. The two restated arms
-mirror `EkSender.sendHeader` and `CtSender.sendCt1`, and the projection theorem forces agreement
-with `Chunked.send`.
+- `initKeyGen` samples the initial key, and `initA` and `initB` derive the initial states;
+- `sendA` and `sendB` are `send`, the chunked send `Chunked.send`;
+- `sendArleak` and `sendBrleak` are `sendRleak`, which runs `send` with `sendHeader` and `sendCt1`
+  replaced by `sendHeaderRleak` and `sendCt1Rleak` and also returns their coins: key-generation
+  coins from `keysUnsampled`, first-stage encapsulation coins from `headerReceived`, and none from
+  every other state (`map_snd_sendRleak`);
+- `recvA` and `recvB` are `recvSCKA`, the chunked receive with every error mapped to `none`.
+
+The SCKA receive oracles `SCKAScheme.oracleRecvA` and `SCKAScheme.oracleRecvB` treat `none` on a
+sent message as a correctness violation: they keep the receiver's state and set `correct` to
+`false`, so `SCKAScheme.correctnessExp` returns `false`.
+
+The model fixes protocol version 1. Signal's Rust implementation,
+[SparsePostQuantumRatchet](https://github.com/signalapp/SparsePostQuantumRatchet), also negotiates
+the version at the start of a session and may downgrade it once to the peer's version, including
+version 0, which disables SPQR.
 -/
 
 open ErasureCodePayload.Streaming
@@ -31,71 +43,66 @@ open Chunked
 
 variable {m : Type → Type u} [Monad m] {InitKey AuthState : Type}
 
-/-- `Chunked.send` paired with the disclosed randomness. -/
--- ANCHOR: SPQR_sendRleak
-def sendRleak (P : MLKEMBraid.Parameters m) (irl : P.kem.IncrementalRandLeak P.inc)
+/-- The send transition. -/
+-- ANCHOR: SPQR_send
+def send (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
+      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
+    (st : PartyState P AuthState) : m (SendResult P AuthState) :=
+  Chunked.send P auth st
+-- ANCHOR_END: SPQR_send
+
+/-- The send transition with `sendHeader` and `sendCt1` replaced by `sendHeaderRleak` and
+`sendCt1Rleak`, which also return the coins they draw. -/
+-- ANCHOR: SPQR_sendRleak
+def sendRleak (P : Parameters m)
+    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
+      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : PartyState P AuthState) :
-    m (SendResult P AuthState × SendRand irl.KeygenRand irl.Encaps1Rand) := match st with
+    m (SendResult P AuthState × SendRand P.det.KeygenRand P.det.Encaps1Rand) :=
+  match st with
   | .keysUnsampled core => do
-      let ((pk, sk), r) ← irl.keygenRleak
-      let hdr := P.inc.toHeader pk
-      let tag := auth.macHeader core.authSt core.ep hdr
-      let core' : EkSender.HeaderSent P.inc AuthState :=
-        ⟨core.ep, core.authSt, pk, sk⟩
+      let ((core', hdr, tag), r) ← EkSender.sendHeaderRleak P auth core
       let (chunk, enc) := (EncoderState.init P.ecpHdr (hdr, tag)).nextChunk
       pure (⟨⟨core.ep, .hdr chunk⟩, core.ep - 1, none, .keysSampled core' enc⟩, .keygen r)
   | .headerReceived core dec => do
-      let ((encapsSt, c1, k), r) ← irl.encaps1Rleak core.hdr
-      let ik := P.kdfOK k core.ep
-      let core' : CtSender.Ct1Sent P.inc AuthState :=
-        ⟨core.ep, auth.update core.authSt core.ep ik, core.hdr, encapsSt, c1⟩
+      let ((core', c1, key), r) ← CtSender.sendCt1Rleak P auth core
       let (chunk, enc) := (EncoderState.init P.ecpCt1 c1).nextChunk
-      pure (⟨⟨core.ep, .ct1 chunk⟩, core.ep - 1, some (core.ep, ik),
-        .ct1Sampled core' enc dec⟩, .encaps1 r)
-  | _ => (fun r => (r, .none)) <$> send P auth st
+      pure (⟨⟨core.ep, .ct1 chunk⟩, core.ep - 1, some key, .ct1Sampled core' enc dec⟩, .encaps1 r)
+  | st => (·, .none) <$> send P auth st
 -- ANCHOR_END: SPQR_sendRleak
 
-/-- Discarding the disclosed randomness gives `Chunked.send`. -/
-theorem send_eq_map_sendRleak [LawfulMonad m] (P : MLKEMBraid.Parameters m)
-    (irl : P.kem.IncrementalRandLeak P.inc)
+/-- Discarding the coins returned by `sendRleak` gives `send`. -/
+theorem send_eq_map_sendRleak [LawfulMonad m] (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
+      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : PartyState P AuthState) :
-    send P auth st = Prod.fst <$> sendRleak P irl auth st := by
-  cases st
-  case keysUnsampled core =>
-    simp only [send, sendRleak, EkSender.sendHeader, ← irl.keygen_fst, map_eq_pure_bind,
-      bind_assoc, pure_bind]
-  case headerReceived core dec =>
-    simp only [send, sendRleak, CtSender.sendCt1, ← irl.encaps1_fst, map_eq_pure_bind,
-      bind_assoc, pure_bind]
-  all_goals simp [send, sendRleak]
+    send P auth st = Prod.fst <$> sendRleak P auth st := by
+  cases st <;>
+    simp only [sendRleak, send, Chunked.send, EkSender.sendHeader, CtSender.sendCt1,
+      EkSender.sendHeaderRleak, CtSender.sendCt1Rleak, Parameters.generate, Parameters.encaps1,
+      Parameters.generateRleak, Parameters.encaps1Rleak, map_eq_pure_bind, bind_assoc, pure_bind]
 
-/-- The disclosed randomness as a function of the entry state. -/
-theorem map_snd_sendRleak [LawfulMonad m] (P : MLKEMBraid.Parameters m)
-    (irl : P.kem.IncrementalRandLeak P.inc)
+/-- `sendRleak` returns key-generation coins in `keysUnsampled`, first-stage coins in
+`headerReceived`, and no coins in every other state. -/
+theorem map_snd_sendRleak [LawfulMonad m] (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
+      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : PartyState P AuthState) :
-    Prod.snd <$> sendRleak P irl auth st =
+    Prod.snd <$> sendRleak P auth st =
       match st with
-      | .keysUnsampled _ => (fun out => SendRand.keygen out.2) <$> irl.keygenRleak
-      | .headerReceived core _ => (fun out => SendRand.encaps1 out.2) <$> irl.encaps1Rleak core.hdr
+      | .keysUnsampled _ => SendRand.keygen <$> P.det.sampleKeygen
+      | .headerReceived _ _ => SendRand.encaps1 <$> P.det.sampleEncaps1
       | _ => pure .none := by
-  cases st
-  case keysUnsampled core =>
-    simp only [sendRleak, map_eq_pure_bind, bind_assoc, pure_bind]
-  case headerReceived core dec =>
-    simp only [sendRleak, map_eq_pure_bind, bind_assoc, pure_bind]
-  all_goals simp [send, sendRleak]
+  cases st <;>
+    simp only [sendRleak, send, Chunked.send, EkSender.sendHeaderRleak, CtSender.sendCt1Rleak,
+      Parameters.generateRleak, Parameters.encaps1Rleak, map_eq_pure_bind, bind_assoc, pure_bind]
 
 /-- Adapt `Chunked.recv` to SCKA; an error refuses delivery and a success forwards its report. -/
 -- ANCHOR: SPQR_recvSCKA
-def recvSCKA (P : MLKEMBraid.Parameters m) [DecidableEq P.Sym]
+def recvSCKA (P : Parameters m) [DecidableEq P.Sym]
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
+      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : PartyState P AuthState) (msg : Message P.Sym) :
     Option (Option (ℕ × P.EpochKey) × ℕ × PartyState P AuthState) := match recv P auth st msg with
   | .error _ => none
@@ -104,17 +111,17 @@ def recvSCKA (P : MLKEMBraid.Parameters m) [DecidableEq P.Sym]
 
 /-- SPQR as an `SCKAScheme`; both parties use the same algorithms and distinct initial states. -/
 -- ANCHOR: SPQR_scheme
-def scheme (P : MLKEMBraid.Parameters m) [DecidableEq P.Sym]
+def scheme (P : Parameters m) [DecidableEq P.Sym]
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
-    (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : m InitKey) :
+      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
+    (sampleInitKey : m InitKey) :
     SCKAScheme m InitKey (PartyState P AuthState) (PartyState P AuthState)
-      P.EpochKey (Message P.Sym) (SendRand irl.KeygenRand irl.Encaps1Rand) :=
+      P.EpochKey (Message P.Sym) (SendRand P.det.KeygenRand P.det.Encaps1Rand) :=
   let sendSCKA (st : PartyState P AuthState) := do
     let r ← send P auth st
     pure (some (r.outputKey, r.msg, r.sendingEpoch, r.state))
   let sendRleakSCKA (st : PartyState P AuthState) := do
-    let (r, rand) ← sendRleak P irl auth st
+    let (r, rand) ← sendRleak P auth st
     pure (some (r.outputKey, r.msg, r.sendingEpoch, r.state, rand))
   { initKeyGen := sampleInitKey
     initA := fun ik => pure (initA P auth ik)

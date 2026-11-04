@@ -51,6 +51,7 @@ import SecureMessaging.ErasureCode.SPQRReedSolomon.Correctness
 import SecureMessaging.ErasureCode.Streaming
 import SecureMessaging.KEM.IncrementalKEM.Correctness
 import SecureMessaging.KEM.IncrementalKEM.Defs
+import SecureMessaging.KEM.IncrementalKEM.Derandomized
 import SecureMessaging.KEM.IncrementalKEM.FromMLKEM
 import SecureMessaging.KEM.MLKEM.Construction
 import SecureMessaging.KEM.MLKEM.Correctness
@@ -82,6 +83,7 @@ import SecureMessaging.SCKA.SPQR.Chunked
 import SecureMessaging.SCKA.SPQR.Construction
 import SecureMessaging.SCKA.SPQR.Correspondence
 import SecureMessaging.SCKA.SPQR.Instances
+import SecureMessaging.SCKA.SPQR.Params
 import SecureMessaging.SCKA.SPQR.Unchunked
 import SecureMessaging.SCKA.OppUniKEM.Construction
 import SecureMessaging.SCKA.OppBiKEM.Construction

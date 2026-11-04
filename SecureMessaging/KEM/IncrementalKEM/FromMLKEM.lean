@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.IncrementalKEM.Defs
+import SecureMessaging.KEM.IncrementalKEM.Derandomized
 import SecureMessaging.KEM.MLKEM.Construction
 
 /-!
@@ -24,6 +24,10 @@ The ciphertext splits into encoded `u` and `v` components. The first stage also 
 The `factor` field of `mlkemIncremental` identifies the staged computation with ML-KEM
 encapsulation. `mlkemIncrementalRandLeak` exposes the FIPS 203 coins of key
 generation and first-stage encapsulation for security games.
+
+`mlkemIncrementalDet` is the incremental KEM with explicit coins built from the same
+deterministic algorithms: key generation takes one 64-byte seed, whose first and last 32 bytes are
+`d` and `z`, and first-stage encapsulation takes one 32-byte message.
 -/
 
 open OracleComp KEMScheme LatticeCrypto
@@ -180,5 +184,39 @@ def mlkemIncrementalRandLeak (p : ParameterSet) (ring : NTTRingOps)
   encaps2_fst := fun _st _hdr _vec => by
     simp only [mlkemIncremental, pure_bind]
 -- ANCHOR_END: mlkemIncrementalRandLeak
+
+/-- Incremental ML-KEM with the implementation's coin spaces: one 64-byte key-generation
+seed, split into `d` and `z`, and one 32-byte first-stage message. -/
+-- ANCHOR: mlkemIncrementalDet
+def mlkemIncrementalDet (p : ParameterSet) (ring : NTTRingOps)
+    (prims : Primitives (ParameterSet.params p)
+      (Concrete.concreteEncoding (ParameterSet.params p))) :
+    IncrementalKEMDet ProbComp SharedSecret
+      (EncapsulationKey (ParameterSet.params p)
+        (Concrete.concreteEncoding (ParameterSet.params p)))
+      (DecapsulationKey (ParameterSet.params p)
+        (Concrete.concreteEncoding (ParameterSet.params p)))
+      (Ciphertext (ParameterSet.params p)
+        (Concrete.concreteEncoding (ParameterSet.params p))) :=
+  let inc := mlkemIncremental p ring prims
+  { PKheader := inc.PKheader
+    PKvector := inc.PKvector
+    C₁ := inc.C₁
+    C₂ := inc.C₂
+    St := inc.St
+    KeygenRand := Bytes 64
+    Encaps1Rand := Message
+    validPK := inc.validPK
+    splitPK := inc.splitPK
+    splitC := inc.splitC
+    keygenDet := fun r => keygenInternal ring
+      (Concrete.concreteEncoding (ParameterSet.params p)) prims (r.take 32) (r.drop 32)
+    encaps1Det := incrementalEncaps1 ring prims
+    encaps2Det := fun st _hdr vec => incrementalEncaps2 ring st vec
+    decapsDet := fun sk c => some (decapsInternal ring
+      (Concrete.concreteEncoding (ParameterSet.params p)) prims sk c)
+    sampleKeygen := $ᵗ Bytes 64
+    sampleEncaps1 := $ᵗ Message }
+-- ANCHOR_END: mlkemIncrementalDet
 
 end MLKEM
