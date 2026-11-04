@@ -70,7 +70,7 @@ def PartyState.toMLKEMBraid : PartyState P AuthState → MLKEMBraid.State P.toBr
   | .ct1Sampled core enc dec =>
       .ct1Sampled core.ep core.authSt core.hdr core.encapsSt core.c1 enc dec
   | .ekReceivedCt1Sampled core enc =>
-      .ekReceivedCt1Sampled core.ep core.authSt core.encapsSt core.c1 core.hdr core.vec enc
+      .ekReceivedCt1Sampled core.ep core.authSt core.encapsSt core.c1 core.hdr core.ek enc
   | .ct1Acknowledged core dec =>
       .ct1Acknowledged core.ep core.authSt core.hdr core.encapsSt core.c1 dec
   | .ct2Sampled core enc => .ct2Sampled core.ep core.authSt enc
@@ -113,21 +113,22 @@ theorem send_toMLKEMBraid [LawfulMonad m] (P : SPQR.Parameters m)
   rw [map_eq_pure_bind]
   cases st
   case keysUnsampled core =>
-    simp only [SPQR.send, sendRleak, Chunked.send, MLKEMBraid.send, EkSender.sendHeader,
-      Parameters.toBraid, KEMScheme.IncrementalKEMDet.toKEM, map_eq_pure_bind, bind_assoc,
+    simp only [SPQR.send, Chunked.send, MLKEMBraid.send, EkSender.sendHeader,
+      Parameters.generate, Parameters.toBraid, KEMScheme.IncrementalKEMDet.toKEM,
+      map_eq_pure_bind, bind_assoc,
       pure_bind, SendResult.toMLKEMBraid, PartyState.toMLKEMBraid, Message.toMLKEMBraid,
       KEMScheme.IncrementalKEMDet.toIncremental,
       KEMScheme.IncrementalStructure.toHeader, KEMScheme.IncrementalStructure.toVector,
       KEMScheme.IncrementalKEMDet.toHeader, KEMScheme.IncrementalKEMDet.toVector]
     rfl
   case headerReceived core dec =>
-    simp only [SPQR.send, sendRleak, Chunked.send, MLKEMBraid.send, CtSender.sendCt1,
-      Parameters.toBraid, KEMScheme.IncrementalKEMDet.toIncremental,
+    simp only [SPQR.send, Chunked.send, MLKEMBraid.send, CtSender.sendCt1,
+      Parameters.encaps1, Parameters.toBraid, KEMScheme.IncrementalKEMDet.toIncremental,
       map_eq_pure_bind, bind_assoc, pure_bind, SendResult.toMLKEMBraid,
       PartyState.toMLKEMBraid, Message.toMLKEMBraid, KEMScheme.IncrementalKEMDet.toVector]
   case ekSentCt1Received core dec => exact absurd rfl (h core dec)
   all_goals
-    simp [SPQR.send, sendRleak, Chunked.send, MLKEMBraid.send, SendResult.toMLKEMBraid,
+    simp [SPQR.send, Chunked.send, MLKEMBraid.send, SendResult.toMLKEMBraid,
       PartyState.toMLKEMBraid, Message.toMLKEMBraid, Parameters.toBraid,
       KEMScheme.IncrementalKEMDet.toIncremental, KEMScheme.IncrementalKEMDet.toVector]
 
@@ -146,7 +147,7 @@ theorem send_ekSentCt1Received_toMLKEMBraid [LawfulMonad m]
 -- ANCHOR_END: Correspondence_send_ekSentCt1Received_toMLKEMBraid
     := by
   rw [map_eq_pure_bind]
-  simp [SPQR.send, sendRleak, Chunked.send, MLKEMBraid.send, SendResult.toMLKEMBraid,
+  simp [SPQR.send, Chunked.send, MLKEMBraid.send, SendResult.toMLKEMBraid,
     PartyState.toMLKEMBraid, Message.toMLKEMBraid, Parameters.toBraid,
     KEMScheme.IncrementalKEMDet.toIncremental, KEMScheme.IncrementalKEMDet.toVector]
 
@@ -181,8 +182,9 @@ theorem recvSCKA_toMLKEMBraid (P : SPQR.Parameters m) [DecidableEq P.Sym]
     simp [recvSCKA, Chunked.recv, MLKEMBraid.recvSCKA, MLKEMBraid.receive,
       Chunked.PartyState.toMLKEMBraid,
       Chunked.PartyState.epoch, MLKEMBraid.State.epoch, MLKEMBraid.Message.wellFormed,
-      Chunked.completeCt2, EkSender.sendVector, EkSender.recvCt1, EkSender.recvCt2,
-      CtSender.recvHeader, CtSender.recvVector, CtSender.recvNextEpoch,
+      Chunked.completeCt2, EkSender.sendEk, EkSender.recvCt1, EkSender.recvCt2,
+      CtSender.recvHeader, CtSender.recvEk, CtSender.recvNextEpoch, Parameters.encaps2,
+      Parameters.decaps, Parameters.ekMatchesHeader,
       Parameters.toBraid, KEMScheme.IncrementalKEMDet.toDetDecaps,
       KEMScheme.IncrementalKEMDet.toDetEncaps2, KEMScheme.IncrementalKEMDet.toIncremental,
       KEMScheme.IncrementalKEMDet.toVector] at h ⊢ <;>

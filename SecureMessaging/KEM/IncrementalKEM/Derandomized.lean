@@ -15,7 +15,8 @@ generation and the first stage are deterministic functions of their coins, which
 samplers, and the second stage and decapsulation are deterministic.
 
 `toKEM` is the KEM that samples the coins and runs these functions on them, and `toIncremental`
-is its incremental structure.
+is its incremental structure. `toRandLeak` is its randomness leakage: key generation and the
+first stage also return the coins they draw.
 -/
 
 namespace KEMScheme
@@ -107,6 +108,25 @@ def toDetDecaps : det.toKEM.DeterministicDecaps where
 def toDetEncaps2 : det.toIncremental.DeterministicEncaps2 where
   encaps2Det := det.encaps2Det
   encaps2_eq _ _ _ := rfl
+
+-- ANCHOR: IncrementalKEMDet_toRandLeak
+/-- Randomness leakage of the derived incremental structure: key generation and the first stage
+also return their coins, and the second stage draws none. -/
+def toRandLeak [LawfulMonad m] : det.toKEM.IncrementalRandLeak det.toIncremental where
+  KeygenRand := det.KeygenRand
+  Encaps1Rand := det.Encaps1Rand
+  Encaps2Rand := Unit
+  keygenRleak := do
+    let r ← det.sampleKeygen
+    pure (det.keygenDet r, r)
+  encaps1Rleak hdr := do
+    let r ← det.sampleEncaps1
+    pure (det.encaps1Det hdr r, r)
+  encaps2Rleak st hdr vec := pure (det.encaps2Det st hdr vec, ())
+  keygen_fst := by simp only [toKEM, map_eq_pure_bind, bind_assoc, pure_bind]
+  encaps1_fst _ := by simp only [toIncremental, map_eq_pure_bind, bind_assoc, pure_bind]
+  encaps2_fst _ _ _ := by simp [toIncremental]
+-- ANCHOR_END: IncrementalKEMDet_toRandLeak
 
 end IncrementalKEMDet
 

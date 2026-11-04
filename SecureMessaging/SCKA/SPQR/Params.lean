@@ -11,9 +11,13 @@ import SecureMessaging.SCKA.MLKEMBraid.Basic
 # SPQR parameters
 
 An SPQR parameter set `P : Parameters m` consists of an incremental KEM with explicit coins
-`P.det`, whose coins SPQR samples in its send steps, an epoch-key derivation `kdfOK`, a tag space,
-and four erasure-coded payloads. `Parameters.toBraid` gives the ML-KEM Braid parameters with the
-same algorithms, for comparison with the ML-KEM Braid transition system.
+`P.det`, an epoch-key derivation `kdfOK`, a tag space, and four erasure-coded payloads.
+`Parameters.toBraid` gives the ML-KEM Braid parameters with the same algorithms, for comparison
+with the ML-KEM Braid transition system.
+
+The KEM operations `generate`, `encaps1`, `encaps2`, `decaps`, and `ekMatchesHeader` run the
+algorithms of `P.det`; `generate` and `encaps1` first draw their coins with its samplers, and
+`generateRleak` and `encaps1Rleak` run the same computations and also return those coins.
 -/
 
 universe u
@@ -71,5 +75,47 @@ abbrev Parameters.toBraid {m : Type → Type u} [Monad m] (P : Parameters m) :
   ecpEk := P.ecpEk
   ecpCt1 := P.ecpCt1
   ecpCt2 := P.ecpCt2
+
+namespace Parameters
+
+variable {m : Type → Type u} [Monad m] (P : Parameters m)
+
+-- ANCHOR: SPQR_kemOperations
+/-- Draws key-generation coins and generates a key pair from them. -/
+def generate : m (P.PK × P.SK) := do
+  let r ← P.det.sampleKeygen
+  pure (P.det.keygenDet r)
+
+/-- `generate`, also returning the drawn coins. -/
+def generateRleak : m ((P.PK × P.SK) × P.det.KeygenRand) := do
+  let r ← P.det.sampleKeygen
+  pure (P.det.keygenDet r, r)
+
+/-- Draws first-stage coins and runs the first encapsulation stage on a header. -/
+def encaps1 (hdr : P.det.PKheader) : m (P.det.St × P.det.C₁ × P.K) := do
+  let r ← P.det.sampleEncaps1
+  pure (P.det.encaps1Det hdr r)
+
+/-- `encaps1`, also returning the drawn coins. -/
+def encaps1Rleak (hdr : P.det.PKheader) :
+    m ((P.det.St × P.det.C₁ × P.K) × P.det.Encaps1Rand) := do
+  let r ← P.det.sampleEncaps1
+  pure (P.det.encaps1Det hdr r, r)
+
+/-- The second encapsulation stage on the vector `ek` and the first-stage state `es`; the header
+is an argument of the generic second stage. -/
+def encaps2 (ek : P.det.PKvector) (es : P.det.St) (hdr : P.det.PKheader) : P.det.C₂ :=
+  P.det.encaps2Det es hdr ek
+
+/-- Decapsulates the ciphertext with components `ct1` and `ct2`. -/
+def decaps (dk : P.SK) (ct1 : P.det.C₁) (ct2 : P.det.C₂) : Option P.K :=
+  P.det.decapsDet dk (P.det.splitC.symm (ct1, ct2))
+
+/-- Whether the vector `ek` and the header form a public key. -/
+def ekMatchesHeader (ek : P.det.PKvector) (hdr : P.det.PKheader) : Bool :=
+  P.det.validPK hdr ek
+-- ANCHOR_END: SPQR_kemOperations
+
+end Parameters
 
 end SPQR

@@ -28,7 +28,8 @@ open Informal
 set_option doc.verso true
 set_option pp.rawOnError true
 
--- The consolidated protocol atom includes the highlighted source of both role state machines.
+-- The protocol atom nests its game cells, pills, and Lean excerpts in one block, whose compiled
+-- code nests deeper than the code generator's default recursion limit.
 set_option maxRecDepth 50000
 
 #doc (Manual) "SPQR" =>
@@ -40,35 +41,25 @@ Sparse Post-Quantum Ratchet (SPQR).
 :::defTitle "spqr_parameters" "SPQR parameters"
 :::
 
-:::::::definition "spqr_parameters" (parent := "cka_protocols_spqr") (lean := "SPQR.Parameters") (tags := "gh-252") (uses := "incremental_kem_det, erasure_code_payload, mlkem_braid_ratcheted_authenticator")
+:::::::definition "spqr_parameters" (parent := "cka_protocols_spqr") (lean := "SPQR.Parameters, SPQR.Parameters.generate, SPQR.Parameters.generateRleak, SPQR.Parameters.encaps1, SPQR.Parameters.encaps1Rleak, SPQR.Parameters.encaps2, SPQR.Parameters.decaps, SPQR.Parameters.ekMatchesHeader") (tags := "gh-252") (uses := "incremental_kem_det, erasure_code_payload")
 An *SPQR parameter set* $`P` consists of
 
 - an {bpref "incremental_kem_det"}[incremental KEM with explicit coins]:
   - a shared-key space $`K`;
-  - public keys $`pk=(h,v)` with header $`h\in H` and vector $`v\in V` such that
-    $`\mathsf{Valid}(h,v)`;
+  - public keys $`\mathsf{pk}=(\mathsf{hdr},\mathsf{ek})` with header $`\mathsf{hdr}\in H` and
+    vector $`\mathsf{ek}\in V` such that $`\mathsf{Valid}(\mathsf{hdr},\mathsf{ek})`;
   - ciphertexts $`c=(c_1,c_2)\in C_1\times C_2`;
   - algorithms $`\mathsf{KeyGen}`, $`\mathsf{Encaps}_1`, $`\mathsf{Encaps}_2`, $`\mathsf{Decaps}`;
   - coin distributions $`\mathcal D_K` and $`\mathcal D_1`;
 - an epoch-key space $`E` and an epoch-key derivation
   $`\mathsf{KDF}_{\mathsf{OK}}:K\times\mathbb N\to E`;
-- a tag space $`T`;
+- a tag space $`T`; and
 - a symbol alphabet $`\Sigma` and four {bpref "erasure_code_payload"}[erasure codes] over
   $`\Sigma` with their {bpref "erasure_code_streaming"}[streaming] interface:
   - $`\mathsf{Code}_H`, $`\mathsf{Code}_V`, $`\mathsf{Code}_1`, and $`\mathsf{Code}_2`, with payloads
     $`H\times T`, $`V`, $`C_1`, and $`C_2\times T` respectively;
   - encoder algorithms $`\mathsf{Enc}_X` and $`\mathsf{Next}`, decoder algorithms $`\mathsf{Empty}_X`,
-    $`\mathsf{Add}`, and $`\mathsf{Decode}`;
-- a {bpref "mlkem_braid_ratcheted_authenticator"}[ratcheted authenticator] $`\mathsf{Auth}` with
-  initial-key space $`\mathcal I_{\mathsf{CKA}}` and state space $`\mathcal S_{\mathsf{Auth}}`:
-  - $`\mathsf{Init}:\mathcal I_{\mathsf{CKA}}\times\mathbb N\to\mathcal S_{\mathsf{Auth}}` and
-    $`\mathsf{Update}:\mathcal S_{\mathsf{Auth}}\times\mathbb N\times E\to\mathcal S_{\mathsf{Auth}}`;
-  - $`\mathsf{Mac}_H:\mathcal S_{\mathsf{Auth}}\times\mathbb N\times H\to T` and
-    $`\mathsf{Verify}_H:\mathcal S_{\mathsf{Auth}}\times\mathbb N\times H\times T\to\{\mathsf{true},\mathsf{false}\}`
-    on headers;
-  - $`\mathsf{Mac}_C:\mathcal S_{\mathsf{Auth}}\times\mathbb N\times(C_1\times C_2)\to T` and
-    $`\mathsf{Verify}_C:\mathcal S_{\mathsf{Auth}}\times\mathbb N\times(C_1\times C_2)\times T\to\{\mathsf{true},\mathsf{false}\}`
-    on ciphertexts.
+    $`\mathsf{Add}`, and $`\mathsf{Decode}`.
 
 :::leanPillCaption "Parameters"
 :::
@@ -102,18 +93,69 @@ structure Parameters (m : Type → Type u) [Monad m] where
   /-- `ct₂` stream, recovering `ct₂ ‖ mac`. -/
   ecpCt2 : ErasureCodePayload (det.C₂ × Mac) Sym
 ```
+
+:::leanPillCaption "KEM operations"
+:::
+
+```anchor SPQR_kemOperations (project := ".") (module := SecureMessaging.SCKA.SPQR.Params)
+/-- Draws key-generation coins and generates a key pair from them. -/
+def generate : m (P.PK × P.SK) := do
+  let r ← P.det.sampleKeygen
+  pure (P.det.keygenDet r)
+
+/-- `generate`, also returning the drawn coins. -/
+def generateRleak : m ((P.PK × P.SK) × P.det.KeygenRand) := do
+  let r ← P.det.sampleKeygen
+  pure (P.det.keygenDet r, r)
+
+/-- Draws first-stage coins and runs the first encapsulation stage on a header. -/
+def encaps1 (hdr : P.det.PKheader) : m (P.det.St × P.det.C₁ × P.K) := do
+  let r ← P.det.sampleEncaps1
+  pure (P.det.encaps1Det hdr r)
+
+/-- `encaps1`, also returning the drawn coins. -/
+def encaps1Rleak (hdr : P.det.PKheader) :
+    m ((P.det.St × P.det.C₁ × P.K) × P.det.Encaps1Rand) := do
+  let r ← P.det.sampleEncaps1
+  pure (P.det.encaps1Det hdr r, r)
+
+/-- The second encapsulation stage on the vector `ek` and the first-stage state `es`; the header
+is an argument of the generic second stage. -/
+def encaps2 (ek : P.det.PKvector) (es : P.det.St) (hdr : P.det.PKheader) : P.det.C₂ :=
+  P.det.encaps2Det es hdr ek
+
+/-- Decapsulates the ciphertext with components `ct1` and `ct2`. -/
+def decaps (dk : P.SK) (ct1 : P.det.C₁) (ct2 : P.det.C₂) : Option P.K :=
+  P.det.decapsDet dk (P.det.splitC.symm (ct1, ct2))
+
+/-- Whether the vector `ek` and the header form a public key. -/
+def ekMatchesHeader (ek : P.det.PKvector) (hdr : P.det.PKheader) : Bool :=
+  P.det.validPK hdr ek
+```
 :::::::
 
 :::defTitle "spqr_chunked_scheme" "SPQR protocol"
 :::
 
-:::::::definition "spqr_chunked_scheme" (parent := "cka_protocols_spqr") (lean := "SPQR.EkSender.KeysUnsampled, SPQR.EkSender.HeaderSent, SPQR.EkSender.EkSent, SPQR.EkSender.EkSentCt1Received, SPQR.EkSender.sendHeader, SPQR.EkSender.sendVector, SPQR.EkSender.recvCt1, SPQR.EkSender.recvCt2, SPQR.CtSender.NoHeaderReceived, SPQR.CtSender.HeaderReceived, SPQR.CtSender.Ct1Sent, SPQR.CtSender.Ct1SentEkReceived, SPQR.CtSender.Ct2Sent, SPQR.CtSender.recvHeader, SPQR.CtSender.sendCt1, SPQR.CtSender.recvVector, SPQR.CtSender.sendCt2, SPQR.CtSender.recvNextEpoch, SPQR.Chunked.Payload, SPQR.Chunked.Message, SPQR.Chunked.PartyState, SPQR.Chunked.Error, SPQR.Chunked.SendResult, SPQR.Chunked.RecvResult, SPQR.Chunked.completeCt2, SPQR.Chunked.initA, SPQR.Chunked.initB, SPQR.Chunked.send, SPQR.send, SPQR.sendRleak, SPQR.Chunked.recv, SPQR.recvSCKA, SPQR.scheme") (tags := "gh-252, gh-263") (uses := "spqr_parameters, scka_scheme, erasure_code_streaming")
-Let $`P` be an {bpref "spqr_parameters"}[SPQR parameter set] and
-$`\Init\text{-}\KeyGen\to I_{\mathsf{CKA}}\in\mathcal I_{\mathsf{CKA}}` a generator of initial
-keys for its authenticator $`\mathsf{Auth}`. $`\mathsf{SPQR}(P,\Init\text{-}\KeyGen)`, Signal's
-implementation of {bpref "mlkem_braid_spec"}[ML-KEM Braid], is the
-{bpref "scka_scheme"}[SCKA scheme] with initial-key generator $`\Init\text{-}\KeyGen` and the
-algorithms below.
+:::::::definition "spqr_chunked_scheme" (parent := "cka_protocols_spqr") (lean := "SPQR.scheme") (tags := "gh-252, gh-263") (uses := "spqr_parameters, mlkem_braid_ratcheted_authenticator, scka_scheme, erasure_code_streaming")
+Let $`P` be an {bpref "spqr_parameters"}[SPQR parameter set], $`\mathsf{Auth}` a
+{bpref "mlkem_braid_ratcheted_authenticator"}[ratcheted authenticator] for the epoch keys $`E`, the
+headers $`H`, the ciphertexts $`C_1\times C_2`, and the tags $`T` of $`P`, with initial-key space
+$`\mathcal I_{\mathsf{CKA}}`, state space $`\mathcal S_{\mathsf{Auth}}`, and algorithms
+
+- $`\mathsf{Init}:\mathcal I_{\mathsf{CKA}}\times\mathbb N\to\mathcal S_{\mathsf{Auth}}` and
+  $`\mathsf{Update}:\mathcal S_{\mathsf{Auth}}\times\mathbb N\times E\to\mathcal S_{\mathsf{Auth}}`;
+- $`\mathsf{Mac}_H:\mathcal S_{\mathsf{Auth}}\times\mathbb N\times H\to T` and
+  $`\mathsf{Verify}_H:\mathcal S_{\mathsf{Auth}}\times\mathbb N\times H\times T\to\{\mathsf{true},\mathsf{false}\}`
+  on headers;
+- $`\mathsf{Mac}_C:\mathcal S_{\mathsf{Auth}}\times\mathbb N\times(C_1\times C_2)\to T` and
+  $`\mathsf{Verify}_C:\mathcal S_{\mathsf{Auth}}\times\mathbb N\times(C_1\times C_2)\times T\to\{\mathsf{true},\mathsf{false}\}`
+  on ciphertexts,
+
+and $`\Init\text{-}\KeyGen\to I_{\mathsf{CKA}}\in\mathcal I_{\mathsf{CKA}}` a generator of its
+initial keys. $`\mathsf{SPQR}(P,\mathsf{Auth},\Init\text{-}\KeyGen)`, Signal's implementation of
+{bpref "mlkem_braid_spec"}[ML-KEM Braid], is the {bpref "scka_scheme"}[SCKA scheme] with
+initial-key generator $`\Init\text{-}\KeyGen` and the algorithms below.
 
 :::leanPillCaption "scheme"
 :::
@@ -146,17 +188,19 @@ def scheme (P : Parameters m) [DecidableEq P.Sym]
 :::::gameCell "\\textsf{States, messages, and transitions}" (kind := "game") (open := true) (tag := "spqr-states")
 $$`\begin{array}{rcl}
 \textsf{encapsulation-key sender} & & \textsf{ciphertext sender}\\[0.5em]
-(\mathsf{pk},\mathsf{sk})\gets\mathsf{KeyGen} & & \\
-(\mathsf{hdr},\mathsf{vec})\gets\mathsf{pk} & \xrightarrow{\hspace{2em}(\mathsf{hdr},\mathsf{tag})\hspace{2em}} & (\mathsf{encapsSt},\mathsf{ct1},k)\gets\mathsf{Encaps}_1(\mathsf{hdr})\\[0.3em]
+(\mathsf{pk},\mathsf{sk})\gets\mathsf{KeyGen}() & & \\
+(\mathsf{hdr},\mathsf{ek})\gets\mathsf{pk} & \xrightarrow{\hspace{2em}(\mathsf{hdr},\mathsf{tag})\hspace{2em}} & (\mathsf{encapsSt},\mathsf{ct1},k)\gets\mathsf{Encaps}_1(\mathsf{hdr})\\
+ & & \mathsf{epochKey}\gets\mathsf{KDF}_{\mathsf{OK}}(k,\mathsf{ep})\\[0.3em]
  & \xleftarrow{\hspace{3.5em}\mathsf{ct1}\hspace{3.5em}} & \\[0.3em]
- & \xrightarrow{\hspace{3.5em}\mathsf{vec}\hspace{3.5em}} & \mathsf{ct2}\gets\mathsf{Encaps}_2(\mathsf{encapsSt},\mathsf{hdr},\mathsf{vec})\\[0.3em]
+ & \xrightarrow{\hspace{3.5em}\mathsf{ek}\hspace{3.5em}} & \mathsf{ct2}\gets\mathsf{Encaps}_2(\mathsf{encapsSt},\mathsf{hdr},\mathsf{ek})\\[0.3em]
 k\gets\mathsf{Decaps}(\mathsf{sk},(\mathsf{ct1},\mathsf{ct2})) & \xleftarrow{\hspace{2em}(\mathsf{ct2},\mathsf{tag})\hspace{2em}} & \\[0.5em]
-\mathsf{epochKey}\gets\mathsf{KDF}_{\mathsf{OK}}(k,\mathsf{ep}) & & \mathsf{epochKey}\gets\mathsf{KDF}_{\mathsf{OK}}(k,\mathsf{ep})
+\mathsf{epochKey}\gets\mathsf{KDF}_{\mathsf{OK}}(k,\mathsf{ep}) & &
 \end{array}`
 
 A is the encapsulation-key sender in odd epochs and B in even ones. The boxes are numbered in the
 order a party visits them: 1 to 5 as encapsulation-key sender, 6 to 10 as ciphertext sender of the
-next epoch; 9a and 9b are alternatives.
+next epoch. From 8 a party reaches 10 directly, when an $`\mathsf{EkCt1Ack}` chunk completes
+$`\mathsf{ek}`, or through 9a or 9b.
 
 :::spqrStates
 :::
@@ -175,8 +219,8 @@ and $`\mathsf{encapsSt}` for $`\mathsf{Encaps}_2`. The values of a state:
   * $`\mathsf{auth}\in\mathcal S_{\mathsf{Auth}}`
   * the authenticator state, ratcheted with the epoch key at $`\mathsf{SendCt1}` and $`\mathsf{RecvCt2}`
 *
-  * $`\mathsf{pk}=(\mathsf{hdr},\mathsf{vec})`, $`\mathsf{sk}`
-  * the key pair of the encapsulation-key sender, with header $`\mathsf{hdr}\in H` and vector $`\mathsf{vec}\in V`
+  * $`\mathsf{pk}=(\mathsf{hdr},\mathsf{ek})`, $`\mathsf{sk}`
+  * the key pair of the encapsulation-key sender, with header $`\mathsf{hdr}\in H` and vector $`\mathsf{ek}\in V`
 *
   * $`\mathsf{encapsSt}`
   * the state passed from $`\mathsf{Encaps}_1` to $`\mathsf{Encaps}_2` by the ciphertext sender
@@ -203,10 +247,10 @@ labelled $`\mathsf{Rec}(p)` by its payload $`p`; $`t` is the sender's epoch:
   * a chunk $`\chunk\in\mathbb N\times\Sigma` of the header stream
 *
   * $`\mathsf{Ek}(\chunk)`
-  * a chunk of the vector stream
+  * a chunk of the $`\mathsf{ek}` stream
 *
   * $`\mathsf{EkCt1Ack}(\chunk)`
-  * a chunk of the vector stream, and $`\mathsf{ct1}` has been recovered
+  * a chunk of the $`\mathsf{ek}` stream, and $`\mathsf{ct1}` has been recovered
 *
   * $`\mathsf{Ct1Ack}`
   * $`\mathsf{ct1}` has been recovered, no chunk
@@ -335,18 +379,18 @@ def initB (P : Parameters m)
 ::::::gameGrid
 :::::gameCell "\\textsf{Send}" (kind := "game") (open := true) (tag := "spqr-send")
 $`\begin{array}{l}
-\mathsf{Send}\text{-}\mathsf{rleak}(\mathsf{st}):\pcomment{\mathsf{ep}\text{: the epoch of }\mathsf{st}}\\
-\quad \mathsf{out}\gets(\bot,\bot);\quad r\gets\bot;\quad\mathsf{st}'\gets\mathsf{st}\\[0.6em]
+\mathsf{Send}(\mathsf{st}):\pcomment{\mathsf{ep}\text{: the epoch of }\mathsf{st}}\\
+\quad \mathsf{out}\gets(\bot,\bot);\quad\mathsf{st}'\gets\mathsf{st}\\[0.6em]
 \quad\pcommentline{\text{first send of the epoch as encapsulation-key sender:}}\\
 \quad\pcommentline{\text{sample the key pair and start streaming the tagged header}}\\
 \quad\pif\ \mathsf{st}=\mathsf{keysUnsampled}(\mathsf{ep},\mathsf{auth})\ \pthen\\
-\qquad(\mathsf{core},\mathsf{data},r)\gets\mathsf{SendHeader}(\mathsf{ep},\mathsf{auth})\\
+\qquad(\mathsf{core},\mathsf{data})\gets\mathsf{SendHeader}(\mathsf{ep},\mathsf{auth})\\
 \qquad(\chunk,\mathsf{encoder})\gets\mathsf{Next}(\mathsf{Enc}_H(\mathsf{data}));\quad\mathsf{st}'\gets\mathsf{keysSampled}(\mathsf{core},\mathsf{encoder})\\
 \qquad p\gets\mathsf{Hdr}(\chunk)\\[0.6em]
 \quad\pcommentline{\text{first send after the header was verified:}}\\
 \quad\pcommentline{\text{encapsulate, output the epoch key, and start streaming }\mathsf{ct1}}\\
 \quad\pelse\ \pif\ \mathsf{st}=\mathsf{headerReceived}(\mathsf{ep},\mathsf{auth},\mathsf{hdr},\mathsf{decoder})\ \pthen\\
-\qquad(\mathsf{core},\mathsf{ct1},\mathsf{out},r)\gets\mathsf{SendCt1}(\mathsf{ep},\mathsf{auth},\mathsf{hdr})\\
+\qquad(\mathsf{core},\mathsf{ct1},\mathsf{out})\gets\mathsf{SendCt1}(\mathsf{ep},\mathsf{auth},\mathsf{hdr})\\
 \qquad(\chunk,\mathsf{encoder})\gets\mathsf{Next}(\mathsf{Enc}_1(\mathsf{ct1}))\\
 \qquad\mathsf{st}'\gets\mathsf{ct1Sampled}(\mathsf{core},\mathsf{encoder},\mathsf{decoder})\\
 \qquad p\gets\mathsf{Ct1}(\chunk)\\[0.6em]
@@ -357,19 +401,22 @@ $`\begin{array}{l}
 \qquad(\chunk,\mathsf{encoder}')\gets\mathsf{Next}(\mathsf{encoder});\quad\mathsf{st}'\gets\mathsf{st}[\mathsf{encoder}\mapsto\mathsf{encoder}']\\
 \qquad p\gets\begin{cases}
 \mathsf{Hdr}(\chunk)&\text{if }\mathsf{st}\in\mathsf{keysSampled}\pcomment{\text{header}}\\
-\mathsf{Ek}(\chunk)&\text{if }\mathsf{st}\in\mathsf{headerSent}\pcomment{\text{vector}}\\
-\mathsf{EkCt1Ack}(\chunk)&\text{if }\mathsf{st}\in\mathsf{ct1Received}\pcomment{\text{vector; }\mathsf{ct1}\text{ recovered}}\\
+\mathsf{Ek}(\chunk)&\text{if }\mathsf{st}\in\mathsf{headerSent}\pcomment{\mathsf{ek}}\\
+\mathsf{EkCt1Ack}(\chunk)&\text{if }\mathsf{st}\in\mathsf{ct1Received}\pcomment{\mathsf{ek}\text{; }\mathsf{ct1}\text{ recovered}}\\
 \mathsf{Ct1}(\chunk)&\text{if }\mathsf{st}\in\{\mathsf{ct1Sampled},\mathsf{ekReceivedCt1Sampled}\}\\
 \mathsf{Ct2}(\chunk)&\text{if }\mathsf{st}\in\mathsf{ct2Sampled}\pcomment{(\mathsf{ct2},\mathsf{tag})}
 \end{cases}\\[0.6em]
-\quad\pcommentline{\text{the vector got through: only acknowledge }\mathsf{ct1}}\\
+\quad\pcommentline{\mathsf{ek}\text{ got through: only acknowledge }\mathsf{ct1}}\\
 \quad\pelse\ \pif\ \mathsf{st}\in\mathsf{ekSentCt1Received}\ \pthen\ p\gets\mathsf{Ct1Ack}\\[0.6em]
-\quad\pcommentline{\text{waiting for the header, or for the vector once }\mathsf{ct1}\text{ is acknowledged}}\\
+\quad\pcommentline{\text{waiting for the header, or for }\mathsf{ek}\text{ once }\mathsf{ct1}\text{ is acknowledged}}\\
 \quad\pelse\ p\gets\mathsf{None}\\[0.6em]
-\quad\Return(\mathsf{out},(\mathsf{ep},p),\mathsf{ep}-1,\mathsf{st}',r)\\[1em]
-\mathsf{Send}(\mathsf{st}):\\
-\quad(\mathsf{out},\rho,t,\mathsf{st}',r)\gets\mathsf{Send}\text{-}\mathsf{rleak}(\mathsf{st});\quad\Return(\mathsf{out},\rho,t,\mathsf{st}')
+\quad\Return(\mathsf{out},(\mathsf{ep},p),\mathsf{ep}-1,\mathsf{st}')
 \end{array}`
+
+$`\mathsf{Send}\text{-}\mathsf{rleak}(\mathsf{st})` runs $`\mathsf{Send}(\mathsf{st})` with
+$`\mathsf{KeyGen}` and $`\mathsf{Encaps}_1` replaced by their
+{bpref "incremental_kem_det"}[coin-returning variants] and also returns those coins: $`r_K` from
+$`\mathsf{keysUnsampled}`, $`r_1` from $`\mathsf{headerReceived}`, and $`\bot` from every other state.
 
 :::leanPillCaption "Chunked.send"
 :::
@@ -378,52 +425,51 @@ $`\begin{array}{l}
 def send (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
-    (st : PartyState P AuthState) :
-    m (SendResult P AuthState × MLKEMBraid.SendRand P.det.KeygenRand P.det.Encaps1Rand) :=
+    (st : PartyState P AuthState) : m (SendResult P AuthState) :=
   match st with
   | .keysUnsampled core => do
       -- states.rs:120-136
-      let ((core', hdr, tag), r) ← EkSender.sendHeader P auth core
+      let (core', hdr, tag) ← EkSender.sendHeader P auth core
       let (chunk, enc) := (EncoderState.init P.ecpHdr (hdr, tag)).nextChunk
-      pure (⟨⟨core.ep, .hdr chunk⟩, core.ep - 1, none, .keysSampled core' enc⟩, .keygen r)
+      pure ⟨⟨core.ep, .hdr chunk⟩, core.ep - 1, none, .keysSampled core' enc⟩
   | .keysSampled core enc =>
       -- states.rs:138-148
       let (chunk, enc') := enc.nextChunk
-      pure (⟨⟨core.ep, .hdr chunk⟩, core.ep - 1, none, .keysSampled core enc'⟩, .none)
+      pure ⟨⟨core.ep, .hdr chunk⟩, core.ep - 1, none, .keysSampled core enc'⟩
   | .headerSent core enc dec =>
       -- states.rs:150-160
       let (chunk, enc') := enc.nextChunk
-      pure (⟨⟨core.ep, .ek chunk⟩, core.ep - 1, none, .headerSent core enc' dec⟩, .none)
+      pure ⟨⟨core.ep, .ek chunk⟩, core.ep - 1, none, .headerSent core enc' dec⟩
   | .ct1Received core enc =>
       -- states.rs:162-173
       let (chunk, enc') := enc.nextChunk
-      pure (⟨⟨core.ep, .ekCt1Ack chunk⟩, core.ep - 1, none, .ct1Received core enc'⟩, .none)
+      pure ⟨⟨core.ep, .ekCt1Ack chunk⟩, core.ep - 1, none, .ct1Received core enc'⟩
   | .ekSentCt1Received core dec =>
       -- states.rs:175-189
-      pure (⟨⟨core.ep, .ct1Ack⟩, core.ep - 1, none, .ekSentCt1Received core dec⟩, .none)
+      pure ⟨⟨core.ep, .ct1Ack⟩, core.ep - 1, none, .ekSentCt1Received core dec⟩
   | .noHeaderReceived core dec =>
       -- states.rs:191-201
-      pure (⟨⟨core.ep, .none⟩, core.ep - 1, none, .noHeaderReceived core dec⟩, .none)
+      pure ⟨⟨core.ep, .none⟩, core.ep - 1, none, .noHeaderReceived core dec⟩
   | .headerReceived core dec => do
       -- states.rs:203-219
-      let ((core', c1, key), r) ← CtSender.sendCt1 P auth core
+      let (core', c1, key) ← CtSender.sendCt1 P auth core
       let (chunk, enc) := (EncoderState.init P.ecpCt1 c1).nextChunk
-      pure (⟨⟨core.ep, .ct1 chunk⟩, core.ep - 1, some key, .ct1Sampled core' enc dec⟩, .encaps1 r)
+      pure ⟨⟨core.ep, .ct1 chunk⟩, core.ep - 1, some key, .ct1Sampled core' enc dec⟩
   | .ct1Sampled core enc dec =>
       -- states.rs:221-232
       let (chunk, enc') := enc.nextChunk
-      pure (⟨⟨core.ep, .ct1 chunk⟩, core.ep - 1, none, .ct1Sampled core enc' dec⟩, .none)
+      pure ⟨⟨core.ep, .ct1 chunk⟩, core.ep - 1, none, .ct1Sampled core enc' dec⟩
   | .ekReceivedCt1Sampled core enc =>
       -- states.rs:234-245
       let (chunk, enc') := enc.nextChunk
-      pure (⟨⟨core.ep, .ct1 chunk⟩, core.ep - 1, none, .ekReceivedCt1Sampled core enc'⟩, .none)
+      pure ⟨⟨core.ep, .ct1 chunk⟩, core.ep - 1, none, .ekReceivedCt1Sampled core enc'⟩
   | .ct1Acknowledged core dec =>
       -- states.rs:247-257
-      pure (⟨⟨core.ep, .none⟩, core.ep - 1, none, .ct1Acknowledged core dec⟩, .none)
+      pure ⟨⟨core.ep, .none⟩, core.ep - 1, none, .ct1Acknowledged core dec⟩
   | .ct2Sampled core enc =>
       -- states.rs:259-271
       let (chunk, enc') := enc.nextChunk
-      pure (⟨⟨core.ep, .ct2 chunk⟩, core.ep - 1, none, .ct2Sampled core enc'⟩, .none)
+      pure ⟨⟨core.ep, .ct2 chunk⟩, core.ep - 1, none, .ct2Sampled core enc'⟩
 ```
 
 :::leanPillCaption "SendResult"
@@ -442,6 +488,17 @@ structure SendResult (P : Parameters m) (AuthState : Type) where
   state : PartyState P AuthState
 ```
 
+:::leanPillCaption "SPQR.send"
+:::
+
+```anchor SPQR_send (project := ".") (module := SecureMessaging.SCKA.SPQR.Construction)
+def send (P : Parameters m)
+    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
+      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
+    (st : PartyState P AuthState) : m (SendResult P AuthState) :=
+  Chunked.send P auth st
+```
+
 :::leanPillCaption "sendRleak"
 :::
 
@@ -451,18 +508,16 @@ def sendRleak (P : Parameters m)
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : PartyState P AuthState) :
     m (SendResult P AuthState × SendRand P.det.KeygenRand P.det.Encaps1Rand) :=
-  Chunked.send P auth st
-```
-
-:::leanPillCaption "SPQR.send"
-:::
-
-```anchor SPQR_send (project := ".") (module := SecureMessaging.SCKA.SPQR.Construction)
-def send (P : Parameters m)
-    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
-    (st : PartyState P AuthState) : m (SendResult P AuthState) :=
-  Prod.fst <$> sendRleak P auth st
+  match st with
+  | .keysUnsampled core => do
+      let ((core', hdr, tag), r) ← EkSender.sendHeaderRleak P auth core
+      let (chunk, enc) := (EncoderState.init P.ecpHdr (hdr, tag)).nextChunk
+      pure (⟨⟨core.ep, .hdr chunk⟩, core.ep - 1, none, .keysSampled core' enc⟩, .keygen r)
+  | .headerReceived core dec => do
+      let ((core', c1, key), r) ← CtSender.sendCt1Rleak P auth core
+      let (chunk, enc) := (EncoderState.init P.ecpCt1 c1).nextChunk
+      pure (⟨⟨core.ep, .ct1 chunk⟩, core.ep - 1, some key, .ct1Sampled core' enc dec⟩, .encaps1 r)
+  | st => (·, .none) <$> send P auth st
 ```
 
 $$`\SendA=\SendB=\mathsf{Send},\quad\SendARLeak=\SendBRLeak=\mathsf{Send}\text{-}\mathsf{rleak}`
@@ -473,25 +528,37 @@ $`\begin{array}{l}
 \mathsf{SendHeader}(\mathsf{ep},\mathsf{auth})\\
 \hline
 \pcommentline{\text{encapsulation-key sender}}\\
-r_K\sample\mathcal D_K\\
-(\mathsf{pk},\mathsf{sk})\gets\mathsf{KeyGen}(;r_K)\\
-(\mathsf{hdr},\mathsf{vec})\gets \mathsf{pk}\\
+(\mathsf{pk},\mathsf{sk})\gets\mathsf{KeyGen}()\\
+(\mathsf{hdr},\mathsf{ek})\gets \mathsf{pk}\\
 \mathsf{tag}\gets\mathsf{Mac}_H(\mathsf{auth},\mathsf{ep},\mathsf{hdr})\\
-\Return((\mathsf{ep},\mathsf{auth},\mathsf{pk},\mathsf{sk}),(\mathsf{hdr},\mathsf{tag}),r_K)
+\Return((\mathsf{ep},\mathsf{auth},\mathsf{pk},\mathsf{sk}),(\mathsf{hdr},\mathsf{tag}))
 \end{array}`
 
 :::leanPillCaption "sendHeader"
 :::
 
 ```anchor EkSender_sendHeader (project := ".") (module := SecureMessaging.SCKA.SPQR.Unchunked)
-/-- Generate a KEM key pair and return the successor state, header, tag, and sampled coins. -/
+/-- Generate a key pair and return the successor state, the header, and its tag. -/
 def sendHeader (P : Parameters m)
+    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
+      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
+    (st : KeysUnsampled AuthState) : m (HeaderSent P AuthState × P.det.PKheader × P.Mac) := do
+  let (pk, sk) ← P.generate
+  let hdr := P.det.toHeader pk
+  pure (⟨st.ep, st.authSt, pk, sk⟩, hdr, auth.macHeader st.authSt st.ep hdr)
+```
+
+:::leanPillCaption "sendHeaderRleak"
+:::
+
+```anchor EkSender_sendHeaderRleak (project := ".") (module := SecureMessaging.SCKA.SPQR.Unchunked)
+/-- `sendHeader` with `generate` replaced by `generateRleak`, also returning the drawn coins. -/
+def sendHeaderRleak (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : KeysUnsampled AuthState) :
     m ((HeaderSent P AuthState × P.det.PKheader × P.Mac) × P.det.KeygenRand) := do
-  let r ← P.det.sampleKeygen
-  let (pk, sk) := P.det.keygenDet r
+  let ((pk, sk), r) ← P.generateRleak
   let hdr := P.det.toHeader pk
   pure ((⟨st.ep, st.authSt, pk, sk⟩, hdr, auth.macHeader st.authSt st.ep hdr), r)
 ```
@@ -500,27 +567,40 @@ $`\begin{array}{l}
 \mathsf{SendCt1}(\mathsf{ep},\mathsf{auth},\mathsf{hdr})\\
 \hline
 \pcommentline{\text{ciphertext sender}}\\
-r_1\sample\mathcal D_1\\
-(\mathsf{encapsSt},\mathsf{ct1},k)\gets\mathsf{Encaps}_1(\mathsf{hdr};r_1)\\
+(\mathsf{encapsSt},\mathsf{ct1},k)\gets\mathsf{Encaps}_1(\mathsf{hdr})\\
 \mathsf{epochKey}\gets\mathsf{KDF}_{\mathsf{OK}}(k,\mathsf{ep})\\
  \mathsf{auth}'\gets\mathsf{Update}(\mathsf{auth},\mathsf{ep},\mathsf{epochKey})\\
 \Return((\mathsf{ep},\mathsf{auth}',\mathsf{hdr},\mathsf{encapsSt},\mathsf{ct1}),\\
-\qquad\mathsf{ct1},(\mathsf{ep},\mathsf{epochKey}),r_1)
+\qquad\mathsf{ct1},(\mathsf{ep},\mathsf{epochKey}))
 \end{array}`
 
 :::leanPillCaption "sendCt1"
 :::
 
 ```anchor CtSender_sendCt1 (project := ".") (module := SecureMessaging.SCKA.SPQR.Unchunked)
-/-- Run encapsulation stage one and return the successor state, ciphertext, epoch key,
-and sampled coins. -/
+/-- Run the first encapsulation stage and return the successor state, the first ciphertext
+component, and the epoch key. -/
 def sendCt1 (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : HeaderReceived P AuthState) :
+    m (Ct1Sent P AuthState × P.det.C₁ × (ℕ × P.EpochKey)) := do
+  let (encapsSt, c1, k) ← P.encaps1 st.hdr
+  let ik := P.kdfOK k st.ep
+  pure (⟨st.ep, auth.update st.authSt st.ep ik, st.hdr, encapsSt, c1⟩, c1, (st.ep, ik))
+```
+
+:::leanPillCaption "sendCt1Rleak"
+:::
+
+```anchor CtSender_sendCt1Rleak (project := ".") (module := SecureMessaging.SCKA.SPQR.Unchunked)
+/-- `sendCt1` with `encaps1` replaced by `encaps1Rleak`, also returning the drawn coins. -/
+def sendCt1Rleak (P : Parameters m)
+    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
+      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
+    (st : HeaderReceived P AuthState) :
     m ((Ct1Sent P AuthState × P.det.C₁ × (ℕ × P.EpochKey)) × P.det.Encaps1Rand) := do
-  let r ← P.det.sampleEncaps1
-  let (encapsSt, c1, k) := P.det.encaps1Det st.hdr r
+  let ((encapsSt, c1, k), r) ← P.encaps1Rleak st.hdr
   let ik := P.kdfOK k st.ep
   pure ((⟨st.ep, auth.update st.authSt st.ep ik, st.hdr, encapsSt, c1⟩, c1, (st.ep, ik)), r)
 ```
@@ -540,16 +620,16 @@ $`\begin{array}{l}
 \qquad\Return((\bot,\bot),t-1,\mathsf{keysUnsampled}(\mathsf{core}))\pcomment{\text{epoch }t\text{ as key sender}}\\[0.6em]
 \quad \mathsf{out}\gets(\bot,\bot);\quad\mathsf{st}'\gets\mathsf{st}\pcomment{\text{pairs not listed below are ignored}}\\[0.6em]
 \quad\pcommentline{\text{first }\mathsf{ct1}\text{ chunk while streaming the header:}}\\
-\quad\pcommentline{\text{the header got through, so release the vector}}\\
+\quad\pcommentline{\text{the header got through, so release }\mathsf{ek}}\\
 \quad\pif\ \mathsf{st}=\mathsf{keysSampled}(\mathsf{ep},\mathsf{auth},\mathsf{pk},\mathsf{sk},\mathsf{encoder})\wedge p=\mathsf{Ct1}(\chunk)\ \pthen\\
-\qquad(\mathsf{core},\mathsf{vec})\gets\mathsf{SendVector}(\mathsf{ep},\mathsf{auth},\mathsf{pk},\mathsf{sk})\\
-\qquad\mathsf{st}'\gets\mathsf{headerSent}(\mathsf{core},\mathsf{Enc}_V(\mathsf{vec}),\mathsf{Add}(\mathsf{Empty}_1,\chunk))\\[0.6em]
-\quad\pcommentline{\mathsf{ct1}\text{ chunk while streaming the vector: collect }\mathsf{ct1}\text{; once decoded, store it}}\\
+\qquad(\mathsf{core},\mathsf{ek})\gets\mathsf{SendEk}(\mathsf{ep},\mathsf{auth},\mathsf{pk},\mathsf{sk})\\
+\qquad\mathsf{st}'\gets\mathsf{headerSent}(\mathsf{core},\mathsf{Enc}_V(\mathsf{ek}),\mathsf{Add}(\mathsf{Empty}_1,\chunk))\\[0.6em]
+\quad\pcommentline{\mathsf{ct1}\text{ chunk while streaming }\mathsf{ek}\text{: collect }\mathsf{ct1}\text{; once decoded, store it}}\\
 \quad\pelse\ \pif\ \mathsf{st}=\mathsf{headerSent}(\mathsf{ep},\mathsf{auth},\mathsf{sk},\mathsf{encoder},\mathsf{decoder})\wedge p=\mathsf{Ct1}(\chunk)\ \pthen\\
 \qquad\mathsf{decoder}\gets\mathsf{Add}(\mathsf{decoder},\chunk);\quad \mathsf{ct1}\gets\mathsf{Decode}(\mathsf{decoder})\\
 \qquad\pif\ \mathsf{ct1}=\bot\ \pthen\ \mathsf{st}'\gets\mathsf{headerSent}(\mathsf{ep},\mathsf{auth},\mathsf{sk},\mathsf{encoder},\mathsf{decoder})\\
 \qquad\pelse\ \mathsf{st}'\gets\mathsf{ct1Received}(\mathsf{RecvCt1}((\mathsf{ep},\mathsf{auth},\mathsf{sk}),\mathsf{ct1}),\mathsf{encoder})\\[0.6em]
-\quad\pcommentline{\text{first }\mathsf{ct2}\text{ chunk: the vector got through, so start collecting }\mathsf{ct2}}\\
+\quad\pcommentline{\text{first }\mathsf{ct2}\text{ chunk: }\mathsf{ek}\text{ got through, so start collecting }\mathsf{ct2}}\\
 \quad\pelse\ \pif\ \mathsf{st}=\mathsf{ct1Received}(\mathsf{ep},\mathsf{auth},\mathsf{sk},\mathsf{ct1},\mathsf{encoder})\wedge p=\mathsf{Ct2}(\chunk)\ \pthen\\
 \qquad\mathsf{st}'\gets\mathsf{ekSentCt1Received}(\mathsf{ep},\mathsf{auth},\mathsf{sk},\mathsf{ct1},\mathsf{Add}(\mathsf{Empty}_2,\chunk))\\[0.6em]
 \quad\pcommentline{\mathsf{ct2}\text{ chunk: once decoded, decapsulate, output the epoch key,}}\\
@@ -566,40 +646,40 @@ $`\begin{array}{l}
 \qquad\pif\ \mathsf{data}=\bot\ \pthen\ \mathsf{st}'\gets\mathsf{noHeaderReceived}(\mathsf{ep},\mathsf{auth},\mathsf{decoder})\\
 \qquad\pelse\ \mathsf{st}'\gets\mathsf{headerReceived}(\mathsf{RecvHeader}((\mathsf{ep},\mathsf{auth}),\mathsf{data}),\mathsf{Empty}_V)\\
 \qquad\quad\pcommentline{\bot\text{ on a bad tag: }\mathsf{macVerifyFailed}}\\[0.6em]
-\quad\pcommentline{\text{vector chunk while streaming }\mathsf{ct1}\text{: once decoded, validate the vector}}\\
+\quad\pcommentline{\mathsf{ek}\text{ chunk while streaming }\mathsf{ct1}\text{: once decoded, validate }\mathsf{ek}}\\
 \quad\pelse\ \pif\ \mathsf{st}=\mathsf{ct1Sampled}(\mathsf{ep},\mathsf{auth},\mathsf{hdr},\mathsf{encapsSt},\mathsf{ct1},\mathsf{encoder},\mathsf{decoder})\\
 \qquad\qquad\wedge p=\mathsf{Ek}(\chunk)\ \pthen\\
-\qquad\mathsf{decoder}\gets\mathsf{Add}(\mathsf{decoder},\chunk);\quad \mathsf{vec}\gets\mathsf{Decode}(\mathsf{decoder})\\
-\qquad\pif\ \mathsf{vec}=\bot\ \pthen\\
+\qquad\mathsf{decoder}\gets\mathsf{Add}(\mathsf{decoder},\chunk);\quad \mathsf{ek}\gets\mathsf{Decode}(\mathsf{decoder})\\
+\qquad\pif\ \mathsf{ek}=\bot\ \pthen\\
 \qquad\quad\mathsf{st}'\gets\mathsf{ct1Sampled}(\mathsf{ep},\mathsf{auth},\mathsf{hdr},\mathsf{encapsSt},\mathsf{ct1},\mathsf{encoder},\mathsf{decoder})\\
-\qquad\pelse\ \mathsf{core}\gets\mathsf{RecvVector}((\mathsf{ep},\mathsf{auth},\mathsf{hdr},\mathsf{encapsSt},\mathsf{ct1}),\mathsf{vec})\\
+\qquad\pelse\ \mathsf{core}\gets\mathsf{RecvEk}((\mathsf{ep},\mathsf{auth},\mathsf{hdr},\mathsf{encapsSt},\mathsf{ct1}),\mathsf{ek})\\
 \qquad\quad\ \ \mathsf{st}'\gets\mathsf{ekReceivedCt1Sampled}(\mathsf{core},\mathsf{encoder})\\
-\qquad\quad\pcommentline{\bot\text{ on an invalid vector: }\mathsf{erroneousDataReceived}}\\[0.6em]
-\quad\pcommentline{\text{vector chunk acknowledging }\mathsf{ct1}\text{: stop streaming }\mathsf{ct1}\text{;}}\\
-\quad\pcommentline{\text{once the vector is decoded, validate it and compute }\mathsf{ct2}}\\
+\qquad\quad\pcommentline{\bot\text{ when }\mathsf{ek}\text{ does not match }\mathsf{hdr}\text{: }\mathsf{erroneousDataReceived}}\\[0.6em]
+\quad\pcommentline{\mathsf{ek}\text{ chunk acknowledging }\mathsf{ct1}\text{: stop streaming }\mathsf{ct1}\text{;}}\\
+\quad\pcommentline{\text{once }\mathsf{ek}\text{ is decoded, validate it and compute }\mathsf{ct2}}\\
 \quad\pelse\ \pif\ \mathsf{st}=\mathsf{ct1Sampled}(\mathsf{ep},\mathsf{auth},\mathsf{hdr},\mathsf{encapsSt},\mathsf{ct1},\mathsf{encoder},\mathsf{decoder})\\
 \qquad\qquad\wedge p=\mathsf{EkCt1Ack}(\chunk)\ \pthen\\
-\qquad\mathsf{decoder}\gets\mathsf{Add}(\mathsf{decoder},\chunk);\quad \mathsf{vec}\gets\mathsf{Decode}(\mathsf{decoder})\\
-\qquad\pif\ \mathsf{vec}=\bot\ \pthen\\
+\qquad\mathsf{decoder}\gets\mathsf{Add}(\mathsf{decoder},\chunk);\quad \mathsf{ek}\gets\mathsf{Decode}(\mathsf{decoder})\\
+\qquad\pif\ \mathsf{ek}=\bot\ \pthen\\
 \qquad\quad\mathsf{st}'\gets\mathsf{ct1Acknowledged}(\mathsf{ep},\mathsf{auth},\mathsf{hdr},\mathsf{encapsSt},\mathsf{ct1},\mathsf{decoder})\\
-\qquad\pelse\ \mathsf{core}\gets\mathsf{RecvVector}((\mathsf{ep},\mathsf{auth},\mathsf{hdr},\mathsf{encapsSt},\mathsf{ct1}),\mathsf{vec})\\
-\qquad\quad\pcommentline{\bot\text{ on an invalid vector: }\mathsf{erroneousDataReceived}}\\
+\qquad\pelse\ \mathsf{core}\gets\mathsf{RecvEk}((\mathsf{ep},\mathsf{auth},\mathsf{hdr},\mathsf{encapsSt},\mathsf{ct1}),\mathsf{ek})\\
+\qquad\quad\pcommentline{\bot\text{ when }\mathsf{ek}\text{ does not match }\mathsf{hdr}\text{: }\mathsf{erroneousDataReceived}}\\
 \qquad\quad\ \ (\mathsf{core}',\mathsf{data})\gets\mathsf{SendCt2}(\mathsf{core})\\
 \qquad\quad\ \ \mathsf{st}'\gets\mathsf{ct2Sampled}(\mathsf{core}',\mathsf{Enc}_2(\mathsf{data}))\\[0.6em]
-\quad\pcommentline{\mathsf{ct1}\text{ acknowledged after the vector was validated: compute }\mathsf{ct2}}\\
+\quad\pcommentline{\mathsf{ct1}\text{ acknowledged after }\mathsf{ek}\text{ was validated: compute }\mathsf{ct2}}\\
 \quad\pelse\ \pif\ \mathsf{st}=\mathsf{ekReceivedCt1Sampled}(\mathsf{core},\mathsf{encoder})\\
 \qquad\qquad\wedge(p=\mathsf{Ct1Ack}\vee p=\mathsf{EkCt1Ack}(\chunk))\ \pthen\\
 \qquad(\mathsf{core}',\mathsf{data})\gets\mathsf{SendCt2}(\mathsf{core})\\
 \qquad\mathsf{st}'\gets\mathsf{ct2Sampled}(\mathsf{core}',\mathsf{Enc}_2(\mathsf{data}))\\[0.6em]
-\quad\pcommentline{\text{vector chunk after }\mathsf{ct1}\text{ was acknowledged:}}\\
-\quad\pcommentline{\text{once decoded, validate the vector and compute }\mathsf{ct2}}\\
+\quad\pcommentline{\mathsf{ek}\text{ chunk after }\mathsf{ct1}\text{ was acknowledged:}}\\
+\quad\pcommentline{\text{once decoded, validate }\mathsf{ek}\text{ and compute }\mathsf{ct2}}\\
 \quad\pelse\ \pif\ \mathsf{st}=\mathsf{ct1Acknowledged}(\mathsf{ep},\mathsf{auth},\mathsf{hdr},\mathsf{encapsSt},\mathsf{ct1},\mathsf{decoder})\\
 \qquad\qquad\wedge p\in\{\mathsf{Ek}(\chunk),\mathsf{EkCt1Ack}(\chunk)\}\ \pthen\\
-\qquad\mathsf{decoder}\gets\mathsf{Add}(\mathsf{decoder},\chunk);\quad \mathsf{vec}\gets\mathsf{Decode}(\mathsf{decoder})\\
-\qquad\pif\ \mathsf{vec}=\bot\ \pthen\\
+\qquad\mathsf{decoder}\gets\mathsf{Add}(\mathsf{decoder},\chunk);\quad \mathsf{ek}\gets\mathsf{Decode}(\mathsf{decoder})\\
+\qquad\pif\ \mathsf{ek}=\bot\ \pthen\\
 \qquad\quad\mathsf{st}'\gets\mathsf{ct1Acknowledged}(\mathsf{ep},\mathsf{auth},\mathsf{hdr},\mathsf{encapsSt},\mathsf{ct1},\mathsf{decoder})\\
-\qquad\pelse\ \mathsf{core}\gets\mathsf{RecvVector}((\mathsf{ep},\mathsf{auth},\mathsf{hdr},\mathsf{encapsSt},\mathsf{ct1}),\mathsf{vec})\\
-\qquad\quad\pcommentline{\bot\text{ on an invalid vector: }\mathsf{erroneousDataReceived}}\\
+\qquad\pelse\ \mathsf{core}\gets\mathsf{RecvEk}((\mathsf{ep},\mathsf{auth},\mathsf{hdr},\mathsf{encapsSt},\mathsf{ct1}),\mathsf{ek})\\
+\qquad\quad\pcommentline{\bot\text{ when }\mathsf{ek}\text{ does not match }\mathsf{hdr}\text{: }\mathsf{erroneousDataReceived}}\\
 \qquad\quad\ \ (\mathsf{core}',\mathsf{data})\gets\mathsf{SendCt2}(\mathsf{core})\\
 \qquad\quad\ \ \mathsf{st}'\gets\mathsf{ct2Sampled}(\mathsf{core}',\mathsf{Enc}_2(\mathsf{data}))\\[0.6em]
 \quad\Return(\mathsf{out},t-1,\mathsf{st}')
@@ -636,9 +716,9 @@ def recv (P : Parameters m) [DecidableEq P.Sym]
         ignore
     | .keysSampled core _, .ct1 chunk =>
         -- states.rs:289-305, cell 2
-        let (core', vec) := EkSender.sendVector P core
+        let (core', ek) := EkSender.sendEk P core
         .ok ⟨msg.epoch - 1, none,
-          .headerSent core' (EncoderState.init P.ecpEk vec)
+          .headerSent core' (EncoderState.init P.ecpEk ek)
             ((DecoderState.empty P.ecpCt1).addChunk chunk)⟩
     | .headerSent core enc dec, .ct1 chunk =>
         -- states.rs:307-330, cell 3
@@ -679,8 +759,8 @@ def recv (P : Parameters m) [DecidableEq P.Sym]
         -- states.rs:412-458, cell 8
         let dec' := dec.addChunk chunk
         match dec'.decodedPayload with
-        | some vec =>
-            match CtSender.recvVector P core vec with
+        | some ek =>
+            match CtSender.recvEk P core ek with
             | some core' => .ok ⟨msg.epoch - 1, none, .ekReceivedCt1Sampled core' enc⟩
             | none => .error .erroneousDataReceived
         | none => .ok ⟨msg.epoch - 1, none, .ct1Sampled core enc dec'⟩
@@ -688,8 +768,8 @@ def recv (P : Parameters m) [DecidableEq P.Sym]
         -- states.rs:412-458, cell 9
         let dec' := dec.addChunk chunk
         match dec'.decodedPayload with
-        | some vec =>
-            match CtSender.recvVector P core vec with
+        | some ek =>
+            match CtSender.recvEk P core ek with
             | some core' => .ok ⟨msg.epoch - 1, none, completeCt2 P auth core'⟩
             | none => .error .erroneousDataReceived
         | none => .ok ⟨msg.epoch - 1, none, .ct1Acknowledged core dec'⟩
@@ -709,8 +789,8 @@ def recv (P : Parameters m) [DecidableEq P.Sym]
         -- states.rs:479-520 and states.rs:487, cell 14
         let dec' := dec.addChunk chunk
         match dec'.decodedPayload with
-        | some vec =>
-            match CtSender.recvVector P core vec with
+        | some ek =>
+            match CtSender.recvEk P core ek with
             | some core' => .ok ⟨msg.epoch - 1, none, completeCt2 P auth core'⟩
             | none => .error .erroneousDataReceived
         | none => .ok ⟨msg.epoch - 1, none, .ct1Acknowledged core dec'⟩
@@ -718,8 +798,8 @@ def recv (P : Parameters m) [DecidableEq P.Sym]
         -- states.rs:479-520, cell 15
         let dec' := dec.addChunk chunk
         match dec'.decodedPayload with
-        | some vec =>
-            match CtSender.recvVector P core vec with
+        | some ek =>
+            match CtSender.recvEk P core ek with
             | some core' => .ok ⟨msg.epoch - 1, none, completeCt2 P auth core'⟩
             | none => .error .erroneousDataReceived
         | none => .ok ⟨msg.epoch - 1, none, .ct1Acknowledged core dec'⟩
@@ -739,7 +819,7 @@ def completeCt2 (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (core : CtSender.Ct1SentEkReceived P AuthState) : PartyState P AuthState :=
-  let c2 := P.det.encaps2Det core.encapsSt core.hdr core.vec
+  let c2 := P.encaps2 core.ek core.encapsSt core.hdr
   let tag := auth.macCiphertext core.authSt core.ep (core.c1, c2)
   .ct2Sampled ⟨core.ep, core.authSt⟩ (EncoderState.init P.ecpCt2 (c2, tag))
 ```
@@ -806,19 +886,19 @@ def recvNextEpoch (st : Ct2Sent AuthState) (t : ℕ) : Option (EkSender.KeysUnsa
 ```
 
 $`\begin{array}{l}
-\mathsf{SendVector}(\mathsf{ep},\mathsf{auth},\mathsf{pk},\mathsf{sk})\\
+\mathsf{SendEk}(\mathsf{ep},\mathsf{auth},\mathsf{pk},\mathsf{sk})\\
 \hline
 \pcommentline{\text{encapsulation-key sender}}\\
-(\mathsf{hdr},\mathsf{vec})\gets \mathsf{pk}\\
-\Return((\mathsf{ep},\mathsf{auth},\mathsf{sk}),\mathsf{vec})
+(\mathsf{hdr},\mathsf{ek})\gets \mathsf{pk}\\
+\Return((\mathsf{ep},\mathsf{auth},\mathsf{sk}),\mathsf{ek})
 \end{array}`
 
-:::leanPillCaption "sendVector"
+:::leanPillCaption "sendEk"
 :::
 
-```anchor EkSender_sendVector (project := ".") (module := SecureMessaging.SCKA.SPQR.Unchunked)
-/-- Return the successor state and the vector component of the stored encapsulation key. -/
-def sendVector (P : Parameters m) (st : HeaderSent P AuthState) :
+```anchor EkSender_sendEk (project := ".") (module := SecureMessaging.SCKA.SPQR.Unchunked)
+/-- Return the successor state and the vector `ek` of the stored public key. -/
+def sendEk (P : Parameters m) (st : HeaderSent P AuthState) :
     EkSent P AuthState × P.det.PKvector :=
   (⟨st.ep, st.authSt, st.sk⟩, P.det.toVector st.pk)
 ```
@@ -862,7 +942,7 @@ def recvCt2 (P : Parameters m)
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : EkSentCt1Received P AuthState) (c2 : P.det.C₂) (tag : P.Mac) :
     Option (CtSender.NoHeaderReceived AuthState × (ℕ × P.EpochKey)) :=
-  match P.det.decapsDet st.sk (P.det.splitC.symm (st.c1, c2)) with
+  match P.decaps st.sk st.c1 c2 with
   | none => none
   | some k =>
     let ik := P.kdfOK k st.ep
@@ -894,30 +974,30 @@ def recvHeader (P : Parameters m)
 ```
 
 $`\begin{array}{l}
-\mathsf{RecvVector}((\mathsf{ep},\mathsf{auth},\mathsf{hdr},\mathsf{encapsSt},\mathsf{ct1}),\mathsf{vec})\\
+\mathsf{RecvEk}((\mathsf{ep},\mathsf{auth},\mathsf{hdr},\mathsf{encapsSt},\mathsf{ct1}),\mathsf{ek})\\
 \hline
 \pcommentline{\text{ciphertext sender}}\\
-\req\mathsf{Valid}(\mathsf{hdr},\mathsf{vec})\\
-\Return(\mathsf{ep},\mathsf{auth},\mathsf{hdr},\mathsf{encapsSt},\mathsf{ct1},\mathsf{vec})
+\req\mathsf{Valid}(\mathsf{hdr},\mathsf{ek})\\
+\Return(\mathsf{ep},\mathsf{auth},\mathsf{hdr},\mathsf{encapsSt},\mathsf{ct1},\mathsf{ek})
 \end{array}`
 
-:::leanPillCaption "recvVector"
+:::leanPillCaption "recvEk"
 :::
 
-```anchor CtSender_recvVector (project := ".") (module := SecureMessaging.SCKA.SPQR.Unchunked)
-/-- Validate the encapsulation-key vector and return the successor state on success. -/
-def recvVector (P : Parameters m) (st : Ct1Sent P AuthState)
-    (vec : P.det.PKvector) : Option (Ct1SentEkReceived P AuthState) :=
-  if P.det.validPK st.hdr vec then
-    some ⟨st.ep, st.authSt, st.hdr, st.encapsSt, st.c1, vec⟩
+```anchor CtSender_recvEk (project := ".") (module := SecureMessaging.SCKA.SPQR.Unchunked)
+/-- Accept the vector `ek` when it matches the stored header. -/
+def recvEk (P : Parameters m) (st : Ct1Sent P AuthState)
+    (ek : P.det.PKvector) : Option (Ct1SentEkReceived P AuthState) :=
+  if P.ekMatchesHeader ek st.hdr then
+    some ⟨st.ep, st.authSt, st.hdr, st.encapsSt, st.c1, ek⟩
   else none
 ```
 
 $`\begin{array}{l}
-\mathsf{SendCt2}(\mathsf{ep},\mathsf{auth},\mathsf{hdr},\mathsf{encapsSt},\mathsf{ct1},\mathsf{vec})\\
+\mathsf{SendCt2}(\mathsf{ep},\mathsf{auth},\mathsf{hdr},\mathsf{encapsSt},\mathsf{ct1},\mathsf{ek})\\
 \hline
 \pcommentline{\text{ciphertext sender}}\\
-\mathsf{ct2}\gets\mathsf{Encaps}_2(\mathsf{encapsSt},\mathsf{hdr},\mathsf{vec})\\
+\mathsf{ct2}\gets\mathsf{Encaps}_2(\mathsf{encapsSt},\mathsf{hdr},\mathsf{ek})\\
 \mathsf{tag}\gets\mathsf{Mac}_C(\mathsf{auth},\mathsf{ep},(\mathsf{ct1},\mathsf{ct2}))\\
 \Return((\mathsf{ep},\mathsf{auth}),(\mathsf{ct2},\mathsf{tag}))
 \end{array}`
@@ -926,12 +1006,13 @@ $`\begin{array}{l}
 :::
 
 ```anchor CtSender_sendCt2 (project := ".") (module := SecureMessaging.SCKA.SPQR.Unchunked)
-/-- Run encapsulation stage two and return the successor state, ciphertext, and tag. -/
+/-- Run the second encapsulation stage and return the successor state, the second ciphertext
+component, and the ciphertext tag. -/
 def sendCt2 (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : Ct1SentEkReceived P AuthState) : Ct2Sent AuthState × P.det.C₂ × P.Mac :=
-  let c2 := P.det.encaps2Det st.encapsSt st.hdr st.vec
+  let c2 := P.encaps2 st.ek st.encapsSt st.hdr
   (⟨st.ep, st.authSt⟩, c2, auth.macCiphertext st.authSt st.ep (st.c1, c2))
 ```
 :::::
@@ -941,9 +1022,9 @@ def sendCt2 (P : Parameters m)
 :::defTitle "spqr_protocol_spec" "SPQR v1 instance"
 :::
 
-:::::::definition "spqr_protocol_spec" (parent := "cka_protocols_spqr") (lean := "SPQR.v1Incremental, SPQR.v1ErasureCodePayload, SPQR.v1Parameters, SPQR.v1Scheme") (tags := "gh-268") (uses := "spqr_parameters, spqr_chunked_scheme, spqr_reed_solomon_code, incremental_kem_det")
+:::::::definition "spqr_protocol_spec" (parent := "cka_protocols_spqr") (lean := "SPQR.v1Incremental, SPQR.v1ErasureCodePayload, SPQR.v1Parameters, SPQR.v1Scheme") (tags := "gh-268") (uses := "spqr_parameters, spqr_chunked_scheme, spqr_reed_solomon_code, incremental_kem_from_ml_kem_spec")
 The *v1 parameter set* $`P_{\mathsf{v1}}` uses
-{bpref "incremental_kem_det"}[ML-KEM-768 with explicit coins] and the
+{bpref "incremental_kem_from_ml_kem_spec"}[ML-KEM-768 with explicit coins] and the
 {bpref "spqr_reed_solomon_code"}[SPQR Reed–Solomon codes] over 32-byte symbols;
 $`\mathsf{KDF}_{\mathsf{OK}}`, $`T`, the serializations, $`\mathsf{Auth}`, and
 $`\Init\text{-}\KeyGen` remain parameters.
@@ -1005,7 +1086,7 @@ def mlkemIncrementalDet (p : ParameterSet) (ring : NTTRingOps)
   * 3
 *
   * $`V`
-  * $`\mathsf{vec}`
+  * $`\mathsf{ek}`
   * Encapsulation-key sender
   * 36
 *

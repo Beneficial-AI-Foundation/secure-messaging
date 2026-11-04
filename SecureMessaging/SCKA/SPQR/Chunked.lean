@@ -243,52 +243,51 @@ def initB (P : Parameters m)
 def send (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
-    (st : PartyState P AuthState) :
-    m (SendResult P AuthState × MLKEMBraid.SendRand P.det.KeygenRand P.det.Encaps1Rand) :=
+    (st : PartyState P AuthState) : m (SendResult P AuthState) :=
   match st with
   | .keysUnsampled core => do
       -- states.rs:120-136
-      let ((core', hdr, tag), r) ← EkSender.sendHeader P auth core
+      let (core', hdr, tag) ← EkSender.sendHeader P auth core
       let (chunk, enc) := (EncoderState.init P.ecpHdr (hdr, tag)).nextChunk
-      pure (⟨⟨core.ep, .hdr chunk⟩, core.ep - 1, none, .keysSampled core' enc⟩, .keygen r)
+      pure ⟨⟨core.ep, .hdr chunk⟩, core.ep - 1, none, .keysSampled core' enc⟩
   | .keysSampled core enc =>
       -- states.rs:138-148
       let (chunk, enc') := enc.nextChunk
-      pure (⟨⟨core.ep, .hdr chunk⟩, core.ep - 1, none, .keysSampled core enc'⟩, .none)
+      pure ⟨⟨core.ep, .hdr chunk⟩, core.ep - 1, none, .keysSampled core enc'⟩
   | .headerSent core enc dec =>
       -- states.rs:150-160
       let (chunk, enc') := enc.nextChunk
-      pure (⟨⟨core.ep, .ek chunk⟩, core.ep - 1, none, .headerSent core enc' dec⟩, .none)
+      pure ⟨⟨core.ep, .ek chunk⟩, core.ep - 1, none, .headerSent core enc' dec⟩
   | .ct1Received core enc =>
       -- states.rs:162-173
       let (chunk, enc') := enc.nextChunk
-      pure (⟨⟨core.ep, .ekCt1Ack chunk⟩, core.ep - 1, none, .ct1Received core enc'⟩, .none)
+      pure ⟨⟨core.ep, .ekCt1Ack chunk⟩, core.ep - 1, none, .ct1Received core enc'⟩
   | .ekSentCt1Received core dec =>
       -- states.rs:175-189
-      pure (⟨⟨core.ep, .ct1Ack⟩, core.ep - 1, none, .ekSentCt1Received core dec⟩, .none)
+      pure ⟨⟨core.ep, .ct1Ack⟩, core.ep - 1, none, .ekSentCt1Received core dec⟩
   | .noHeaderReceived core dec =>
       -- states.rs:191-201
-      pure (⟨⟨core.ep, .none⟩, core.ep - 1, none, .noHeaderReceived core dec⟩, .none)
+      pure ⟨⟨core.ep, .none⟩, core.ep - 1, none, .noHeaderReceived core dec⟩
   | .headerReceived core dec => do
       -- states.rs:203-219
-      let ((core', c1, key), r) ← CtSender.sendCt1 P auth core
+      let (core', c1, key) ← CtSender.sendCt1 P auth core
       let (chunk, enc) := (EncoderState.init P.ecpCt1 c1).nextChunk
-      pure (⟨⟨core.ep, .ct1 chunk⟩, core.ep - 1, some key, .ct1Sampled core' enc dec⟩, .encaps1 r)
+      pure ⟨⟨core.ep, .ct1 chunk⟩, core.ep - 1, some key, .ct1Sampled core' enc dec⟩
   | .ct1Sampled core enc dec =>
       -- states.rs:221-232
       let (chunk, enc') := enc.nextChunk
-      pure (⟨⟨core.ep, .ct1 chunk⟩, core.ep - 1, none, .ct1Sampled core enc' dec⟩, .none)
+      pure ⟨⟨core.ep, .ct1 chunk⟩, core.ep - 1, none, .ct1Sampled core enc' dec⟩
   | .ekReceivedCt1Sampled core enc =>
       -- states.rs:234-245
       let (chunk, enc') := enc.nextChunk
-      pure (⟨⟨core.ep, .ct1 chunk⟩, core.ep - 1, none, .ekReceivedCt1Sampled core enc'⟩, .none)
+      pure ⟨⟨core.ep, .ct1 chunk⟩, core.ep - 1, none, .ekReceivedCt1Sampled core enc'⟩
   | .ct1Acknowledged core dec =>
       -- states.rs:247-257
-      pure (⟨⟨core.ep, .none⟩, core.ep - 1, none, .ct1Acknowledged core dec⟩, .none)
+      pure ⟨⟨core.ep, .none⟩, core.ep - 1, none, .ct1Acknowledged core dec⟩
   | .ct2Sampled core enc =>
       -- states.rs:259-271
       let (chunk, enc') := enc.nextChunk
-      pure (⟨⟨core.ep, .ct2 chunk⟩, core.ep - 1, none, .ct2Sampled core enc'⟩, .none)
+      pure ⟨⟨core.ep, .ct2 chunk⟩, core.ep - 1, none, .ct2Sampled core enc'⟩
 -- ANCHOR_END: Chunked_send
 
 /-- Complete stage two at the receive site: `send_ct2` (`unchunked/send_ct.rs:177-195`) and the
@@ -298,7 +297,7 @@ def completeCt2 (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (core : CtSender.Ct1SentEkReceived P AuthState) : PartyState P AuthState :=
-  let c2 := P.det.encaps2Det core.encapsSt core.hdr core.vec
+  let c2 := P.encaps2 core.ek core.encapsSt core.hdr
   let tag := auth.macCiphertext core.authSt core.ep (core.c1, c2)
   .ct2Sampled ⟨core.ep, core.authSt⟩ (EncoderState.init P.ecpCt2 (c2, tag))
 -- ANCHOR_END: Chunked_completeCt2
@@ -334,9 +333,9 @@ def recv (P : Parameters m) [DecidableEq P.Sym]
         ignore
     | .keysSampled core _, .ct1 chunk =>
         -- states.rs:289-305, cell 2
-        let (core', vec) := EkSender.sendVector P core
+        let (core', ek) := EkSender.sendEk P core
         .ok ⟨msg.epoch - 1, none,
-          .headerSent core' (EncoderState.init P.ecpEk vec)
+          .headerSent core' (EncoderState.init P.ecpEk ek)
             ((DecoderState.empty P.ecpCt1).addChunk chunk)⟩
     | .headerSent core enc dec, .ct1 chunk =>
         -- states.rs:307-330, cell 3
@@ -377,8 +376,8 @@ def recv (P : Parameters m) [DecidableEq P.Sym]
         -- states.rs:412-458, cell 8
         let dec' := dec.addChunk chunk
         match dec'.decodedPayload with
-        | some vec =>
-            match CtSender.recvVector P core vec with
+        | some ek =>
+            match CtSender.recvEk P core ek with
             | some core' => .ok ⟨msg.epoch - 1, none, .ekReceivedCt1Sampled core' enc⟩
             | none => .error .erroneousDataReceived
         | none => .ok ⟨msg.epoch - 1, none, .ct1Sampled core enc dec'⟩
@@ -386,8 +385,8 @@ def recv (P : Parameters m) [DecidableEq P.Sym]
         -- states.rs:412-458, cell 9
         let dec' := dec.addChunk chunk
         match dec'.decodedPayload with
-        | some vec =>
-            match CtSender.recvVector P core vec with
+        | some ek =>
+            match CtSender.recvEk P core ek with
             | some core' => .ok ⟨msg.epoch - 1, none, completeCt2 P auth core'⟩
             | none => .error .erroneousDataReceived
         | none => .ok ⟨msg.epoch - 1, none, .ct1Acknowledged core dec'⟩
@@ -407,8 +406,8 @@ def recv (P : Parameters m) [DecidableEq P.Sym]
         -- states.rs:479-520 and states.rs:487, cell 14
         let dec' := dec.addChunk chunk
         match dec'.decodedPayload with
-        | some vec =>
-            match CtSender.recvVector P core vec with
+        | some ek =>
+            match CtSender.recvEk P core ek with
             | some core' => .ok ⟨msg.epoch - 1, none, completeCt2 P auth core'⟩
             | none => .error .erroneousDataReceived
         | none => .ok ⟨msg.epoch - 1, none, .ct1Acknowledged core dec'⟩
@@ -416,8 +415,8 @@ def recv (P : Parameters m) [DecidableEq P.Sym]
         -- states.rs:479-520, cell 15
         let dec' := dec.addChunk chunk
         match dec'.decodedPayload with
-        | some vec =>
-            match CtSender.recvVector P core vec with
+        | some ek =>
+            match CtSender.recvEk P core ek with
             | some core' => .ok ⟨msg.epoch - 1, none, completeCt2 P auth core'⟩
             | none => .error .erroneousDataReceived
         | none => .ok ⟨msg.epoch - 1, none, .ct1Acknowledged core dec'⟩

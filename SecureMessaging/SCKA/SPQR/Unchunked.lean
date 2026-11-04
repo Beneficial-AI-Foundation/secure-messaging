@@ -27,11 +27,6 @@ namespace SPQR
 
 variable {m : Type → Type u} [Monad m]
 
-/-- Post-KEM epoch-key derivation `KDF_OK` from a shared secret and an epoch. -/
--- ANCHOR: EpochKeyDerivation
-abbrev EpochKeyDerivation (K EpochKey : Type) : Type := K → ℕ → EpochKey
--- ANCHOR_END: EpochKeyDerivation
-
 /-! ## Role states -/
 
 namespace EkSender
@@ -119,8 +114,8 @@ structure Ct1SentEkReceived (P : Parameters m) (AuthState : Type) where
   encapsSt : P.det.St
   /-- The first ciphertext component, kept for the ciphertext tag. -/
   c1 : P.det.C₁
-  /-- Stored encapsulation-key vector. -/
-  vec : P.det.PKvector
+  /-- Stored encapsulation-key vector `ek`. -/
+  ek : P.det.PKvector
 
 /-- State after sending the second ciphertext component and its tag. -/
 structure Ct2Sent (AuthState : Type) where
@@ -138,24 +133,34 @@ variable {InitKey AuthState : Type}
 namespace EkSender
 
 -- ANCHOR: EkSender_sendHeader
-/-- Generate a KEM key pair and return the successor state, header, tag, and sampled coins. -/
+/-- Generate a key pair and return the successor state, the header, and its tag. -/
 def sendHeader (P : Parameters m)
+    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
+      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
+    (st : KeysUnsampled AuthState) : m (HeaderSent P AuthState × P.det.PKheader × P.Mac) := do
+  let (pk, sk) ← P.generate
+  let hdr := P.det.toHeader pk
+  pure (⟨st.ep, st.authSt, pk, sk⟩, hdr, auth.macHeader st.authSt st.ep hdr)
+-- ANCHOR_END: EkSender_sendHeader
+
+-- ANCHOR: EkSender_sendHeaderRleak
+/-- `sendHeader` with `generate` replaced by `generateRleak`, also returning the drawn coins. -/
+def sendHeaderRleak (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : KeysUnsampled AuthState) :
     m ((HeaderSent P AuthState × P.det.PKheader × P.Mac) × P.det.KeygenRand) := do
-  let r ← P.det.sampleKeygen
-  let (pk, sk) := P.det.keygenDet r
+  let ((pk, sk), r) ← P.generateRleak
   let hdr := P.det.toHeader pk
   pure ((⟨st.ep, st.authSt, pk, sk⟩, hdr, auth.macHeader st.authSt st.ep hdr), r)
--- ANCHOR_END: EkSender_sendHeader
+-- ANCHOR_END: EkSender_sendHeaderRleak
 
--- ANCHOR: EkSender_sendVector
-/-- Return the successor state and the vector component of the stored encapsulation key. -/
-def sendVector (P : Parameters m) (st : HeaderSent P AuthState) :
+-- ANCHOR: EkSender_sendEk
+/-- Return the successor state and the vector `ek` of the stored public key. -/
+def sendEk (P : Parameters m) (st : HeaderSent P AuthState) :
     EkSent P AuthState × P.det.PKvector :=
   (⟨st.ep, st.authSt, st.sk⟩, P.det.toVector st.pk)
--- ANCHOR_END: EkSender_sendVector
+-- ANCHOR_END: EkSender_sendEk
 
 -- ANCHOR: EkSender_recvCt1
 /-- Store the first ciphertext component. -/
@@ -171,7 +176,7 @@ def recvCt2 (P : Parameters m)
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : EkSentCt1Received P AuthState) (c2 : P.det.C₂) (tag : P.Mac) :
     Option (CtSender.NoHeaderReceived AuthState × (ℕ × P.EpochKey)) :=
-  match P.det.decapsDet st.sk (P.det.splitC.symm (st.c1, c2)) with
+  match P.decaps st.sk st.c1 c2 with
   | none => none
   | some k =>
     let ik := P.kdfOK k st.ep
@@ -198,35 +203,47 @@ def recvHeader (P : Parameters m)
 -- ANCHOR_END: CtSender_recvHeader
 
 -- ANCHOR: CtSender_sendCt1
-/-- Run encapsulation stage one and return the successor state, ciphertext, epoch key,
-and sampled coins. -/
+/-- Run the first encapsulation stage and return the successor state, the first ciphertext
+component, and the epoch key. -/
 def sendCt1 (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : HeaderReceived P AuthState) :
-    m ((Ct1Sent P AuthState × P.det.C₁ × (ℕ × P.EpochKey)) × P.det.Encaps1Rand) := do
-  let r ← P.det.sampleEncaps1
-  let (encapsSt, c1, k) := P.det.encaps1Det st.hdr r
+    m (Ct1Sent P AuthState × P.det.C₁ × (ℕ × P.EpochKey)) := do
+  let (encapsSt, c1, k) ← P.encaps1 st.hdr
   let ik := P.kdfOK k st.ep
-  pure ((⟨st.ep, auth.update st.authSt st.ep ik, st.hdr, encapsSt, c1⟩, c1, (st.ep, ik)), r)
+  pure (⟨st.ep, auth.update st.authSt st.ep ik, st.hdr, encapsSt, c1⟩, c1, (st.ep, ik))
 -- ANCHOR_END: CtSender_sendCt1
 
--- ANCHOR: CtSender_recvVector
-/-- Validate the encapsulation-key vector and return the successor state on success. -/
-def recvVector (P : Parameters m) (st : Ct1Sent P AuthState)
-    (vec : P.det.PKvector) : Option (Ct1SentEkReceived P AuthState) :=
-  if P.det.validPK st.hdr vec then
-    some ⟨st.ep, st.authSt, st.hdr, st.encapsSt, st.c1, vec⟩
+-- ANCHOR: CtSender_sendCt1Rleak
+/-- `sendCt1` with `encaps1` replaced by `encaps1Rleak`, also returning the drawn coins. -/
+def sendCt1Rleak (P : Parameters m)
+    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
+      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
+    (st : HeaderReceived P AuthState) :
+    m ((Ct1Sent P AuthState × P.det.C₁ × (ℕ × P.EpochKey)) × P.det.Encaps1Rand) := do
+  let ((encapsSt, c1, k), r) ← P.encaps1Rleak st.hdr
+  let ik := P.kdfOK k st.ep
+  pure ((⟨st.ep, auth.update st.authSt st.ep ik, st.hdr, encapsSt, c1⟩, c1, (st.ep, ik)), r)
+-- ANCHOR_END: CtSender_sendCt1Rleak
+
+-- ANCHOR: CtSender_recvEk
+/-- Accept the vector `ek` when it matches the stored header. -/
+def recvEk (P : Parameters m) (st : Ct1Sent P AuthState)
+    (ek : P.det.PKvector) : Option (Ct1SentEkReceived P AuthState) :=
+  if P.ekMatchesHeader ek st.hdr then
+    some ⟨st.ep, st.authSt, st.hdr, st.encapsSt, st.c1, ek⟩
   else none
--- ANCHOR_END: CtSender_recvVector
+-- ANCHOR_END: CtSender_recvEk
 
 -- ANCHOR: CtSender_sendCt2
-/-- Run encapsulation stage two and return the successor state, ciphertext, and tag. -/
+/-- Run the second encapsulation stage and return the successor state, the second ciphertext
+component, and the ciphertext tag. -/
 def sendCt2 (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : Ct1SentEkReceived P AuthState) : Ct2Sent AuthState × P.det.C₂ × P.Mac :=
-  let c2 := P.det.encaps2Det st.encapsSt st.hdr st.vec
+  let c2 := P.encaps2 st.ek st.encapsSt st.hdr
   (⟨st.ep, st.authSt⟩, c2, auth.macCiphertext st.authSt st.ep (st.c1, c2))
 -- ANCHOR_END: CtSender_sendCt2
 

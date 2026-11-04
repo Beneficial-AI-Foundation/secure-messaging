@@ -100,7 +100,7 @@ structure IncrementalStructure (kem : KEMScheme m K PK SK C) where
 :::defTitle "incremental_kem_det" "Incremental KEM with explicit coins"
 :::
 
-:::::::definition "incremental_kem_det" (parent := "incremental_kem") (lean := "KEMScheme.IncrementalKEMDet, KEMScheme.IncrementalKEMDet.toKEM, KEMScheme.IncrementalKEMDet.toIncremental") (tags := "gh-224") (uses := "incremental_kem_scheme")
+:::::::definition "incremental_kem_det" (parent := "incremental_kem") (lean := "KEMScheme.IncrementalKEMDet, KEMScheme.IncrementalKEMDet.toKEM, KEMScheme.IncrementalKEMDet.toIncremental, KEMScheme.IncrementalKEMDet.toRandLeak") (tags := "gh-224") (uses := "incremental_kem_scheme")
 An *incremental KEM with explicit coins* is an {bpref "incremental_kem_scheme"}[incremental KEM]
 with header space $`H`, vector space $`V`, state space $`S`, and algorithms
 $`\mathsf{KeyGen}`, $`\mathsf{Encaps}_1`, $`\mathsf{Encaps}_2`, $`\mathsf{Decaps}` for which
@@ -190,6 +190,33 @@ def toIncremental : det.toKEM.IncrementalStructure where
   encaps1 hdr := det.encaps1Det hdr <$> det.sampleEncaps1
   encaps2 st hdr vec := pure (det.encaps2Det st hdr vec)
   factor _ := rfl
+```
+
+The variants $`\mathsf{KeyGen}\text{-}\mathsf{rleak}()` and $`\mathsf{Encaps}_1\text{-}\mathsf{rleak}(h)`
+also return the coins they draw, $`r_K` and $`r_1`. They give the
+{bpref "incremental_kem_rand_leak"}[randomness leakage] of the incremental KEM, in which
+$`\mathsf{Encaps}_2` draws no coins.
+
+:::leanPillCaption "randomness leakage"
+:::
+
+```anchor IncrementalKEMDet_toRandLeak (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.Derandomized)
+/-- Randomness leakage of the derived incremental structure: key generation and the first stage
+also return their coins, and the second stage draws none. -/
+def toRandLeak [LawfulMonad m] : det.toKEM.IncrementalRandLeak det.toIncremental where
+  KeygenRand := det.KeygenRand
+  Encaps1Rand := det.Encaps1Rand
+  Encaps2Rand := Unit
+  keygenRleak := do
+    let r ← det.sampleKeygen
+    pure (det.keygenDet r, r)
+  encaps1Rleak hdr := do
+    let r ← det.sampleEncaps1
+    pure (det.encaps1Det hdr r, r)
+  encaps2Rleak st hdr vec := pure (det.encaps2Det st hdr vec, ())
+  keygen_fst := by simp only [toKEM, map_eq_pure_bind, bind_assoc, pure_bind]
+  encaps1_fst _ := by simp only [toIncremental, map_eq_pure_bind, bind_assoc, pure_bind]
+  encaps2_fst _ _ _ := by simp [toIncremental]
 ```
 
 :::::::

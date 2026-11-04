@@ -14,8 +14,8 @@ open Verso Genre Manual Doc Elab
 open Lean
 
 /-- The state machine of one party: each box carries its number, the Lean constructor of the
-state with the values it holds besides the epoch and the authenticator state, and what the party
-is doing there; encapsulation-key sender states in blue, ciphertext sender states in green,
+state with the main values it holds besides the epoch and the authenticator state, and what the
+party is doing there; encapsulation-key sender states in blue, ciphertext sender states in green,
 `Send` transitions in orange and `Rec` transitions in grey, labelled by the triggering payload. -/
 private def spqrStatesSvg : String := r##"
 <svg xmlns="http://www.w3.org/2000/svg" class="spqr-states" viewBox="0 0 1080 478"
@@ -26,8 +26,9 @@ private def spqrStatesSvg : String := r##"
     A ring of eleven numbered states. As the encapsulation-key sender of an epoch, a party moves
     from 1 keysUnsampled through 2 keysSampled, 3 headerSent, and 4 ct1Received to
     5 ekSentCt1Received; decapsulating ct2 makes it the ciphertext sender of the next epoch at
-    6 noHeaderReceived, from which it moves through 7 headerReceived and 8 ct1Sampled, then
-    either 9a ct1Acknowledged or 9b ekReceivedCt1Sampled, to 10 ct2Sampled, and a message of the
+    6 noHeaderReceived, from which it moves through 7 headerReceived and 8 ct1Sampled to
+    10 ct2Sampled, directly when an EkCt1Ack chunk completes ek, or else through 9a
+    ct1Acknowledged or 9b ekReceivedCt1Sampled; a message of the
     next epoch returns it to 1. Two transitions are sends that draw coins; the others are
     receives, labelled Rec(payload) by the payload that triggers them.
   </desc>
@@ -72,12 +73,12 @@ private def spqrStatesSvg : String := r##"
   <text class="ss-num" x="396" y="27.5" text-anchor="middle">2</text>
   <rect class="ss-ek" x="758" y="24" width="290" height="62" rx="6"/>
   <text x="903" y="50" text-anchor="middle"><tspan class="ss-state">headerSent</tspan><tspan class="ss-vars" dx="5">(sk, encoder, decoder)</tspan></text>
-  <text class="ss-meaning" x="903" y="70" text-anchor="middle">streaming the vector of pk, receiving ct1</text>
+  <text class="ss-meaning" x="903" y="70" text-anchor="middle">streaming ek, receiving ct1</text>
   <circle class="ss-badge-ek" cx="758" cy="24" r="12"/>
   <text class="ss-num" x="758" y="27.5" text-anchor="middle">3</text>
   <rect class="ss-ek" x="758" y="150" width="290" height="62" rx="6"/>
   <text x="903" y="176" text-anchor="middle"><tspan class="ss-state">ct1Received</tspan><tspan class="ss-vars" dx="5">(sk, ct1, encoder)</tspan></text>
-  <text class="ss-meaning" x="903" y="196" text-anchor="middle">streaming the vector of pk, acknowledging ct1</text>
+  <text class="ss-meaning" x="903" y="196" text-anchor="middle">streaming ek, acknowledging ct1</text>
   <circle class="ss-badge-ek" cx="758" cy="150" r="12"/>
   <text class="ss-num" x="758" y="153.5" text-anchor="middle">4</text>
   <rect class="ss-ek" x="758" y="276" width="290" height="62" rx="6"/>
@@ -97,17 +98,17 @@ private def spqrStatesSvg : String := r##"
   <text class="ss-num" x="396" y="405.5" text-anchor="middle">7</text>
   <rect class="ss-ct" x="34" y="402" width="290" height="62" rx="6"/>
   <text x="179" y="428" text-anchor="middle"><tspan class="ss-state">ct1Sampled</tspan><tspan class="ss-vars" dx="5">(ct1, encoder, decoder)</tspan></text>
-  <text class="ss-meaning" x="179" y="448" text-anchor="middle">streaming ct1, receiving the vector of pk</text>
+  <text class="ss-meaning" x="179" y="448" text-anchor="middle">streaming ct1, receiving ek</text>
   <circle class="ss-badge-ct" cx="34" cy="402" r="12"/>
   <text class="ss-num" x="34" y="405.5" text-anchor="middle">8</text>
   <rect class="ss-ct" x="34" y="276" width="290" height="62" rx="6"/>
-  <text x="179" y="302" text-anchor="middle"><tspan class="ss-state">ekReceivedCt1Sampled</tspan><tspan class="ss-vars" dx="5">(ct1, vec, encoder)</tspan></text>
-  <text class="ss-meaning" x="179" y="322" text-anchor="middle">vector validated, ct1 not yet acknowledged</text>
+  <text x="179" y="302" text-anchor="middle"><tspan class="ss-state">ekReceivedCt1Sampled</tspan><tspan class="ss-vars" dx="5">(ct1, ek, encoder)</tspan></text>
+  <text class="ss-meaning" x="179" y="322" text-anchor="middle">ek validated, ct1 not yet acknowledged</text>
   <circle class="ss-badge-ct" cx="34" cy="276" r="12"/>
   <text class="ss-num" x="34" y="279.5" text-anchor="middle">9b</text>
   <rect class="ss-ct" x="396" y="276" width="290" height="62" rx="6"/>
   <text x="541" y="302" text-anchor="middle"><tspan class="ss-state">ct1Acknowledged</tspan><tspan class="ss-vars" dx="5">(ct1, decoder)</tspan></text>
-  <text class="ss-meaning" x="541" y="322" text-anchor="middle">ct1 acknowledged, receiving the vector of pk</text>
+  <text class="ss-meaning" x="541" y="322" text-anchor="middle">ct1 acknowledged, receiving ek</text>
   <circle class="ss-badge-ct" cx="396" cy="276" r="12"/>
   <text class="ss-num" x="396" y="279.5" text-anchor="middle">9a</text>
   <rect class="ss-ct" x="396" y="150" width="290" height="62" rx="6"/>
