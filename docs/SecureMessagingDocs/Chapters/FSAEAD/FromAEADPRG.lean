@@ -216,8 +216,9 @@ first two:
 
 1. $`\mathsf{skip}` stores each skipped key at its own index, $`D[i_\B] \gets K`. Figure 6
    stores all of them at $`D[u]`, so each one overwrites the one before.
-2. $`\mathsf{FS\text{-}Rcv}` rejects an index $`i \le i_\B` that is not in $`D`. Figure 6
-   derives the next chain key for it instead.
+2. When $`\mathsf{try\text{-}skipped}(i)` returns $`\bot`, $`\mathsf{FS\text{-}Rcv}` rejects
+   $`i \le i_\B`. Figure 6 instead decrypts $`e` under the key of index $`i_\B + 1` and sets
+   $`i_\B \gets i`.
 3. $`\mathsf{Init}\text{-}\B` sets $`D[\cdot] \gets \bot`. Figure 6 writes $`\lambda` there,
    but $`\mathsf{try\text{-}skipped}` and $`\mathsf{FS\text{-}Rcv}` test for $`\bot`.
 ::::::
