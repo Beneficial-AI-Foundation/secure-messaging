@@ -43,9 +43,12 @@ noncomputable def honestNoiseBadProb {ps : ParameterSet}
   ]
 
 /-- Honest KEM failure is at most as likely as large decryption noise. -/
+-- ANCHOR: frodoKEM_failure_le_noise
 theorem honestFailureProb_le_honestNoiseBadProb
     {ps : ParameterSet} (ops : Operations ps) :
-    honestFailureProb ops ≤ honestNoiseBadProb ops := by
+    honestFailureProb ops ≤ honestNoiseBadProb ops
+-- ANCHOR_END: frodoKEM_failure_le_noise
+    := by
   classical
   simp only [honestFailureProb, honestNoiseBadProb, keygen_eq, encaps_eq, monad_norm]
   refine prEvent_bind_mono_of_support _ _ _ fun fallback _ =>

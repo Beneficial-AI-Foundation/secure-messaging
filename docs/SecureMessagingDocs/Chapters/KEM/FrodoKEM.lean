@@ -260,16 +260,34 @@ def decaps {ps : ParameterSet} (ops : Operations ps)
 :::
 
 ::::theorem "frodo_kem_correctness" (parent := "frodo_kem") (lean := "FrodoKEM.ROM.honestFailureProb_tenth_power_le") (tags := "gh-260") (uses := "frodo_kem_scheme")
-In the random-oracle model, a table of uniformly random answers replaces SHAKE. A decapsulation failure occurs when honest decapsulation returns a different shared secret from encapsulation. In this model, the failure probability is at most $`2^{-138.7}`, $`2^{-199.6}` and $`2^{-252.5}` for FrodoKEM-640, -976 and -1344. {Informal.citet FrodoKEM}[] publishes the same values. The probability is an average over the table and over all honest random choices.
+The theorem holds for all six parameter sets: FrodoKEM and eFrodoKEM, each at sizes 640, 976 and 1344. It holds in the random-oracle model, under these assumptions:
 
-The proof has six steps. The file `ToVCVio/LatticeCrypto/FrodoKEM/Correctness.lean` gives each step in detail:
+- One table $`H` of uniformly random answers replaces SHAKE in all its uses. This is SHAKE128 for size 640 and SHAKE256 for sizes 976 and 1344. The table covers only the six input lengths that the KEM queries. Different uses of SHAKE never share an input (`ROM.domain_disjoint`).
+- The function $`\mathsf{gen}` that computes the public matrix $`A` from $`\mathsf{seed}_A` is any fixed function that does not read $`H`. Thus GenSHAKE keeps the real SHAKE128, and GenAES keeps AES.
 
-1. If the added noise is less than half the distance between encoded values, decoding returns the original message ({Informal.citet FrodoKEM}[], Lemma 1).
-2. Thus decapsulation fails only if the decryption noise matrix $`S'E + E'' - E'S` is large.
-3. In the random-oracle model, the five noise matrices have the distribution of five independent samples.
-4. The union bound over the $`8 \times 8` entries gives a failure probability of at most 64 times the probability for one entry.
-5. One entry is the sum of $`2n` products of two independent errors, plus one more error. Its exact distribution is a power of the error distribution.
-6. The Lean kernel computes an approximate distribution, with counts rounded down and cut to a window. Rounding down never increases a count. The proof counts all removed mass as failure. Thus the result is an upper bound.
+Let $`\delta` be $`2^{-138.7}`, $`2^{-199.6}` or $`2^{-252.5}` for sizes 640, 976 and 1344. {Informal.citet FrodoKEM}[] lists these values as the failure rates in Table 4 (§6.2). Then
+
+$$`\Pr_{\substack{H,\; (\mathsf{pk},\mathsf{sk}) \gets \mathsf{KeyGen}^H(),\\ (c,K) \gets \mathsf{Encaps}^H(\mathsf{pk})}}\bigl[\mathsf{Decaps}^H(\mathsf{sk},c) \ne K\bigr] \;\le\; \delta.`
+
+The probability is an average over the table $`H` and over all honest random choices.
+
+:::leanPillCaption "The failure probability in the random-oracle model"
+:::
+
+```anchor frodoKEM_rom_failureProb (project := ".") (module := ToVCVio.LatticeCrypto.FrodoKEM.Correctness.RandomOracle.Correctness)
+noncomputable def honestFailureProb
+    (ps : ParameterSet) (gen : Generator ps) : ℝ≥0∞ :=
+  Pr{
+    let H ← ToVCVio.FiniteXOF.sampleTable
+      (inputLengths ps) (outputBits ps)
+    let keys ← KEM.keygen (operations ps gen H)
+    let out ← KEM.encaps (operations ps gen H) keys.1
+  }[
+    KEM.decaps (operations ps gen H) keys.2 out.1 ≠ out.2
+  ]
+```
+
+Lean states the bound as $`p^{10} \cdot 2^{10e} \le 1`, where $`p` is the failure probability and $`2^{-e} = \delta`. That is, $`p \le 2^{-e}`. The tenth power turns the exponent $`e`, such as $`138.7`, into a whole number.
 
 :::leanPillCaption "Failure bound in the random-oracle model"
 :::
@@ -279,6 +297,86 @@ theorem honestFailureProb_tenth_power_le
     (ps : ParameterSet) (gen : Generator ps) :
     honestFailureProb ps gen ^ 10 *
       2 ^ Certificate.exponentTenths ps ≤ 1
+```
+
+*Not covered.*
+
+- Concrete SHAKE. The random-oracle model is a heuristic, and the result is an average over all tables, not a bound for one function.
+- Many encapsulations to one key. The theorem is about one key pair and one encapsulation. This includes the limit of eFrodoKEM to fewer than 256 ciphertexts per public key ({Informal.citet LBES26}[], §8).
+- The correctness term $`q_{RO} \cdot \delta(n_u)` in the IND-CCA bound ({Informal.citet FrodoKEM}[], Theorem 1). There, δ-correctness follows Definition 6 of {Informal.citet FrodoKEM}[], and an adversary with $`q_{RO}` oracle queries can look for messages that fail. This theorem bounds only honest runs.
+
+*Proof.* The file `ToVCVio/LatticeCrypto/FrodoKEM/Correctness.lean` gives each step in detail.
+
+1. If the noise is less than half the distance between encoded values, decoding returns the message ({Informal.citet FrodoKEM}[], §4.1, Lemma 1).
+
+:::leanPillCaption "Step 1: decoding tolerates small noise"
+:::
+
+```anchor frodoKEM_decode (project := ".") (module := ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Basic)
+theorem dc_ec_add (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B))
+    (e : ZMod p.q)
+    (hlo : -(p.q : ℤ) ≤ 2 ^ (p.B + 1) * centeredRepr e)
+    (hhi : 2 ^ (p.B + 1) * centeredRepr e < (p.q : ℤ)) :
+    dc p (ec p k + e) = k
+```
+
+2. For each fixed function in place of SHAKE, decapsulation fails only if the noise matrix $`S'E + E'' - E'S` is large.
+
+:::leanPillCaption "Step 2: failure implies large noise"
+:::
+
+```anchor frodoKEM_failure_le_noise (project := ".") (module := ToVCVio.LatticeCrypto.FrodoKEM.Correctness.FailureProbability)
+theorem honestFailureProb_le_honestNoiseBadProb
+    {ps : ParameterSet} (ops : Operations ps) :
+    honestFailureProb ops ≤ honestNoiseBadProb ops
+```
+
+3. Averaged over a uniform table, large noise has exactly the probability that it has with five independent noise matrices.
+
+:::leanPillCaption "Step 3: the table gives independent noise"
+:::
+
+```anchor frodoKEM_rom_noise (project := ".") (module := ToVCVio.LatticeCrypto.FrodoKEM.Correctness.RandomOracle.Correctness)
+theorem honestNoiseBadProb_eq_indepNoise
+    (ps : ParameterSet) (gen : Generator ps) :
+    honestNoiseBadProb ps gen = IndepNoise.noiseBadProb ps
+```
+
+4. The union bound over the $`8 \times 8` entries gives at most 64 times the probability for one entry.
+
+:::leanPillCaption "Step 4: union bound"
+:::
+
+```anchor frodoKEM_union (project := ".") (module := ToVCVio.LatticeCrypto.FrodoKEM.Correctness.IndepNoise)
+theorem noiseBadProb_le (ps : ParameterSet) :
+    noiseBadProb ps ≤ 64 * entryFailureProb ps
+```
+
+5. The distribution of one entry is the $`2n`-fold convolution of the distribution of a product of two errors, convolved once more with $`\chi`.
+
+:::leanPillCaption "Step 5: the distribution of one entry"
+:::
+
+```anchor frodoKEM_entry_law (project := ".") (module := ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Counts)
+theorem probOutput_entryNoiseExp (ps : ParameterSet) (z : ℤ) :
+    Pr{let x ← IndepNoise.entryNoiseExp ps}[x = z] =
+      (((ToVCVio.productMeasure
+          (FailureCertificate.RoundedConvolution.counts (config ps))
+          (FailureCertificate.RoundedConvolution.counts (config ps))) ^
+          (2 * ps.params.n) *
+        FailureCertificate.RoundedConvolution.counts (config ps)) z :
+          ℝ≥0∞) /
+        (2 ^ lenChi) ^ (4 * ps.params.n + 1)
+```
+
+6. The Lean kernel computes counts that are rounded down and cut to a window. The proof counts all removed mass as failure. Thus the result is an upper bound.
+
+:::leanPillCaption "Step 6: the checked bound"
+:::
+
+```anchor frodoKEM_certificate (project := ".") (module := ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Numerical)
+theorem noiseBadProb_le_failureBound (ps : ParameterSet) :
+    IndepNoise.noiseBadProb ps ≤ failureBound ps
 ```
 ::::
 

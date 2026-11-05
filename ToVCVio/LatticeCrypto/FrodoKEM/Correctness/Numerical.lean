@@ -75,8 +75,11 @@ private theorem matrixBound_eq (ps : ParameterSet) :
     | exact blockBound_eq 198663617378549905966698 4264645 320
 
 /-- With independent noise, large decryption noise has probability at most `failureBound`. -/
+-- ANCHOR: frodoKEM_certificate
 theorem noiseBadProb_le_failureBound (ps : ParameterSet) :
-    IndepNoise.noiseBadProb ps ≤ failureBound ps := by
+    IndepNoise.noiseBadProb ps ≤ failureBound ps
+-- ANCHOR_END: frodoKEM_certificate
+    := by
   have hbits : 0 < (config ps).seedBits := by cases ps <;> decide
   have hlaw (z : ℤ) :
       Pr{let x ← IndepNoise.entryNoiseExp ps}[x = z] =
