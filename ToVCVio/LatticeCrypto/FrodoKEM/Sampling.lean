@@ -36,6 +36,15 @@ For a fixed `table : ErrorTable`, with `lenChi = 16`, the sampling maps are
   input block `k`: its bit `t` is at position `k * lenChi + t` in `r`.
 
 Both maps transform supplied bits; they generate no randomness themselves.
+
+## References
+
+* `[CiC25]`, Glabush, Longa, Naehrig, Peikert, Stebila and Virdia, *FrodoKEM: A
+  CCA-Secure Learning With Errors Key Encapsulation Mechanism*, IACR
+  Communications in Cryptology 2:3, <https://cic.iacr.org/p/2/3/25>;
+* `[LBES26]`, Longa, Bos, Ehlen and Stebila, *FrodoKEM: key encapsulation from
+  learning with errors*, draft-longa-cfrg-frodokem-03, 22 June 2026,
+  <https://datatracker.ietf.org/doc/html/draft-longa-cfrg-frodokem-03>.
 -/
 
 @[expose] public section

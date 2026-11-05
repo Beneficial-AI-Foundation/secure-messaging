@@ -174,8 +174,6 @@ This module does not enforce that usage restriction.
 
 ## References
 
-The FrodoKEM modules use the following references:
-
 * `[CiC25]`, Glabush, Longa, Naehrig, Peikert, Stebila and Virdia, *FrodoKEM: A
   CCA-Secure Learning With Errors Key Encapsulation Mechanism*, IACR
   Communications in Cryptology 2:3, <https://cic.iacr.org/p/2/3/25>;

@@ -49,6 +49,15 @@ recovers the original chunk.
 * `bitsToChunk_chunkToBits`, `chunkToBits_bitsToChunk`,
   `bitsToEntry_entryToBits` and `entryToBits_bitsToEntry`: those maps on one
   chunk and on one entry.
+
+## References
+
+* `[CiC25]`, Glabush, Longa, Naehrig, Peikert, Stebila and Virdia, *FrodoKEM: A
+  CCA-Secure Learning With Errors Key Encapsulation Mechanism*, IACR
+  Communications in Cryptology 2:3, <https://cic.iacr.org/p/2/3/25>;
+* `[LBES26]`, Longa, Bos, Ehlen and Stebila, *FrodoKEM: key encapsulation from
+  learning with errors*, draft-longa-cfrg-frodokem-03, 22 June 2026,
+  <https://datatracker.ietf.org/doc/html/draft-longa-cfrg-frodokem-03>.
 -/
 
 namespace FrodoKEM

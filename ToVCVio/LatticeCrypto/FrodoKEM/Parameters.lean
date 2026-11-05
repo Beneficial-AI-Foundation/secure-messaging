@@ -34,6 +34,15 @@ same parameters but leaves their positivity and the bound `n < q` unstated, so
 fills the matrix produced by `Frodo.Encode`. `[CiC25]` states this identity in
 Section 3 and Table 1; `[LBES26]` states the encoder's input length in Section 6.3
 but does not tie it to `lensec`, which is what this condition does.
+
+## References
+
+* `[CiC25]`, Glabush, Longa, Naehrig, Peikert, Stebila and Virdia, *FrodoKEM: A
+  CCA-Secure Learning With Errors Key Encapsulation Mechanism*, IACR
+  Communications in Cryptology 2:3, <https://cic.iacr.org/p/2/3/25>;
+* `[LBES26]`, Longa, Bos, Ehlen and Stebila, *FrodoKEM: key encapsulation from
+  learning with errors*, draft-longa-cfrg-frodokem-03, 22 June 2026,
+  <https://datatracker.ietf.org/doc/html/draft-longa-cfrg-frodokem-03>.
 -/
 
 @[expose] public section

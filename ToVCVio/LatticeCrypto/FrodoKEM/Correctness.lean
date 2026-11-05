@@ -26,6 +26,12 @@ commands that restate its main theorems. Lean rejects a `recall` command if the 
 from the statement of the theorem. Thus the outline always agrees with the proofs.
 
 The proofs are in the files under `Correctness/`. The algorithms are in the parent directory.
+
+## References
+
+* `[CiC25]`, Glabush, Longa, Naehrig, Peikert, Stebila and Virdia, *FrodoKEM: A
+  CCA-Secure Learning With Errors Key Encapsulation Mechanism*, IACR
+  Communications in Cryptology 2:3, <https://cic.iacr.org/p/2/3/25>.
 -/
 
 namespace FrodoKEM
