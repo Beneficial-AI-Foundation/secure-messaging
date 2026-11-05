@@ -23,6 +23,7 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Packing
 import ToVCVio.LatticeCrypto.FrodoKEM.Sampling
 import ToVCVio.LatticeCrypto.FrodoKEM.Construction
 import ToVCVio.LatticeCrypto.FrodoKEM.Correctness
+import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.CorrectnessError
 import ToVCVio.LatticeCrypto.TransformOps
 import ToVCVio.OracleComp.Constructions.BitVec
 import ToVCVio.OracleComp.Constructions.LenSampleable
