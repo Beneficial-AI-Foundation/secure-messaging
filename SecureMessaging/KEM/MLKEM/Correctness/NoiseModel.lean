@@ -10,6 +10,8 @@ public import SecureMessaging.KEM.MLKEM.Correctness.ConcreteEncoding
 public import SecureMessaging.KEM.MLKEM.Correctness.FailureBounds
 public import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate
 public import SecureMessaging.KEM.MLKEM.Correctness.NoiseIdentity
+import all LatticeCrypto.MLKEM.Concrete.Encoding
+import all Init.Data.Vector.Algebra
 
 /-!
 # Comparing the honest noise with the independent coefficient model

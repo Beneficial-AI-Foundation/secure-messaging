@@ -161,7 +161,6 @@ open OracleSpec OracleComp ENNReal PRFScheme AEADScheme
 
 variable {K_e K_m M AD C_e T : Type}
   [DecidableEq AD] [DecidableEq C_e] [DecidableEq T]
-  [Inhabited T]
   [LenSampleable C_e] [SampleableType T]
 
 /-! ## Main security theorem -/

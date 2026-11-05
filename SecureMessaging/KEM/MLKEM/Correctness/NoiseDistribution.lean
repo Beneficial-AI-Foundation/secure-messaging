@@ -9,6 +9,7 @@ module
 public import ToVCVio.Probability.IntMeasure
 public import LatticeCrypto.MLKEM.Concrete.Encoding
 public import SecureMessaging.KEM.MLKEM.Correctness.Noise
+import all LatticeCrypto.MLKEM.Concrete.Encoding
 
 /-!
 # The independent one-coefficient noise model

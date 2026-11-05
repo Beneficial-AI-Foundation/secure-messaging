@@ -8,6 +8,8 @@ module
 
 public import LatticeCrypto.MLKEM.Concrete.Encoding
 public import SecureMessaging.KEM.MLKEM.Correctness.Noise
+import all LatticeCrypto.MLKEM.Concrete.Encoding
+import all Init.Data.Vector.Algebra
 
 /-!
 # Concrete `Compress₁` recovery at the message-recovery radius

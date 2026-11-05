@@ -7,6 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.PackedMeasures
+import all LatticeCrypto.MLKEM.Concrete.Encoding
 
 /-!
 # The ML-KEM-512 failure-bound arithmetic check

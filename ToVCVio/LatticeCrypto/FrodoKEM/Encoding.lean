@@ -125,7 +125,7 @@ def chunkToBits (p : Params) (k : ZMod (2 ^ p.B)) : Vector Bool p.B :=
 /-- The chunk with the given `B` bits, least significant first. `Nat.ofBits`
 is that reading, and `[LBES26]` uses the same convention. -/
 def bitsToChunk (p : Params) (v : Vector Bool p.B) : ZMod (2 ^ p.B) :=
-  ((Nat.ofBits fun t => v[t] : ℕ) : ZMod (2 ^ p.B))
+  ((Nat.ofBits fun t : Fin p.B => v[t] : ℕ) : ZMod (2 ^ p.B))
 
 /-- The chunk convention on a fixed value: with `B = 2`, the chunk `1` reads as
 the bits `[1, 0]`, least significant first. -/

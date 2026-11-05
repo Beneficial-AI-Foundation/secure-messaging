@@ -149,7 +149,7 @@ theorem factorCorrectnessError_eq [DecidableEq K]
 /-- The online correctness experiment after fixing `pk`, `sk`, `st`, and
 `ct₀`.  It samples `(ct₁, k) ← onoff.encapsOn st pk`, runs `kem.decaps` on
 the joined ciphertext, and returns whether the recovered key equals `k`. -/
-private def onlineCorrectExp [DecidableEq K]
+def onlineCorrectExp [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (pk : PK) (sk : SK) (st : onoff.St) (ct0 : onoff.C₀) : ProbComp Bool := do
   let (ct1, key) ← onoff.encapsOn st pk

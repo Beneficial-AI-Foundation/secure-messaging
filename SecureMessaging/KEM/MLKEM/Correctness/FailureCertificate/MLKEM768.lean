@@ -10,6 +10,7 @@ module
 -- checks: lake builds imports first, so at most one such module
 -- elaborates at a time.
 public import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.MLKEM512
+import all LatticeCrypto.MLKEM.Concrete.Encoding
 
 /-!
 # The ML-KEM-768 failure-bound arithmetic check

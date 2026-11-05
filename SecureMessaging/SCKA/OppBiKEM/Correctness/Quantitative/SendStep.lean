@@ -447,7 +447,7 @@ variable [DecidableEq K] [DecidableEq Sym]
 omit [DecidableEq Sym] in
 /-- The game-state outcome of `SendA` for a local send result: the function that
 `SCKAScheme.oracleSendA_run_eq` maps over A's local send. -/
-private def sendAOutcome
+def sendAOutcome
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)) :
     Option (Option (ℕ × K) × Message Sym × ℕ × StA PK SK C Sym) →
       Option (ℕ × Option ℕ × Message Sym) ×
@@ -459,7 +459,7 @@ private def sendAOutcome
 omit [DecidableEq Sym] in
 /-- The game-state outcome of `SendB` for a local send result: the function that
 `SCKAScheme.oracleSendB_run_eq` maps over B's local send. -/
-private def sendBOutcome
+def sendBOutcome
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)) :
     Option (Option (ℕ × K) × Message Sym × ℕ × StB PK SK C Sym) →
       Option (ℕ × Option ℕ × Message Sym) ×

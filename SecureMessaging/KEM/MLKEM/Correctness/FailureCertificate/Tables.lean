@@ -7,6 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.Radix
+import all LatticeCrypto.MLKEM.Concrete.Encoding
 
 /-!
 # Kernel-certified component tables

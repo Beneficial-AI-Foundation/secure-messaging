@@ -46,7 +46,7 @@ variable {L : ℕ}
 
 /-- The adversary run of `prfReduction` as a function of the list of oracle answers: GHASH
 key, tag mask, then the keystream blocks. -/
-private noncomputable def cipherInputsTail
+noncomputable def cipherInputsTail
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
     (l : List (BitVec 128)) : ProbComp Bool :=
   (simulateQ (gcmTupleImpl
