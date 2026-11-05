@@ -40,7 +40,8 @@ section Correctness
 
 variable [DecidableEq AD] [DecidableEq M] [DecidableEq C]
 
-/-- The game states that the oracles reach from `init fs k`, with challenge bit `b`. -/
+/-- The game states that the oracles reach from `init fs k`, with challenge bit `b` and length
+function `len`. -/
 -- ANCHOR: Reachable
 inductive Reachable (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : Bool) (k : K) :
     GameState StS StR AD M C → Prop

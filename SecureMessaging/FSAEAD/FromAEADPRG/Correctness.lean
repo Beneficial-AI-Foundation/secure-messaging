@@ -14,16 +14,17 @@ Correctness of the FS-AEAD construction of [ACD19, Figure 6]. Let the AEAD schem
 correct. Then:
 - `fromAEADPRG_noFirstDeliverWin`: in the game of Figure 5, `O-Deliver-B` never changes
   `win` from false to true (`NoFirstDeliverWin`). With `securityExp_eq_noDeliverWin`, this
-  removes the `win` of `O-Deliver-B` from the proof of Theorem 5.
-- `sendAll_eq` and `rcvAll_honest_initR`: without an adversary, B outputs `(j, m_j)` for
-  A's `j`-th ciphertext, for any delivery order in which every ciphertext arrives at most
-  once.
+  removes the `win` of `O-Deliver-B` from the real game `H0`, before the PRG step. ACD19
+  removes it in the step from `H1` to `H2`, where the keys are uniform.
+- `rcvAll_honest_initR`: without an adversary, B outputs `(j, m)` for every
+  `(j, Enc(K_j, (j, a), m))` with `j ≥ 1`, in any order and each `j` at most once. By
+  `sendAll_eq`, A's `j`-th ciphertext has this form.
 
 - [ACD19] Alwen, Coretti, Dodis.
   *The Double Ratchet: Security Notions, Proofs, and Modularization for the
   Signal Protocol.*
   EUROCRYPT 2019, https://eprint.iacr.org/2018/1037.pdf
-  — §4.2.2, Figure 6, proof of Theorem 5 (hybrid H1 → H2).
+  — §4.2.2, Figure 6, proof of Theorem 5 (step from H1 to H2).
 
 The proof follows B's state along the PRG chain `w_0 = k`, `(w_j, K_j) = G(w_{j-1})`.
 `GameInv` is the invariant of the game: A and B are on the chain, every record in `trans`
@@ -43,16 +44,14 @@ namespace FromAEADPRG
 ```text
 w_0 = w,   (w_j, K_j) = G(w_{j-1})   for j ≥ 1
 ``` -/
-def chainState (prg : PRGScheme W (W × Kae)) (w : W) : ℕ → W
-  | 0 => w
-  | j + 1 => chainState prg (prg.gen w).1 j
+def chainState (prg : PRGScheme W (W × Kae)) (w : W) (j : ℕ) : W :=
+  (fun w => (prg.gen w).1)^[j] w
 
 /-- The key `K_j` of the chain from `w`, for `j ≥ 1`:
 ```text
 (w_j, K_j) = G(w_{j-1})
 ```
-The chain has no key at position 0. By truncated subtraction, `chainKey prg w 0` is
-`K_1`, so do not use it. -/
+The chain has no key at position 0. `chainKey prg w 0` is `K_1`, a junk value. -/
 def chainKey (prg : PRGScheme W (W × Kae)) (w : W) (j : ℕ) : Kae :=
   (prg.gen (chainState prg w (j - 1))).2
 
@@ -64,10 +63,8 @@ theorem chainState_zero (prg : PRGScheme W (W × Kae)) (w : W) : chainState prg 
 /-- Let `w_0, w_1, …` be the chain from `w`. Then for every `j`, `w_{j+1}` is the first
 component of `G(w_j)`. -/
 theorem chainState_succ (prg : PRGScheme W (W × Kae)) (w : W) (j : ℕ) :
-    chainState prg w (j + 1) = (prg.gen (chainState prg w j)).1 := by
-  induction j generalizing w with
-  | zero => rfl
-  | succ j ih => exact ih (prg.gen w).1
+    chainState prg w (j + 1) = (prg.gen (chainState prg w j)).1 :=
+  Function.iterate_succ_apply' _ j w
 
 /-! ## Skipping -/
 
@@ -121,11 +118,7 @@ theorem skip_w_iB (prg : PRGScheme W (W × Kae)) (u : ℕ) (st : RecvState W Kae
 is `w_{o + n}`. -/
 theorem chainState_add (prg : PRGScheme W (W × Kae)) (w : W) (o n : ℕ) :
     chainState prg (chainState prg w o) n = chainState prg w (o + n) := by
-  induction o generalizing w with
-  | zero => simp only [chainState_zero, Nat.zero_add]
-  | succ o ih =>
-    rw [show o + 1 + n = (o + n) + 1 by omega]
-    exact ih (prg.gen w).1
+  simp only [chainState, Nat.add_comm o n, Function.iterate_add_apply]
 
 /-- Let `K_1, K_2, …` be the keys of the chain from `w`, and let `n ≥ 1`. Then the `n`-th
 key of the chain from `w_o` is `K_{o + n}`. -/
@@ -248,7 +241,8 @@ theorem rcv_some (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (prg : PRGSche
 /-- Let B's state be on the chain from `k`, let `D[i] = K_i` or `i > i_B`, and let
 `Dec(K_i, (i, a), e) = m`. Then `FS-Rcv` accepts `(i, e)` with associated data `a`, with
 output index `i` and message `m`. -/
-theorem rcv_isSome (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (prg : PRGScheme W (W × Kae))
+theorem exists_rcv_eq_some (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae)
+    (prg : PRGScheme W (W × Kae))
     {k : W} {st : RecvState W Kae} (hst : OnChain prg k st) {a : AD} {i : ℕ} {e : Cae}
     {m : M} (hk : st.D i = some (chainKey prg k i) ∨ st.iB < i)
     (hd : ae.decrypt (chainKey prg k i) (i, a) e = some m) :
@@ -268,6 +262,24 @@ theorem rcv_isSome (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (prg : PRGSc
   · obtain ⟨rfl, -, hd', -⟩ := rcv_some ae prg hst hr
     rw [hd, Option.some.injEq] at hd'
     exact ⟨st', hd' ▸ rfl⟩
+
+/-- B accepts `(i, e)` at an index `i`, and `j ≠ i`. If B had the key of `j` before, then it
+has it after: `j > i_B` or `D[j] = K_j`. -/
+theorem key_after_rcv (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (prg : PRGScheme W (W × Kae))
+    {k : W} {st st' : RecvState W Kae} (hst : OnChain prg k st) {a : AD} {i i' j : ℕ} {e : Cae}
+    {m' : M} (hr : rcv ae prg st a (i, e) = some (st', i', m')) (hji : j ≠ i)
+    (hj : st.iB < j ∨ st.D j = some (chainKey prg k j)) :
+    st'.iB < j ∨ st'.D j = some (chainKey prg k j) := by
+  obtain ⟨-, -, -, -, hiB, -, hDj⟩ := rcv_some ae prg hst hr
+  rw [hDj j hji, hiB]
+  rcases hj with h | h
+  · by_cases hlt : j < i
+    · exact .inr (by rw [ite_eq_left ⟨h, hlt⟩])
+    · exact .inl (by omega)
+  · refine .inr ?_
+    split_ifs
+    · rfl
+    · exact h
 
 /-! ## The game invariant -/
 
@@ -316,7 +328,8 @@ theorem gameInv_init : GameInv ae prg k (.init (fromAEADPRG ae prg) k) where
   trans_key := fun _ _ h => (nomatch h)
   future_key := fun _ _ h₁ h₂ => absurd (Nat.lt_of_lt_of_le h₁ h₂) (Nat.lt_irrefl 0)
 
-/-- A sends, and `record` stores the ciphertext unless an injection consumed its index. -/
+/-- A sends. `record` stores the ciphertext unless A is corrupted and its index is not in
+`comp`. -/
 theorem gameInv_send (hinv : GameInv ae prg k st) (isChall : Bool) (a : AD) (m : M) :
     GameInv ae prg k ({ st with vA := (send ae prg st.vA a m).1, iA := st.iA + 1 }.record
       isChall a m (send ae prg st.vA a m).2) := by
@@ -377,7 +390,6 @@ theorem gameInv_corrA (hinv : GameInv ae prg k st) :
               · exact .inl h
               · exact absurd h hc }
 
-
 /-- B accepts `(i, e)` and the game runs `delete(i)`, with a new `win` flag `w'`. Let `w'` be
 false only if `win` was false and either `i ≤ i_A` or A is corrupted. Then the invariant
 holds after the step. -/
@@ -394,19 +406,9 @@ theorem gameInv_rcv (hinv : GameInv ae prg k st) {a : AD} {i i' : ℕ} {e : Cae}
   · intro j hj
     simp only [GameState.delete, Bool.and_eq_true, bne_iff_ne, ne_eq] at hj
     exact hinv.comp_corrA j hj.2
-  · intro hw' r hr
-    simp only [GameState.delete, List.mem_filter, decide_eq_true_eq] at hr hw'
-    obtain ⟨hr, hri⟩ := hr
-    simp only [GameState.delete]
-    rw [hDj r.1 hri, hiB]
-    rcases hinv.trans_key (hw hw').1 r hr with h | h
-    · by_cases hlt : r.1 < i
-      · exact .inr (by rw [ite_eq_left ⟨h, hlt⟩])
-      · exact .inl (by omega)
-    · refine .inr ?_
-      split_ifs
-      · rfl
-      · exact h
+  · intro hw' r hmem
+    simp only [GameState.delete, List.mem_filter, decide_eq_true_eq] at hmem hw'
+    exact key_after_rcv ae prg hinv.vB hr hmem.2 (hinv.trans_key (hw hw').1 r hmem.1)
   · intro hw' j hj₁ hj₂
     simp only [GameState.delete] at hw' hj₁ hj₂ ⊢
     rw [hiB] at hj₂
@@ -421,7 +423,6 @@ theorem gameInv_rcv (hinv : GameInv ae prg k st) {a : AD} {i i' : ℕ} {e : Cae}
         · exact .inl h'
         · exact .inr ⟨hc, by simp only [h', Bool.and_false]⟩
 
-
 /-- Setting `win` keeps the invariant. -/
 theorem gameInv_win (hinv : GameInv ae prg k st) : GameInv ae prg k { st with win := true } :=
   ⟨hinv.vA_w, hinv.vA_iA, hinv.vB, hinv.trans_honest, hinv.comp_corrA, fun h => (nomatch h),
@@ -430,16 +431,6 @@ theorem gameInv_win (hinv : GameInv ae prg k st) : GameInv ae prg k { st with wi
 section Oracles
 
 variable [DecidableEq AD] [DecidableEq M] [DecidableEq Cae]
-
-omit [DecidableEq M] in
-/-- The record that `findTrans a e` returns is in `trans`, with associated data `a` and
-ciphertext `e`. -/
-theorem findTrans_spec {r : ℕ × AD × M × (ℕ × Cae)} {a : AD} {e : ℕ × Cae}
-    (h : st.findTrans a e = some r) : r ∈ st.trans ∧ r.2.1 = a ∧ r.2.2.2 = e := by
-  unfold GameState.findTrans at h
-  have := List.find?_some h
-  simp only [decide_eq_true_eq] at this
-  exact ⟨List.mem_of_find?_eq_some h, this⟩
 
 /-- Every oracle of the game for `fromAEADPRG ae prg` keeps the invariant. -/
 theorem gameInv_step (hinv : GameInv ae prg k st) (len : M → ℕ) (b : Bool)
@@ -506,7 +497,7 @@ theorem gameInv_step (hinv : GameInv ae prg k st) (len : M → ℕ) (b : Bool)
     · simp only [hf, StateT.run_pure, support_pure, Set.mem_singleton_iff] at hz
       subst hz
       exact hinv
-    obtain ⟨hmem, rfl, rfl⟩ := findTrans_spec hf
+    obtain ⟨hmem, rfl, rfl⟩ := GameState.findTrans_spec hf
     obtain ⟨-, hiA, hc⟩ := hinv.trans_honest _ hmem
     simp only at hiA hc
     subst hc
@@ -551,8 +542,8 @@ theorem gameInv_of_reachable {len : M → ℕ} {b : Bool}
   | step t _ hz ih => exact gameInv_step ih len b t hz
 
 /-- Let `ae` be correct, and let `st` satisfy the invariant with `win = false`. Then
-`O-Deliver-B` keeps `win = false`: B receives the record that `findTrans` returns with its
-recorded index and message. -/
+`O-Deliver-B` keeps `win = false`. If its guards pass, B receives the record that
+`findTrans` returns, with the recorded index and message. -/
 theorem deliver_win_false (hae : ae.Correct) (hinv : GameInv ae prg k st)
     (hw : st.win = false) (q : AD × (ℕ × Cae)) {z}
     (hz : z ∈ support ((oracleDeliverB (fromAEADPRG ae prg) q).run st)) :
@@ -567,11 +558,11 @@ theorem deliver_win_false (hae : ae.Correct) (hinv : GameInv ae prg k st)
   · simp only [hf, StateT.run_pure, support_pure, Set.mem_singleton_iff] at hz
     subst hz
     exact hw
-  obtain ⟨hmem, rfl, rfl⟩ := findTrans_spec hf
+  obtain ⟨hmem, rfl, rfl⟩ := GameState.findTrans_spec hf
   obtain ⟨-, -, hc⟩ := hinv.trans_honest _ hmem
   simp only at hc
   subst hc
-  obtain ⟨vB, hr⟩ := rcv_isSome ae prg hinv.vB (hinv.trans_key hw _ hmem).symm
+  obtain ⟨vB, hr⟩ := exists_rcv_eq_some ae prg hinv.vB (hinv.trans_key hw _ hmem).symm
     (hae (chainKey prg k i) (i, a') m)
   simp only [hf, fromAEADPRG, hr, StateT.run_bind, StateT.run_set, StateT.run_pure,
     pure_bind, support_pure, Set.mem_singleton_iff] at hz
@@ -620,24 +611,6 @@ theorem sendAll_eq (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (prg : PRGSc
     funext j am
     rw [show st.iA + 1 + j = st.iA + (j + 1) by omega]
 
-/-- B accepts `(i, e)` at an index `i`, and `j ≠ i`. If B had the key of `j` before, then it
-has it after: `j > i_B` or `D[j] = K_j`. -/
-theorem key_after_rcv (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (prg : PRGScheme W (W × Kae))
-    {k : W} {st st' : RecvState W Kae} (hst : OnChain prg k st) {a : AD} {i i' j : ℕ} {e : Cae}
-    {m' : M} (hr : rcv ae prg st a (i, e) = some (st', i', m')) (hji : j ≠ i)
-    (hj : st.iB < j ∨ st.D j = some (chainKey prg k j)) :
-    st'.iB < j ∨ st'.D j = some (chainKey prg k j) := by
-  obtain ⟨-, -, -, -, hiB, -, hDj⟩ := rcv_some ae prg hst hr
-  rw [hDj j hji, hiB]
-  rcases hj with h | h
-  · by_cases hlt : j < i
-    · exact .inr (by rw [ite_eq_left ⟨h, hlt⟩])
-    · exact .inl (by omega)
-  · refine .inr ?_
-    split_ifs
-    · rfl
-    · exact h
-
 /-- Let `ae` be correct, let B's state be on the chain from `k`, and let B have the key of
 every index `j` in the list: `j > i_B` or `D[j] = K_j`. Let the indices be distinct. Then B
 receives each `(a, (j, Enc(K_j, (j, a), m)))` of the list with output `(j, m)`, in any
@@ -653,7 +626,7 @@ theorem rcvAll_honest (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae)
   | nil => rfl
   | cons x xs ih =>
     obtain ⟨i, a, m⟩ := x
-    obtain ⟨st', hr⟩ := rcv_isSome ae prg hst (hkey _ List.mem_cons_self).symm
+    obtain ⟨st', hr⟩ := exists_rcv_eq_some ae prg hst (hkey _ List.mem_cons_self).symm
       (hae (chainKey prg k i) (i, a) m)
     simp only [List.map_cons, rcvAll, hr, List.cons.injEq, true_and]
     simp only [List.map_cons, List.nodup_cons, List.mem_map] at hnd
@@ -661,10 +634,10 @@ theorem rcvAll_honest (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae)
     exact key_after_rcv ae prg hst hr (fun h => hnd.1 ⟨y, hy, h⟩)
       (hkey y (List.mem_cons_of_mem _ hy))
 
-/-- Let `ae` be correct, and let A send `(a_1, m_1), …, (a_l, m_l)` from `Init-A(k)`. Let B
-start from `Init-B(k)` and receive a list of A's ciphertexts, each at most once, in any
-order, each with its own associated data. Then B outputs `(j, m_j)` for A's `j`-th
-ciphertext. A's `j`-th ciphertext is `(j, Enc(K_j, (j, a_j), m_j))` by `sendAll_eq`. -/
+/-- Let `ae` be correct, and let `del` be a list of `(j, a, m)` with distinct indices
+`j ≥ 1`. Let B start from `Init-B(k)` and receive `(j, Enc(K_j, (j, a), m))` with associated
+data `a` for each entry, in the order of `del`. Then B outputs `(j, m)` for each entry. By
+`sendAll_eq`, A's `j`-th ciphertext from `Init-A(k)` has this form. -/
 -- ANCHOR: rcvAll_honest_initR
 theorem rcvAll_honest_initR (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae)
     (prg : PRGScheme W (W × Kae)) (hae : ae.Correct) (k : W) (del : List (ℕ × AD × M))

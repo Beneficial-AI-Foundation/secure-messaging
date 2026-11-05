@@ -246,16 +246,16 @@ Adapted from {Informal.citet ACD19}[], proof of Theorem 5 (step from $`H_1` to $
 Let $`\mathsf{AE}` be a correct AEAD scheme and $`G` a PRG. Then:
 1. The FS-AEAD scheme from $`\mathsf{AE}` and $`G` is
    {bpref "fs_aead_delivery_correctness"}[delivery-correct].
-2. Let A send $`(a_1, m_1), \ldots, (a_l, m_l)` from $`\mathsf{Init\text{-}A}(k)`, and let B
-   start from $`\mathsf{Init\text{-}B}(k)`. Let B receive a list of A's ciphertexts, each at
-   most once, in any order, each with its own associated data. Then B outputs $`(j, m_j)`
-   for A's $`j`-th ciphertext $`(j, \Enc(K_j, (j, a_j), m_j))`.
+2. Let B start from $`\mathsf{Init\text{-}B}(k)` and receive ciphertexts
+   $`(j, \Enc(K_j, (j, a), m))` with associated data $`a`, for distinct indices
+   $`j \geq 1`, in any order. Then B outputs $`(j, m)` for each of them. A's $`j`-th
+   ciphertext from $`\mathsf{Init\text{-}A}(k)` has this form.
 
 The proof follows the states of A and B along the chain from $`k`. While
-$`\mathsf{win}` is false, B keeps the key of every ciphertext in transit: it is ahead of
-B's position, or it is in $`D`. An injection that consumes an index before A sends it
-removes that index from $`\mathsf{comp}`, so $`\mathsf{record}` does not add A's later
-ciphertext at that index.
+$`\mathsf{win}` is false, B keeps the key of every ciphertext in transit: its index is
+above $`i_B`, or its key is in $`D`. After $`\OCorrA`, an injection that consumes an index
+before A sends it removes that index from $`\mathsf{comp}`, so $`\mathsf{record}` does not
+add A's later ciphertext at that index.
 
 :::leanPillCaption "delivery correctness"
 :::

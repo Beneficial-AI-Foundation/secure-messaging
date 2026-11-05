@@ -429,7 +429,7 @@ if B rejects an honest ciphertext or outputs a wrong index or message.
 
 An FS-AEAD scheme is delivery-correct if $`\ODeliverB` never changes $`\mathsf{win}` from
 $`\mathsf{false}` to $`\mathsf{true}`, in every game state that the oracles reach from the
-initial state.
+initial state, for every key and challenge bit.
 
 A forgery that B accepts at an index outside $`\mathsf{comp}` sets $`\mathsf{win}` in
 $`\OInjectB` first. A later delivery failure then does not change the result of the
@@ -470,6 +470,23 @@ Let an FS-AEAD scheme be {bpref "fs_aead_delivery_correctness"}[delivery-correct
 $`\Exp{\textsf{fs-aead}}{\textsf{FS-AEAD}}(\adv)` has the same distribution as the
 experiment in which $`\ODeliverB` does not set $`\mathsf{win}`, for every adversary
 $`\adv`.
+
+:::leanPillCaption "O-Deliver-B without win"
+:::
+
+```anchor oracleDeliverBNoWin (project := ".") (module := SecureMessaging.FSAEAD.Correctness)
+def oracleDeliverBNoWin (fs : FSAEADScheme K StS StR AD M C) :
+    QueryImpl (AD × C →ₒ Option (ℕ × Option M)) (GameM StS StR AD M C) :=
+  fun (a, e) => do
+    let st ← get
+    if st.end_ then return none
+    let some (i, _, _, _) := st.findTrans a e | return none
+    match fs.rcv st.vB a e with
+    | none => return none
+    | some (vB, i', m') =>
+      set ({ st with vB }.delete i)
+      return some (i', if i ∈ st.chall then none else some m')
+```
 
 :::leanPillCaption "equality of experiments"
 :::
