@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Projection
-import ToVCVio.ProgramLogic.Unary.WP
+module
+
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Projection
+public import ToVCVio.ProgramLogic.Unary.WP
 
 /-!
 # Opp-UniKEM-CKA Adversary Composition
@@ -32,6 +34,8 @@ Pr[b_f = true] ≤ E[S(s_f, b_f)].
 that is, the probability that the failure flag is set is at most the expected
 tracked failure score.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal KEMScheme
 open OracleComp.ProgramLogic

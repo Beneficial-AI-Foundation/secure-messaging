@@ -4,14 +4,16 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.CryptoFoundations.SecExp
-import VCVio.OracleComp.Constructions.SampleableType
-import VCVio.OracleComp.QueryTracking.QueryBound
-import VCVio.OracleComp.SimSemantics.Append
-import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
-import ToVCVio.EvalDist.Monad.Basic
-import ToVCVio.OracleComp.SimSemantics.UnifLift
-import ToVCVio.OracleComp.Constructions.LenSampleable
+module
+
+public import VCVio.CryptoFoundations.SecExp
+public import VCVio.OracleComp.Constructions.SampleableType
+public import VCVio.OracleComp.QueryTracking.QueryBound
+public import VCVio.OracleComp.SimSemantics.Append
+public import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
+public import ToVCVio.EvalDist.Monad.Basic
+public import ToVCVio.OracleComp.SimSemantics.UnifLift
+public import ToVCVio.OracleComp.Constructions.LenSampleable
 
 /-!
 # Authenticated Encryption with Associated Data (AEAD)
@@ -145,6 +147,8 @@ gap: it is for random-*message* RoR, whereas ACD19 is random-*ciphertext* IND$. 
 LoR on messages of equal length, because the random branch reads only the message length.
 
 -/
+
+@[expose] public section
 
 open ToVCVio OracleSpec OracleComp ENNReal
 

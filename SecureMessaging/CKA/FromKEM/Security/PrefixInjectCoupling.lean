@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromKEM.Security.PrefixInjectCouplingA
-import SecureMessaging.CKA.FromKEM.Security.PrefixInjectCouplingB
-import ToVCVio.EvalDist.Monad.Basic
+module
+
+public import SecureMessaging.CKA.FromKEM.Security.PrefixInjectCouplingA
+public import SecureMessaging.CKA.FromKEM.Security.PrefixInjectCouplingB
+public import ToVCVio.EvalDist.Monad.Basic
 
 /-!
 # CKA from KEM — Injected-Prefix Coupling
@@ -21,6 +23,8 @@ land in the challenge-bridge shapes.  The party-specific couplings live in
 into the gap equality `cka_injected_honest_gap_eq_keygen_swapped_raw_gap`,
 the final hop in the top-level advantage chain.
 -/
+
+@[expose] public section
 
 open ToVCVio OracleSpec OracleComp ENNReal KEMScheme
 open OracleComp.ProgramLogic.Relational

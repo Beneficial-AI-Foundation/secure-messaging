@@ -3,9 +3,12 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import VCVio.EvalDist.Monad.Basic
-import VCVio.OracleComp.ProbComp
-import ToVCVio.Control.StateT
+
+module
+
+public import VCVio.EvalDist.Monad.Basic
+public import VCVio.OracleComp.ProbComp
+public import ToVCVio.Control.StateT
 
 /-!
 # Support tactics for VCV-io stateful computations
@@ -38,6 +41,8 @@ of three recurring shapes, all closed by `vcvSupport`:
 The pair closers (`⟨le_refl _, Nat.le_succ _⟩` and friends) target a pair of
 counters where each step bumps at most one of them.
 -/
+
+@[expose] public section
 
 namespace ToVCVio
 

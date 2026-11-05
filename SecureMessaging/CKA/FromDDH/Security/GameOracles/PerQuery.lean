@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromDDH.Security.GameOracles.Defs
-import ToVCVio.Control.StateT
+module
+
+public import SecureMessaging.CKA.FromDDH.Security.GameOracles.Defs
+public import ToVCVio.Control.StateT
 
 /-!
 # CKA from DDH — Game Oracles — Per-Query Reasoning
@@ -29,6 +31,8 @@ The lemmas below prove the corresponding dispatch equalities, active run
 equations, post-event parameter independence facts, and state/counter
 preservation facts used by the whole-adversary bridge.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 open OracleComp.ProgramLogic.Relational

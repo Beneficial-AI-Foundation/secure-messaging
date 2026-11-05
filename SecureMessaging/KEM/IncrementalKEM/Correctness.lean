@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.IncrementalKEM.Defs
-import ToVCVio.ProgramLogic.Unary.WP
-import VCVio.OracleComp.EvalDist.Sum
+module
+
+public import SecureMessaging.KEM.IncrementalKEM.Defs
+public import ToVCVio.ProgramLogic.Unary.WP
+public import VCVio.OracleComp.EvalDist.Sum
 
 /-!
 # Correctness error of an incremental KEM per key pair
@@ -19,6 +21,8 @@ the KEM (`wp_keygen_decapsFailureProb`).
 With deterministic decapsulation and second-stage encapsulation, the same quantity is the
 expected failure indicator over the first-stage samples (`decapsFailureProb_eq_wp`).
 -/
+
+@[expose] public section
 
 open OracleComp ENNReal
 open OracleComp.ProgramLogic

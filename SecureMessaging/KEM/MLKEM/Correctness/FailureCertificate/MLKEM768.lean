@@ -4,10 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
+module
+
 -- Import the previous per-set arithmetic check only to serialize the heavy kernel
 -- checks: lake builds imports first, so at most one such module
 -- elaborates at a time.
-import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.MLKEM512
+public import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.MLKEM512
 
 /-!
 # The ML-KEM-768 failure-bound arithmetic check
@@ -33,6 +35,8 @@ number to the honest sampler is stated in `NoiseModel.lean`.
 This module imports the ML-KEM-512 arithmetic check to serialize the heavy
 closed arithmetic proofs in lake order.
 -/
+
+@[expose] public section
 
 open ToVCVio LatticeCrypto
 open scoped ENNReal

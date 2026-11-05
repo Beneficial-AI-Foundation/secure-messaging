@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.RecordedPayload
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.RecordedPayload
 
 /-!
 # Receives preserve the correctness invariant
@@ -14,6 +16,8 @@ transcript when any output key agrees with the peer's recorded key for that epoc
 or a key disagreement clears the correctness flag. Thus the receive oracles preserve
 `CorrectnessInv`.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 open ErasureCodePayload.Streaming

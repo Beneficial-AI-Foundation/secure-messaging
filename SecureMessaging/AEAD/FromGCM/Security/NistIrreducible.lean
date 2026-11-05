@@ -4,10 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.FromGCM.Security.GhashAXU
-import SecureMessaging.AEAD.FromGCM.Security.GhashPolynomial
-import ToVCVio.CryptoFoundations.AdjoinRootReflect
-import ToVCVio.CryptoFoundations.RabinIrreducibility
+module
+
+public import SecureMessaging.AEAD.FromGCM.Security.GhashAXU
+public import SecureMessaging.AEAD.FromGCM.Security.GhashPolynomial
+public import ToVCVio.CryptoFoundations.AdjoinRootReflect
+public import ToVCVio.CryptoFoundations.RabinIrreducibility
 
 /-!
 # Irreducibility of GCM's field polynomial
@@ -22,6 +24,8 @@ and checked by `decide +kernel`, which reduces in the kernel and adds no axiom; 
 would have added `Lean.ofReduceBool`. The results are then transported into `AdjoinRoot nistPoly`
 through `reflectN`.
 -/
+
+@[expose] public section
 
 open OracleComp OracleSpec ENNReal ToVCVio Polynomial ToVCVio.AdjoinRootReflect
 

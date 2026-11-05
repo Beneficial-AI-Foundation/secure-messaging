@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.CryptoFoundations.KeyEncapMech
-import VCVio.OracleComp.EvalDist.Sum
+module
+
+public import ToVCVio.CryptoFoundations.KeyEncapMech
+public import VCVio.OracleComp.EvalDist.Sum
 
 /-!
 # KEM — Correctness Error After Fixing the Key Pair
@@ -24,6 +26,8 @@ the proof removes `φ(pk, sk)` from the potential and records a failure if decap
 (`keypairFailure_eq_prEvent`). The removed term covers that probability, so encapsulation adds
 nothing to the error bound.
 -/
+
+@[expose] public section
 
 open OracleComp ENNReal
 

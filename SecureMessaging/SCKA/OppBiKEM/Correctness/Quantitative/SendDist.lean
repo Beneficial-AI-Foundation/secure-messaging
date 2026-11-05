@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Correctness.SendFacts
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.SendFacts
 
 /-!
 # Opp-BiKEM-CKA — Distribution of `send` in its randomized cases
@@ -17,6 +19,8 @@ deterministic: `send_eq_advance` and `send_eq_encaps` state `send` as the sample
 `pure` of an explicit outcome (`advanceSend`, `encapsSend`). The one-step bounds of
 `Quantitative.SendStep` compute expected scores from these forms.
 -/
+
+@[expose] public section
 
 open OracleComp KEMScheme
 

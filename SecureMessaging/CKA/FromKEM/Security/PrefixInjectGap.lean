@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromKEM.Security.PrefixInjectSplit
-import ToVCVio.OracleComp.EvalDist
+module
+
+public import SecureMessaging.CKA.FromKEM.Security.PrefixInjectSplit
+public import ToVCVio.OracleComp.EvalDist
 
 /-!
 # CKA from KEM — Prefix Injection Gap
@@ -21,6 +23,8 @@ couple it against the raw reduction prefix, and read off the per-bit output
 equality (with the bit reversed across the two games) up to the prepared
 challenge bridges.
 -/
+
+@[expose] public section
 
 open ToVCVio OracleSpec OracleComp ENNReal KEMScheme
 open OracleComp.ProgramLogic.Relational

@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromKEM.Security.PrefixInjectCouplingCore
+module
+
+public import SecureMessaging.CKA.FromKEM.Security.PrefixInjectCouplingCore
 
 /-!
 # CKA from KEM — Injected-Prefix Coupling, challenged party B
@@ -14,6 +16,8 @@ send is `OSendA` at bumped counter `gp.challengeEpoch - 1`, the receive of
 the injected message is `ORecvB`, and the pause happens at `OChallB` in the
 `preBToAHonestState`/`preBToAReductionState` shapes.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal KEMScheme
 open OracleComp.ProgramLogic.Relational

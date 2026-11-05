@@ -3,9 +3,12 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import VCVio.OracleComp.QueryTracking.RandomOracle.DeferredSampling
-import VCVio.ProgramLogic.Relational.SimulateQ
-import ToVCVio.EvalDist.Monad.Basic
+
+module
+
+public import VCVio.OracleComp.QueryTracking.RandomOracle.DeferredSampling
+public import VCVio.ProgramLogic.Relational.SimulateQ
+public import ToVCVio.EvalDist.Monad.Basic
 
 /-!
 # Sampled-Parameter Lemmas for Relational simulateQ
@@ -27,6 +30,8 @@ For stateful computations, `.run` returns both the output and final state,
 while `.run'` returns only the output.
 
 -/
+
+@[expose] public section
 open ToVCVio ENNReal OracleSpec OracleComp
 open scoped OracleSpec.PrimitiveQuery
 

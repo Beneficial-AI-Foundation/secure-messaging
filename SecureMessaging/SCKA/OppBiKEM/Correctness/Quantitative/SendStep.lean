@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.RecvStep
-import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.SendDist
-import SecureMessaging.SCKA.OppBiKEM.Correctness.SendFacts
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.RecvStep
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.SendDist
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.SendFacts
 
 /-!
 # Opp-BiKEM-CKA — One-step score bound for send queries
@@ -19,6 +21,8 @@ with the non-send case of `Quantitative.RecvStep`. Plain sends, advances, and en
 are handled for either role through `pairPotential` and `pairFailure`, which list the sender
 first.
 -/
+
+@[expose] public section
 
 open OracleComp KEMScheme ENNReal
 open OracleComp.ProgramLogic

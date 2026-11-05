@@ -4,10 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.FromEtM.Security.PrfHop
-import SecureMessaging.AEAD.FromEtM.Security.Auth.Hop
-import SecureMessaging.AEAD.FromEtM.Security.EncHop
-import SecureMessaging.AEAD.FromEtM.Security.RandHop
+module
+
+public import SecureMessaging.AEAD.FromEtM.Security.PrfHop
+public import SecureMessaging.AEAD.FromEtM.Security.Auth.Hop
+public import SecureMessaging.AEAD.FromEtM.Security.EncHop
+public import SecureMessaging.AEAD.FromEtM.Security.RandHop
 
 /-!
 # Encrypt-then-MAC — Security
@@ -150,6 +152,8 @@ to produce the tag on `(a', C*)`. After the `game1` PRF hop that is the `ρ`-val
 encryption never evaluated, so it is independent of the challenge, which is exactly what the
 `q_d/|T|` authenticity term (`game1_game2_le_auth`) already bounds.
 -/
+
+@[expose] public section
 
 namespace EtM
 

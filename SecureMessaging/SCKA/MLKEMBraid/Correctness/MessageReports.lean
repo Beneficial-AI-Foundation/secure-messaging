@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.Oracles
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.Oracles
 
 /-!
 # Reports of recorded messages
@@ -14,6 +16,8 @@ that the receive of the message reports the same epoch. A Braid send of `msg` re
 `msg.epoch - 1`. `RecordedReportInv` states that every recorded message is stored with this
 report, and every oracle of the correctness game preserves it.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 

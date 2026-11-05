@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.EvalDist.Monad.Basic
-import VCVio.OracleComp.EvalDist.Sum
+module
+
+public import ToVCVio.EvalDist.Monad.Basic
+public import VCVio.OracleComp.EvalDist.Sum
 
 /-!
 # Support-wise bind sums and the Boolean complement
@@ -13,6 +15,8 @@ import VCVio.OracleComp.EvalDist.Sum
 `prEvent_bind_congr_eq_add` splits an event probability after a common draw, and
 `prEvent_eq_false_eq_one_sub` gives `Pr[false] = 1 - Pr[true]` for oracle computations.
 -/
+
+@[expose] public section
 
 open OracleSpec ENNReal
 

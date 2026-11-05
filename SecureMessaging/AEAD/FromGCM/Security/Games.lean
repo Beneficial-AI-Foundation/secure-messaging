@@ -4,12 +4,14 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.FromGCM.Construction
-import SecureMessaging.AEAD.FromGCM.Security.Encoding
-import ToVCVio.CryptoFoundations.WegmanCarter.Defs
-import ToVCVio.OracleComp.QueryTracking.LazySampling
-import VCVio.OracleComp.SimSemantics.StateT.StateProjection
-import VCVio.OracleComp.QueryTracking.RandomOracle.DeferredSampling
+module
+
+public import SecureMessaging.AEAD.FromGCM.Construction
+public import SecureMessaging.AEAD.FromGCM.Security.Encoding
+public import ToVCVio.CryptoFoundations.WegmanCarter.Defs
+public import ToVCVio.OracleComp.QueryTracking.LazySampling
+public import VCVio.OracleComp.SimSemantics.StateT.StateProjection
+public import VCVio.OracleComp.QueryTracking.RandomOracle.DeferredSampling
 
 /-!
 # GCM: game skeleton and games
@@ -34,6 +36,8 @@ The PRF reduction reuses the skeleton's tuple handler, and `game2♭`/`game3♭`
 Wegman–Carter handler `wcInstImpl` at GCM's hash. The lazy-sampling caches of `game2`/`game3`
 are proof artifacts, invisible to the adversary.
 -/
+
+@[expose] public section
 
 namespace GCM
 

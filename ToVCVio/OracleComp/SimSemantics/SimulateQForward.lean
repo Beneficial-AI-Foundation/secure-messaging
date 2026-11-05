@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.OracleComp.SimSemantics.Append
-import VCVio.OracleComp.ProbComp
-import ToMathlib.Control.StateT
+module
+
+public import VCVio.OracleComp.SimSemantics.Append
+public import VCVio.OracleComp.ProbComp
+public import ToMathlib.Control.StateT
 
 /-!
 # Forwarding a lifted base computation through an identity-left `add` handler
@@ -21,6 +23,8 @@ never consulted and the computation passes through unchanged.
 specification by `liftM`. In this shape the lifted query enters the combined
 specification in one step rather than as a lift of an `OracleComp unifSpec`.
 -/
+
+@[expose] public section
 
 open OracleComp OracleSpec
 

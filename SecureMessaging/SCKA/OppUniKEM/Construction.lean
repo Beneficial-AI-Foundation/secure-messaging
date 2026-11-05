@@ -4,10 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.Defs
-import SecureMessaging.KEM.OnOffKEM.Defs
-import SecureMessaging.ErasureCode.Defs
-import ToVCVio.CryptoFoundations.KeyEncapMech
+module
+
+public import SecureMessaging.SCKA.Defs
+public import SecureMessaging.KEM.OnOffKEM.Defs
+public import SecureMessaging.ErasureCode.Defs
+public import ToVCVio.CryptoFoundations.KeyEncapMech
 
 /-!
 # Opp-UniKEM-CKA
@@ -93,6 +95,8 @@ so the game permits a challenge for a key already revealed by leakage.
 `vulnRleakA` and `vulnRleakB` expose the current epoch whenever the send returns KEM coins, and
 no epoch otherwise; for a general on/off KEM, this is conservative.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme
 

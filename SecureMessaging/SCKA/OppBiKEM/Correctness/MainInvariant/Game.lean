@@ -4,10 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.Correctness
-import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Init
-import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Send
-import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Recv
+module
+
+public import SecureMessaging.SCKA.Correctness
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Init
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Send
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Recv
 
 /-!
 # Opp-BiKEM-CKA — One oracle query preserves the main invariant
@@ -24,6 +26,8 @@ KEM correctness enters, and the two correctness proofs discharge it differently:
 The file also restates the correctness experiment as the final `correct` bit of the simulated
 run from the initial game state (`correctnessExp_eq_map`).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme
 

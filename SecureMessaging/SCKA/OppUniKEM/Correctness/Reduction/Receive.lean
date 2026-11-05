@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Send
+module
+
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Send
 
 /-!
 # Opp-UniKEM-CKA Receive Transitions
@@ -17,6 +19,8 @@ the game state and the conditional failure probability `V`:
 * preservation lemmas — a receive preserves `V`, and preserves
   `currentKEMFailure = false` from a reachable state.
 -/
+
+@[expose] public section
 
 open ENNReal KEMScheme
 

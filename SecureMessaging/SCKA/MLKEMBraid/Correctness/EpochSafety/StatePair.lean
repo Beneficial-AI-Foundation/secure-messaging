@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.EpochSafety.Control
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.EpochSafety.Control
 
 /-!
 # Preservation of the role and state-pair invariants
@@ -13,6 +15,8 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.EpochSafety.Control
 correctness game preserves `ControlInv s ∧ StatePairInv s`
 (`correctnessImpl_preserves_controlInv_statePairInv`).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 open SCKAScheme.sckaCorrectnessSpec

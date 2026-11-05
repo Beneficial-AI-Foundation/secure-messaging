@@ -3,8 +3,11 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import ToVCVio.LatticeCrypto.FrodoKEM.Bits
-import ToVCVio.LatticeCrypto.FrodoKEM.Parameters
+
+module
+
+public import ToVCVio.LatticeCrypto.FrodoKEM.Bits
+public import ToVCVio.LatticeCrypto.FrodoKEM.Parameters
 
 /-!
 # FrodoKEM error sampling
@@ -32,6 +35,8 @@ For a fixed `table : ErrorTable`, with `lenChi = 16`, the sampling maps are
 
 Both maps transform supplied bits; they generate no randomness themselves.
 -/
+
+@[expose] public section
 
 namespace FrodoKEM
 

@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromKEM.Security.PrefixInjectCouplingCore
+module
+
+public import SecureMessaging.CKA.FromKEM.Security.PrefixInjectCouplingCore
 
 /-!
 # CKA from KEM — Injected-Prefix Coupling, challenged party A
@@ -16,6 +18,8 @@ relation `coupleRelA`, one step lemma per phase, and the induction
 runs finish, or both pause at the challenge query in the challenge-bridge
 shapes.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal KEMScheme
 open OracleComp.ProgramLogic.Relational

@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.MLKEM1024
-import SecureMessaging.KEM.MLKEM.Correctness.FailureRates
+module
+
+public import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.MLKEM1024
+public import SecureMessaging.KEM.MLKEM.Correctness.FailureRates
 
 /-!
 # Exact certificate for the independent-model numerical inequality
@@ -104,6 +106,8 @@ the integer inequality implies (1) in `ℝ≥0∞`.  The heavy checks are
 import-chained across the per-parameter modules so that only one large kernel
 computation is elaborated at a time.
 -/
+
+@[expose] public section
 
 open LatticeCrypto
 open scoped ENNReal

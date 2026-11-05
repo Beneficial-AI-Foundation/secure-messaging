@@ -4,12 +4,14 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate
-import VCVio.OracleComp.QueryTracking.RandomOracle.Basic
-import VCVio.OracleComp.QueryTracking.QueryBound
-import VCVio.OracleComp.Constructions.SampleableType
-import VCVio.OracleComp.EvalDist.Sum
-import VCVio.OracleComp.SimSemantics.SimulateQ
+module
+
+public import ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate
+public import VCVio.OracleComp.QueryTracking.RandomOracle.Basic
+public import VCVio.OracleComp.QueryTracking.QueryBound
+public import VCVio.OracleComp.Constructions.SampleableType
+public import VCVio.OracleComp.EvalDist.Sum
+public import VCVio.OracleComp.SimSemantics.SimulateQ
 
 /-!
 # Lazy Random-Oracle One-Time Unforgeability
@@ -34,6 +36,8 @@ contributes `1/|R|`, and on a miss the continuation runs from a cache with
 random-oracle resampling (see the forge-resampling section), so the induction
 hypothesis applies at the original cache with one verify query fewer.
 -/
+
+@[expose] public section
 
 open OracleComp OracleSpec ENNReal
 open PRFScheme (prfIdealQueryImpl prfIdealQueryImpl_apply_inr)

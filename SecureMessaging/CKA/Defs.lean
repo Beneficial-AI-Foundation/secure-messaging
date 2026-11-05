@@ -4,12 +4,14 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.CryptoFoundations.SecExp
-import VCVio.OracleComp.Constructions.SampleableType
-import VCVio.OracleComp.SimSemantics.Append
-import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
-import ToVCVio.EvalDist.Monad.Basic
-import ToVCVio.OracleComp.SimSemantics.UnifLift
+module
+
+public import VCVio.CryptoFoundations.SecExp
+public import VCVio.OracleComp.Constructions.SampleableType
+public import VCVio.OracleComp.SimSemantics.Append
+public import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
+public import ToVCVio.EvalDist.Monad.Basic
+public import ToVCVio.OracleComp.SimSemantics.UnifLift
 
 /-!
 # Continuous Key Agreement (CKA)
@@ -195,6 +197,8 @@ Other references:
 
 
 -/
+
+@[expose] public section
 
 open ToVCVio OracleSpec OracleComp ENNReal
 

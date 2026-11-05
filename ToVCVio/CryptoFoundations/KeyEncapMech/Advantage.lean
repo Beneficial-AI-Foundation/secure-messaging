@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.CryptoFoundations.KeyEncapMech
-import VCVio.CryptoFoundations.SecExp.Measure
+module
+
+public import VCVio.CryptoFoundations.KeyEncapMech
+public import VCVio.CryptoFoundations.SecExp.Measure
 
 /-!
 # Two definitions of KEM IND-CPA advantage
@@ -64,6 +66,8 @@ The Lean theorem `IND_CPA_Advantage_eq_fixed_branch_dist` proves this equality,
 with `kem.IND_CPA_Advantage ProbCompRuntime.probComp adv` denoting `Adv_guess`.
 
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 

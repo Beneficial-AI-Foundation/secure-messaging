@@ -3,8 +3,11 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import SecureMessaging.CKA.FromDDH.Security.GameOracles.Bridge
-import ToVCVio.ProgramLogic.Relational.Basic
+
+module
+
+public import SecureMessaging.CKA.FromDDH.Security.GameOracles.Bridge
+public import ToVCVio.ProgramLogic.Relational.Basic
 
 /-!
 # Shared Left/Right Per-Query Relational Lemmas
@@ -26,6 +29,8 @@ their visible answers agree, and preserves an abstract state relation `R`.
 The callers choose the concrete relation and discharge any premises about
 counters, guards, or local state agreement.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 open OracleComp.ProgramLogic.Relational

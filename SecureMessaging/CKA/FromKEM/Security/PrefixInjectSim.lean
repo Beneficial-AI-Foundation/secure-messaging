@@ -3,9 +3,11 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
 
-import SecureMessaging.CKA.FromKEM.Security.ChallengeBridge
-import ToVCVio.ProgramLogic.Tactics.Support
-import ToVCVio.EvalDist.Monad.Basic
+module
+
+public import SecureMessaging.CKA.FromKEM.Security.ChallengeBridge
+public import ToVCVio.ProgramLogic.Tactics.Support
+public import ToVCVio.EvalDist.Monad.Basic
 
 /-!
 # CKA from KEM — Prefix Injection Simulation
@@ -16,6 +18,8 @@ in `ChallengeBridge`; the remaining work is to move the reduction's sampled
 challenge key pair to the point where the honest game would generate that key
 pair.
 -/
+
+@[expose] public section
 
 open ToVCVio OracleSpec OracleComp ENNReal KEMScheme
 open OracleComp.ProgramLogic.Relational

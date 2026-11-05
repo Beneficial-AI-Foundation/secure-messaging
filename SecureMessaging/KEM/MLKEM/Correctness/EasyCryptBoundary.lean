@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.IncrementalKEM.FromMLKEM
+module
+
+public import SecureMessaging.KEM.IncrementalKEM.FromMLKEM
 
 /-!
 # EasyCrypt assumptions for ML-KEM-768 correctness
@@ -24,6 +26,8 @@ The source is `mlkem_spec_correctness`
 failure probability by `failprob + hsadv + 2 * prfadv`. No numerical failure probability is
 assumed here.
 -/
+
+@[expose] public section
 
 open OracleComp KEMScheme ENNReal
 

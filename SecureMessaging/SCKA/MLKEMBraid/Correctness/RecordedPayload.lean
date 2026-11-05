@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.RecordedPayload.Encapsulator
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.RecordedPayload.Encapsulator
 
 /-!
 # Receiving a recorded message
@@ -14,6 +16,8 @@ receive of a recorded message keeps `LocalPayloadInv` when any output key agrees
 recorded key for that epoch. It succeeds whenever decapsulation at the receiver's epoch derives
 the recorded key.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 open ErasureCodePayload.Streaming

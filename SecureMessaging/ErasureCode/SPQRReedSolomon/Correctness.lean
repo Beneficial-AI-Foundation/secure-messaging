@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.ErasureCode.ReedSolomon.Correctness
-import SecureMessaging.ErasureCode.SPQRReedSolomon.Construction
+module
+
+public import SecureMessaging.ErasureCode.ReedSolomon.Correctness
+public import SecureMessaging.ErasureCode.SPQRReedSolomon.Construction
 
 /-!
 # Correctness of the Parallel Reed–Solomon Erasure Code
@@ -25,6 +27,8 @@ Reed–Solomon codeword. We prove:
   (`parallelErasureCode_correct`) and its specialization `erasureCode k`
   (`erasureCode_correct`).
 -/
+
+@[expose] public section
 
 namespace ErasureCode.SPQRReedSolomon
 

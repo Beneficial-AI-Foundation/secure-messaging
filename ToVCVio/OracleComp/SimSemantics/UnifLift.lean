@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.OracleComp.SimSemantics.QueryImpl.Basic
-import VCVio.OracleComp.Support
+module
+
+public import VCVio.OracleComp.SimSemantics.QueryImpl.Basic
+public import VCVio.OracleComp.Support
 
 /-!
 # The canonical `unifSpec → StateT σ` lift handler
@@ -14,6 +16,8 @@ import VCVio.OracleComp.Support
 `OracleComp spec` while threading state `σ` unchanged. The `ProbComp` case is
 obtained with `spec := unifSpec`, since `ProbComp = OracleComp unifSpec`.
 -/
+
+@[expose] public section
 
 namespace ToVCVio
 

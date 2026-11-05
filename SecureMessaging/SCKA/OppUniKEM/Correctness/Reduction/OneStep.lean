@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Receive
-import ToVCVio.ProgramLogic.Unary.WP
+module
+
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Receive
+public import ToVCVio.ProgramLogic.Unary.WP
 
 /-!
 # Opp-UniKEM-CKA One-Step Score Bounds
@@ -21,6 +23,8 @@ this module proves that one oracle query increases the expected tracked failure
 score by at most `ε` for `SendA` and `SendB`, and by zero for every other query.
 
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal KEMScheme
 open OracleComp.ProgramLogic

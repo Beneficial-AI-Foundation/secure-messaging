@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.GCM
+module
+
+public import SecureMessaging.AEAD.GCM
 
 /-!
 # GCM: `inc₃₂` and counter-block distinctness
@@ -16,6 +18,8 @@ low 32-bit counter field runs over `1, …, n + 1` without wrapping under `Valid
 the inputs never collide. This is what lets the security proof replace the cipher outputs by
 independent uniform values.
 -/
+
+@[expose] public section
 
 namespace GCM
 

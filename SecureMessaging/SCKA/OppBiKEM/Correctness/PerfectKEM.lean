@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
-import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.SendTotal
+module
+
+public import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.SendTotal
 
 /-!
 # Opp-BiKEM-CKA — Correctness for a perfectly correct KEM
@@ -24,6 +26,8 @@ preserves `GameInv` (`gameInv_preserved`), and `GameInv` holds at every reachabl
 probability one (`correctness_of_perfectKEM` in `Correctness`); since `GameInv` also gives
 `send_ne_none`, neither party's `send` is ever rejected (`sends_never_rejected_of_perfectKEM`).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme
 

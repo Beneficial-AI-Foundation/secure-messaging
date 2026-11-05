@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromDDH.Security.ReductionCommon
+module
+
+public import SecureMessaging.CKA.FromDDH.Security.ReductionCommon
 
 /-!
 # CKA from DDH — Reduction (real) — State Relation and Per-Query Step
@@ -39,6 +41,8 @@ the same visible answer and their post-states again satisfy `R`.
 at an adversary node `query t >>= k`, the step lemma handles query `t`, and the
 induction hypothesis applies to the continuation `k` at the related post-state.
 -/
+
+@[expose] public section
 
 open ToVCVio OracleSpec OracleComp ENNReal
 open OracleComp.ProgramLogic.Relational

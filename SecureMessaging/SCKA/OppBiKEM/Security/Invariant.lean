@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.RecvStep
-import SecureMessaging.SCKA.OppBiKEM.Security.Exposure
-import SecureMessaging.SCKA.Security
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.RecvStep
+public import SecureMessaging.SCKA.OppBiKEM.Security.Exposure
+public import SecureMessaging.SCKA.Security
 
 /-!
 # Opp-BiKEM — Security oracle invariant
@@ -16,6 +18,8 @@ query from a state satisfying the game invariant `GameInv` (`Correctness.MainInv
 a current KEM failure produces only states satisfying `GameInv`, for either challenge bit
 (`security_gameInv_step_of_noFailure`).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme
 

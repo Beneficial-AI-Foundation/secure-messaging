@@ -3,9 +3,12 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import SecureMessaging.RKEM.Defs
-import VCVio.CryptoFoundations.KeyEncapMech
-import ToVCVio.CryptoFoundations.KeyEncapMech
+
+module
+
+public import SecureMessaging.RKEM.Defs
+public import VCVio.CryptoFoundations.KeyEncapMech
+public import ToVCVio.CryptoFoundations.KeyEncapMech
 
 /-!
 # Ratcheting Key Encapsulation Mechanism from a Key Encapsulation Mechanism
@@ -50,6 +53,8 @@ package. `randLeak` builds one for the construction from a `KEMScheme.RandLeak` 
   *Triple Ratchet: A Bandwidth Efficient Hybrid-Secure Signal Protocol.*
   EUROCRYPT 2025, https://eprint.iacr.org/2025/078.pdf
 -/
+
+@[expose] public section
 
 open KEMScheme
 

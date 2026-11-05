@@ -3,8 +3,11 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import ToVCVio.LatticeCrypto.FrodoKEM.Bits
-import ToVCVio.LatticeCrypto.FrodoKEM.Parameters
+
+module
+
+public import ToVCVio.LatticeCrypto.FrodoKEM.Bits
+public import ToVCVio.LatticeCrypto.FrodoKEM.Parameters
 
 /-!
 # FrodoKEM message encoding
@@ -68,6 +71,8 @@ The specification's `Frodo.Encode` and `Frodo.Decode` are
   `(i * nbar + j) * B + t`, as a theorem. The bit order and layout it fixes are
   pinned by the `example`s beside the definitions.
 -/
+
+@[expose] public section
 
 namespace FrodoKEM
 

@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.FromGCM.Construction
+module
+
+public import SecureMessaging.AEAD.FromGCM.Construction
 
 /-!
 # GCM: cipher-call profile
@@ -16,6 +18,8 @@ groups: `0¹²⁸`, whose output is the GHASH key `H`; `J₀`, whose output is t
 `gcmEncryptSpec` and `gcmDecryptSpec` of these outputs, which is where the security proof
 substitutes random values for them. Distinctness of the inputs is in `Security/Counter.lean`.
 -/
+
+@[expose] public section
 
 namespace GCM
 

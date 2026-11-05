@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Security.IdealReceive
-import ToVCVio.OracleComp.QueryTracking.StateBudget
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Security.IdealReceive
+public import ToVCVio.OracleComp.QueryTracking.StateBudget
 
 /-!
 # Opp-BiKEM — Epoch counter
@@ -33,6 +35,8 @@ starts at `0`, so that `advances` of the initial state is `0`.
 Together they bound the challengeable epochs of a run with at most `q` sends by `2q`, which
 fixes the length of the hybrid chain (`Hybrid`).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme
 

@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.OnOffKEM.Defs
-import VCVio.OracleComp.EvalDist.Sum
-import VCVio.OracleComp.QueryTracking.RandomOracle.DeferredSampling
+module
+
+public import SecureMessaging.KEM.OnOffKEM.Defs
+public import VCVio.OracleComp.EvalDist.Sum
+public import VCVio.OracleComp.QueryTracking.RandomOracle.DeferredSampling
 
 /-!
 # On/Off KEM — Correctness Error by Sampling Stage
@@ -89,6 +91,8 @@ Writing `KG := kem.keygen` and `OFF := onoff.encapsOff`, the total KEM error
 * `factorCorrectnessError_eq_avg_off` proves
   `ε = Σ (st, ct₀), Pr[OFF = (st, ct₀)] · ψ(st, ct₀)`.
 -/
+
+@[expose] public section
 
 universe u
 

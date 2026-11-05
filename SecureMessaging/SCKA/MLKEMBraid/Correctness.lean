@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Instances
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.PotentialDrift
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Instances
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.PotentialDrift
 
 /-!
 # ML-KEM Braid correctness
@@ -56,6 +58,8 @@ game follows Definition 3.1, Figure 1, and Appendix B.1 of:
   *How to Compare Bandwidth Constrained Two-Party Secure Messaging Protocols.*
   USENIX Security 2025, https://eprint.iacr.org/2025/2267
 -/
+
+@[expose] public section
 open OracleSpec OracleComp ENNReal
 
 universe u

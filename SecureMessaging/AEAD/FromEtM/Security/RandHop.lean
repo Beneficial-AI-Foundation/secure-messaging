@@ -4,13 +4,17 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.FromEtM.Security.Games
+module
+
+public import SecureMessaging.AEAD.FromEtM.Security.Games
 
 /-!
 # Encrypt-then-MAC — random-experiment hop (`game3` = random)
 
 `game3_eq_rand`: `game3` equals the random AEAD experiment.
 -/
+
+@[expose] public section
 
 namespace EtM
 

@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromDDH.Security.ReductionRand.EagerHonestBridge
-import ToVCVio.OracleComp.Constructions.SampleableType
+module
+
+public import SecureMessaging.CKA.FromDDH.Security.ReductionRand.EagerHonestBridge
+public import ToVCVio.OracleComp.Constructions.SampleableType
 
 /-!
 # CKA from DDH — Reduction (rand) — Endpoint Bridge
@@ -26,6 +28,8 @@ from `(.sendReady (x₀ • gen), .recvReady x₀)`. In the initial-challenge ca
 
 The final lemma is `prEvent_securityReductionRandGame_eq_honestTrue`.
 -/
+
+@[expose] public section
 
 open ToVCVio OracleSpec OracleComp ENNReal
 open OracleComp.ProgramLogic.Relational

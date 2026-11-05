@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.SPQR.Params
-import SecureMessaging.SCKA.MLKEMBraid.Authenticator
-import ToVCVio.CryptoFoundations.KeyEncapMech
+module
+
+public import SecureMessaging.SCKA.SPQR.Params
+public import SecureMessaging.SCKA.MLKEMBraid.Authenticator
+public import ToVCVio.CryptoFoundations.KeyEncapMech
 
 /-!
 # Unchunked SPQR core
@@ -18,6 +20,8 @@ Signal's [SparsePostQuantumRatchet](https://github.com/signalapp/SparsePostQuant
 The ratcheted authenticator interface is the one specified for ML-KEM Braid
 internal authentication; SPQR takes it as a parameter.
 -/
+
+@[expose] public section
 
 open KEMScheme
 

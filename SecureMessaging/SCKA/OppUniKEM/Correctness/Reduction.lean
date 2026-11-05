@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Composition
-import ToVCVio.OracleComp.SimSemantics.StateT.WPBound
+module
+
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Composition
+public import ToVCVio.OracleComp.SimSemantics.StateT.WPBound
 
 /-!
 # Opp-UniKEM-CKA — Reduction to KEM Correctness
@@ -127,6 +129,8 @@ In `Reduction.Composition`, we aggregate the one-query facts over an adaptive
 adversary, whose later queries may depend on earlier responses, by induction
 over its oracle-computation tree.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal KEMScheme
 open OracleComp.ProgramLogic

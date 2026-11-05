@@ -4,14 +4,16 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppUniKEM.Security.Basic
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.SendA
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.SendB
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.RecvA
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.RecvB
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Core
-import SecureMessaging.SCKA.Security
+module
+
+public import SecureMessaging.SCKA.OppUniKEM.Security.Basic
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.SendA
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.SendB
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.RecvA
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.RecvB
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Core
+public import SecureMessaging.SCKA.Security
 
 /-!
 # Transcript and epoch invariants
@@ -21,6 +23,8 @@ the security game (`securityImpl_preserves_reachableInv`) and defines the send-e
 `sendEpochInv` to bound every recorded key epoch by the number of messages sent by party A
 (`recorded_epoch_le_sends`).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme
 

@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.IncrementalKEM.Correctness
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
-import ToVCVio.ProgramLogic.Unary.WP
+module
+
+public import SecureMessaging.KEM.IncrementalKEM.Correctness
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
+public import ToVCVio.ProgramLogic.Unary.WP
 
 /-!
 # Failure potential of the current epoch
@@ -15,6 +17,8 @@ The definitions used in the potential argument of `MLKEMBraid.correctness_error_
 `currentEpochFailure_eq_transcript` computes the current-epoch quantity from a consistent
 sampling transcript.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 open ErasureCodePayload.Streaming

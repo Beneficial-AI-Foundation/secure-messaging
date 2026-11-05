@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.HybridGame
-import SecureMessaging.SCKA.Security
-import ToVCVio.OracleComp.QueryTracking.OneUseSampling
+module
+
+public import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.HybridGame
+public import SecureMessaging.SCKA.Security
+public import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 
 /-!
 # Deferring the challenge-epoch samples
@@ -47,6 +49,8 @@ Pr[P_e^x = true] = Pr[S_e^x = true].
 With `fixedBranch_eq_pinnedHybrid` (`HybridGame`), this gives
 `Pr[𝓑_e^x = true] = Pr[S_e^x = true]` for the fixed branch `𝓑_e^x` (`fixedBranch_eq_ideal`).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme
 open SCKAScheme.sckaSecuritySpec SCKAScheme.sckaCorrectnessSpec

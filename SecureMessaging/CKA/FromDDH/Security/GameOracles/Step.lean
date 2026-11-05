@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromDDH.Security.GameOracles.SimulateQ
+module
+
+public import SecureMessaging.CKA.FromDDH.Security.GameOracles.SimulateQ
 
 /-!
 # CKA from DDH — Game Oracles — Per-Event Step Lemmas
@@ -31,6 +33,8 @@ unfold the handler call to its concrete response and post-state (`pure ...` or
 an internal sample), then use generic probability lemmas to couple the lazy
 outer samples with the eager samples produced inside `ckaSecurityImpl`.
 -/
+
+@[expose] public section
 
 open ToVCVio OracleSpec OracleComp ENNReal
 open OracleComp.ProgramLogic.Relational

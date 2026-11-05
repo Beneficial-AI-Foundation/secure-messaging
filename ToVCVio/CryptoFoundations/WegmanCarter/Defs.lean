@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.OracleComp.Constructions.BitVec
-import ToVCVio.OracleComp.SimSemantics.UnifLift
-import VCVio.OracleComp.SimSemantics.Append
+module
+
+public import ToVCVio.OracleComp.Constructions.BitVec
+public import ToVCVio.OracleComp.SimSemantics.UnifLift
+public import VCVio.OracleComp.SimSemantics.Append
 
 /-!
 # Wegman-Carter one-time authenticity: the scheme and the game
@@ -55,6 +57,8 @@ Decryption queries may come before or after the single encryption query, which i
 The adversary never sees `forged`. At `b = false` every decryption returns `none`; this is the
 execution the bound in `Security.lean` is about.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal ToVCVio
 

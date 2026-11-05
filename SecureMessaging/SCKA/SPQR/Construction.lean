@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.Defs
-import SecureMessaging.SCKA.MLKEMBraid.Construction
-import SecureMessaging.SCKA.SPQR.Chunked
+module
+
+public import SecureMessaging.SCKA.Defs
+public import SecureMessaging.SCKA.MLKEMBraid.Construction
+public import SecureMessaging.SCKA.SPQR.Chunked
 
 /-! # SPQR as an SCKA scheme
 
@@ -31,6 +33,8 @@ The model fixes protocol version 1. Signal's Rust implementation,
 the version at the start of a session and may downgrade it once to the peer's version, including
 version 0, which disables SPQR.
 -/
+
+@[expose] public section
 
 open ErasureCodePayload.Streaming
 open MLKEMBraid (SendRand)

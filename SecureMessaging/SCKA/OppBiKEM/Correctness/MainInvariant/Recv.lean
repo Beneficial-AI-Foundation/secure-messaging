@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant
-import SecureMessaging.SCKA.OppBiKEM.Correctness.RecvSpec
-import SecureMessaging.SCKA.OppBiKEM.Correctness.RecvFacts
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.RecvSpec
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.RecvFacts
 
 /-!
 # Opp-BiKEM-CKA — Receive step of the main invariant
@@ -23,6 +25,8 @@ stale message is handled by `partyInv_recv_stale`, every other message by
 `partyInv_recv_noKey`, followed by `partyInv_decaps_local` when the message completes a
 ciphertext.
 -/
+
+@[expose] public section
 
 open OracleComp KEMScheme ErasureCodePayload
 

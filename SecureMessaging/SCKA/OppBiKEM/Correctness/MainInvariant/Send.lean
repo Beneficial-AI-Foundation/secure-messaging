@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant
-import SecureMessaging.SCKA.OppBiKEM.Correctness.SendFacts
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.SendFacts
 
 /-!
 # Opp-BiKEM-CKA — Send step of the main invariant
@@ -16,6 +18,8 @@ most one epoch: the fresh key pair when the responder epoch advances, or the fre
 encapsulation when a key is emitted. The two cannot happen in one send, because a freshly
 generated key is not yet acknowledged.
 -/
+
+@[expose] public section
 
 open OracleComp KEMScheme ErasureCodePayload
 

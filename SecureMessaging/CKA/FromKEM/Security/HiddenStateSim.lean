@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromKEM.Security.Branches
-import VCVio.ProgramLogic.Relational.SimulateQ
-import ToVCVio.ProgramLogic.Relational.Basic
+module
+
+public import SecureMessaging.CKA.FromKEM.Security.Branches
+public import VCVio.ProgramLogic.Relational.SimulateQ
+public import ToVCVio.ProgramLogic.Relational.Basic
 
 /-!
 # CKA from KEM — Hidden-State Simulation
@@ -23,6 +25,8 @@ happened. `postRel_step` shows every oracle preserves the relation with equal
 outputs — receiver corruption is blocked by admissibility — and
 `postRel_run'_relTriple` lifts this to whole adversary runs.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal KEMScheme
 open OracleComp.ProgramLogic.Relational

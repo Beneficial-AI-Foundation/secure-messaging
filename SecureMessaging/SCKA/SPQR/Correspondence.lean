@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.SPQR.Construction
+module
+
+public import SecureMessaging.SCKA.SPQR.Construction
 
 /-! # SPQR chunked protocol and the ML-KEM Braid transition system
 
@@ -32,6 +34,8 @@ characterisation and a relation between the two SCKA schemes are not part of thi
 There is no translation in the other direction: rebuilding an encapsulation key from its vector
 needs a `validPK` witness.
 -/
+
+@[expose] public section
 
 open ErasureCodePayload.Streaming
 

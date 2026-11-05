@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.Defs
-import ToMathlib.Control.StateT
-import VCVio.CryptoFoundations.HardnessAssumptions.DiffieHellman
+module
+
+public import SecureMessaging.CKA.Defs
+public import ToMathlib.Control.StateT
+public import VCVio.CryptoFoundations.HardnessAssumptions.DiffieHellman
 
 /-!
 # Continuous Key Agreement (CKA) from Decisional Diffie-Hellman (DDH) Assumption
@@ -79,6 +81,8 @@ recvA(stA', ρB):
 [CORRECTNESS: kA' = x•(y'•gen) = y'•(x•gen) = kB']
 ```
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 

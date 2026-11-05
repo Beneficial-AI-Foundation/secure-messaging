@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.ErasureCode.ReedSolomon.Construction
+module
+
+public import SecureMessaging.ErasureCode.ReedSolomon.Construction
 
 /-!
 # Correctness of the Reed–Solomon Erasure Code
@@ -22,6 +24,8 @@ for the honest chunks of a message `m` at a set of positions `I`, we prove:
 Together these give the erasure-code correctness predicate `ErasureCode.Correct`
 for `erasureCode` (`erasureCode_correct`).
 -/
+
+@[expose] public section
 
 namespace ErasureCode.ReedSolomon
 

@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.ErasureCode.Defs
+module
+
+public import SecureMessaging.ErasureCode.Defs
 
 /-!
 # Erasure-Code Payload Lemmas
@@ -22,6 +24,8 @@ honest sub-threshold chunk set.
 - [Signal ML-KEM Braid, §1.3: Chunking with Erasure Codes](https://signal.org/docs/specifications/mlkembraid/)
 - [SparsePostQuantumRatchet indexed chunks and codec interfaces](https://github.com/signalapp/SparsePostQuantumRatchet/blob/fd320484dcec89004021e6fdc7481825f5f261fa/src/encoding.rs#L24-L47)
 -/
+
+@[expose] public section
 
 namespace ErasureCode
 

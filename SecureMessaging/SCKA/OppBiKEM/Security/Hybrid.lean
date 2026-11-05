@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Security.Endpoints
-import SecureMessaging.SCKA.OppBiKEM.Security.EpochCount
-import VCVio.ProgramLogic.Relational.SimulateQ
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Security.Endpoints
+public import SecureMessaging.SCKA.OppBiKEM.Security.EpochCount
+public import VCVio.ProgramLogic.Relational.SimulateQ
 
 /-!
 # Opp-BiKEM — Epoch challenge hybrids
@@ -42,6 +44,8 @@ ordinary or leaking sends.
 `Security` supplies the per-hop bound `δ t` as the IND-CPA advantage of the reduction at target
 `t`.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme ENNReal
 

@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Security.Tracked
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Security.Tracked
 
 /-!
 # Opp-BiKEM — Ideal receive
@@ -28,6 +30,8 @@ policy and the honest leaking sends and corruptions.
 random-key challenges. Query-comparison and state-preservation lemmas let later proofs
 reuse these variants.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme SCKAScheme
 

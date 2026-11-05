@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromKEM.Correctness
+module
+
+public import SecureMessaging.CKA.FromKEM.Correctness
 
 /-!
 # CKA from KEM — Security Foundations
@@ -30,6 +32,8 @@ implementations that answer without the challenge secrets. It is unrelated to
 the corruption oracles: both parties always follow the protocol, and corruption
 only exposes state.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal KEMScheme
 

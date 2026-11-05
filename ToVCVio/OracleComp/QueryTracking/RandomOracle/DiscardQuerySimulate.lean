@@ -4,13 +4,15 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.CryptoFoundations.PRF
-import VCVio.OracleComp.QueryTracking.RandomOracle.Basic
-import VCVio.OracleComp.QueryTracking.RandomOracle.Simulation
-import VCVio.OracleComp.SimSemantics.SimulateQ
-import VCVio.OracleComp.SimSemantics.StateT.Basic
-import VCVio.OracleComp.SimSemantics.StateT.StateProjection
-import VCVio.OracleComp.SimSemantics.Append
+module
+
+public import VCVio.CryptoFoundations.PRF
+public import VCVio.OracleComp.QueryTracking.RandomOracle.Basic
+public import VCVio.OracleComp.QueryTracking.RandomOracle.Simulation
+public import VCVio.OracleComp.SimSemantics.SimulateQ
+public import VCVio.OracleComp.SimSemantics.StateT.Basic
+public import VCVio.OracleComp.SimSemantics.StateT.StateProjection
+public import VCVio.OracleComp.SimSemantics.Append
 
 /-!
 # Discarded random-oracle query removal under `simulateQ`
@@ -29,6 +31,8 @@ For a query implementation with state `σ × (D →ₒ R).QueryCache`,
 simulated by `prfIdealQueryImpl`. The theorem `evalDistEq_simulateQ_run'_discardRO` lifts
 discarded-query removal to such query implementations.
 -/
+
+@[expose] public section
 
 open OracleComp OracleSpec ENNReal
 open PRFScheme (prfIdealQueryImpl prfIdealQueryImpl_apply_inr)

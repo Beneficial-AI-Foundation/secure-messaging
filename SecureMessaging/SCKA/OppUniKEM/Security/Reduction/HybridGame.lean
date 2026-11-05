@@ -4,12 +4,14 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
-import SecureMessaging.SCKA.OppUniKEM.Security.IdealHybrids
-import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Game
-import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Simulation
-import SecureMessaging.SCKA.Security
-import ToVCVio.OracleComp.QueryTracking.OneUseSampling
+module
+
+public import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
+public import SecureMessaging.SCKA.OppUniKEM.Security.IdealHybrids
+public import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Game
+public import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Simulation
+public import SecureMessaging.SCKA.Security
+public import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 
 /-!
 # The fixed branch and the pinned hybrid
@@ -45,6 +47,8 @@ probabilities are equal (`fixedBranch_eq_pinnedHybrid`):
 Pr[𝓑_e^x = true] = Pr[P_e^x = true].
 ```
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme
 open SCKAScheme.sckaSecuritySpec

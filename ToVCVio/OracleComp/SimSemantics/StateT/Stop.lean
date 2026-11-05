@@ -4,10 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
-import VCVio.OracleComp.SimSemantics.OptionT.Basic
-import ToVCVio.EvalDist.Monad.Basic
-import VCVio.OracleComp.EvalDist.Sum
+module
+
+public import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
+public import VCVio.OracleComp.SimSemantics.OptionT.Basic
+public import ToVCVio.EvalDist.Monad.Basic
+public import VCVio.OracleComp.EvalDist.Sum
 
 /-!
 # Stopping stateful simulations and comparing their outputs
@@ -87,6 +89,8 @@ state.
   probability from every state where `stop` holds, then stopping both runs leaves the difference
   of their acceptance probabilities unchanged.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 

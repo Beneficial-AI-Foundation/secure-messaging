@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.EpochSafety.StatePair
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.EpochSafety.StatePair
 
 /-!
 # The transcript invariant of the Braid correctness game
@@ -15,6 +17,8 @@ party states and recorded messages carry the recorded samples, decapsulation in 
 gives the recorded key, and the output keys are the transcript keys. `CorrectnessInv s` states
 that the correctness flag is false or that `s` is consistent with some transcript.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 open ErasureCodePayload.Streaming

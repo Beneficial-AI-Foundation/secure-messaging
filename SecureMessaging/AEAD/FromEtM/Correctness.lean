@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.FromEtM.Construction
+module
+
+public import SecureMessaging.AEAD.FromEtM.Construction
 
 /-!
 # Encrypt-then-MAC — Correctness
@@ -14,6 +16,8 @@ then `etmAEAD se prf` is a correct `AEADScheme`.
 
 Correctness is standard: for all keys and inputs, `Dec(Enc(m)) = m`.
 -/
+
+@[expose] public section
 
 namespace EtM
 

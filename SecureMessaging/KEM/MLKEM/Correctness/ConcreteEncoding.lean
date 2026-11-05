@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import LatticeCrypto.MLKEM.Concrete.Encoding
-import SecureMessaging.KEM.MLKEM.Correctness.Noise
+module
+
+public import LatticeCrypto.MLKEM.Concrete.Encoding
+public import SecureMessaging.KEM.MLKEM.Correctness.Noise
 
 /-!
 # Concrete `Compress₁` recovery at the message-recovery radius
@@ -21,6 +23,8 @@ The scalar recovery fact lifts coefficientwise to the polynomial theorem
 round-trip identities to show the concrete encoding satisfies `FIPS203EncodingLaws` for
 every parameter set.
 -/
+
+@[expose] public section
 
 open LatticeCrypto MLKEM
 

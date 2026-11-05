@@ -4,10 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.Correctness.Tracked
-import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.Core
-import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Game
-import SecureMessaging.SCKA.OppBiKEM.Correctness.RecvFacts
+module
+
+public import SecureMessaging.SCKA.Correctness.Tracked
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.Core
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Game
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.RecvFacts
 
 /-!
 # Opp-BiKEM-CKA — One-step score bound for non-send queries
@@ -19,6 +21,8 @@ so every non-send query keeps the expected tracked score `S` at most its initial
 (`tracked_nonSend_score_le`). From a state with the flag set, the score stays `1`
 (`tracked_step_score_le_of_flag`).
 -/
+
+@[expose] public section
 
 open OracleComp KEMScheme ENNReal
 open OracleComp.ProgramLogic

@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.Defs
-import ToVCVio.OracleComp.SimSemantics.StateT.BadFlag
+module
+
+public import SecureMessaging.SCKA.Defs
+public import ToVCVio.OracleComp.SimSemantics.StateT.BadFlag
 
 /-!
 # The tracked game for SCKA correctness
@@ -30,6 +32,8 @@ which needs an invariant preserved by every query of the ordinary game. With the
 invariant only has to hold until the first bad state, so nothing has to be proved about the
 states that follow a primitive failure.
 -/
+
+@[expose] public section
 
 open OracleSpec ENNReal
 open OracleComp.ProgramLogic

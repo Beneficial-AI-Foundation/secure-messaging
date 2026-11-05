@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.CryptoFoundations.PRP
-import ToVCVio.CryptoFoundations.PRPSwitching
-import SecureMessaging.AEAD.FromGCM.Security.PrfHop
+module
+
+public import ToVCVio.CryptoFoundations.PRP
+public import ToVCVio.CryptoFoundations.PRPSwitching
+public import SecureMessaging.AEAD.FromGCM.Security.PrfHop
 
 /-!
 # GCM: PRP/PRF switching
@@ -33,6 +35,8 @@ Main results:
 - [BR] Bellare, Rogaway. *Code-Based Game-Playing Proofs and the Security of Triple Encryption.*
   EUROCRYPT 2006, https://eprint.iacr.org/2004/331.pdf
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp GCM AEADScheme PRPScheme
 

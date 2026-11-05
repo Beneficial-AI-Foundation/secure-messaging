@@ -4,13 +4,17 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.FromEtM.Security.Auth.Forge
+module
+
+public import SecureMessaging.AEAD.FromEtM.Security.Auth.Forge
 
 /-!
 # Encrypt-then-MAC — auth hop (`game1` → `game2`)
 
 `game1_game2_le_auth`: the gap is bounded by `q_d / |T|` via the forge bound.
 -/
+
+@[expose] public section
 
 namespace EtM
 

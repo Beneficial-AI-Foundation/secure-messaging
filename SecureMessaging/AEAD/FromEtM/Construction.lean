@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.Defs
-import SecureMessaging.SymEnc.Defs
-import VCVio.CryptoFoundations.PRF
+module
+
+public import SecureMessaging.AEAD.Defs
+public import SecureMessaging.SymEnc.Defs
+public import VCVio.CryptoFoundations.PRF
 
 /-!
 # Encrypt-then-MAC (EtM) Construction
@@ -32,6 +34,8 @@ Encrypt-then-MAC paradigm.
 5. **`decrypt` returns `Option M`** matching ACD19's AEAD syntax (not
    `M ∪ {⊥}` as in NRS14).
 -/
+
+@[expose] public section
 
 namespace EtM
 

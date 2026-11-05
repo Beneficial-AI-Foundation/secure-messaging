@@ -4,10 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.MLKEM.Correctness.ConcreteEncoding
-import SecureMessaging.KEM.MLKEM.Correctness.FailureBounds
-import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate
-import SecureMessaging.KEM.MLKEM.Correctness.NoiseIdentity
+module
+
+public import SecureMessaging.KEM.MLKEM.Correctness.ConcreteEncoding
+public import SecureMessaging.KEM.MLKEM.Correctness.FailureBounds
+public import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate
+public import SecureMessaging.KEM.MLKEM.Correctness.NoiseIdentity
 
 /-!
 # Comparing the honest noise with the independent coefficient model
@@ -83,6 +85,8 @@ inputs are independent and uniform.  A proof of (4) for the concrete
 SHA-3/SHAKE primitives would supply the probabilistic link between the honest
 experiment and the independent coefficient calculation.
 -/
+
+@[expose] public section
 
 open OracleComp LatticeCrypto
 open scoped ENNReal

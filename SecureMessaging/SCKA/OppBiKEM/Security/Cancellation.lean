@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Security.Hybrid
-import ToVCVio.OracleComp.SimSemantics.StateT.Stop
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Security.Hybrid
+public import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 
 /-!
 # Opp-BiKEM — Cancellation of exposed-target paths
@@ -33,6 +35,8 @@ exposure of `t` rejected (`TargetCommitted`); the signed-gap theorem `signed_gap
 turns the two facts into the equality. The stopped hybrids are what the KEM reduction simulates
 (`Reduction`, `Simulation`).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme ENNReal
 

@@ -4,14 +4,18 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.FromEtM.Security.Games
-import ToVCVio.OracleComp.SimSemantics.StateT.LazyKey
+module
+
+public import SecureMessaging.AEAD.FromEtM.Security.Games
+public import ToVCVio.OracleComp.SimSemantics.StateT.LazyKey
 
 /-!
 # Encrypt-then-MAC — one-time secrecy hop (`game2` → `game3`)
 
 `game2_game3_le_enc`: the gap is bounded by the one-time secrecy advantage of `encReduction`.
 -/
+
+@[expose] public section
 
 namespace EtM
 

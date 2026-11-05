@@ -1,10 +1,12 @@
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.OneStep
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.SendA
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.RecvB
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.SendB
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.RecvA
-import SecureMessaging.SCKA.Correctness
-import VCVio.OracleComp.SimSemantics.StateT.StateProjection
+module
+
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.OneStep
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.SendA
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.RecvB
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.SendB
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.RecvA
+public import SecureMessaging.SCKA.Correctness
+public import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 
 /-!
 # Opp-UniKEM-CKA Tracked-State Projection
@@ -24,6 +26,8 @@ The main results are:
 * `correctness_failure_le_of_tracked_bad` — a bound on the final tracked
   failure flag bounds the failure probability of the ordinary correctness game.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal KEMScheme
 

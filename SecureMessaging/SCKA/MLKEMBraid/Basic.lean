@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.ErasureCode.Streaming
-import SecureMessaging.KEM.IncrementalKEM.Defs
-import SecureMessaging.SCKA.MLKEMBraid.Authenticator
+module
+
+public import SecureMessaging.ErasureCode.Streaming
+public import SecureMessaging.KEM.IncrementalKEM.Defs
+public import SecureMessaging.SCKA.MLKEMBraid.Authenticator
 
 /-!
 # ML-KEM Braid transition system
@@ -94,6 +96,8 @@ reports that epoch minus one. `receive` normally reports the entry epoch minus o
 reports the entry epoch as it advances to the next. An input matching no guard leaves the
 state unchanged and produces no output key.
 -/
+
+@[expose] public section
 
 open ErasureCodePayload.Streaming
 

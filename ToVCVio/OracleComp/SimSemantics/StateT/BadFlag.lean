@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.OracleComp.SimSemantics.StateT.WPBound
-import VCVio.OracleComp.SimSemantics.StateT.StateProjection
+module
+
+public import ToVCVio.OracleComp.SimSemantics.StateT.WPBound
+public import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 
 /-!
 # Stateful simulation with a sticky bad flag
@@ -41,6 +43,8 @@ flag is set, or `Inv s` holds and `s` is not bad.
 With the flag, `Inv` only has to be preserved from states that are not bad, so nothing has to be
 proved about the states that follow the first bad one.
 -/
+
+@[expose] public section
 
 open OracleSpec ENNReal
 open OracleComp.ProgramLogic

@@ -3,8 +3,11 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import SecureMessaging.RKEM.Defs
-import ToVCVio.OracleComp.Constructions.SampleableType
+
+module
+
+public import SecureMessaging.RKEM.Defs
+public import ToVCVio.OracleComp.Constructions.SampleableType
 
 /-!
 # Ratchet Simulatability — Perfect Simulation
@@ -25,6 +28,8 @@ equalities (three properties, two parties) thus gets `RatchetSimulatable 0` from
   *Triple Ratchet: A Bandwidth Efficient Hybrid-Secure Signal Protocol.*
   EUROCRYPT 2025, https://eprint.iacr.org/2025/078.pdf
 -/
+
+@[expose] public section
 
 open ToVCVio
 

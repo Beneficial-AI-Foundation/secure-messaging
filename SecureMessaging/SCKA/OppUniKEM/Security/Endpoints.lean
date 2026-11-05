@@ -4,12 +4,14 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.Security.CorrectnessOracles
-import SecureMessaging.SCKA.OppUniKEM.Security.Invariant
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Projection
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Composition
-import ToVCVio.OracleComp.SimSemantics.StateT.BadFlag
-import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
+module
+
+public import SecureMessaging.SCKA.Security.CorrectnessOracles
+public import SecureMessaging.SCKA.OppUniKEM.Security.Invariant
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Projection
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Composition
+public import ToVCVio.OracleComp.SimSemantics.StateT.BadFlag
+public import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
 
 /-!
 # Opp-UniKEM correctness-error endpoints
@@ -31,6 +33,8 @@ The real and ideal games differ in acceptance probability by at most the cumulat
 error over `q` sends: `|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`
 (`security_correctness_endpoint_le`).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme ErasureCodePayload ENNReal
 open OracleComp.ProgramLogic

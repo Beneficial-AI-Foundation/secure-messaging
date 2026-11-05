@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.GCM
-import SecureMessaging.AEAD.Defs
-import ToVCVio.CryptoFoundations.PRP
+module
+
+public import SecureMessaging.AEAD.GCM
+public import SecureMessaging.AEAD.Defs
+public import ToVCVio.CryptoFoundations.PRP
 
 /-!
 # One-time-key GCM as an `AEADScheme` (ACD19)
@@ -23,6 +25,8 @@ Packages the 96-bit-IV GCM algorithms (`SecureMessaging.AEAD.GCM`) as the one-ti
   2022. HPKE, libsignal's only production plain-GCM caller.
   https://www.rfc-editor.org/rfc/rfc9180
 -/
+
+@[expose] public section
 
 namespace GCM
 

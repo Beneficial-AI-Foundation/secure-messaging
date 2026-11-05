@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.Correctness
-import ToVCVio.OracleComp.SimSemantics.StateT.Stop
-import ToVCVio.ProgramLogic.Unary.WP
+module
+
+public import SecureMessaging.SCKA.Correctness
+public import ToVCVio.OracleComp.SimSemantics.StateT.Stop
+public import ToVCVio.ProgramLogic.Unary.WP
 
 /-!
 # SCKA security oracles
@@ -33,6 +35,8 @@ challenges.
   exposed or challenged epoch is removed; only sends increase `nA`, by at most one), and query
   equalities follow from those of the components.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 open OracleComp.ProgramLogic

@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.CryptoFoundations.SymmEncAlg.Deterministic
-import ToVCVio.OracleComp.Constructions.LenSampleable
+module
+
+public import VCVio.CryptoFoundations.SymmEncAlg.Deterministic
+public import ToVCVio.OracleComp.Constructions.LenSampleable
 
 /-!
 # Deterministic Symmetric Encryption: One-Time Secrecy
@@ -39,6 +41,8 @@ ciphertexts have one length. It differs in two places.
   `Σ.C(ℓ) = {c ∈ C : |c| = clen ℓ}`. With one length (`LenSampleable.const C`), it is the
   sampling of Ros26 Definition 5.3.2.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 

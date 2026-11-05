@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.Probability.IntMeasure
-import LatticeCrypto.MLKEM.Concrete.Encoding
-import SecureMessaging.KEM.MLKEM.Correctness.Noise
+module
+
+public import ToVCVio.Probability.IntMeasure
+public import LatticeCrypto.MLKEM.Concrete.Encoding
+public import SecureMessaging.KEM.MLKEM.Correctness.Noise
 
 /-!
 # The independent one-coefficient noise model
@@ -216,6 +218,8 @@ product pushforward live in `ToVCVio.Probability.IntMeasure`.  The proposition
 relating the model (4) to the honest sampler is stated separately in
 `NoiseModel.lean`.
 -/
+
+@[expose] public section
 
 open ToVCVio LatticeCrypto
 

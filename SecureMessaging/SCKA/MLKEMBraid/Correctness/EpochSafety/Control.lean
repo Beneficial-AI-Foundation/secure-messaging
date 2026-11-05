@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.EpochKnowledge
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.EpochKnowledge
 
 /-!
 # Roles and message order in the Braid correctness game
@@ -15,6 +17,8 @@ the epoch. `ControlInv` states that each party's role matches the parity of its 
 every recorded message fits its sender's role and step (`MessageControl`). This module proves
 that every send and receive oracle preserves `ControlInv`.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 open SCKAScheme.sckaCorrectnessSpec

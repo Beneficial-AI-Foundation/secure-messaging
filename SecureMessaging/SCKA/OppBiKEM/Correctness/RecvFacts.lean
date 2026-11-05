@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.Correctness.Receive
-import SecureMessaging.SCKA.OppBiKEM.Correctness.SendFacts
+module
+
+public import SecureMessaging.SCKA.Correctness.Receive
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.SendFacts
 
 /-!
 # Opp-BiKEM-CKA — Facts about a single receive
@@ -17,6 +19,8 @@ post-state of a successful receive (`recv_success_state_facts`), the facts behin
 (`recv_local_publicKey_eq_or_none`) and the decoded peer keys (`recv_peerKeys_stable`,
 `recv_peerKeys_origin`).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme
 

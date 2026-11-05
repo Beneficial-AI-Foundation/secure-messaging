@@ -3,7 +3,10 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import ToVCVio.CryptoFoundations.KeyEncapMech
+
+module
+
+public import ToVCVio.CryptoFoundations.KeyEncapMech
 
 /-!
 # Online-Offline (On/Off) KEM
@@ -32,6 +35,8 @@ plus an on/off structure `oo : kem.OnOffStructure`.
 The example structure `KEMScheme.trivialOnOff` shows that any KEM scheme can be seen
 as an on/off KEM with an empty offline phase.
 -/
+
+@[expose] public section
 
 universe u
 

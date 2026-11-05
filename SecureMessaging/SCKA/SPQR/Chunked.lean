@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Construction
-import SecureMessaging.SCKA.SPQR.Unchunked
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Construction
+public import SecureMessaging.SCKA.SPQR.Unchunked
 
 /-! # SPQR chunked protocol
 
@@ -86,6 +88,8 @@ error except for the `ct2Sampled` successor case. These cases differ from the pa
 `SPQR.Construction` packages this model as an SCKA scheme. `SPQR.Correspondence` translates states
 and messages into `MLKEMBraid` and states the hypotheses under which their transitions agree.
 -/
+
+@[expose] public section
 
 open ErasureCodePayload.Streaming
 

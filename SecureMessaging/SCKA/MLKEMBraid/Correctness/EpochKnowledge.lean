@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.KeyPrefixes
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.MessageReports
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.KeyPrefixes
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.MessageReports
 
 /-!
 # Epoch bounds in the Braid correctness game
@@ -15,6 +17,8 @@ current epochs `tcurA`, `tcurB` (the largest epoch reported by the party's sends
 the party's completed epoch, and the epoch of every recorded message by both completed epochs plus
 one. Every oracle of the correctness game preserves it.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 open SCKAScheme.sckaCorrectnessSpec

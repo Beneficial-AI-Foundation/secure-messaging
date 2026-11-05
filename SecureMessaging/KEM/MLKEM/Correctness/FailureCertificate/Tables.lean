@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.Radix
+module
+
+public import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.Radix
 
 /-!
 # Kernel-certified component tables
@@ -35,6 +37,8 @@ so the kernel checks are split into bounded blocks and then reassembled.  The
 `_spec` and `measurePack_*` theorems establish the table entries by finite
 computation.
 -/
+
+@[expose] public section
 
 open ToVCVio LatticeCrypto
 open scoped ENNReal

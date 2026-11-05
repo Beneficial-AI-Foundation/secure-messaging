@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.PackedMeasures
+module
+
+public import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.PackedMeasures
 
 /-!
 # The ML-KEM-512 failure-bound arithmetic check
@@ -31,6 +33,8 @@ number to the honest sampler is stated in `NoiseModel.lean`.
 The approved parameter sets are split into separate modules so that lake
 checks one large closed arithmetic proof at a time.
 -/
+
+@[expose] public section
 
 open ToVCVio LatticeCrypto
 open scoped ENNReal
