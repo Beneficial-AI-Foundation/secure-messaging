@@ -46,6 +46,7 @@ theorem counts_totalMass (ps : ParameterSet) :
   cases ps <;> decide
 
 /-- One noise entry is distributed as a sum of `2n` products of two errors and one more error. -/
+-- ANCHOR: frodoKEM_entry_law
 theorem probOutput_entryNoiseExp (ps : ParameterSet) (z : ℤ) :
     Pr{let x ← IndepNoise.entryNoiseExp ps}[x = z] =
       (((ToVCVio.productMeasure
@@ -54,7 +55,9 @@ theorem probOutput_entryNoiseExp (ps : ParameterSet) (z : ℤ) :
           (2 * ps.params.n) *
         FailureCertificate.RoundedConvolution.counts (config ps)) z :
           ℝ≥0∞) /
-        (2 ^ lenChi) ^ (4 * ps.params.n + 1) := by
+        (2 ^ lenChi) ^ (4 * ps.params.n + 1)
+-- ANCHOR_END: frodoKEM_entry_law
+    := by
   have hlaw (u : ℤ) :
       Pr{let x ← sampleError ps}[x = u] =
         (FailureCertificate.RoundedConvolution.counts (config ps) u : ℝ≥0∞) /

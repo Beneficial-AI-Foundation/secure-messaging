@@ -395,6 +395,7 @@ theorem finiteLaw_samplesFromCoins
     (finiteLaw_lazy_fixedCoins ps gen fallback keySeed z message salt))
 
 /-- Honest KEM failure averaged over a sampled finite oracle table and all honest coins. -/
+-- ANCHOR: frodoKEM_rom_failureProb
 noncomputable def honestFailureProb
     (ps : ParameterSet) (gen : Generator ps) : ℝ≥0∞ :=
   Pr{
@@ -405,6 +406,7 @@ noncomputable def honestFailureProb
   }[
     KEM.decaps (operations ps gen H) keys.2 out.1 ≠ out.2
   ]
+-- ANCHOR_END: frodoKEM_rom_failureProb
 
 /-- Residual-noise failure averaged over the same finite oracle table and honest coins. -/
 noncomputable def honestNoiseBadProb
@@ -453,9 +455,12 @@ private theorem five_coin_average {T A B C D E : Type}
   simpa only [← bind_pure_comp] using h _ _ _ _ _
 
 /-- Averaged over the table, large noise is exactly as likely as with independent noise. -/
+-- ANCHOR: frodoKEM_rom_noise
 theorem honestNoiseBadProb_eq_indepNoise
     (ps : ParameterSet) (gen : Generator ps) :
-    honestNoiseBadProb ps gen = IndepNoise.noiseBadProb ps := by
+    honestNoiseBadProb ps gen = IndepNoise.noiseBadProb ps
+-- ANCHOR_END: frodoKEM_rom_noise
+    := by
   let P (H : Table ps) (fallback : SharedSecretBits ps) (keySeed : SeedSEBits ps)
       (z : Bits lenZ) (message : MessageBits ps) (salt : SaltBits ps) : Prop :=
     ¬ NoiseBound ps.params

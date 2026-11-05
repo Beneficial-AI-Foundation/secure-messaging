@@ -228,8 +228,11 @@ theorem finiteLaw_residual_entry (ps : ParameterSet)
   refine finiteLaw_bind_congr _ fun _ => ?_
   exact finiteLaw_bind_head hentry _
 
+-- ANCHOR: frodoKEM_union
 theorem noiseBadProb_le (ps : ParameterSet) :
-    noiseBadProb ps ≤ 64 * entryFailureProb ps := by
+    noiseBadProb ps ≤ 64 * entryFailureProb ps
+-- ANCHOR_END: frodoKEM_union
+    := by
   have hentry (ij : Fin mbar × Fin nbar) :
       Pr{let t ← sampleNoise ps}[entryBad ps (residual t ij.1 ij.2)] = entryFailureProb ps := by
     have h := finiteLaw_residual_entry ps ij.1 ij.2
