@@ -6,6 +6,7 @@ import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessagingDocs.Visuals.FSAEADAdversary
 import SecureMessaging.FSAEAD.Defs
+import SecureMessaging.FSAEAD.Correctness
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false
@@ -417,3 +418,65 @@ noncomputable def advantage [SampleableType K] [DecidableEq AD] [DecidableEq M]
   |(Pr{let x ← securityExp fs len adversary}[x = true]).toReal - 1 / 2|
 ```
 :::::::
+
+:::defTitle "fs_aead_delivery_correctness" "FS-AEAD delivery correctness"
+:::
+
+::::definition "fs_aead_delivery_correctness" (parent := "fs_aead") (lean := "FSAEADScheme.Reachable, FSAEADScheme.NoFirstDeliverWin") (tags := "gh-29") (uses := "fs_aead_security")
+{Informal.citet ACD19}[], §4.2.1, builds correctness into the game of the
+{bpref "fs_aead_security"}[FS-AEAD security definition]: $`\ODeliverB` sets $`\mathsf{win}`
+if B rejects an honest ciphertext or outputs a wrong index or message.
+
+An FS-AEAD scheme is delivery-correct if $`\ODeliverB` never changes $`\mathsf{win}` from
+$`\mathsf{false}` to $`\mathsf{true}`, in every game state that the oracles reach from the
+initial state.
+
+A forgery that B accepts at an index outside $`\mathsf{comp}` sets $`\mathsf{win}` in
+$`\OInjectB` first. A later delivery failure then does not change the result of the
+experiment. Delivery correctness is not the correctness notion of Theorem 7 of
+{Informal.citet ACD19}[], because here $`\OCorrB` ends the game.
+
+:::leanPillCaption "reachable game states"
+:::
+
+```anchor Reachable (project := ".") (module := SecureMessaging.FSAEAD.Correctness)
+inductive Reachable (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : Bool) (k : K) :
+    GameState StS StR AD M C → Prop
+  /-- The initial state is reachable. -/
+  | init : Reachable fs len b k (.init fs k)
+  /-- Every outcome of an oracle from a reachable state is reachable. -/
+  | step {st : GameState StS StR AD M C} (t : (fsaeadSpec StS StR AD M C).Domain) {z}
+      (hst : Reachable fs len b k st)
+      (hz : z ∈ support ((fsaeadSecurityImpl fs len b t).run st)) :
+      Reachable fs len b k z.2
+```
+
+:::leanPillCaption "delivery correctness"
+:::
+
+```anchor NoFirstDeliverWin (project := ".") (module := SecureMessaging.FSAEAD.Correctness)
+def NoFirstDeliverWin (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) : Prop :=
+  ∀ (b : Bool) (k : K) (st : GameState StS StR AD M C), Reachable fs len b k st →
+    st.win = false → ∀ (q : AD × C), ∀ z ∈ support ((oracleDeliverB fs q).run st),
+      z.2.win = false
+```
+::::
+
+:::defTitle "fs_aead_delivery_correctness_hop" "Removing the delivery check"
+:::
+
+::::theorem "fs_aead_delivery_correctness_hop" (parent := "fs_aead") (lean := "FSAEADScheme.securityExp_eq_noDeliverWin, FSAEADScheme.oracleDeliverBNoWin, FSAEADScheme.securityExpNoDeliverWin") (tags := "gh-29") (uses := "fs_aead_delivery_correctness, fs_aead_security")
+Let an FS-AEAD scheme be {bpref "fs_aead_delivery_correctness"}[delivery-correct]. Then
+$`\Exp{\textsf{fs-aead}}{\textsf{FS-AEAD}}(\adv)` has the same distribution as the
+experiment in which $`\ODeliverB` does not set $`\mathsf{win}`, for every adversary
+$`\adv`.
+
+:::leanPillCaption "equality of experiments"
+:::
+
+```anchor securityExp_eq_noDeliverWin (project := ".") (module := SecureMessaging.FSAEAD.Correctness)
+theorem securityExp_eq_noDeliverWin [SampleableType K] (fs : FSAEADScheme K StS StR AD M C)
+    (len : M → ℕ) (h : fs.NoFirstDeliverWin len) (adversary : FSAEADAdversary StS StR AD M C) :
+    securityExp fs len adversary = securityExpNoDeliverWin fs len adversary
+```
+::::
