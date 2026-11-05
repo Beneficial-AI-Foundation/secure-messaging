@@ -278,7 +278,8 @@ $`H` in place of SHAKE. Here the probability is over the honest random choices o
 
 $$`\mathrm{fail}(H) \;=\; \Pr_{\substack{(\mathsf{pk},\mathsf{sk}) \gets \mathsf{KeyGen}^H(),\\ (c,K) \gets \mathsf{Encaps}^H(\mathsf{pk})}}\bigl[\mathsf{Decaps}^H(\mathsf{sk},c) \ne K\bigr].`
 
-Let $`\mathcal{H}` be the finite set of all tables. Then the average of $`\mathrm{fail}(H)` over
+Let $`\mathcal{H}` be the set of all tables. It is finite, because the KEM calls SHAKE at six
+input lengths and reads at most `outputBits` bits. Then the average of $`\mathrm{fail}(H)` over
 all tables is at most $`\delta`:
 
 $$`\frac{1}{|\mathcal{H}|} \sum_{H \in \mathcal{H}} \mathrm{fail}(H) \;\le\; \delta.`
