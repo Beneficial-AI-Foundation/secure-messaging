@@ -12,7 +12,7 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.Parameters
 `certificateValues` is defined with long folds: the window mask and the failure weights each
 have thousands of terms. The kernel keeps every intermediate value of such a fold, and this
 uses gigabytes of memory. This file proves that the folds equal short geometric-series formulas.
-Thus the certificate for each family is one `decide +kernel` command with no precomputed values.
+Thus the certificate for each size is one `decide +kernel` command with no precomputed values.
 -/
 
 namespace FailureCertificate.RoundedConvolution
@@ -26,6 +26,7 @@ def shiftedProductPack (c : Config) : ℕ :=
       acc + c.weight x * c.weight y *
         (1 <<< (bits c * (x * y + (c.a : ℤ) ^ 2).toNat))) acc) 0
 
+/-- `productPack` equals `shiftedProductPack`, which writes each power of `radix` as a shift. -/
 theorem productPack_shifted (c : Config) : productPack c = shiftedProductPack c := by
   unfold productPack shiftedProductPack
   apply congrArg (fun f : ℕ → ℕ → ℕ => (List.range (2 * c.a + 1)).foldl f 0)
@@ -40,10 +41,12 @@ def shiftedMask (c : Config) : ℕ :=
   ((1 <<< (c.precision + 1)) - 1) *
     (((1 <<< (bits c * (2 * c.window + 1))) - 1) / ((1 <<< bits c) - 1))
 
+/-- The radix is at least `2`. -/
 theorem radix_ge_two (c : Config) : 2 ≤ radix c := by
   change 2 ^ 1 ≤ 2 ^ (c.precision + 1 + 2 * c.seedBits)
   exact Nat.pow_le_pow_right (by decide) (by omega)
 
+/-- `mask` equals its closed form `shiftedMask`. -/
 theorem mask_shifted (c : Config) : mask c = shiftedMask c := by
   unfold mask shiftedMask
   rw [ToVCVio.Packing.foldl_range_mul_add_one_eq_pack, Nat.geomSum_eq (radix_ge_two c)]
@@ -56,6 +59,7 @@ def shiftedExtraPack (c : Config) : ℕ :=
   (List.range (2 * c.a + 1)).foldl (fun acc (i : ℕ) =>
     acc + c.weight ((i : ℤ) - c.a) * (1 <<< (bits c * i))) 0
 
+/-- `extraPack` equals `shiftedExtraPack`, which writes each power of `radix` as a shift. -/
 theorem extraPack_shifted (c : Config) : extraPack c = shiftedExtraPack c := by
   unfold extraPack shiftedExtraPack
   apply congrArg (fun f : ℕ → ℕ → ℕ => (List.range (2 * c.a + 1)).foldl f 0)
@@ -67,6 +71,7 @@ theorem extraPack_shifted (c : Config) : extraPack c = shiftedExtraPack c := by
 def shiftedStep (c : Config) (x : ℕ) : ℕ :=
   ((x * shiftedProductPack c) >>> (c.a ^ 2 * bits c + 2 * c.seedBits)) &&& shiftedMask c
 
+/-- `step` equals `shiftedStep`. -/
 theorem step_shifted (c : Config) : step c = shiftedStep c := by
   funext x
   simp only [step, shiftedStep, productPack_shifted, mask_shifted]
@@ -74,11 +79,13 @@ theorem step_shifted (c : Config) : step c = shiftedStep c := by
 /-- Initial scaled point mass of `runN`, as a shift. -/
 def shiftedInit (c : Config) : ℕ := 1 <<< (c.precision + bits c * c.window)
 
+/-- The start value of `runN` equals `shiftedInit`. -/
 theorem init_shifted (c : Config) :
     2 ^ c.precision * radix c ^ c.window = shiftedInit c := by
   unfold shiftedInit radix
   rw [← pow_mul, ← pow_add, ← Nat.one_shiftLeft]
 
+/-- `runN` equals the same fold over `shiftedStep`, started at `shiftedInit`. -/
 theorem runN_shifted (c : Config) (k : ℕ) :
     runN c k = (List.range k).foldl (fun x _ => shiftedStep c x) (shiftedInit c) := by
   unfold runN
@@ -88,6 +95,8 @@ theorem runN_shifted (c : Config) (k : ℕ) :
 def horner (R : ℕ) (f : ℕ → ℕ) (acc n : ℕ) : ℕ :=
   (List.range n).foldl (fun acc i => acc * R + f i) acc
 
+/-- A Horner fold over `a + b` digits is the fold over the last `b` digits, started at the
+fold over the first `a` digits. -/
 theorem horner_add (R : ℕ) (f : ℕ → ℕ) (acc a b : ℕ) :
     horner R f acc (a + b) = horner R (fun i => f (a + i)) (horner R f acc a) b := by
   unfold horner
@@ -96,6 +105,7 @@ theorem horner_add (R : ℕ) (f : ℕ → ℕ) (acc a b : ℕ) :
 /-- The base-`R` repunit with `n` digits. -/
 def onesPack (R n : ℕ) : ℕ := (List.range n).foldl (fun a _ => a * R + 1) 0
 
+/-- A Horner fold of `n` digits, all equal to `k`, is `acc * R ^ n + k * onesPack R n`. -/
 theorem horner_const (R : ℕ) (f : ℕ → ℕ) (k acc n : ℕ) (h : ∀ i < n, f i = k) :
     horner R f acc n = acc * R ^ n + k * onesPack R n := by
   induction n with
@@ -107,6 +117,7 @@ theorem horner_const (R : ℕ) (f : ℕ → ℕ) (k acc n : ℕ) (h : ∀ i < n,
     rw [ih', h n (by omega)]
     ring
 
+/-- For `R ≥ 2`, the base-`R` repunit with `n` digits is `(R ^ n - 1) / (R - 1)`. -/
 theorem onesPack_closed (R n : ℕ) (hR : 2 ≤ R) : onesPack R n = (R ^ n - 1) / (R - 1) := by
   unfold onesPack
   rw [ToVCVio.Packing.foldl_range_mul_add_one_eq_pack, Nat.geomSum_eq hR]
@@ -131,6 +142,8 @@ def closedValues (c : Config) (lo mid hi : ℕ) : ℕ × ℕ :=
   (((run * shiftedExtraPack c * wp) >>> (bits c * (2 * M))) % (1 <<< bits c),
     (1 <<< c.precision) - run % ((1 <<< bits c) - 1))
 
+/-- Let the weight `w` be `1` on the first `lo` and the last `hi` points of the extended window,
+and `0` on the `mid` points between. Then `certificateValues` equals `closedValues`. -/
 theorem certificateValues_eq_closedValues (c : Config) (w : ℤ → ℕ) (lo mid hi : ℕ)
     (hlen : 2 * (c.window + c.a) + 1 = lo + mid + hi)
     (hlo : ∀ i < lo, w ((i : ℤ) - ((c.window + c.a : ℕ) : ℤ)) = 1)
@@ -159,7 +172,7 @@ namespace FrodoKEM.Certificate
 
 open FailureCertificate.RoundedConvolution
 
-/-- For a FrodoKEM family, the bad-event weight splits at the decoding threshold `t` around the
+/-- For each parameter set, the bad-event weight splits at the decoding threshold `t` around the
 extended-window centre `m`, so its certificate reduces to `closedValues`. -/
 theorem certificateValues_eq_closed (ps : ParameterSet) (t m : ℕ)
     (ht : IndepNoise.threshold ps = t) (hm : (config ps).window + (config ps).a = m) (htm : t ≤ m) :

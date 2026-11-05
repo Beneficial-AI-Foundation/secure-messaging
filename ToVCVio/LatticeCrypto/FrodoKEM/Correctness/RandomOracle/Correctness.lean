@@ -11,9 +11,10 @@ import VCVio.OracleComp.QueryTracking.RandomOracle.EagerTable
 /-!
 # FrodoKEM correctness in the finite random-oracle model
 
-With SHAKE replaced by a uniformly random table, the KEM makes five table lookups before the
-noise is fixed. This file proves that the resulting error matrices have the same joint
-distribution as five independently sampled ones. Averaging the bound of
+With SHAKE replaced by a uniformly random table, the KEM reads the table five times before the
+noise is fixed. Two of these reads give the bits of the five error matrices. Each read is at a
+different input, so these bits are uniform and independent. Thus the error matrices have the same
+joint distribution as five independently sampled ones. Averaging the bound of
 `FailureProbability.lean` over the table then bounds the KEM failure probability by the
 probability of large noise in the independent-noise experiment.
 -/
@@ -52,6 +53,8 @@ private def streamsToSamples (ps : ParameterSet)
     epp := SampleMatrix ps.errorTable mbar nbar s.2.2.2
   }
 
+/-- Cutting two uniform bit strings into the five error matrices gives the same distribution as
+sampling the five matrices independently. -/
 theorem finiteLaw_samplesFromStreams_uniform (ps : ParameterSet) :
     ToVCVio.finiteLaw
       (do
@@ -361,6 +364,8 @@ private theorem finiteLaw_lazy_fixedCoins
   exact (finiteLaw_fiveAnswers ps).trans
     (finiteLaw_samplesFromStreams_uniform ps)
 
+/-- For fixed honest coins, the error matrices read from a uniform random table have the same
+distribution as independently sampled ones. -/
 theorem finiteLaw_samplesFromCoins
     (ps : ParameterSet) (gen : Generator ps)
     (fallback : SharedSecretBits ps) (keySeed : SeedSEBits ps)
@@ -394,7 +399,7 @@ theorem finiteLaw_samplesFromCoins
   exact htableMap.trans (heager'.trans
     (finiteLaw_lazy_fixedCoins ps gen fallback keySeed z message salt))
 
-/-- Honest KEM failure averaged over a sampled finite oracle table and all honest coins. -/
+/-- Honest KEM failure, averaged over a uniform random table and all honest coins. -/
 -- ANCHOR: frodoKEM_rom_failureProb
 noncomputable def honestFailureProb
     (ps : ParameterSet) (gen : Generator ps) : ℝ≥0∞ :=
@@ -408,7 +413,7 @@ noncomputable def honestFailureProb
   ]
 -- ANCHOR_END: frodoKEM_rom_failureProb
 
-/-- Residual-noise failure averaged over the same finite oracle table and honest coins. -/
+/-- The probability of large noise, averaged over the same random table and honest coins. -/
 noncomputable def honestNoiseBadProb
     (ps : ParameterSet) (gen : Generator ps) : ℝ≥0∞ :=
   Pr{

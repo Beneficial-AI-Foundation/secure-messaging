@@ -11,9 +11,11 @@ import VCVio.EvalDist.Monad.Seq
 /-!
 # Exact scalar product-sum noise law
 
-Let `χ` be a symmetric integer distribution with independent samples. Then the noise
-`∑ s₁ e₀ - ∑ e₁ s₀ + e″` has an exact distribution, a power of the counting measure of `χ`.
-`probOutput_entryNoiseIntExp_counts` proves this result.
+Let `χ` be a symmetric distribution on the integers, given by counts `C` out of `2 ^ seedBits`.
+Take independent samples of `χ`. Then the noise `∑ s₁ e₀ - ∑ e₁ s₀ + e″`, with `n` terms in
+each sum, has counts `P ^ (2 * n) * C` out of `(2 ^ seedBits) ^ (4 * n + 1)`. Here `P` counts
+the product of two samples. Since `χ` is symmetric, the minus sign does not change the
+distribution. `probOutput_entryNoiseIntExp_counts` proves this result.
 -/
 
 open OracleComp
@@ -475,6 +477,9 @@ private theorem evalDist_entryNoiseIntExp_succ (n : ℕ) (χ : ProbComp ℤ) :
       simp only [Fin.sum_univ_succ, Fin.cons_zero, Fin.cons_succ]
       ring
 
+/-- Let `χ` take each `z` with probability `C z / 2 ^ seedBits`, where `C = counts c` is
+symmetric. Then one noise entry with `n` products in each sum takes `z` with probability
+`((productMeasure C C) ^ (2 * n) * C) z / (2 ^ seedBits) ^ (4 * n + 1)`. -/
 theorem probOutput_entryNoiseIntExp_counts
     (c : Config) (χ : ProbComp ℤ)
     (hlaw : ∀ z : ℤ, Pr{let x ← χ}[x = z] = (counts c z : ℝ≥0∞) / 2 ^ c.seedBits)

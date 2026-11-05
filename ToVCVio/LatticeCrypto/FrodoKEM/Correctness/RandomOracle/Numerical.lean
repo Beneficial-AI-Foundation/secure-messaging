@@ -9,21 +9,22 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.RandomOracle.Correctness
 /-!
 # FrodoKEM correctness in the finite random-oracle model
 
-These bounds average over one shared random oracle table and the honest KEM coins.
-The public matrix generator is fixed independently of that table. They are not bounds for
-concrete SHAKE, for each fixed oracle table, or for multiple encapsulations.
+These bounds average over one random table and the honest KEM coins. The public matrix
+generator is fixed and does not read the table. They are not bounds for concrete SHAKE, for one
+fixed table, or for many encapsulations.
 -/
 
 namespace FrodoKEM.ROM
 
-/-- Honest KEM failure in the finite random-oracle model meets the checked rational bound. -/
+/-- In the random-oracle model, the honest KEM failure probability is at most `failureBound`. -/
 theorem honestFailureProb_le_failureBound
     (ps : ParameterSet) (gen : Generator ps) :
     honestFailureProb ps gen ≤ Certificate.failureBound ps :=
   (honestFailureProb_le_indepNoiseBadProb ps gen).trans
     (Certificate.noiseBadProb_le_failureBound ps)
 
-/-- The oracle-averaged honest KEM experiment meets all three exact fractional-bit targets. -/
+/-- In the random-oracle model, the honest KEM failure probability `p` satisfies
+`p ^ 10 * 2 ^ exponentTenths ps ≤ 1`, that is, `p ≤ 2 ^ (-exponentTenths ps / 10)`. -/
 -- ANCHOR: frodoKEM_correctness
 theorem honestFailureProb_tenth_power_le
     (ps : ParameterSet) (gen : Generator ps) :

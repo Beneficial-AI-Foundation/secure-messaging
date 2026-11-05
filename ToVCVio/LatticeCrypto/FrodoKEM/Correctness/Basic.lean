@@ -13,7 +13,7 @@ import LatticeCrypto.Ring.Norms
 # FrodoKEM encoding, packing and sampling correctness
 
 The proofs about the maps that `Bits.lean`, `Encoding.lean`, `Packing.lean` and
-`Sampling.lean` specify. References are listed in `Construction.lean`. Both documents state
+`Sampling.lean` specify. Both documents state
 the exact round trip `dc (ec k) = k`, `[CiC25]` in Appendix B and `[LBES26]` in
 Section 6.3. Only `[CiC25]` bounds the noise `dc` tolerates, as Lemma 1 of
 Section 4.1, so `dc_ec_add` is cited from it alone.
@@ -115,7 +115,7 @@ theorem ec_val (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B)) :
   gcongr
   exact ZMod.val_lt k
 
-/-- Decoding inverts encoding (Appendix B). -/
+/-- Decoding inverts encoding (Appendix B of `[CiC25]`). -/
 theorem dc_ec (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B)) :
     dc p (ec p k) = k := by
   rw [dc, ec_val p hw k, hw.q_eq, mul_assoc, ← Nat.pow_add,
@@ -161,15 +161,12 @@ private theorem dc_quotient {q n s v ev : ℕ} (r : ℕ)
       Nat.mul_add_div (by omega : 0 < 2 * r), Nat.div_eq_of_lt (by omega), Nat.add_zero,
       Nat.add_mod_right, Nat.mod_eq_of_lt hv]
 
-/-- Decoding recovers `k` after perturbing its encoding by a signed additive
-error `e` with `-q ≤ 2 ^ (B + 1) * centeredRepr e < q`. This is Lemma 1 of
-Section 4.1, whose window `centeredRepr e ∈ [-q / 2 ^ (B + 1), q / 2 ^ (B + 1))`
-is closed below and open above, and whose division is a rational one.
+/-- Decoding recovers `k` if the error `e` satisfies `-q ≤ 2 ^ (B + 1) * centeredRepr e < q`.
 
-It is stated here cleared of that denominator because `q : ℕ`, so the division
-would be natural. At `B = D` the rational window is `-1/2 ≤ e < 1/2`, admitting
-`e = 0` alone, where `q / 2 ^ (B + 1)` in `ℕ` truncates to zero and gives the
-empty `0 ≤ e < 0`, excluding the one error the lemma allows. -/
+This is Lemma 1 of Section 4.1 of `[CiC25]`, multiplied through by `2 ^ (B + 1)`. The lemma
+uses the half-open window `[-q / 2 ^ (B + 1), q / 2 ^ (B + 1))` with rational division. We clear
+the fraction because `q : ℕ`. In `ℕ`, `q / 2 ^ (B + 1)` is `0` when `B = D`, and the window
+would then exclude `e = 0`, the one error that the lemma allows. -/
 theorem dc_ec_add (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B))
     (e : ZMod p.q)
     (hlo : -(p.q : ℤ) ≤ 2 ^ (p.B + 1) * centeredRepr e)

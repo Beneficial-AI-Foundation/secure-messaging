@@ -260,22 +260,31 @@ def decaps {ps : ParameterSet} (ops : Operations ps)
 :::
 
 ::::theorem "frodo_kem_correctness" (parent := "frodo_kem") (lean := "FrodoKEM.ROM.honestFailureProb_tenth_power_le") (tags := "gh-260") (uses := "frodo_kem_scheme")
-The theorem holds for all six parameter sets: FrodoKEM and eFrodoKEM, each at sizes 640, 976 and 1344. It holds in the random-oracle model, under these assumptions:
+We work in the random-oracle model, for all six parameter sets: FrodoKEM and eFrodoKEM, each at
+sizes 640, 976 and 1344. We assume the following.
 
-- One table $`H` of uniformly random answers replaces SHAKE in all its uses, each of which reads its own part of the table (`ROM.domain_disjoint`). This is SHAKE128 for size 640 and SHAKE256 for sizes 976 and 1344.
-- The function $`\mathsf{gen}` that computes the public matrix $`A` from $`\mathsf{seed}_A` is any fixed function that does not read $`H`. Thus GenSHAKE keeps the real SHAKE128, and GenAES keeps AES.
+- One table $`H` of uniformly random answers replaces SHAKE in all its uses, each of which reads
+  its own part of the table (`ROM.domain_disjoint`). This is SHAKE128 for size 640 and SHAKE256
+  for sizes 976 and 1344.
+- The function $`\mathsf{gen}` that computes the public matrix $`A` from $`\mathsf{seed}_A` is
+  any fixed function that does not read $`H`. Thus GenSHAKE keeps the real SHAKE128, and GenAES
+  keeps AES.
 
-Let $`\delta` be $`2^{-138.7}`, $`2^{-199.6}` or $`2^{-252.5}` for sizes 640, 976 and 1344. {Informal.citet FrodoKEM}[] lists these values as the failure rates in Table 4 (§6.2). Then
+Let $`\delta` be $`2^{-138.7}`, $`2^{-199.6}` or $`2^{-252.5}` for sizes 640, 976 and 1344.
+{Informal.citet FrodoKEM}[] lists these values as the failure rates in Table 4 (§6.2).
 
-For one fixed table $`H`, let $`\mathrm{fail}(H)` be the failure probability of the KEM that uses $`H` in place of SHAKE. Here the probability is over the honest random choices only:
+For one fixed table $`H`, let $`\mathrm{fail}(H)` be the failure probability of the KEM that uses
+$`H` in place of SHAKE. Here the probability is over the honest random choices only:
 
 $$`\mathrm{fail}(H) \;=\; \Pr_{\substack{(\mathsf{pk},\mathsf{sk}) \gets \mathsf{KeyGen}^H(),\\ (c,K) \gets \mathsf{Encaps}^H(\mathsf{pk})}}\bigl[\mathsf{Decaps}^H(\mathsf{sk},c) \ne K\bigr].`
 
-Let $`\mathcal{H}` be the finite set of all tables. The theorem bounds the average of $`\mathrm{fail}(H)` over all tables:
+Let $`\mathcal{H}` be the finite set of all tables. Then the average of $`\mathrm{fail}(H)` over
+all tables is at most $`\delta`:
 
 $$`\frac{1}{|\mathcal{H}|} \sum_{H \in \mathcal{H}} \mathrm{fail}(H) \;\le\; \delta.`
 
-The theorem does not bound $`\mathrm{fail}(H)` for one table. In Lean, `ROM.honestFailureProb` is this average. It samples $`H` uniformly, and then runs key generation and encapsulation.
+The theorem does not bound $`\mathrm{fail}(H)` for one table. In Lean, `ROM.honestFailureProb` is
+this average. It samples $`H` uniformly, and then runs key generation and encapsulation.
 
 :::leanPillCaption "The failure probability in the random-oracle model"
 :::
@@ -293,7 +302,9 @@ noncomputable def honestFailureProb
   ]
 ```
 
-Lean states the bound as $`p^{10} \cdot 2^{10e} \le 1`, where $`p` is the failure probability and $`2^{-e} = \delta`. That is, $`p \le 2^{-e}`. The tenth power turns the exponent $`e`, such as $`138.7`, into a whole number.
+Lean states the bound as $`p^{10} \cdot 2^{10e} \le 1`, where $`p` is the failure probability and
+$`2^{-e} = \delta`. That is, $`p \le 2^{-e}`. The tenth power is used because $`10e`, such as
+$`1387`, is a whole number.
 
 :::leanPillCaption "Failure bound in the random-oracle model"
 :::
@@ -307,13 +318,23 @@ theorem honestFailureProb_tenth_power_le
 
 *Not covered.*
 
-- Concrete SHAKE. The random-oracle model is a heuristic, and the result is an average over all tables, not a bound for one function.
-- Many encapsulations to one key. The theorem is about one key pair and one encapsulation. This includes the limit of eFrodoKEM to fewer than 256 ciphertexts per public key ({Informal.citet LBES26}[], §8).
-- The correctness term $`q_{RO} \cdot \delta(n_u)` in the IND-CCA bound ({Informal.citet FrodoKEM}[], Theorem 1). There, δ-correctness follows Definition 6 of {Informal.citet FrodoKEM}[], and an adversary with $`q_{RO}` oracle queries can look for messages that fail. This theorem bounds only honest runs.
+- Concrete SHAKE. The random-oracle model is a heuristic, and the result is an average over all
+  tables, not a bound for one function.
+- Many encapsulations to one key. The theorem is about one key pair and one encapsulation. So it
+  says nothing about the limit of eFrodoKEM to fewer than 256 ciphertexts per public key
+  ({Informal.citet LBES26}[], §8).
+- The correctness term $`q_{RO} \cdot \delta(n_u)` in the IND-CCA bound
+  ({Informal.citet FrodoKEM}[], Theorem 1). There, $`\delta(n_u)`-correctness is Definition 8 of
+  {Informal.citet FrodoKEM}[], and an adversary with $`q_{RO}` oracle queries can look for messages
+  that fail. This theorem bounds only honest runs.
 
-*Proof.* The file `ToVCVio/LatticeCrypto/FrodoKEM/Correctness.lean` gives each step in detail.
+*Proof.* Each step below is a Lean theorem. The file
+`ToVCVio/LatticeCrypto/FrodoKEM/Correctness.lean` restates all six with `recall`.
 
-1. If the noise is less than half the distance between encoded values, decoding returns the message. {Informal.citet FrodoKEM}[] proves this for one entry (§4.1, Lemma 1), and the Lean theorem applies it to each entry of the matrix.
+1. Let $`q` be the modulus and $`B` the number of bits per entry. If each noise entry $`e`
+   satisfies $`-q \le 2^{B+1} e < q`, decoding returns the message. {Informal.citet FrodoKEM}[]
+   proves this for one entry (§4.1, Lemma 1), and the Lean theorem applies it to each entry of the
+   matrix.
 
 :::leanPillCaption "Step 1: decoding tolerates small noise"
 :::
@@ -326,7 +347,8 @@ theorem Decode_Encode_add (p : Params) (hw : p.WellFormed)
     Decode p (Encode p b + E) = b
 ```
 
-2. For each fixed function in place of SHAKE, decapsulation fails only if the noise matrix $`S'E + E'' - E'S` is large.
+2. For each fixed function in place of SHAKE, decapsulation fails only if the noise matrix
+   $`S'E + E'' - E'S` is large.
 
 :::leanPillCaption "Step 2: failure implies large noise"
 :::
@@ -337,7 +359,8 @@ theorem honestFailureProb_le_honestNoiseBadProb
     honestFailureProb ops ≤ honestNoiseBadProb ops
 ```
 
-3. The probability of large noise, averaged over all tables, is equal to the probability of large noise when the five noise matrices are independent samples.
+3. The probability of large noise, averaged over all tables, is equal to the probability of large
+   noise when the five error matrices are independent samples.
 
 :::leanPillCaption "Step 3: the table gives independent noise"
 :::
@@ -348,7 +371,9 @@ theorem honestNoiseBadProb_eq_indepNoise
     honestNoiseBadProb ps gen = IndepNoise.noiseBadProb ps
 ```
 
-4. The union bound over the $`8 \times 8` entries gives at most 64 times the probability for one entry.
+4. The noise matrix is reduced mod $`q`. It is large only if some entry, as an integer, lies outside
+   the decoding interval. The union bound over the $`8 \times 8` entries gives at most 64 times the
+   probability of this for one entry.
 
 :::leanPillCaption "Step 4: union bound"
 :::
@@ -358,7 +383,10 @@ theorem noiseBadProb_le (ps : ParameterSet) :
     noiseBadProb ps ≤ 64 * entryFailureProb ps
 ```
 
-5. The distribution of one entry is the $`2n`-fold convolution of the distribution of a product of two errors, convolved once more with $`\chi`.
+5. Let $`\chi` be the error distribution. One integer entry is a sum of $`2n` products of two
+   samples of $`\chi`, plus one more sample. Since $`\chi` is symmetric, the minus sign in the noise
+   matrix does not change the distribution. The convolution of distributions gives the distribution
+   of a sum of independent samples.
 
 :::leanPillCaption "Step 5: the distribution of one entry"
 :::
@@ -375,7 +403,8 @@ theorem probOutput_entryNoiseExp (ps : ParameterSet) (z : ℤ) :
         (2 ^ lenChi) ^ (4 * ps.params.n + 1)
 ```
 
-6. The Lean kernel bounds this distribution with whole-number arithmetic.
+6. The Lean kernel computes whole-number bounds on this distribution. With step 4, they bound the
+   probability of large noise by `failureBound`.
 
 :::leanPillCaption "Step 6: the checked bound"
 :::

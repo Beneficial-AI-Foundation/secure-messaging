@@ -6,7 +6,11 @@ Authors: Beneficial AI Foundation
 
 import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.ClosedForm
 
-/-! # Kernel-checked failure certificate for FrodoKEM-640 -/
+/-!
+# Kernel-checked failure certificate for FrodoKEM-640
+
+The certificate also covers eFrodoKEM-640, which has the same parameters.
+-/
 
 namespace FrodoKEM.Certificate
 

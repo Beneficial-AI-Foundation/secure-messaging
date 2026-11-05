@@ -190,6 +190,7 @@ private noncomputable def measurePackHom (R : ℕ) (lo : ℤ) : IntMeasure →+ 
   map_zero' := Finsupp.sum_zero_index
   map_add' _ _ := Finsupp.sum_add_index' (fun _ => zero_mul _) fun _ _ _ => add_mul _ _ _
 
+/-- Packing a point mass `m` at `v` gives `m * R ^ (v - lo)`. -/
 theorem measurePack_single (R : ℕ) (lo v : ℤ) (m : ℕ) :
     measurePack R lo (AddMonoidAlgebra.single v m) = m * R ^ (v - lo).toNat :=
   Finsupp.sum_single_index (zero_mul _)
@@ -322,6 +323,7 @@ theorem measurePack_digit {R : ℕ} {F : IntMeasure} {lo : ℤ} {n : ℕ}
 noncomputable def seqMeasure (q : ℕ) (f : ℕ → ℕ) : IntMeasure :=
   ∑ t ∈ Finset.range q, AddMonoidAlgebra.single ((t : ℕ) : ℤ) (f t)
 
+/-- For `t < q`, the measure `seqMeasure q f` has mass `f t` at `t`. -/
 theorem seqMeasure_apply {q t : ℕ} (f : ℕ → ℕ) (ht : t < q) :
     seqMeasure q f ((t : ℕ) : ℤ) = f t := by
   rw [seqMeasure, AddMonoidAlgebra.coeff_sum]
@@ -335,6 +337,7 @@ theorem seqMeasure_apply {q t : ℕ} (f : ℕ → ℕ) (ht : t < q) :
   rw [Finset.sum_congr rfl hcong, Finset.sum_ite_eq' (Finset.range q) t fun x => f x,
     ite_eq_left (Finset.mem_range.mpr ht)]
 
+/-- The mass of `seqMeasure q f` lies in `[0, q - 1]`. -/
 theorem measureWindow_seqMeasure (q : ℕ) (f : ℕ → ℕ) :
     MeasureWindow (seqMeasure q f) 0 ((q : ℤ) - 1) := by
   intro v hv
@@ -351,12 +354,14 @@ theorem measureWindow_seqMeasure (q : ℕ) (f : ℕ → ℕ) :
   subst hvt
   omega
 
+/-- The total mass of `seqMeasure q f` is `∑ t < q, f t`. -/
 theorem totalMass_seqMeasure (q : ℕ) (f : ℕ → ℕ) :
     totalMass (seqMeasure q f) = ∑ t ∈ Finset.range q, f t := by
   rw [seqMeasure]
   refine (map_sum totalMassHom _ _).trans ?_
   exact Finset.sum_congr rfl fun t _ => totalMass_single _ _
 
+/-- Packing `seqMeasure q f` from `0` gives `∑ t < q, f t * R ^ t`. -/
 theorem measurePack_seqMeasure (R q : ℕ) (f : ℕ → ℕ) :
     measurePack R 0 (seqMeasure q f) = ∑ t ∈ Finset.range q, f t * R ^ t := by
   rw [seqMeasure]

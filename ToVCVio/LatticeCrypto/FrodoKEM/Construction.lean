@@ -164,8 +164,8 @@ This module defines the PKE and KEM algorithms using caller-supplied Gen and SHA
 functions. Input lengths and matrix dimensions are specified by the Lean types.
 Concrete primitive implementations, byte parsing,
 signed secret-key serialization, constant-time execution and cryptographic security
-proofs are outside the present formalization. `FrodoKEM/Correctness.lean` proves
-decryption-failure bounds in a model where SHAKE is a random oracle.
+proofs are outside the present formalization. `FrodoKEM/Correctness.lean` bounds
+the decapsulation failure probability, averaged over a random table that replaces SHAKE.
 The types of the supplied functions do not ensure that they implement the specified
 Gen and SHAKE algorithms or satisfy the assumptions needed for security proofs.
 

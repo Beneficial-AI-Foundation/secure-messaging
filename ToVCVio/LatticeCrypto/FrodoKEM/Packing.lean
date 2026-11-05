@@ -15,7 +15,7 @@ public import Mathlib.Data.Matrix.Basic
 # FrodoKEM matrix packing
 
 `Frodo.Pack` and `Frodo.Unpack`, Algorithms 11 and 12 of `[CiC25]`, which are
-the loop of Section 6.4 of `[LBES26]`. References are listed in `Construction.lean`.
+the loop of Section 6.4 of `[LBES26]`.
 
 Both documents give the same layout: each entry of an `r`-by-`c` matrix is
 written as its `D` binary digits, most significant first, and the entries are

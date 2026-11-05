@@ -12,8 +12,15 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.Frodo1344
 # Numerical correctness bounds for independently sampled FrodoKEM errors
 
 This file turns the three certificates into failure bounds for FrodoPKE with independently
-sampled errors. The comparison raises both sides to the tenth power. Thus a published exponent
-such as `138.7` becomes a comparison of whole numbers. This file makes no claim about SHAKE.
+sampled errors. The comparison raises both sides to the tenth power. Thus an exponent `e` of
+Table 4 of `[CiC25]`, such as `138.7`, gives a comparison of whole numbers, since `10 * e` is
+whole. This file makes no claim about SHAKE.
+
+## References
+
+* `[CiC25]`, Glabush, Longa, Naehrig, Peikert, Stebila and Virdia, *FrodoKEM: A
+  CCA-Secure Learning With Errors Key Encapsulation Mechanism*, IACR
+  Communications in Cryptology 2:3, <https://cic.iacr.org/p/2/3/25>.
 -/
 
 namespace FrodoKEM.Certificate
@@ -23,8 +30,8 @@ open scoped ENNReal
 
 set_option maxRecDepth 8192 in
 set_option exponentiation.threshold 4096 in
-/-- For each family, the bound meets the published exponent. The comparison raises both sides to
-the tenth power. -/
+/-- For each size, the bound meets the exponent of Table 4 of `[CiC25]`. The comparison raises
+both sides to the tenth power. -/
 theorem numerator_tenth_power_le (ps : ParameterSet) :
     numerator ps ^ 10 * 2 ^ exponentTenths ps ≤
       2 ^ (10 * (precision ps + lenChi)) := by
@@ -104,14 +111,16 @@ theorem noiseBadProb_le_failureBound (ps : ParameterSet) :
       mul_le_mul' le_rfl hentry
     _ = failureBound ps := matrixBound_eq ps
 
-/-- With independent errors, PKE decryption meets the checked rational bound for every message. -/
+/-- With independent errors, the PKE failure probability is at most `failureBound`, for every
+message. -/
 theorem pkeFailureProb_le_failureBound (ps : ParameterSet)
     (A : FrodoMatrix ps.params ps.params.n ps.params.n)
     (message : MessageBits ps) :
     IndepNoise.pkeFailureProb ps A message ≤ failureBound ps :=
   (IndepNoise.pkeFailureProb_le_noiseBadProb ps A message).trans (noiseBadProb_le_failureBound ps)
 
-/-- With independent errors, PKE decryption meets all three exact fractional-bit targets. -/
+/-- With independent errors, the PKE failure probability `p` satisfies
+`p ^ 10 * 2 ^ exponentTenths ps ≤ 1`, that is, `p ≤ 2 ^ (-exponentTenths ps / 10)`. -/
 theorem pkeFailureProb_tenth_power_le (ps : ParameterSet)
     (A : FrodoMatrix ps.params ps.params.n ps.params.n)
     (message : MessageBits ps) :
