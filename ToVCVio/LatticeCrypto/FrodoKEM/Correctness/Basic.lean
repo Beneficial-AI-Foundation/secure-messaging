@@ -170,14 +170,11 @@ It is stated here cleared of that denominator because `q : ℕ`, so the division
 would be natural. At `B = D` the rational window is `-1/2 ≤ e < 1/2`, admitting
 `e = 0` alone, where `q / 2 ^ (B + 1)` in `ℕ` truncates to zero and gives the
 empty `0 ≤ e < 0`, excluding the one error the lemma allows. -/
--- ANCHOR: frodoKEM_decode
 theorem dc_ec_add (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B))
     (e : ZMod p.q)
     (hlo : -(p.q : ℤ) ≤ 2 ^ (p.B + 1) * centeredRepr e)
     (hhi : 2 ^ (p.B + 1) * centeredRepr e < (p.q : ℤ)) :
-    dc p (ec p k + e) = k
--- ANCHOR_END: frodoKEM_decode
-    := by
+    dc p (ec p k + e) = k := by
   have hQ : p.q = 2 ^ p.D := hw.q_eq
   have : NeZero p.q := ⟨by rw [hQ]; positivity⟩
   have hq0 : (0 : ℤ) < (p.q : ℤ) := by rw [hQ]; positivity
@@ -273,11 +270,14 @@ theorem Decode_Encode (p : Params) (hw : p.WellFormed)
 
 /-- `Frodo.Decode` recovers the bit string from an encoding perturbed by an
 error matrix whose entries all lie in the window of `dc_ec_add`. -/
+-- ANCHOR: frodoKEM_decode
 theorem Decode_Encode_add (p : Params) (hw : p.WellFormed)
     (b : Vector Bool (mbar * nbar * p.B)) (E : FrodoMatrix p mbar nbar)
     (hlo : ∀ i j, -(p.q : ℤ) ≤ 2 ^ (p.B + 1) * centeredRepr (E i j))
     (hhi : ∀ i j, 2 ^ (p.B + 1) * centeredRepr (E i j) < (p.q : ℤ)) :
-    Decode p (Encode p b + E) = b := by
+    Decode p (Encode p b + E) = b
+-- ANCHOR_END: frodoKEM_decode
+    := by
   rw [Decode, Encode, DecodeChunks_EncodeChunks_add p hw _ E hlo hhi,
     chunkMatrixToBits_bitsToChunkMatrix]
 

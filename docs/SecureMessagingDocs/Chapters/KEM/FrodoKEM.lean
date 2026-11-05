@@ -313,17 +313,17 @@ theorem honestFailureProb_tenth_power_le
 
 *Proof.* The file `ToVCVio/LatticeCrypto/FrodoKEM/Correctness.lean` gives each step in detail.
 
-1. If the noise is less than half the distance between encoded values, decoding returns the message ({Informal.citet FrodoKEM}[], §4.1, Lemma 1).
+1. If the noise is less than half the distance between encoded values, decoding returns the message. {Informal.citet FrodoKEM}[] proves this for one entry (§4.1, Lemma 1), and the Lean theorem applies it to each entry of the matrix.
 
 :::leanPillCaption "Step 1: decoding tolerates small noise"
 :::
 
 ```anchor frodoKEM_decode (project := ".") (module := ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Basic)
-theorem dc_ec_add (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B))
-    (e : ZMod p.q)
-    (hlo : -(p.q : ℤ) ≤ 2 ^ (p.B + 1) * centeredRepr e)
-    (hhi : 2 ^ (p.B + 1) * centeredRepr e < (p.q : ℤ)) :
-    dc p (ec p k + e) = k
+theorem Decode_Encode_add (p : Params) (hw : p.WellFormed)
+    (b : Vector Bool (mbar * nbar * p.B)) (E : FrodoMatrix p mbar nbar)
+    (hlo : ∀ i j, -(p.q : ℤ) ≤ 2 ^ (p.B + 1) * centeredRepr (E i j))
+    (hhi : ∀ i j, 2 ^ (p.B + 1) * centeredRepr (E i j) < (p.q : ℤ)) :
+    Decode p (Encode p b + E) = b
 ```
 
 2. For each fixed function in place of SHAKE, decapsulation fails only if the noise matrix $`S'E + E'' - E'S` is large.
