@@ -19,23 +19,32 @@ Formalization of the FS-AEAD construction of:
   EUROCRYPT 2019, https://eprint.iacr.org/2018/1037.pdf
   — §4.2.2, Figure 6.
 
-The PRG `G` maps a seed to a new seed and an AEAD key. The sender A and the receiver B
-share a key `k`, which is a seed. Starting from `k`, both apply `G` again and again, so
-they derive the same chain `w₀ = k`, `(wⱼ, Kⱼ) ← G(wⱼ₋₁)` for `j ≥ 1`. Each step
-overwrites the seed. To send its `i`-th message `m` with associated data `a`, A encrypts
-`m` under `Kᵢ` with the AEAD associated data `(i, a)`, and sends `(i, e)`. B keeps its
-position `i_B` in the chain, its current seed `w_{i_B}`, and a dictionary `D` of
-the keys of the indices that it skipped and has not received yet.
+The PRG `G` maps a seed to a new seed and an AEAD key. A and B share a key `k = w₀` and
+derive the same chain `(wⱼ, Kⱼ) ← G(wⱼ₋₁)`. Each party keeps only its current seed. A
+sends its `j`-th message `mⱼ` with associated data `aⱼ` as `(j, eⱼ)`, where `eⱼ` is
+encrypted under `Kⱼ` with the AEAD associated data `(j, aⱼ)`. B keeps its position `i_B`
+in the chain, its current seed, and a dictionary `D` of the keys of the indices that it
+skipped and has not received yet. In the example below, message 3 arrives first:
 
-The construction does not use `ae.keygen`, because the PRG derives the AEAD keys. As in
-Figure 6, B accepts a forward jump of any length. libsignal rejects a counter more than
-`MAX_FORWARD_JUMPS = 25_000` ahead of the chain index, except in a session with oneself.
+```text
+A   w₀ ──G──▶ w₁ ──G──▶ w₂ ──G──▶ w₃        state (w₃, i_A = 3)
+         │         │         │
+         K₁        K₂        K₃             eⱼ ← Enc(Kⱼ, (j, aⱼ), mⱼ)
+         ┊         ┊         │
+      (1, e₁)   (2, e₂)   (3, e₃)           1 and 2 in transit
+                             │
+                             ▼              3 arrives first
+B        K₁        K₂        K₃             K₁ = D[1], K₂ = D[2]
+         │         │         │              K₃ decrypts (3, e₃)
+    w₀ ──G──▶ w₁ ──G──▶ w₂ ──G──▶ w₃        state (w₃, i_B = 3, D)
+```
 
 [NOTATION]
 - `W`: seed space of the PRG and key space of the FS-AEAD scheme.
 - `Kae`, `Cae`: AEAD key and ciphertext spaces. `AD`, `M`: associated data and message
   spaces.
 - `G` is `prg.gen : W → W × Kae`. `Enc` and `Dec` are `ae.encrypt` and `ae.decrypt`.
+  The construction does not use `ae.keygen`, because `G` derives the AEAD keys.
 - `w_A`, `i_A` and `w_B`, `i_B`, `D` are the fields of `SendState` and `RecvState`.
 
 [CORRECTIONS TO ACD19]
