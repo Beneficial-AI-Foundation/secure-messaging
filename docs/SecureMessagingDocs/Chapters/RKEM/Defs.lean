@@ -423,7 +423,7 @@ The FS-IND-CPA experiment for party $`\A` is shown below, next to the IND-CPA ex
 ::::::gameGrid
 :::::gameCell "\\mathsf{Exp}^{\\mathsf{FS\\text{-}IND\\text{-}CPA}\\text{-}\\A}(\\adv)" (kind := "compact")
 $`\begin{array}{l}
-b\sample\{0,1\},\;K_1\sample\mathcal{K} \\
+b\sample\{0,1\},\;K_1\sample\K \\
 (\ekA,\dkA)\sample\DRKG{A},\;(\ekh{B},\dkh{B})\sample\DRKGup{B} \\
 (\ct_\B,K_0,\dkh{A})\sample\REnc\text{-}\A(\ekh{B},\dkA) \\
 (\cdot,\ekh{A})\sample\RDec\text{-}\B(\dkh{B},\ct_\B,\ekA) \\
@@ -458,7 +458,7 @@ def securityExpA (rkem : RKEMScheme ProbComp Par EK DK CT K)
 
 :::::gameCell "\\mathsf{Exp}^{\\mathsf{IND\\text{-}CPA}\\text{-}\\A}(\\adv)" (kind := "compact")
 $`\begin{array}{l}
-b\sample\{0,1\},\;K_1\sample\mathcal{K} \\
+b\sample\{0,1\},\;K_1\sample\K \\
 (\ekA,\dkA)\sample\DRKG{A},\;(\ekh{B},\dkh{B})\sample\DRKGup{B} \\
 (\ct_\B,K_0,\dkh{A})\sample\REnc\text{-}\A(\ekh{B},\dkA) \\
 (\cdot,\ekh{A})\sample\RDec\text{-}\B(\dkh{B},\ct_\B,\ekA) \\

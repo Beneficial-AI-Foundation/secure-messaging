@@ -43,10 +43,10 @@ FS-AEAD from AEAD and PRG.
 Adapted from {Informal.citet ACD19}[], §4.2.2, Figure 6.
 
 Let $`\mathsf{AE} = (\mathsf{KeyGen}, \Enc, \Dec)` be an {bpref "aead"}[AEAD] scheme with key space
-$`\mathcal K`. Let $`\mathcal W` be a set, and let
-$`G : \mathcal W \to \mathcal W \times \mathcal K` be a {bpref "prg"}[PRG] with seed space
-$`\mathcal S = \mathcal W` and output space $`\mathcal R = \mathcal W \times \mathcal K`. The {bpref "fs_aead_scheme"}[FS-AEAD scheme] below has key space
-$`\mathcal W`. The construction does not call $`\mathsf{KeyGen}`, because $`G` derives the
+$`\K`. Let $`\W` be a set, and let
+$`G : \W \to \W \times \K` be a {bpref "prg"}[PRG] with seed space
+$`\mathcal S = \W` and output space $`\mathcal R = \W \times \K`. The {bpref "fs_aead_scheme"}[FS-AEAD scheme] below has key space
+$`\W`. The construction does not call $`\mathsf{KeyGen}`, because $`G` derives the
 keys. The state of each party consists of the variables set by its initialisation. When
 $`\mathsf{FS\text{-}Rcv}` raises $`\mathsf{error}`, B's state goes back to what it was before
 the call.

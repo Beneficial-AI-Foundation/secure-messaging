@@ -48,10 +48,10 @@ Encrypt-then-MAC.
 
 :::::::definition "aead_etm_det_se" (parent := "aead_encrypt_then_mac") (lean := "DetSymmEncAlg, DetSymmEncAlg.PerfectlyCorrect")
 A deterministic symmetric encryption scheme $`\mathsf{SE}` is a tuple of algorithms
-$`(\KeyGen, \Enc, \Dec)` with key space $`\mathcal K`,
-message space $`\mathcal M` and ciphertext space $`\mathcal C`, where
+$`(\KeyGen, \Enc, \Dec)` with key space $`\K`,
+message space $`\mathcal M` and ciphertext space $`\C`, where
 
-- $`\KeyGen` samples a key $`K \in \mathcal K`,
+- $`\KeyGen` samples a key $`K \in \K`,
 - $`\Enc` takes a key $`K` and a message $`m`, and produces a ciphertext
   $`c \gets \Enc(K, m)`,
 - $`\Dec` takes a key $`K` and a ciphertext $`c`, and produces a message
@@ -67,8 +67,8 @@ $`\Dec(K, \Enc(K, m)) = m` for all keys $`K` and messages $`m`.
 :::::::definition "aead_etm_det_se_ots" (parent := "aead_encrypt_then_mac") (lean := "DetSymmEncAlg.oracleEncrypt, DetSymmEncAlg.securityExpFixedBit, DetSymmEncAlg.distAdvantage") (uses := "aead_etm_det_se")
 One-time secrecy ({Informal.citet Ros26}[], Definition 5.3.2), with the key drawn by
 $`\KeyGen` instead of uniformly from the key space, and the random ciphertext uniform on
-$`\mathcal C(|m|)`, as in {Informal.citet Ros26}[], Definition 8.1.1. In Ros26,
-$`\mathcal C(\ell)` is the set of possible ciphertexts for messages of length $`\ell`. In our
+$`\C(|m|)`, as in {Informal.citet Ros26}[], Definition 8.1.1. In Ros26,
+$`\C(\ell)` is the set of possible ciphertexts for messages of length $`\ell`. In our
 formalization, it is the set of all ciphertexts of length $`\mathit{clen}(\ell)`, defined below.
 
 ::::::gameGrid
@@ -76,15 +76,15 @@ formalization, it is the set of all ciphertexts of length $`\mathit{clen}(\ell)`
 There is one experiment $`\Exp{\textsf{ots}\text{-}b}{\textsf{SE}}` for each bit
 $`b \in \bit`. Each call to $`\Oenc` samples a fresh key $`K`. For $`b = 0`, $`\Oenc`
 encrypts the message under $`K`. For $`b = 1`, it returns a uniformly random ciphertext in
-$`\mathcal C(|m|)`. The adversary can call $`\Oenc` any number of times.
+$`\C(|m|)`. The adversary can call $`\Oenc` any number of times.
 
 We write $`|x|` for the length of a message or ciphertext $`x`, in a unit fixed by the
 scheme: bits, bytes or blocks. The game has a parameter
 $`\mathit{clen} : \mathbb N \to \mathbb N`, which can be any function from message lengths to
 ciphertext lengths. For a message length $`\ell`, let
-$`\mathcal C(\ell) = \{c \in \mathcal C : |c| = \mathit{clen}(\ell)\},` the set of all
+$`\C(\ell) = \{c \in \C : |c| = \mathit{clen}(\ell)\},` the set of all
 ciphertexts of length $`\mathit{clen}(\ell)`. If all ciphertexts have the same length,
-$`\mathcal C(\ell) = \mathcal C.`
+$`\C(\ell) = \C.`
 :::::
 ::::::
 
@@ -95,7 +95,7 @@ K \gets \KeyGen; \\
 \pif\;b = 0\;\pthen \\
 \quad c \gets \Enc(K, m); \\
 \pelse \\
-\quad c \sample \mathcal C(|m|); \\
+\quad c \sample \C(|m|); \\
 \Return c
 \end{array}`
 
@@ -149,7 +149,7 @@ noncomputable def distAdvantage [LenSampleable C] (se : DetSymmEncAlg M K C) (le
 :::::gameCell "\\textsf{Example: one-time pad}" (kind := "scheme-notation")
 Let $`n \ge 1`. The one-time pad $`\mathsf{OTP}_n` ({Informal.citet Ros26}[],
 Construction 1.2.1) is the deterministic symmetric encryption scheme with
-$`\mathcal K = \mathcal M = \mathcal C = \{0,1\}^n`, where
+$`\K = \mathcal M = \C = \{0,1\}^n`, where
 
 - $`\KeyGen` samples $`K \sample \{0,1\}^n`,
 - $`\Enc(K, m) = K \oplus m`,
@@ -175,12 +175,12 @@ Let $`\mathsf{AES}_k` be AES-256 under the key $`k \in \{0,1\}^{256}`, a permuta
 $`\{0,1\}^{128}`, and let $`\mathsf{Pad}` be PKCS#7 padding to a multiple of 16 bytes.
 AES-CBC is the deterministic symmetric encryption scheme with
 
-- $`\mathcal K = \{0,1\}^{256} \times \{0,1\}^{128}`,
+- $`\K = \{0,1\}^{256} \times \{0,1\}^{128}`,
 - $`\mathcal M` the byte strings,
-- $`\mathcal C = \bigcup_{\ell \ge 1} \{0,1\}^{128 \ell}`, where the length of a ciphertext is
+- $`\C = \bigcup_{\ell \ge 1} \{0,1\}^{128 \ell}`, where the length of a ciphertext is
   its number of bits,
 
-where $`\KeyGen` samples $`(k, \mathit{iv}) \sample \mathcal K`, and
+where $`\KeyGen` samples $`(k, \mathit{iv}) \sample \K`, and
 
 $$`\begin{array}{l}
 \underline{\Enc((k, \mathit{iv}), m)} \\

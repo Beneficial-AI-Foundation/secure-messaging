@@ -333,7 +333,7 @@ $`\begin{array}{l}
 t_\mathsf{A}\gets t_\mathsf{A}+1; \\
 \req\;\mathsf{chall}{=}\mathsf{A}\wedge t_\mathsf{A}=t^*; \\
 (K_\mathsf{A},\rho_\mathsf{A},\stA) \sample \SendA(\stA); \\
-\mathsf{if}\;b\;\mathsf{then}\;K \sample \mathcal K\;\mathsf{else}\;K \gets K_\mathsf{A}; \\
+\mathsf{if}\;b\;\mathsf{then}\;K \sample \K\;\mathsf{else}\;K \gets K_\mathsf{A}; \\
 \Return(\rho_\mathsf{A},K)
 \end{array}`
 
@@ -370,7 +370,7 @@ $`\begin{array}{l}
 t_\mathsf{B}\gets t_\mathsf{B}+1; \\
 \req\;\mathsf{chall}{=}\mathsf{B}\wedge t_\mathsf{B}=t^*; \\
 (K_\mathsf{B},\rho_\mathsf{B},\stB) \sample \SendB(\stB); \\
-\mathsf{if}\;b\;\mathsf{then}\;K \sample \mathcal K\;\mathsf{else}\;K \gets K_\mathsf{B}; \\
+\mathsf{if}\;b\;\mathsf{then}\;K \sample \K\;\mathsf{else}\;K \gets K_\mathsf{B}; \\
 \Return(\rho_\mathsf{B},K)
 \end{array}`
 
