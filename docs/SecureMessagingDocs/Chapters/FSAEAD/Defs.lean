@@ -364,7 +364,7 @@ does not set $`\mathsf{win}`.
 :::::gameCell "\\Exp{\\textsf{fs-aead}}{\\textsf{FS-AEAD}}(\\adv)" (kind := "game")
 $`\begin{array}{l}
 \pcommentline{\text{Initialize both parties with a shared key}} \\
-k \sample \mathcal K;\quad v_\A \gets \mathsf{FS\text{-}Init\text{-}S}(k);\quad v_\B \gets \mathsf{FS\text{-}Init\text{-}R}(k); \\
+k \sample \K;\quad v_\A \gets \mathsf{FS\text{-}Init\text{-}S}(k);\quad v_\B \gets \mathsf{FS\text{-}Init\text{-}R}(k); \\
 \pcommentline{\text{Initialize the game state}} \\
 i_\A \gets 0;\quad \mathsf{corrA} \gets \mathsf{false};\quad \mathsf{win} \gets \mathsf{false};\quad \mathsf{end} \gets \mathsf{false}; \\
 \mathsf{trans}, \mathsf{chall}, \mathsf{comp} \gets \emptyset; \\

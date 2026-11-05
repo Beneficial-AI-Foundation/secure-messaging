@@ -39,8 +39,8 @@ Pseudorandom permutation (PRP).
 :::
 
 :::::::definition "prp" (parent := "prp") (lean := "BlockCipher, PRPScheme, PRPScheme.prpAdvantage") (tags := "gh-240")
-A block cipher on a key space $`\mathcal K` and a block space $`\mathcal X` is a pair of
-maps $`\mathsf{perm}, \mathsf{perm}^{-1} : \mathcal K \times \mathcal X \to \mathcal X`
+A block cipher on a key space $`\K` and a block space $`\mathcal X` is a pair of
+maps $`\mathsf{perm}, \mathsf{perm}^{-1} : \K \times \mathcal X \to \mathcal X`
 with $`\mathsf{perm}^{-1}(k, \mathsf{perm}(k, x)) = x` and
 $`\mathsf{perm}(k, \mathsf{perm}^{-1}(k, x)) = x` for all $`k` and $`x`. A PRP scheme is a
 block cipher together with a key generation algorithm $`\mathsf{keygen}`. Its PRP

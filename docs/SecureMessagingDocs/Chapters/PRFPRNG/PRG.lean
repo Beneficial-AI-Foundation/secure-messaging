@@ -22,7 +22,7 @@ set_option pp.rawOnError true
 
 *References:*
 
-- {Informal.citet ACD19}[] — PRG security (Section 2); the PRG $`G : \mathcal W \to \mathcal W \times \mathcal K`
+- {Informal.citet ACD19}[] — PRG security (Section 2); the PRG $`G : \W \to \W \times \K`
   of the FS-AEAD construction (Section 4.2.2).
 
 :::group "prg"
