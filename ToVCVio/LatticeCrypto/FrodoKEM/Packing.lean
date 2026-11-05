@@ -10,7 +10,7 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Parameters
 # FrodoKEM matrix packing
 
 `Frodo.Pack` and `Frodo.Unpack`, Algorithms 11 and 12 of `[CiC25]`, which are
-the loop of Section 6.4 of `[LBES26]`. References are listed in `Construction.lean`.
+the loop of Section 6.4 of `[LBES26]`.
 
 Both documents give the same layout: each entry of an `r`-by-`c` matrix is
 written as its `D` binary digits, most significant first, and the entries are
@@ -48,6 +48,15 @@ at `D` bits per entry, which `Encoding.lean` uses at `B` bits instead.
 
 The Section 6.4 bit order and layout are fixed by the `example`s beside their
 definitions.
+
+## References
+
+* `[CiC25]`, Glabush, Longa, Naehrig, Peikert, Stebila and Virdia, *FrodoKEM: A
+  CCA-Secure Learning With Errors Key Encapsulation Mechanism*, IACR
+  Communications in Cryptology 2:3, <https://cic.iacr.org/p/2/3/25>;
+* `[LBES26]`, Longa, Bos, Ehlen and Stebila, *FrodoKEM: key encapsulation from
+  learning with errors*, draft-longa-cfrg-frodokem-03, 22 June 2026,
+  <https://datatracker.ietf.org/doc/html/draft-longa-cfrg-frodokem-03>.
 -/
 namespace FrodoKEM
 

@@ -160,8 +160,9 @@ These follow Algorithms 8–10 of `[CiC25]` and Sections 7.1–7.3 of `[LBES26]`
 This module defines the PKE and KEM algorithms using caller-supplied Gen and SHAKE
 functions. Input lengths and matrix dimensions are specified by the Lean types.
 Concrete primitive implementations, byte parsing,
-signed secret-key serialization, constant-time execution, decryption-failure bounds
-and cryptographic security proofs are outside the present formalization.
+signed secret-key serialization, constant-time execution and cryptographic security
+proofs are outside the present formalization. `FrodoKEM/Correctness.lean` bounds
+the decapsulation failure probability, averaged over a random table that replaces SHAKE.
 The types of the supplied functions do not ensure that they implement the specified
 Gen and SHAKE algorithms or satisfy the assumptions needed for security proofs.
 
@@ -169,8 +170,6 @@ Section 8 of `[LBES26]` requires fewer than 256 ciphertexts per ephemeral public
 This module does not enforce that usage restriction.
 
 ## References
-
-The FrodoKEM modules use the following references:
 
 * `[CiC25]`, Glabush, Longa, Naehrig, Peikert, Stebila and Virdia, *FrodoKEM: A
   CCA-Secure Learning With Errors Key Encapsulation Mechanism*, IACR
