@@ -67,6 +67,15 @@ The specification's `Frodo.Encode` and `Frodo.Decode` are
 * `getElem_chunkMatrixToBits`: bit `t` of entry `(i, j)` sits at position
   `(i * nbar + j) * B + t`, as a theorem. The bit order and layout it fixes are
   pinned by the `example`s beside the definitions.
+
+## References
+
+* `[CiC25]`, Glabush, Longa, Naehrig, Peikert, Stebila and Virdia, *FrodoKEM: A
+  CCA-Secure Learning With Errors Key Encapsulation Mechanism*, IACR
+  Communications in Cryptology 2:3, <https://cic.iacr.org/p/2/3/25>;
+* `[LBES26]`, Longa, Bos, Ehlen and Stebila, *FrodoKEM: key encapsulation from
+  learning with errors*, draft-longa-cfrg-frodokem-03, 22 June 2026,
+  <https://datatracker.ietf.org/doc/html/draft-longa-cfrg-frodokem-03>.
 -/
 
 namespace FrodoKEM
