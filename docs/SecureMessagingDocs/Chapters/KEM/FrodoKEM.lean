@@ -328,8 +328,7 @@ theorem honestFailureProb_tenth_power_le
   {Informal.citet FrodoKEM}[], and an adversary with $`q_{RO}` oracle queries can look for messages
   that fail. This theorem bounds only honest runs.
 
-*Proof.* Each step below is a Lean theorem. The file
-`ToVCVio/LatticeCrypto/FrodoKEM/Correctness.lean` restates all six with `recall`.
+*Proof.*
 
 1. Let $`q` be the modulus and $`B` the number of bits per entry. If each noise entry $`e`
    satisfies $`-q \le 2^{B+1} e < q`, decoding returns the message. {Informal.citet FrodoKEM}[]
