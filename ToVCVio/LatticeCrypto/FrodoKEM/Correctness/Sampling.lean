@@ -14,9 +14,9 @@ import VCVio.EvalDist.IndepProductMeasure
 /-!
 # FrodoKEM sampling laws
 
-This module proves the exact scalar probability mass function of FrodoKEM's error sampler and the
-joint law of its matrix sampler. The matrix theorem transports a uniform bit string through the
-block-packing equivalence, so it also covers matrices with a zero dimension.
+This module proves the exact probability of each value of FrodoKEM's error sampler, and the joint
+distribution of its matrix sampler. The matrix theorem cuts a uniform bit string into one block
+per entry. The proof also covers matrices with a zero dimension.
 -/
 
 namespace FrodoKEM
@@ -33,6 +33,7 @@ def noiseCount (ps : ParameterSet) (z : ℤ) : ℕ :=
     ps.errorProbNumerators[z.natAbs]'(Nat.lt_succ_of_le h)
   else 0
 
+/-- The error distribution is symmetric: `noiseCount` has the same value at `z` and at `-z`. -/
 theorem noiseCount_neg (ps : ParameterSet) (z : ℤ) :
     noiseCount ps (-z) = noiseCount ps z := by
   simp only [noiseCount, Int.natAbs_neg]
@@ -356,6 +357,7 @@ private theorem probSample_neg (ps : ParameterSet) (k : ℕ)
   rw [threshold_diff_eq_noiseCount ps k hk0 hkd]
   exact div_seedHalf_two _
 
+/-- A sampled error equals `z` with probability `noiseCount ps z / 2 ^ lenChi`. -/
 theorem probOutput_sampleError (ps : ParameterSet) (z : ℤ) :
     Pr{let x ← sampleError ps}[x = z] =
       (noiseCount ps z : ENNReal) / 2 ^ lenChi := by
@@ -411,6 +413,8 @@ private theorem sampleMatrix_uniform {α : Type} [SampleableType α] (rows cols 
   let : MeasurableSpace (Fin rows → Fin cols → α) := ⊤
   exact he.evalDist_eq
 
+/-- `SampleMatrix` on a uniform bit string has the same distribution as a matrix of independent
+samples of `sampleError`. -/
 theorem finiteLaw_SampleMatrix (ps : ParameterSet) (rows cols : ℕ) :
     finiteLaw
       (SampleMatrix ps.errorTable rows cols <$>

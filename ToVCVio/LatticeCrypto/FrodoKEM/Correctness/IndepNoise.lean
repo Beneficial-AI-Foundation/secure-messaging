@@ -45,7 +45,7 @@ def sampleNoise (ps : ParameterSet) : ProbComp (NoiseSamples ps) := do
     epp := SampleMatrix ps.errorTable mbar nbar repp
   }
 
-/-- Integer decryption residual `S′ E + E″ - E′ S` before reduction modulo `q`. -/
+/-- The noise matrix `S′ E + E″ - E′ S`, as integers, before reduction mod `q`. -/
 def residual {ps : ParameterSet} (t : NoiseSamples ps) :
     Matrix (Fin mbar) (Fin nbar) ℤ :=
   t.sp * t.e + t.epp - t.ep * t.st.transpose
@@ -76,14 +76,16 @@ def ciphertext {ps : ParameterSet}
 def threshold (ps : ParameterSet) : ℕ :=
   ps.params.noiseRadius
 
-/-- An integer residual entry lies outside the decoding interval `[-threshold, threshold)`. -/
+/-- An entry of the noise matrix, as an integer, lies outside the decoding interval
+`[-threshold, threshold)`. -/
 def entryBad (ps : ParameterSet) (z : ℤ) : Prop :=
   z < -(threshold ps : ℤ) ∨ (threshold ps : ℤ) ≤ z
 
 private instance (ps : ParameterSet) : DecidablePred (entryBad ps) :=
   fun z => inferInstanceAs (Decidable (z < -(threshold ps : ℤ) ∨ (threshold ps : ℤ) ≤ z))
 
-/-- Sample one integer residual entry as two independent product sums and one extra error. -/
+/-- Sample one entry of the noise matrix, as an integer: two sums of products of independent
+errors, and one more error. -/
 def entryNoiseExp (ps : ParameterSet) : ProbComp ℤ := do
   let s0 ← ProbComp.sampleIID ps.params.n (sampleError ps)
   let e0 ← ProbComp.sampleIID ps.params.n (sampleError ps)
@@ -92,11 +94,12 @@ def entryNoiseExp (ps : ParameterSet) : ProbComp ℤ := do
   let extra ← sampleError ps
   return (∑ k, s1 k * e0 k) - (∑ k, e1 k * s0 k) + extra
 
-/-- Probability that one integer residual entry lies outside its decoding interval. -/
+/-- Probability that one entry of the noise matrix, as an integer, lies outside the decoding
+interval. -/
 noncomputable def entryFailureProb (ps : ParameterSet) : ℝ≥0∞ :=
   Pr{let z ← entryNoiseExp ps}[entryBad ps z]
 
-/-- Probability that the modular residual violates the matrix noise bound. -/
+/-- Probability that the noise matrix, reduced mod `q`, fails `NoiseBound`. -/
 noncomputable def noiseBadProb (ps : ParameterSet) : ℝ≥0∞ :=
   Pr{let t ← sampleNoise ps}[
     ¬ NoiseBound ps.params
@@ -110,6 +113,7 @@ noncomputable def pkeFailureProb (ps : ParameterSet)
     PKE.decrypt (secretTranspose t) (ciphertext A message t) ≠ message]
 
 
+/-- In decryption, `c2 - c1 * S` is the encoded message plus the noise matrix, reduced mod `q`. -/
 theorem decryptionMatrix_eq {ps : ParameterSet}
     (A : FrodoMatrix ps.params ps.params.n ps.params.n)
     (message : MessageBits ps) (t : NoiseSamples ps) :
@@ -130,6 +134,7 @@ theorem decryptionMatrix_eq {ps : ParameterSet}
   rw [Matrix.mul_add, Matrix.add_mul, Matrix.mul_assoc]
   abel
 
+/-- If the noise matrix, reduced mod `q`, satisfies `NoiseBound`, decryption returns the message. -/
 theorem decrypt_eq_of_noiseBound {ps : ParameterSet}
     (A : FrodoMatrix ps.params ps.params.n ps.params.n)
     (message : MessageBits ps) (t : NoiseSamples ps)
@@ -164,6 +169,7 @@ private theorem noiseBound_of_good_entries (ps : ParameterSet) (t : NoiseSamples
   · intro i j; exact (centered_bound_of_not_entryBad ps _ (h i j)).2
 
 
+/-- Each entry of the noise matrix has the distribution of `entryNoiseExp`. -/
 theorem finiteLaw_residual_entry (ps : ParameterSet)
     (i : Fin mbar) (j : Fin nbar) :
     finiteLaw ((fun t => residual t i j) <$> sampleNoise ps) =
@@ -228,6 +234,9 @@ theorem finiteLaw_residual_entry (ps : ParameterSet)
   refine finiteLaw_bind_congr _ fun _ => ?_
   exact finiteLaw_bind_head hentry _
 
+/-- The union bound. The noise matrix, reduced mod `q`, fails `NoiseBound` with probability at most
+`64` times the probability that one entry, as an integer, lies outside
+`[-threshold, threshold)`. -/
 -- ANCHOR: frodoKEM_union
 theorem noiseBadProb_le (ps : ParameterSet) :
     noiseBadProb ps ≤ 64 * entryFailureProb ps
@@ -257,6 +266,8 @@ theorem noiseBadProb_le (ps : ParameterSet) :
   rw [hc] at h
   exact h
 
+/-- For each public matrix and message, the PKE failure probability is at most the probability of
+large noise. -/
 theorem pkeFailureProb_le_noiseBadProb (ps : ParameterSet)
     (A : FrodoMatrix ps.params ps.params.n ps.params.n)
     (message : MessageBits ps) :

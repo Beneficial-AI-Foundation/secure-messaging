@@ -71,7 +71,7 @@ def encryptionSamples {ps : ParameterSet} (ops : Operations ps)
     (fun x : ℤ => (x : ZMod p.q))
   (sp, (ep, epp))
 
-/-- The modular residual error remaining in the PKE decryption matrix. -/
+/-- The noise matrix, mod `q`, that remains in the PKE decryption matrix. -/
 def decryptionNoise {ps : ParameterSet} (ops : Operations ps)
     (keySeed encSeed : SeedSEBits ps) :
     FrodoMatrix ps.params mbar nbar :=
@@ -79,7 +79,7 @@ def decryptionNoise {ps : ParameterSet} (ops : Operations ps)
   let enc := encryptionSamples ops encSeed
   enc.1 * kg.2 + enc.2.2 - enc.2.1 * kg.1.transpose
 
-/-- The matrix decrypted by FrodoPKE is the encoded message plus its modular residual error. -/
+/-- The matrix decrypted by FrodoPKE is the encoded message plus the noise matrix. -/
 theorem decryptionMatrix_eq {ps : ParameterSet} (ops : Operations ps)
     (seedA : SeedABits) (keySeed encSeed : SeedSEBits ps)
     (message : MessageBits ps) :
@@ -93,7 +93,7 @@ theorem decryptionMatrix_eq {ps : ParameterSet} (ops : Operations ps)
   rw [Matrix.mul_add, Matrix.add_mul, Matrix.mul_assoc]
   abel
 
-/-- FrodoPKE decrypts an honestly generated ciphertext when its residual error is bounded. -/
+/-- FrodoPKE decrypts an honestly generated ciphertext when the noise matrix is small. -/
 theorem decrypt_encryptFromSeed_of_noiseBound
     {ps : ParameterSet} (ops : Operations ps)
     (seedA : SeedABits) (keySeed encSeed : SeedSEBits ps)
@@ -172,7 +172,7 @@ theorem encaps_eq {ps : ParameterSet} (ops : Operations ps)
         return encapsFromCoins ops pk message salt) := by
   rfl
 
-/-- Decapsulation agrees with deterministic honest encapsulation under the residual bound. -/
+/-- Decapsulation agrees with deterministic honest encapsulation when the noise matrix is small. -/
 theorem decaps_encapsFromCoins_of_noiseBound
     {ps : ParameterSet} (ops : Operations ps)
     (fallback : SharedSecretBits ps) (keySeed : SeedSEBits ps)

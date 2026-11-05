@@ -10,11 +10,11 @@ public import ToVCVio.Probability.MatrixSampling
 public import VCVio.OracleComp.Constructions.SampleableType.Measure
 
 /-!
-# Finite prefix-consistent extendable-output functions
+# Finite tables for extendable-output functions
 
-This file models a finite table of bounded extendable-output-function answers. Each table entry is
-one fixed-length bit vector, and shorter answers are prefixes of that vector. Inputs outside the
-declared finite collection of lengths receive an all-zero answer.
+This file models an extendable-output function, such as SHAKE, as a finite table. The table gives
+each allowed input a fixed string of `outBits` random bits. A request for `n` bits returns the
+first `n` of them. Inputs whose length is not in the allowed set get zeros.
 -/
 
 @[expose] public section

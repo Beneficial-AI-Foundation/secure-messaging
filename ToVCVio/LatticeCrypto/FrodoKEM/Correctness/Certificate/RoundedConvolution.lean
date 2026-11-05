@@ -190,6 +190,8 @@ private theorem totalMass_products (c : Config)
       2 ^ (2 * c.seedBits) := by
   rw [ToVCVio.totalMass_productMeasure, hmass, ← pow_two, ← pow_mul, Nat.mul_comm c.seedBits 2]
 
+/-- If the source counts have total mass `2 ^ seedBits`, then the rounded counts after `k` steps
+have total mass at most `2 ^ precision`. -/
 theorem totalMass_lowerCounts_le
     (c : Config) (hmass : ToVCVio.totalMass (counts c) = 2 ^ c.seedBits)
     (k : ℕ) :
@@ -523,6 +525,8 @@ private theorem measurePack_approxCounts
         ← extraPack_eq_measurePack']
 
 
+/-- The number `runN c k` packs `lowerCounts c k`: in base `radix c`, digit `v + window` is the
+count at `v`. -/
 theorem runN_eq_measurePack (c : Config)
     (hmass : ToVCVio.totalMass (counts c) = 2 ^ c.seedBits) (k : ℕ) :
     runN c k = ToVCVio.Radix.measurePack (radix c) (-(c.window : ℤ)) (lowerCounts c k) :=
@@ -557,6 +561,9 @@ private theorem lowerCounts_mul_domination
       rw [range_sum_eq_image_sum (-(c.window : ℤ)) _ (fun x => (P ^ k) x * G (z - x))]
       exact finsetSum_mul_apply_le _ _ _ _
 
+/-- The rounded counts are at most the exact ones. After `k` steps, `lowerCounts c k`, scaled by
+`(2 ^ (2 * seedBits)) ^ k`, is at most `2 ^ precision` times the `k`-fold convolution of the
+product counts. -/
 theorem lowerCounts_domination
     (c : Config) (k : ℕ) (z : ℤ) :
     (2 ^ (2 * c.seedBits)) ^ k * lowerCounts c k z ≤
@@ -662,6 +669,9 @@ private theorem weightedMass_eq_packExtract (c : Config) (w : ℤ → ℕ)
     (-(center c : ℤ)) (2 * center c + 1) w hwindow]
   simpa only [show 2 * center c + 1 - 1 = 2 * center c by omega] using hdot
 
+/-- Let the weight `w` be at most `1`. The first certificate value is the `w`-weighted sum of the
+rounded counts after the last convolution with `counts c`. The second is the mass that
+rounding and truncation lose. -/
 theorem certificateValues_eq (c : Config) (w : ℤ → ℕ)
     (hbits : 0 < c.seedBits)
     (hmass : ToVCVio.totalMass (counts c) = 2 ^ c.seedBits)
@@ -792,6 +802,10 @@ private theorem sum_union_support_weighted_right
   (Finset.sum_subset Finset.subset_union_right fun _ _ hz => by
     rw [Finsupp.notMem_support_iff.mp hz, zero_mul]).symm
 
+/-- The main bound of this file. Let `χ` have the distribution of a sum of `steps` products of two
+samples, plus one more sample, where each sample has counts `counts c`. Then the probability of
+`bad` is at most the first certificate value over `2 ^ (precision + seedBits)`, plus the second
+over `2 ^ precision`. -/
 theorem probEvent_le_certificate
     (c : Config) (χ : ProbComp ℤ)
     (bad : ℤ → Prop) [DecidablePred bad]

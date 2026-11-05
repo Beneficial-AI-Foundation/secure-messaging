@@ -16,7 +16,7 @@ public matrix is fixed independently of that table.
 namespace FrodoKEM.ROM
 open OracleComp LatticeCrypto
 
-/-- Deterministic public-matrix generator, fixed independently of the sampled oracle table. -/
+/-- Deterministic public-matrix generator, fixed and not reading the random table. -/
 abbrev Generator (ps : ParameterSet) :=
   SeedABits → FrodoMatrix ps.params ps.params.n ps.params.n
 
@@ -81,6 +81,8 @@ def InDomain (ps : ParameterSet) (role : QueryRole)
     | .encryptionNoise => x.take 8 = encryptionPrefix.toList
     | _ => True
 
+/-- No raw input lies in the domains of two different SHAKE uses. The uses differ in input length,
+and the two error expansions also differ in their 8-bit prefix. -/
 theorem domain_disjoint (ps : ParameterSet)
     {r s : QueryRole} (hrs : r ≠ s) (x : List Bool) :
     ¬ (InDomain ps r x ∧ InDomain ps s x) := by
@@ -88,16 +90,18 @@ theorem domain_disjoint (ps : ParameterSet)
     simp_all [InDomain, inputLength, keygenPrefix, encryptionPrefix,
       ParameterSet.params, lenZ, lenSeedA, nbar, mbar]
 
+/-- Each SHAKE use has an input length that the table covers, and asks for at most
+`outputBits ps` bits. -/
 theorem query_bounds (ps : ParameterSet) (role : QueryRole) :
     inputLength ps role ∈ inputLengths ps ∧
       outputLength ps role ≤ outputBits ps := by
   cases ps <;> cases role <;> decide
 
-/-- One raw-input oracle table with a common long response at every covered input. -/
+/-- The random table: one `outputBits`-bit answer for each covered raw input. -/
 abbrev Table (ps : ParameterSet) :=
   ToVCVio.FiniteXOF.Table (inputLengths ps) (outputBits ps)
 
-/-- Instantiate the deterministic operations with a fixed generator and finite oracle table. -/
+/-- The deterministic operations with a fixed generator and a fixed random table. -/
 def operations (ps : ParameterSet) (gen : Generator ps)
     (H : Table ps) : Operations ps :=
   { gen := gen
@@ -140,6 +144,8 @@ def samplesFromCoins (ps : ParameterSet) (gen : Generator ps)
     (ops.shake (encryptionPrefix.toList ++ encSeed.toList)
       (outputBits ps))
 
+/-- For fixed coins and table, the noise matrix of `samplesFromCoins`, reduced mod `q`, is the
+decryption noise of the honest KEM run. -/
 theorem samplesFromCoins_residual_eq
     (ps : ParameterSet) (gen : Generator ps) (H : Table ps)
     (fallback : SharedSecretBits ps) (keySeed : SeedSEBits ps)
@@ -159,6 +165,9 @@ theorem samplesFromCoins_residual_eq
     outputLength, outputBits, Matrix.mul_apply, Matrix.map_apply,
     Matrix.transpose_apply, Int.cast_sum, Int.cast_add, Int.cast_sub, Int.cast_mul]
 
+/-- Take two sets of operations with the same `gen`. If their SHAKE functions agree on every
+covered input length, for up to `outputBits ps` output bits, then the two honest failure
+probabilities are equal. -/
 theorem honestFailureProb_congr_of_bounded_agreement
     (ps : ParameterSet) (ops₁ ops₂ : Operations ps)
     (hgen : ops₁.gen = ops₂.gen)

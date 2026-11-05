@@ -11,9 +11,9 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Parameters
 
 `Frodo.Encode` and `Frodo.Decode`.
 
-References are listed in `Construction.lean`. The maps on bit strings are named
-in Section 3.3 and given in Appendix B of `[CiC25]`. `[LBES26]` gives the
-same maps as pseudocode in Section 6.3, with the chunking layout written out.
+The maps on bit strings are named in Section 3.3 and given in Appendix B of `[CiC25]`.
+`[LBES26]` gives the same maps as pseudocode in Section 6.3, with the chunking layout written
+out.
 
 ## Main definitions
 
@@ -102,12 +102,12 @@ functions. -/
 For well-formed parameters, this equals the message length `p.ell`. -/
 abbrev ChunkMatrix (p : Params) := Matrix (Fin mbar) (Fin nbar) (ZMod (2 ^ p.B))
 
-/-- The entrywise step of `Frodo.Encode` (Appendix B), on input already chunked
+/-- The entrywise step of `Frodo.Encode` (Appendix B of `[CiC25]`), on input already chunked
 into `B`-bit values: apply `ec` to every entry. -/
 def EncodeChunks (p : Params) (M : ChunkMatrix p) : FrodoMatrix p mbar nbar :=
   M.map (ec p)
 
-/-- The entrywise step of `Frodo.Decode` (Appendix B), returning the chunked
+/-- The entrywise step of `Frodo.Decode` (Appendix B of `[CiC25]`), returning the chunked
 form: apply `dc` to every entry. -/
 def DecodeChunks (p : Params) (C : FrodoMatrix p mbar nbar) : ChunkMatrix p :=
   C.map (dc p)

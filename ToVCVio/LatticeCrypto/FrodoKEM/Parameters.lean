@@ -15,8 +15,6 @@ public import Mathlib.Data.Matrix.Basic
 The cryptographic parameters of FrodoKEM, following Tables 1 and 2 of
 `[CiC25]`, which Section 9.1 of `[LBES26]` tabulates as well.
 
-References are listed in `Construction.lean`.
-
 The parameter overview and table are in `Construction.lean`. The published values
 are recorded in `ParameterSet.params`, with relations between them stated as theorems.
 

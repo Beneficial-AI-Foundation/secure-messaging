@@ -26,6 +26,8 @@ open OracleComp MeasureTheory
 noncomputable abbrev finiteLaw {α : Type} (mx : ProbComp α) :
     @Measure α ⊤ := @evalDist _ _ _ ⊤ mx
 
+/-- Two computations have the same `finiteLaw` exactly when they give each output with the same
+probability. -/
 theorem finiteLaw_ext_iff {α : Type} {mx my : ProbComp α} :
     finiteLaw mx = finiteLaw my ↔
       ∀ x, Pr{let y ← mx}[y = x] = Pr{let y ← my}[y = x] := by
@@ -36,12 +38,15 @@ theorem finiteLaw_ext_iff {α : Type} {mx my : ProbComp α} :
   · intro h
     exact (OracleComp.evalDistEq_of_forall_prEvent_eq_output h).evalDist_eq
 
+/-- If the two continuations have the same law for each first output, the two binds have the same
+law. -/
 theorem finiteLaw_bind_congr {α β : Type} (mx : ProbComp α)
     {ob₁ ob₂ : α → ProbComp β} (h : ∀ x, finiteLaw (ob₁ x) = finiteLaw (ob₂ x)) :
     finiteLaw (mx >>= ob₁) = finiteLaw (mx >>= ob₂) := by
   let : MeasurableSpace β := ⊤
   exact OracleComp.evalDist_bind_congr_of_support mx ob₁ ob₂ fun x _ => h x
 
+/-- Mapping a function over two computations with the same law gives the same law. -/
 theorem finiteLaw_map_congr {α β : Type} {mx my : ProbComp α}
     (h : finiteLaw mx = finiteLaw my) (f : α → β) :
     finiteLaw (f <$> mx) = finiteLaw (f <$> my) := by
