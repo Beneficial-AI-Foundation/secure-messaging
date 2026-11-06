@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromKEM.Security.PrefixInjectGap
-import ToVCVio.ProgramLogic.Relational.Basic
-import VCVio.ProgramLogic.Relational.FromUnary
+module
+
+public import SecureMessaging.CKA.FromKEM.Security.PrefixInjectGap
+public import ToVCVio.ProgramLogic.Relational.Basic
+public import VCVio.ProgramLogic.Relational.FromUnary
 
 /-!
 # CKA from KEM — Injected-Prefix Coupling: shared layer
@@ -20,6 +22,8 @@ never-pause lemmas past the challenge epoch.  The party-specific coupling
 relations and inductions build on this layer in `PrefixInjectCouplingA` and
 `PrefixInjectCouplingB`.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal KEMScheme
 open OracleComp.ProgramLogic.Relational

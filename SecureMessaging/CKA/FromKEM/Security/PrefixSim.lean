@@ -4,9 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromKEM.Security.HiddenStateSim
-import ToVCVio.ProgramLogic.Relational.Basic
-import VCVio.ProgramLogic.Relational.SimulateQ
+module
+
+public import SecureMessaging.CKA.FromKEM.Security.HiddenStateSim
+public import SecureMessaging.CKA.FromKEM.Security.ReductionBranch
 
 /-!
 # CKA from KEM — Prefix Simulation
@@ -22,6 +23,8 @@ real-key (`isRandom = false`) and random-key (`isRandom = true`) games match
 the reduction's challenge step fed the encapsulated key or an independent
 uniform key. `ChallengeBridge` repackages these as probability equalities.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal KEMScheme
 open OracleComp.ProgramLogic.Relational

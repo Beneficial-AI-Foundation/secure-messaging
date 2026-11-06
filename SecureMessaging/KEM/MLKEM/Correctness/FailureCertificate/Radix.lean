@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.MLKEM.Correctness.NoiseDistribution
+module
+
+public import SecureMessaging.KEM.MLKEM.Correctness.NoiseDistribution
 
 /-!
 # The radix-packing engine
@@ -73,6 +75,8 @@ pushforward that sums masses in one congruence class.  The extracted “middle
 coefficient” is the coefficient of `X^{q-1}` in the product with the reversed
 weight polynomial.
 -/
+
+@[expose] public section
 
 open ToVCVio LatticeCrypto
 open scoped ENNReal

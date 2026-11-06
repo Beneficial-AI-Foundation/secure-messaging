@@ -4,10 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
-import ToVCVio.OracleComp.SimSemantics.StateT.Stop
-import VCVio.OracleComp.SimSemantics.StateT.StateProjection
-import VCVio.ProgramLogic.Relational.SimulateQ
+module
+
+public import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
+public import VCVio.ProgramLogic.Relational.SimulateQ.Coupling
 
 /-!
 # Ideal hybrids
@@ -45,6 +45,8 @@ key.
   (`idealEpochHybrid_signed_gap_stop_eq`, stated for `e = i + 1`):
   `Pr[S_e^random = true] - Pr[S_e^real = true] = Pr[H_e = true] - Pr[H_{e-1} = true]`.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme
 

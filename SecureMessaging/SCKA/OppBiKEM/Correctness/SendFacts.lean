@@ -4,8 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Construction
-import SecureMessaging.SCKA.Defs
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Construction
 
 /-!
 # Opp-BiKEM-CKA — Facts about a single send
@@ -16,6 +17,8 @@ Support-level facts about `send`, used by the main-invariant proofs: the sending
 `send_provenance`), the key-acknowledgement guard on ciphertext messages
 (`send_ciphertextMessage_keyAck`), and the advance guard (`send_advance_guard`).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme
 

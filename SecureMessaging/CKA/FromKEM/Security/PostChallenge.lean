@@ -4,9 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
+module
 
-import SecureMessaging.CKA.FromKEM.Security.Basic
-import ToVCVio.Control.StateT
+public import SecureMessaging.CKA.FromKEM.Security.Basic
+public import ToVCVio.Control.StateT
 
 /-!
 # CKA from KEM — Post-Challenge Oracle
@@ -23,6 +24,8 @@ state machine (`PostChallengeState`, `postChallengeImpl`) and the challenge-step
 finisher (`finishChallengeStep`), which the later simulation lemmas build on. It
 does not yet prove the hidden-state simulation itself.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal KEMScheme
 

@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
-import VCVio.OracleComp.ProbComp
-import VCVio.EvalDist.Monad.Disagreement.Measure
+module
+
+public import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
+public import VCVio.EvalDist.Monad.Disagreement.Measure
+public import VCVio.EvalDist.Monad.Basic
 
 /-!
 # Identical until bad on invariant states
@@ -35,6 +37,8 @@ Then, if the initial state `s` of `L` and `R` satisfies `Inv s`,
 - `abs_prEvent_simulateQ_run_sub_le_bad_of_inv`: `|pL - pR| ≤ pBad` for the real values
   of these probabilities.
 -/
+
+@[expose] public section
 
 open OracleSpec ENNReal
 

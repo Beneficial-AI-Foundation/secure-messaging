@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Security.Defs
-import SecureMessaging.SCKA.OppBiKEM.Security.Proofs
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Security.Defs
+public import SecureMessaging.SCKA.OppBiKEM.Security.Proofs
 
 /-!
 # Opp-BiKEM — Security
@@ -72,6 +74,8 @@ it chooses target `1`.
 The theorems here delegate to the lemmas of the same name in the namespace `Proofs`, whose
 module docstring gives the proof structure. `Defs` collects checked restatements of the
 definitions underlying these security statements. -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme ENNReal
 

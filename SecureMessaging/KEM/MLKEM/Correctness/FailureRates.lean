@@ -7,7 +7,6 @@ Authors: Beneficial AI Foundation
 module
 
 public import LatticeCrypto.MLKEM.Params
-public import Mathlib.Analysis.SpecialFunctions.Pow.NNReal
 
 /-!
 # FIPS 203 decapsulation-failure rates

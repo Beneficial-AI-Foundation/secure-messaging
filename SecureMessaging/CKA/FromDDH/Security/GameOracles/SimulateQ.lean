@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromDDH.Security.GameOracles.PerQuery
-import ToVCVio.ProgramLogic.Relational.SimulateQ
+module
+
+public import SecureMessaging.CKA.FromDDH.Security.GameOracles.PerQuery
+public import VCVio.ProgramLogic.Relational.SimulateQ.Coupling
 
 /-!
 # CKA from DDH — Game Oracles — simulateQ Wrappers and Marginalization
@@ -20,6 +22,8 @@ the special post-`challA` invariant preservation needed in the random branch,
 and per-event marginalization lemmas relating the parameterized honest oracles
 to the regular CKA security oracles.
 -/
+
+@[expose] public section
 
 open ToVCVio OracleSpec OracleComp ENNReal
 open OracleComp.ProgramLogic.Relational

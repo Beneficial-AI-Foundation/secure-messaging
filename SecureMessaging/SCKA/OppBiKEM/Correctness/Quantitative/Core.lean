@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.CorrectnessError
-import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant
+module
+
+public import SecureMessaging.KEM.CorrectnessError
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant
 
 /-!
 # Opp-BiKEM-CKA — KEM failure event and failure potential
@@ -29,6 +31,8 @@ On invariant states, each party's pending potential is at most one
 (`pendingPotential_le_one_of_inv`), and while `kemFailureAt` is false, decapsulating an
 unacknowledged epoch returns the transcript key (`decaps_of_noFailure`).
 -/
+
+@[expose] public section
 
 open OracleComp KEMScheme ENNReal
 

@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Security.Tracked
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Security.Tracked
 
 /-!
 # Opp-BiKEM — Failure probability under security queries
@@ -23,6 +25,8 @@ leaking send raises the expected score by at most `ε`, a leaking send through t
 coin-forgetting marginal of the ordinary send (`sendWith_rleak_forget`), and every other query
 leaves it unchanged (`trackedSecurity_score_step_le`).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme ENNReal
 open OracleComp.ProgramLogic

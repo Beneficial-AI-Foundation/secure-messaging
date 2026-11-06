@@ -3,8 +3,11 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import SecureMessaging.RKEM.FromDDHNonFS.Construction
-import SecureMessaging.RKEM.RatchetSimulatabilityHelper
+
+module
+
+public import SecureMessaging.RKEM.FromDDHNonFS.Construction
+public import SecureMessaging.RKEM.RatchetSimulatabilityHelper
 
 /-!
 # RKEM from DDH (non-forward-secure) — Ratchet Simulatability
@@ -59,6 +62,8 @@ The simulation is perfect as printed:
   *Triple Ratchet: A Bandwidth Efficient Hybrid-Secure Signal Protocol.*
   EUROCRYPT 2025, https://eprint.iacr.org/2025/078.pdf
 -/
+
+@[expose] public section
 
 open ToVCVio RKEMScheme
 

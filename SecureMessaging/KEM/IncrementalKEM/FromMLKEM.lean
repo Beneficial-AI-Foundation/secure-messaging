@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.IncrementalKEM.Derandomized
-import SecureMessaging.KEM.MLKEM.Construction
+module
+
+public import SecureMessaging.KEM.IncrementalKEM.Derandomized
+public import SecureMessaging.KEM.MLKEM.Construction
 
 /-!
 # Incremental ML-KEM
@@ -29,6 +31,8 @@ generation and first-stage encapsulation for security games.
 deterministic algorithms: key generation takes one 64-byte seed, whose first and last 32 bytes are
 `d` and `z`, and first-stage encapsulation takes one 32-byte message.
 -/
+
+@[expose] public section
 
 open OracleComp KEMScheme LatticeCrypto
 

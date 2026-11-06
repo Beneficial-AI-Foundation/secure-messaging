@@ -4,13 +4,16 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.FromGCM.Security.Games
-import SecureMessaging.AEAD.FromGCM.Security.Counter
-import SecureMessaging.AEAD.FromGCM.Security.CipherProfile
-import ToVCVio.OracleComp.Constructions.BitVec
-import ToVCVio.OracleComp.QueryTracking.RandomOracle.FreshQueries
-import VCVio.OracleComp.QueryTracking.Iter
-import VCVio.OracleComp.QueryTracking.SubSpec
+module
+
+public import SecureMessaging.AEAD.FromGCM.Security.Games
+public import SecureMessaging.AEAD.FromGCM.Security.Counter
+public import SecureMessaging.AEAD.FromGCM.Security.CipherProfile
+public import ToVCVio.OracleComp.Constructions.BitVec
+public import ToVCVio.OracleComp.QueryTracking.RandomOracle.FreshQueries
+public import VCVio.OracleComp.QueryTracking.Iter
+public import VCVio.OracleComp.QueryTracking.SubSpec
+public import ToVCVio.CryptoFoundations.PRF
 
 /-!
 # GCM: the PRF hop (`game0` → `game1`)
@@ -26,6 +29,8 @@ Main results:
 - `game0_game1_le_prf`: hence `|Pr[game1 = 1] − Pr[game0 = 1]|` is at most its PRF advantage.
 - `game1_eq_game2`: moving the tuple sample inside the oracles changes nothing.
 -/
+
+@[expose] public section
 
 namespace GCM
 

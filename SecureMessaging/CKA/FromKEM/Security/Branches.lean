@@ -4,10 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
+module
 
-import SecureMessaging.CKA.FromKEM.Security.ReductionBranch
-import ToVCVio.OracleComp.EvalDist
-import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
+public import SecureMessaging.CKA.FromKEM.Security.ReductionBranch
+public import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
 
 /-!
 # CKA from KEM — Branch and IND-CPA Bridge
@@ -28,6 +28,8 @@ IND-CPA game, following [ACD19, Section 4.1.2].
 This layer defines the branch experiments and their advantage bridges only. It
 does not prove the hidden-state simulation or the key-injection equivalences.
 -/
+
+@[expose] public section
 
 open ToVCVio OracleSpec OracleComp ENNReal KEMScheme
 

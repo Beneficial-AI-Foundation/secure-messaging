@@ -4,13 +4,15 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Security.Interface
-import SecureMessaging.SCKA.OppBiKEM.Security.Exposure
-import SecureMessaging.SCKA.OppBiKEM.Security.IdealReceive
-import SecureMessaging.SCKA.OppBiKEM.Security.Hybrid
-import SecureMessaging.SCKA.OppBiKEM.Security.Cancellation
-import SecureMessaging.SCKA.OppBiKEM.Security.Injected
-import SecureMessaging.SCKA.OppBiKEM.Security.Reduction
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Security.Interface
+public import SecureMessaging.SCKA.OppBiKEM.Security.Exposure
+public import SecureMessaging.SCKA.OppBiKEM.Security.IdealReceive
+public import SecureMessaging.SCKA.OppBiKEM.Security.Hybrid
+public import SecureMessaging.SCKA.OppBiKEM.Security.Cancellation
+public import SecureMessaging.SCKA.OppBiKEM.Security.Injected
+public import SecureMessaging.SCKA.OppBiKEM.Security.Reduction
 
 /-!
 # Opp-BiKEM — Checked security definitions
@@ -33,6 +35,8 @@ and its exposure predicate (`Construction`); receive recovery and the initial ga
 `SCKA.Security`); stopped runs (ToVCVio `Stop`); the KEM games, correctness error and leakage
 interface (VCVio and ToVCVio `KeyEncapMech`); and the erasure-code interface (`ErasureCode`).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme
 

@@ -4,9 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.FromGCM.Security.Games
-import ToVCVio.OracleComp.Constructions.BitVec
-import ToVCVio.ProgramLogic.Relational.Basic
+module
+
+public import SecureMessaging.AEAD.FromGCM.Security.Games
+public import ToVCVio.OracleComp.Constructions.BitVec
+public import ToVCVio.ProgramLogic.Relational.Basic
+public import VCVio.ProgramLogic.Relational.SimulateQ.Coupling
 
 /-!
 # GCM: the privacy hop (`game3` → `game4`)
@@ -18,6 +21,8 @@ masked by a fresh `mask`, and the pair is jointly uniform on `BitVec L × BitVec
 `evalDistEq_gcmChallenge_uniform`. The two games are therefore equidistributed, `game3_eq_game4`,
 proved by the per-query coupling `gcmPrivacy_step` under the state relation `gcmPrivacyRel`.
 -/
+
+@[expose] public section
 
 namespace GCM
 

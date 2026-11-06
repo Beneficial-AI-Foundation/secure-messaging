@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.ErasureCode.Payload
+module
+
+public import SecureMessaging.ErasureCode.Payload
 
 /-!
 # Stateful Erasure-Code Streaming
@@ -33,6 +35,8 @@ can model these.
 - [SparsePostQuantumRatchet encoder and decoder interfaces](https://github.com/signalapp/SparsePostQuantumRatchet/blob/fd320484dcec89004021e6fdc7481825f5f261fa/src/encoding.rs#L24-L47)
 - [SparsePostQuantumRatchet polynomial streaming implementation](https://github.com/signalapp/SparsePostQuantumRatchet/blob/fd320484dcec89004021e6fdc7481825f5f261fa/src/encoding/polynomial.rs#L751-L976)
 -/
+
+@[expose] public section
 
 namespace ErasureCodePayload.Streaming
 

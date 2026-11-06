@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import LatticeCrypto.Ring.Transform
+module
+
+public import LatticeCrypto.Ring.Transform
 
 /-!
 # Finite-vector and transpose identities for transform rings
@@ -36,6 +38,8 @@ commutative, and finite rearrangement yields the transpose-exchange identity
 This file proves these identities for every transform satisfying
 `TransformOps.Laws`.
 -/
+
+@[expose] public section
 
 universe u v
 

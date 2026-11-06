@@ -4,17 +4,19 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.MLKEM.Construction
-import SecureMessaging.KEM.MLKEM.Correctness.ConcreteEncoding
-import SecureMessaging.KEM.MLKEM.Correctness.FailureBounds
-import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate
-import SecureMessaging.KEM.MLKEM.Correctness.FailureRates
-import SecureMessaging.KEM.MLKEM.Correctness.FIPS203FailureExperiment
-import SecureMessaging.KEM.MLKEM.Correctness.Noise
-import SecureMessaging.KEM.MLKEM.Correctness.NoiseDistribution
-import SecureMessaging.KEM.MLKEM.Correctness.NoiseIdentity
-import SecureMessaging.KEM.MLKEM.Correctness.NoiseModel
-import SecureMessaging.KEM.MLKEM.Correctness.Reduction
+module
+
+public import SecureMessaging.KEM.MLKEM.Construction
+public import SecureMessaging.KEM.MLKEM.Correctness.ConcreteEncoding
+public import SecureMessaging.KEM.MLKEM.Correctness.FailureBounds
+public import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate
+public import SecureMessaging.KEM.MLKEM.Correctness.FailureRates
+public import SecureMessaging.KEM.MLKEM.Correctness.FIPS203FailureExperiment
+public import SecureMessaging.KEM.MLKEM.Correctness.Noise
+public import SecureMessaging.KEM.MLKEM.Correctness.NoiseDistribution
+public import SecureMessaging.KEM.MLKEM.Correctness.NoiseIdentity
+public import SecureMessaging.KEM.MLKEM.Correctness.NoiseModel
+public import SecureMessaging.KEM.MLKEM.Correctness.Reduction
 
 /-!
 # Conditional correctness bound for honest ML-KEM decapsulation
@@ -385,6 +387,8 @@ calculation.  Establishing (18) from a standard assumption about the concrete
 SHA-3/SHAKE primitives, or replacing it by the distinct MLWE reduction of
 Barbosa et al., would require another theorem.
 -/
+
+@[expose] public section
 
 open OracleComp KEMScheme ENNReal
 

@@ -4,8 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.SendStep
-import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.SendTotal
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.SendStep
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.SendTotal
+public import SecureMessaging.SCKA.Correctness.Tracked
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Init
 
 /-!
 # Opp-BiKEM-CKA — Reduction to KEM correctness
@@ -138,6 +142,8 @@ a final state with `correct = false` has `b_f = true`. Forgetting the flag recov
 ordinary run (`SCKAScheme.correctness_failure_le_of_tracked_bad`), so
 `Pr[G(Adv) = false] ≤ q · ε` (`correctness_failure_le` in `Correctness`).
 -/
+
+@[expose] public section
 
 open OracleComp KEMScheme ENNReal
 open OracleComp.ProgramLogic

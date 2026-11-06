@@ -3,7 +3,10 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import VCVio.CryptoFoundations.KeyEncapMech
+
+module
+
+public import VCVio.CryptoFoundations.KeyEncapMech
 
 /-!
 # KEM Deterministic Decapsulation, Randomness Leaks, and Quantitative Correctness
@@ -33,6 +36,8 @@ failed or nonterminating computation.  Consequently `ε = 0` is exactly
 mass below one.  On a total runtime every execution produces a Boolean output, so
 `ε = Pr[correctnessExperiment = false]`.
 -/
+
+@[expose] public section
 
 open ENNReal
 

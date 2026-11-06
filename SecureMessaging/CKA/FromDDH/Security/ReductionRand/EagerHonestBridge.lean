@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromDDH.Security.ReductionRand.RelStep
+module
+
+public import SecureMessaging.CKA.FromDDH.Security.GameOracles.Step
 
 /-!
 # CKA from DDH — Reduction (rand) — Eager-Honest Bridge
@@ -24,6 +26,8 @@ pointwise-equal passthrough cases. At the embedding send event, the external
 `b` is coupled with the internal challenge scalar, and `gT` with the internal
 random output key.
 -/
+
+@[expose] public section
 
 open ToVCVio OracleSpec OracleComp ENNReal
 open OracleComp.ProgramLogic.Relational

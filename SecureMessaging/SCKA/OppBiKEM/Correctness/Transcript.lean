@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Construction
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Construction
 
 /-!
 # Opp-BiKEM-CKA — Execution transcripts
@@ -29,6 +31,8 @@ retained material, the chunks in transit, each receiver's buffer and decoded val
 game key tables. KEM correctness enters the proof only through the support memberships
 recorded here.
 -/
+
+@[expose] public section
 open OracleComp KEMScheme
 
 namespace oppBiKemCKA

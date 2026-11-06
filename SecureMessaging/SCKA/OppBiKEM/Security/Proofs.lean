@@ -4,8 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Security.Simulation
-import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Security.Simulation
+public import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
+public import SecureMessaging.SCKA.OppBiKEM.Security.Reduction
 
 /-!
 # Opp-BiKEM — Security proofs
@@ -108,6 +111,8 @@ Supporting modules: `Interface` (oracle interface and send budget), `Exposure` (
 `SCKA.Security` (generic oracle facts), and ToVCVio (sampling, stopping, identical-until-bad).
 `Defs` collects checked restatements of the definitions underlying the public security results.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme ENNReal
 

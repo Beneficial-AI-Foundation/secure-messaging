@@ -6,10 +6,9 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import VCVio.OracleComp.Constructions.SampleableType
 public import VCVio.OracleComp.Constructions.SampleableType.Measure
-public import VCVio.EvalDist.Prod
 public import VCVio.OracleComp.EvalDist.Sum
+public import VCVio.EvalDist.Monad.Basic
 
 /-!
 # Uniqueness of the uniform law

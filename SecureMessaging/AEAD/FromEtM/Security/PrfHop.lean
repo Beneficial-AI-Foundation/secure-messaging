@@ -4,8 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.FromEtM.Security.Games
-import ToVCVio.CryptoFoundations.PRF
+module
+
+public import SecureMessaging.AEAD.FromEtM.Security.Games
+public import ToVCVio.CryptoFoundations.PRF
+public import SecureMessaging.AEAD.FromEtM.Construction
+public import ToVCVio.OracleComp.SimSemantics.StateT.MapStateTBase
 
 /-!
 # Encrypt-then-MAC — PRF hop (`game0` → `game1`)
@@ -13,6 +17,8 @@ import ToVCVio.CryptoFoundations.PRF
 Replace the PRF tag with a random oracle: `game0_game1_le_prf` bounds the gap by the PRF
 advantage of `prfReduction`.
 -/
+
+@[expose] public section
 
 namespace EtM
 

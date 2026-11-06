@@ -4,13 +4,17 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.FromEtM.Security.Auth.Forge
+module
+
+public import SecureMessaging.AEAD.FromEtM.Security.Auth.Forge
 
 /-!
 # Encrypt-then-MAC — auth hop (`game1` → `game2`)
 
 `game1_game2_le_auth`: the gap is bounded by `q_d / |T|` via the forge bound.
 -/
+
+@[expose] public section
 
 namespace EtM
 
@@ -21,7 +25,7 @@ variable {K_e K_m M AD C_e T : Type}
   [Inhabited C_e] [Inhabited T]
   [LenSampleable C_e] [SampleableType T]
 
-omit [Inhabited C_e] [LenSampleable C_e] in
+omit [Inhabited C_e] [Inhabited T] [LenSampleable C_e] in
 /-- Game 1 → 2: auth bound. Gap bounded by `q_d` times tag-guessing probability.
 
 NRS14 Appendix A.2, A5 Case 1: each decrypt query at a fresh random oracle

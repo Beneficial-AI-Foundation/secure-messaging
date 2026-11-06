@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.Oracles
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.Oracles
 
 /-!
 # Key prefixes in the Braid correctness game
@@ -15,6 +17,8 @@ receive either keeps it, or outputs the key of the next epoch and completes that
 exactly the epochs from `1` through its completed epoch. Every oracle of the correctness game
 preserves it.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 

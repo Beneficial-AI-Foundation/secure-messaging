@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Construction
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Basic
 
 /-!
 # The edges of the Braid state machine
@@ -21,6 +23,8 @@ Sends keep the epoch; receives keep it or increase it by one. From a positive ep
 that outputs the key of epoch `t` moves the completed epoch (`State.completedEpoch`) from `t - 1`
 to `t`, and every other transition keeps it.
 -/
+
+@[expose] public section
 
 open ErasureCodePayload.Streaming OracleComp
 

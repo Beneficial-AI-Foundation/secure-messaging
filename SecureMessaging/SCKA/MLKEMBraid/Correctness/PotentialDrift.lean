@@ -4,15 +4,19 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.Risk
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.SendInvariant
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.ReceiveInvariant
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.Risk
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.SendInvariant
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.ReceiveInvariant
 
 /-!
 # Drift of the failure potential
 
 Per-query bounds for `failurePotential`, used by `MLKEMBraid.correctness_error_le`.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 open OracleComp.ProgramLogic

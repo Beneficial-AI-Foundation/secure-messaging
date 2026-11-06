@@ -4,10 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.OnOffKEM.CorrectnessError
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction
-import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
-import ToVCVio.OracleComp.SimSemantics.StateT.BadFlag
+module
+
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction
+public import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
 
 /-!
 # Correctness of Opp-UniKEM-CKA
@@ -52,6 +52,8 @@ For either fixed challenge bit, assertion failures have probability at most `q Â
 `q` bounds ordinary and leaking sends of both parties on every oracle-response path
 (`SecuritySendQueryBound Adv q`).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal KEMScheme
 

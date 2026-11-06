@@ -4,11 +4,13 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.FromGCM.Security.PrfHop
-import SecureMessaging.AEAD.FromGCM.Security.AuthHop
-import SecureMessaging.AEAD.FromGCM.Security.PrivacyHop
-import SecureMessaging.AEAD.FromGCM.Security.NistIrreducible
-import SecureMessaging.AEAD.FromGCM.Security.PrpSwitch
+module
+
+public import SecureMessaging.AEAD.FromGCM.Security.PrfHop
+public import SecureMessaging.AEAD.FromGCM.Security.AuthHop
+public import SecureMessaging.AEAD.FromGCM.Security.PrivacyHop
+public import SecureMessaging.AEAD.FromGCM.Security.NistIrreducible
+public import SecureMessaging.AEAD.FromGCM.Security.PrpSwitch
 
 /-!
 # GCM: security
@@ -168,6 +170,8 @@ bound.
 
 Generic, scheme-independent lemmas live under `ToVCVio/`.
 -/
+
+@[expose] public section
 
 namespace GCM
 

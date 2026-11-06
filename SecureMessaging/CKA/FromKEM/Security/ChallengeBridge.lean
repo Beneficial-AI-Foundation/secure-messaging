@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromKEM.Security.PrefixSim
+module
+
+public import SecureMessaging.CKA.FromKEM.Security.PrefixSim
 
 /-!
 # CKA from KEM — Challenge-Step Probability Bridges
@@ -14,6 +16,8 @@ plain output-probability equalities.  The relational lemmas carry the real
 hidden-state work; these wrappers are the shape needed by the top-level branch
 gap proof.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal KEMScheme
 open OracleComp.ProgramLogic.Relational

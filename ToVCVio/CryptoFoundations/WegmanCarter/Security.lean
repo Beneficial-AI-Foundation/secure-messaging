@@ -4,11 +4,13 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.CryptoFoundations.UniversalHash
-import ToVCVio.CryptoFoundations.WegmanCarter.AbstractBounds
-import ToVCVio.CryptoFoundations.WegmanCarter.LogRefinement
-import ToVCVio.EvalDist.Monad.Basic
-import VCVio.OracleComp.QueryTracking.QueryBound
+module
+
+public import VCVio.CryptoFoundations.UniversalHash
+public import ToVCVio.CryptoFoundations.WegmanCarter.AbstractBounds
+public import ToVCVio.CryptoFoundations.WegmanCarter.LogRefinement
+public import ToVCVio.EvalDist.Monad.Basic
+public import VCVio.OracleComp.QueryTracking.QueryBound.Simulation
 
 /-!
 # Wegman-Carter one-time authenticity: the forgery bound
@@ -36,6 +38,8 @@ Two points a consumer must get right:
   ciphertext this reveals the keystream, so a privacy argument built on this bound must compare
   `b = false` executions.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal ToVCVio UniversalHash
 

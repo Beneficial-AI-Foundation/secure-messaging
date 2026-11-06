@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.MLKEM.Correctness.Noise
-import ToVCVio.LatticeCrypto.TransformOps
+module
+
+public import SecureMessaging.KEM.MLKEM.Correctness.Noise
+public import ToVCVio.LatticeCrypto.TransformOps
 
 /-!
 # The K-PKE decryption-noise identity
@@ -43,6 +45,8 @@ the implicit-rejection seed affects the fallback key, not the honest K-PKE
 ciphertext arithmetic.  The generic transform identities used here live in
 `ToVCVio.LatticeCrypto.TransformOps`.
 -/
+
+@[expose] public section
 
 open LatticeCrypto
 

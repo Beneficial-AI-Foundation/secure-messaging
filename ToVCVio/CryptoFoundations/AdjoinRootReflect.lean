@@ -7,9 +7,6 @@ Authors: Beneficial AI Foundation
 module
 
 public import Mathlib.RingTheory.AdjoinRoot
-public import Mathlib.LinearAlgebra.Basis.Defs
-public import Mathlib.Data.BitVec
-public import Mathlib.Data.ZMod.Basic
 
 /-!
 # Bit vectors as elements of `AdjoinRoot p`

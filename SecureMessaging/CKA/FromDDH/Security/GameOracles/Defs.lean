@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromDDH.Security.ReductionGames
-import ToVCVio.EvalDist.Monad.Basic
+module
+
+public import SecureMessaging.CKA.FromDDH.Security.ReductionGames
+public import ToVCVio.OracleComp.QueryTracking.LazySampling
 
 /-!
 # CKA from DDH — Game Oracles — Definitions
@@ -19,6 +21,8 @@ assumption:
 * the lazy↔eager bridge that exposes the external samples consumed at
   the embedding and challenge events at the top of the security game.
 -/
+
+@[expose] public section
 
 open ToVCVio OracleSpec OracleComp ENNReal
 open OracleComp.ProgramLogic.Relational

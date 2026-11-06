@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.OracleComp.SimSemantics.StateT.Stop
+module
+
+public import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 
 /-!
 # Sampling a parameter once or at every oracle query
@@ -45,6 +47,8 @@ Pr[a ← sample; stoppedRun (impl a) stop oa s = true] = Pr[stoppedRun target st
 `evalDistEq_sampleEachQuery_stopOnState` transfers equality of base query distributions
 through fresh sampling and a common stop test.
 -/
+
+@[expose] public section
 
 open OracleSpec ENNReal
 

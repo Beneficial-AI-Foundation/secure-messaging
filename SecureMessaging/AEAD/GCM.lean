@@ -6,7 +6,6 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import Mathlib.Data.BitVec
 public import ToVCVio.CryptoFoundations.PRP
 
 /-!

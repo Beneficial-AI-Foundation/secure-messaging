@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.Defs
-import SecureMessaging.ErasureCode.Defs
-import ToVCVio.CryptoFoundations.KeyEncapMech
+module
+
+public import SecureMessaging.SCKA.Defs
+public import SecureMessaging.ErasureCode.Defs
+public import ToVCVio.CryptoFoundations.KeyEncapMech
 
 /-!
 # Opp-BiKEM-CKA
@@ -44,6 +46,8 @@ peer's public key is not yet decoded.
 We guard lines 17–19 with `ct ≠ ⊥`: while waiting, the message carries no chunk and
 no selector (`ch = none`, `bit = none`), and `ich` is unchanged.
 -/
+
+@[expose] public section
 
 open KEMScheme
 

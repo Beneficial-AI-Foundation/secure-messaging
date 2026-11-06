@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
 
 /-!
 # Sends preserve the correctness invariant
@@ -13,6 +15,8 @@ A send samples a key pair, encapsulates against a received header, sends the nex
 recorded stream, or emits an empty `none` message. The transcript, extended when a new sample is
 drawn, is consistent with the successor state. Thus the send oracles preserve `CorrectnessInv`.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 open ErasureCodePayload.Streaming

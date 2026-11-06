@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromKEM.Security.PrefixInjectSim
+module
+
+public import SecureMessaging.CKA.FromKEM.Security.PrefixInjectSim
 
 /-!
 # CKA from KEM — Prefix Injection Splitter
@@ -22,6 +24,8 @@ fresh key draw; after the send `injectionPassed` holds, so the post-injection
 equivalence (`evalDistEq_simulateQ_securityImplWithChallengeKeyPair_run_of_injectionPassed`)
 finishes the suffix.
 -/
+
+@[expose] public section
 
 open ToVCVio OracleSpec OracleComp ENNReal KEMScheme
 open OracleComp.ProgramLogic.Relational

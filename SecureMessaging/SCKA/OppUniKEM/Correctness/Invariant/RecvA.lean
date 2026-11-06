@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
+module
+
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
 
 /-!
 # RecvA Preserves the Reachability Invariant
@@ -14,6 +16,8 @@ preserves `reachableInv` whenever its decapsulation returns B's recorded key
 (`oracleRecvA_preserves_reachableInv_of_recv`), in particular under `CurrentKEMCorrect`
 (`oracleRecvA_preserves_reachableInv`).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal KEMScheme
 

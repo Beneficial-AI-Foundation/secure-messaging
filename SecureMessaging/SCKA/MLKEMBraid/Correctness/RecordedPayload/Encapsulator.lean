@@ -4,13 +4,17 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.RecordedPayload.Generator
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
 
 /-!
 # Recorded messages received by an encapsulator
 
 An encapsulator that receives a recorded message keeps `LocalPayloadInv` and outputs no key.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 open ErasureCodePayload.Streaming

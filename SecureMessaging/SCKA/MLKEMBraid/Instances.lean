@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.IncrementalKEM.FromMLKEM
-import SecureMessaging.SCKA.MLKEMBraid.Construction
+module
+
+public import SecureMessaging.KEM.IncrementalKEM.FromMLKEM
+public import SecureMessaging.SCKA.MLKEMBraid.Construction
 
 /-!
 # Concrete ML-KEM Braid adapter
@@ -14,6 +16,8 @@ This module supplies ML-KEM Braid's KEM parameters using incremental ML-KEM. Cal
 choose the epoch-key derivation, ratcheted authenticator, MAC and symbol types, four erasure
 codes, and initial-key sampler.
 -/
+
+@[expose] public section
 
 namespace MLKEMBraid
 

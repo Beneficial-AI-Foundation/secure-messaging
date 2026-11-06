@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.ProgramLogic.Unary.HoareTriple
+module
+
+public import VCVio.ProgramLogic.Unary.HoareTriple
 
 /-!
 # Expected payoff through `wp`
@@ -21,6 +23,8 @@ This file adds two `ProbComp` forms of VCVio facts:
   in `VCVio.ProgramLogic.NotationCore` and would pull the relational program logic into this
   file.
 -/
+
+@[expose] public section
 
 open OracleSpec ENNReal OracleComp.ProgramLogic
 

@@ -5,9 +5,9 @@ Authors: Beneficial AI Foundation
 -/
 module
 
-public import VCVio.CryptoFoundations.SecExp
-public import ToVCVio.CryptoFoundations.PRF
-public import VCVio.OracleComp.Constructions.SampleableType
+public import ToVCVio.EvalDist.BoolDist
+public import VCVio.CryptoFoundations.PRF
+public import VCVio.EvalDist.Monad.Basic
 
 /-!
 # Pseudorandom permutations (PRPs)

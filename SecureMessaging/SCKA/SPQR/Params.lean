@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.IncrementalKEM.Derandomized
-import SecureMessaging.SCKA.MLKEMBraid.Basic
+module
+
+public import SecureMessaging.KEM.IncrementalKEM.Derandomized
+public import SecureMessaging.SCKA.MLKEMBraid.Basic
 
 /-!
 # SPQR parameters
@@ -20,6 +22,8 @@ The KEM operations `generate`, `encaps1`, `encaps2`, `decaps`, and `ekMatchesHea
 algorithms of `P.det`; `generate` and `encaps1` first draw their coins with its samplers, and
 `generateRleak` and `encaps1Rleak` run the same computations and also return those coins.
 -/
+
+@[expose] public section
 
 universe u
 

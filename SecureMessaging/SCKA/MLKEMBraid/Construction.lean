@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Basic
-import SecureMessaging.SCKA.Defs
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Basic
+public import SecureMessaging.SCKA.Defs
 
 /-!
 # ML-KEM Braid as an SCKA scheme
@@ -19,6 +21,8 @@ and `sampleInitKey` draws their initial common value.
 delivery when `receive` returns a `Failure` and reports the message-derived epoch required
 by SCKA. `Basic.receive` keeps the state-derived report from Braid §2.5.
 -/
+
+@[expose] public section
 
 open ErasureCodePayload.Streaming
 

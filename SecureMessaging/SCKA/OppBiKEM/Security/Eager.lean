@@ -4,10 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Security.Cancellation
-import SecureMessaging.SCKA.OppBiKEM.Security.Injected
-import ToVCVio.OracleComp.QueryTracking.OneUseSampling
-import ToVCVio.EvalDist.Monad.Basic
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Security.Cancellation
+public import SecureMessaging.SCKA.OppBiKEM.Security.Injected
+public import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 
 /-!
 # Opp-BiKEM — Eager sampling of the target's values
@@ -62,6 +63,8 @@ support lemmas (`stopOnState_run_run_eq`, `mem_support_stopOnState`,
 the per-query sampling bridge `evalDistEq_sampleEachQuery_stopOnState` from
 `ToVCVio.OracleComp.QueryTracking.OneUseSampling`.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme SCKAScheme ENNReal
 

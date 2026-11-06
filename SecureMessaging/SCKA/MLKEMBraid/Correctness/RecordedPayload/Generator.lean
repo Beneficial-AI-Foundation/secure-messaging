@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
 
 /-!
 # Recorded messages received by a key generator
@@ -13,6 +15,8 @@ A successful receive of a recorded message by a key generator keeps `LocalPayloa
 output key agrees with the peer's recorded key for that epoch. Only `ekSentCt1Received` outputs a
 key: the epoch key decapsulated from the recorded ciphertext.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 open ErasureCodePayload.Streaming

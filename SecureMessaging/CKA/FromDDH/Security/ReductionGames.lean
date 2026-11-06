@@ -4,10 +4,14 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromDDH.Common
-import VCVio.ProgramLogic.Relational.SimulateQ
-import VCVio.ProgramLogic.Tactics.Relational
-import ToVCVio.OracleComp.QueryTracking.LazySampling
+module
+
+public import SecureMessaging.CKA.FromDDH.Common
+public import SecureMessaging.CKA.FromDDH.Construction
+public import VCVio.CryptoFoundations.HardnessAssumptions.DiffieHellman
+public import VCVio.ProgramLogic.Relational.SimulateQ
+public import VCVio.ProgramLogic.Tactics.Relational
+public import ToVCVio.OracleComp.QueryTracking.LazySampling
 
 /-!
 # CKA from DDH — Reduction Games
@@ -24,6 +28,8 @@ All other epochs run honest CKA.
 The reduction outputs `!b'`, where `b'` is `𝒜`'s challenge guess to the simulated
 CKA game.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 open OracleComp.ProgramLogic.Relational

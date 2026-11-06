@@ -4,7 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.FromEtM.Security.Games
+module
+
+public import SecureMessaging.AEAD.FromEtM.Security.Games
+public import ToVCVio.CryptoFoundations.RandomOracleForgery
 
 /-!
 # Encrypt-then-MAC — auth hop: instrumented games and forge reduction
@@ -12,6 +15,8 @@ import SecureMessaging.AEAD.FromEtM.Security.Games
 Bad-flag-instrumented oracle handlers (`authInstImpl` and components) and the forgery reduction
 (`forgeReduction`, `forgeJointImpl`) used to bound the `game1` → `game2` gap.
 -/
+
+@[expose] public section
 
 namespace EtM
 

@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.ErasureCode.SPQRReedSolomon.Construction
-import SecureMessaging.KEM.IncrementalKEM.FromMLKEM
-import SecureMessaging.SCKA.SPQR.Construction
+module
+
+public import SecureMessaging.ErasureCode.SPQRReedSolomon.Construction
+public import SecureMessaging.KEM.IncrementalKEM.FromMLKEM
+public import SecureMessaging.SCKA.SPQR.Construction
 
 /-! # SPQR v1 instance
 
@@ -18,6 +20,8 @@ header and MAC payload requires 3 chunks, the 1152-byte encapsulation-key vector
 `EpochKey`, `Mac`, `InitKey`, `AuthState`, `kdfOK`, the four serializer triples, `auth`, and
 `sampleInitKey` remain parameters.
 -/
+
+@[expose] public section
 
 open ErasureCode.SPQRReedSolomon (Chunk GF16 erasureCode)
 open MLKEMBraid (SendRand)

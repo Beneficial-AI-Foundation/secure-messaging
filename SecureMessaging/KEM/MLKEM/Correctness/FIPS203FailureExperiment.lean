@@ -4,7 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.MLKEM.Correctness.FailureBounds
+module
+
+public import LatticeCrypto.MLKEM.KEM
+public import ToVCVio.CryptoFoundations.KeyEncapMech
 
 /-!
 # The FIPS 203 honest decapsulation-failure experiment
@@ -39,6 +42,8 @@ of the Section 3.2 event.  The numerical threshold is defined in
 `FailureRates.lean`, and `NoiseModel.lean` states the coefficient-distribution
 hypothesis used to derive the conditional inequality.
 -/
+
+@[expose] public section
 
 open OracleComp KEMScheme ENNReal
 

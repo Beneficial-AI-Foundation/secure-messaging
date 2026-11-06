@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import LatticeCrypto.MLKEM.KEM
-import ToVCVio.CryptoFoundations.KeyEncapMech
+module
+
+public import LatticeCrypto.MLKEM.KEM
+public import ToVCVio.CryptoFoundations.KeyEncapMech
 
 /-!
 # Deterministic reduction from ML-KEM failure to K-PKE recovery failure
@@ -31,6 +33,8 @@ of probability applied to (2) is
 random-function assumption enters this reduction; those assumptions arise
 only when the K-PKE event on the right of (2) is assigned a numerical bound.
 -/
+
+@[expose] public section
 
 open OracleComp KEMScheme ENNReal
 
