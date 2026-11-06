@@ -416,7 +416,7 @@ def scheme (P : Parameters ProbComp)
 :::defTitle "mlkem_braid_noauth_vulnerable_epochs" "Vulnerable epochs of ML-KEM Braid without authentication"
 :::
 
-::::definition "mlkem_braid_noauth_vulnerable_epochs" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.NoAuth.vuln, MLKEMBraid.NoAuth.sendExposure, MLKEMBraid.NoAuth.nativeExposure, MLKEMBraid.NoAuth.deltaExposure, MLKEMBraid.NoAuth.sendExposure_eq_delta, MLKEMBraid.NoAuth.securityGame_equiv_delta, MLKEMBraid.NoAuth.securityGame_equiv_native") (uses := "mlkem_braid_noauth_spec, mlkem_braid_protocol_states, scka_oracles")
+::::definition "mlkem_braid_noauth_vulnerable_epochs" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.NoAuth.vuln, MLKEMBraid.NoAuth.sendExposure, MLKEMBraid.NoAuth.nativeExposure, MLKEMBraid.NoAuth.sendExposure_eq_delta") (uses := "mlkem_braid_noauth_spec, mlkem_braid_protocol_states, scka_oracles")
 The security game of {bpref "scka_oracles"}[] for $`\mathsf{Braid}_{\mathsf{NoAuth}}(P)` uses the
 following exposure functions for both parties. Let $`\mathsf{st}` be a local state
 ({bpref "mlkem_braid_protocol_states"}[]) with epoch $`\mathsf{ep}(\mathsf{st})`, and let $`r` be
@@ -438,8 +438,7 @@ stage of encapsulation.
 If a send of the protocol with randomness $`r` takes a party from $`\mathsf{st}` to
 $`\mathsf{st}'`, then
 $`\mathsf{vuln}^{\mathsf{rleak}}(\mathsf{st},r)=\mathsf{vuln}^{\mathsf{corr}}(\mathsf{st}')\setminus\mathsf{vuln}^{\mathsf{corr}}(\mathsf{st})`.
-This is the exposure rule of {Informal.citet SCKA25}[], Figure 1, so the game with that rule has the
-same guessing advantage.
+This is the exposure rule of {Informal.citet SCKA25}[], Figure 1.
 
 :::leanPillCaption "epochs exposed by a corruption"
 :::
@@ -456,7 +455,7 @@ def vuln {P : Parameters ProbComp} (st : State P Unit) : Finset ℕ :=
 
 ```anchor noAuthSendExposure (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security.NoAuth)
 def sendExposure {P : Parameters ProbComp} {KeygenRand Encaps1Rand : Type}
-    (st _st' : State P Unit) (coins : SendRand KeygenRand Encaps1Rand) : Finset ℕ :=
+    (st : State P Unit) (coins : SendRand KeygenRand Encaps1Rand) : Finset ℕ :=
   match coins with
   | .none => ∅
   | .keygen _ | .encaps1 _ => {st.epoch}
@@ -465,13 +464,13 @@ def sendExposure {P : Parameters ProbComp} {KeygenRand Encaps1Rand : Type}
 :::leanPillCaption "exposure functions of the game"
 :::
 
-```anchor nativeExposure (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security.Bounds)
+```anchor nativeExposure (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security.NoAuth)
 def nativeExposure (P : Parameters ProbComp)
     (irl : P.kem.IncrementalRandLeak P.inc) :
     SCKAScheme.VulnerableEpochs (State P Unit)
       (SendRand irl.KeygenRand irl.Encaps1Rand) where
   corrupt := vuln
-  rleak := fun st coins => sendExposure st st coins
+  rleak := sendExposure
 ```
 ::::
 

@@ -6,16 +6,17 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.SCKA.Exposure
+public import SecureMessaging.SCKA.Defs
 public import SecureMessaging.SCKA.MLKEMBraid.Construction
 
 /-!
 # Braid without internal authentication
 
-The authenticator keeps no state, emits unit tags and accepts every tag. The exposure policy
-`exposure` exposes the current epoch when a send that reveals its coins generates a key pair or
-runs the first stage of encapsulation. On every send output that the protocol can produce, this
-policy agrees with the rule `vuln st' \ vuln st` (`sendExposure_eq_delta`).
+The authenticator keeps no state, emits unit tags and accepts every tag. For a send that reveals
+its coins, the exposure functions `nativeExposure` expose the current epoch when the send generates
+a key pair or runs the first stage of encapsulation. On every send output that the protocol can
+produce, these epochs are `vuln st' \ vuln st`, as in the rule of [SCKA, Fig. 1]
+(`sendExposure_eq_delta`).
 -/
 
 @[expose] public section
@@ -57,31 +58,28 @@ def vuln {P : Parameters ProbComp} (st : State P Unit) : Finset ℕ :=
 -- ANCHOR_END: noAuthVuln
 
 /-- The epochs that a send exposes when it reveals its coins: the current epoch for the coins of
-key generation or of first-stage encapsulation, and none otherwise. The new state is not used. -/
+key generation or of first-stage encapsulation, and none otherwise. -/
 -- ANCHOR: noAuthSendExposure
 def sendExposure {P : Parameters ProbComp} {KeygenRand Encaps1Rand : Type}
-    (st _st' : State P Unit) (coins : SendRand KeygenRand Encaps1Rand) : Finset ℕ :=
+    (st : State P Unit) (coins : SendRand KeygenRand Encaps1Rand) : Finset ℕ :=
   match coins with
   | .none => ∅
   | .keygen _ | .encaps1 _ => {st.epoch}
 -- ANCHOR_END: noAuthSendExposure
 
-/-- The exposure policy of Braid without authentication: `vuln` for corruption and
+/-- The exposure functions of Braid without authentication: `vuln` for corruption and
 `sendExposure` for a send that reveals its coins. -/
-def exposure (P : Parameters ProbComp) (irl : P.kem.IncrementalRandLeak P.inc) :
-    SCKAScheme.ExposurePolicy (State P Unit)
+-- ANCHOR: nativeExposure
+def nativeExposure (P : Parameters ProbComp)
+    (irl : P.kem.IncrementalRandLeak P.inc) :
+    SCKAScheme.VulnerableEpochs (State P Unit)
       (SendRand irl.KeygenRand irl.Encaps1Rand) where
   corrupt := vuln
-  send := sendExposure
+  rleak := sendExposure
+-- ANCHOR_END: nativeExposure
 
-/-- The exposure policy with the send rule `vuln st' \ vuln st` of [SCKA, Fig. 1]. -/
-def deltaExposure (P : Parameters ProbComp) (irl : P.kem.IncrementalRandLeak P.inc) :
-    SCKAScheme.ExposurePolicy (State P Unit)
-      (SendRand irl.KeygenRand irl.Encaps1Rand) :=
-  SCKAScheme.ExposurePolicy.ofDelta vuln
-
-/-- On every output that the leaking send can produce, `sendExposure` equals the rule
-`vuln st' \ vuln st`. -/
+/-- On every output of the leaking send from `st`, the epochs that the coins expose are
+`vuln st' \ vuln st`, where `st'` is the new state. This is the rule of [SCKA, Fig. 1]. -/
 theorem sendExposure_eq_delta
     (P : Parameters ProbComp) (hMac : P.Mac = Unit)
     (irl : P.kem.IncrementalRandLeak P.inc)
@@ -89,20 +87,19 @@ theorem sendExposure_eq_delta
     (out : SendResult P Unit × SendRand irl.KeygenRand irl.Encaps1Rand)
     (hout : out ∈ support
       (MLKEMBraid.sendRleak P irl (auth P hMac) st)) :
-    (exposure P irl).send st out.1.state out.2 =
-      vuln out.1.state \ vuln st := by
+    (nativeExposure P irl).rleak st out.2 = vuln out.1.state \ vuln st := by
   cases st
   case keysUnsampled e a =>
     simp only [MLKEMBraid.sendRleak, mem_support_bind_iff, mem_support_pure_iff] at hout
     obtain ⟨⟨⟨pk, sk⟩, r⟩, _, rfl⟩ := hout
-    simp [exposure, sendExposure, vuln, State.epoch]
+    simp [nativeExposure, sendExposure, vuln, State.epoch]
   case headerReceived e a hdr dec =>
     simp only [MLKEMBraid.sendRleak, mem_support_bind_iff, mem_support_pure_iff] at hout
     obtain ⟨⟨⟨es, ct1, k⟩, r⟩, _, rfl⟩ := hout
-    simp [exposure, sendExposure, vuln, State.epoch]
+    simp [nativeExposure, sendExposure, vuln, State.epoch]
   all_goals
     simp only [MLKEMBraid.sendRleak, MLKEMBraid.send, map_pure, mem_support_pure_iff] at hout
     subst hout
-    simp [exposure, sendExposure, vuln, State.epoch]
+    simp [nativeExposure, sendExposure, vuln, State.epoch]
 
 end MLKEMBraid.NoAuth

@@ -149,7 +149,7 @@ theorem traceSend_payoff (party leaking : Bool) (s : TraceState P)
     have hscore : badScore s = pendingPotential s.transcript := by simp [badScore, hb]
     rw [hscore]
     let R : SendRand irl.KeygenRand irl.Encaps1Rand → Bool := fun tag =>
-      leaking && decide ((exposure P irl).send (s.game.stateAt party) (s.game.stateAt party) tag ∩
+      leaking && decide ((nativeExposure P irl).rleak (s.game.stateAt party) tag ∩
         s.game.challenged ≠ ∅)
     let H : SendRand irl.KeygenRand irl.Encaps1Rand × (ℕ → EpochTranscript P) × Bool → ℝ≥0∞ :=
       fun o => if R o.1 then pendingPotential s.transcript
@@ -163,7 +163,7 @@ theorem traceSend_payoff (party leaking : Bool) (s : TraceState P)
       congr 1
       funext w
       simp only [Function.comp_apply]
-      have hx : (leaking && decide ((exposure P irl).send (s.game.stateAt party) w.1.1.state w.1.2 ∩
+      have hx : (leaking && decide ((nativeExposure P irl).rleak (s.game.stateAt party) w.1.2 ∩
           s.game.challenged ≠ ∅)) = R w.1.2 := rfl
       rw [hx]
       simp only [H]

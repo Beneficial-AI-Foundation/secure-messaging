@@ -481,7 +481,7 @@ theorem traceSend_masked (party leaking : Bool) (s : TraceState P) {e : ℕ} {m 
       rw [h] at hm
       simp [maskState] at hm
   simp only [traceSend, sampledSend_of_noSample hMac irl s party h1 h2, hR, map_pure]
-  simp [exposure, sendExposure]
+  simp [nativeExposure, sendExposure]
 
 /-- The send of a masked state agrees. -/
 theorem sendStep_masked (e : ℕ) (v : P.EpochKey) (ch : Challenge P) (kp : Option (P.PK × P.SK))

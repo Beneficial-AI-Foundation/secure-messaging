@@ -320,13 +320,13 @@ def simSend (P : Parameters ProbComp) (hMac : P.Mac = Unit)
         | none =>
             (fun w : (SendResult P Unit × SendRand irl.KeygenRand irl.Encaps1Rand) ×
                 (ℕ → EpochTranscript P) =>
-              if leaking && decide ((exposure P irl).send st w.1.1.state w.1.2 ∩
+              if leaking && decide ((nativeExposure P irl).rleak st w.1.2 ∩
                   s.game.challenged ≠ ∅) then (none, s)
               else (some (w.1.1.sendingEpoch, w.1.1.outputKey.map Prod.fst, w.1.1.msg, w.1.2),
                 { game := { s.game.sendUpdate party w.1.1.outputKey w.1.1.msg w.1.1.sendingEpoch
                       (.inl w.1.1.state) with
                     exposed := if leaking then
-                      s.game.exposed ∪ (exposure P irl).send st w.1.1.state w.1.2
+                      s.game.exposed ∪ (nativeExposure P irl).rleak st w.1.2
                     else s.game.exposed },
                   transcript := w.2 })) <$> ghostSample P hMac irl s.transcript st
 

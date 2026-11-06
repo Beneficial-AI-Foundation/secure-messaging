@@ -6,7 +6,6 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.SCKA.MLKEMBraid.Security.Bounds
 public import SecureMessaging.SCKA.MLKEMBraid.Security.Hybrids
 public import SecureMessaging.SCKA.MLKEMBraid.Security.Risk
 public import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.Average
@@ -112,7 +111,7 @@ Paths are relative to `MLKEMBraid/Security/`.
 
 **Proof steps.**
 
-1. *Correctness error* (`Trace`, `Risk`, `Hybrids`, `Bounds`).
+1. *Correctness error* (`Trace`, `Risk`, `Hybrids`).
    - `G_b` is the game `fixed A b` (`fixed_eq_native`). It and `R_b` agree unless a
      decapsulation differs from the recorded shared secret, which has probability at most `q · ε`
      (`fixed_repaired_gap_le`, `badEvent_le`).
@@ -160,7 +159,7 @@ Paths are relative to `MLKEMBraid/Security/`.
    `Bounded.payloads_correct` and `setDecoder_sound` show that the set-based decoders of the four
    streams are sound (`MLKEMBraid.security`).
 
-Supporting modules: `NoAuth` (authenticator and exposure policy), `KDFGame` (the key-derivation
+Supporting modules: `NoAuth` (authenticator and exposure functions), `KDFGame` (the key-derivation
 game), `Games` (games and hybrids), `Reduction/Simulator` (the simulation that `ℬ_e` runs), ToVCVio
 (`epochChoice`, stopping).
 -/
@@ -215,16 +214,16 @@ theorem MLKEMBraid.NoAuth.security (P : Parameters ProbComp)
   rw [ToVCVio.toReal_boolDist_evalDist] at h1 h2
   rw [← hqEnd] at h1
   rw [← h0] at h2
-  rw [SCKAScheme.sckaGuessAdvantage_eq_sckaDistAdvantage_div_two]
-  unfold SCKAScheme.sckaDistAdvantage
-  rw [← fixed_eq_native P hMac irl A true, ← fixed_eq_native P hMac irl A false]
-  have ha := abs_sub_le (Pr{let x ← fixed P hMac irl A true}[x = true]).toReal
-    (Pr{let x ← hybrid P hMac irl A q}[x = true]).toReal
-    (Pr{let x ← fixed P hMac irl A false}[x = true]).toReal
-  have hb := abs_sub_le (Pr{let x ← hybrid P hMac irl A q}[x = true]).toReal
-    (Pr{let x ← hybrid P hMac irl A 0}[x = true]).toReal
-    (Pr{let x ← fixed P hMac irl A false}[x = true]).toReal
-  rw [abs_sub_comm (Pr{let x ← hybrid P hMac irl A 0}[x = true]).toReal] at hb
+  rw [fixed_eq_native] at h1 h2
+  have htri := SCKAScheme.sckaGuessAdvantage_le_of_abs_sub_le (scheme P hMac irl) A
+    (nativeExposure P irl) (nativeExposure P irl)
+    (fun b => if b then (Pr{let x ← hybrid P hMac irl A q}[x = true]).toReal
+      else (Pr{let x ← hybrid P hMac irl A 0}[x = true]).toReal) _
+    fun b => by
+      cases b
+      · exact h2
+      · exact h1
+  simp only [↓reduceIte, Bool.false_eq_true] at htri
   -- The hybrid gap is `q` times the sum of the two signed reduction gaps.
   have hK : (P.kem.IND_CPA_Advantage ProbCompRuntime.probComp
       (kemMixReduction P hMac irl A q)).toReal =

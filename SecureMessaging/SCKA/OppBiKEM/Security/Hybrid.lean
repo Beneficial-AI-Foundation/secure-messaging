@@ -247,21 +247,9 @@ lemma sckaGuessAdvantage_le_ideal_term (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Co
       (1 / 2 : ℝ) *
         |(Pr{let x ← idealSecurityExp kem hDet ecEk ecCt leak true adv}[x = true]).toReal -
          (Pr{let x ← idealSecurityExp kem hDet ecEk ecCt leak false adv}[x = true]).toReal| := by
-  rw [SCKAScheme.sckaGuessAdvantage_eq_sckaDistAdvantage_div_two, SCKAScheme.sckaDistAdvantage]
-  have h1 := security_ideal_endpoint_le kem hDet ecEk ecCt hEk hCt leak true adv q hq
-  have h0 := security_ideal_endpoint_le kem hDet ecEk ecCt hEk hCt leak false adv q hq
-  rw [abs_sub_comm] at h0
-  have h2 := abs_sub_le
-    (Pr{let x ← SCKAScheme.securityExpFixedBit (scheme kem hDet ecEk ecCt leak) adv true
-          (exposure .A leak) (exposure .B leak)}[x = true]).toReal
-    (Pr{let x ← idealSecurityExp kem hDet ecEk ecCt leak true adv}[x = true]).toReal
-    (Pr{let x ← SCKAScheme.securityExpFixedBit (scheme kem hDet ecEk ecCt leak) adv false
-          (exposure .A leak) (exposure .B leak)}[x = true]).toReal
-  have h3 := abs_sub_le
-    (Pr{let x ← idealSecurityExp kem hDet ecEk ecCt leak true adv}[x = true]).toReal
-    (Pr{let x ← idealSecurityExp kem hDet ecEk ecCt leak false adv}[x = true]).toReal
-    (Pr{let x ← SCKAScheme.securityExpFixedBit (scheme kem hDet ecEk ecCt leak) adv false
-          (exposure .A leak) (exposure .B leak)}[x = true]).toReal
+  have h := SCKAScheme.sckaGuessAdvantage_le_of_abs_sub_le _ adv _ _
+    (fun b => (Pr{let x ← idealSecurityExp kem hDet ecEk ecCt leak b adv}[x = true]).toReal) _
+    fun b => security_ideal_endpoint_le kem hDet ecEk ecCt hEk hCt leak b adv q hq
   linarith
 
 /-- Assume:

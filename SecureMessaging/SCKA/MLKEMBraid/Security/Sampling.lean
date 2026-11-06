@@ -269,10 +269,10 @@ theorem mem_support_traceSend {party leaking : Bool} {s : TraceState P}
     (hz : z ∈ support ((traceSend P hMac irl party leaking).run s)) :
     z.2 = s ∨ ∃ w ∈ support (sampledSend P hMac irl s party),
       (leaking = true →
-        (exposure P irl).send (s.game.stateAt party) w.1.1.state w.1.2 ∩ s.game.challenged = ∅) ∧
+        (nativeExposure P irl).rleak (s.game.stateAt party) w.1.2 ∩ s.game.challenged = ∅) ∧
       z.2 = { game := { sendUpdate s.game party w.1.1 with
                 exposed := if leaking then
-                  s.game.exposed ∪ (exposure P irl).send (s.game.stateAt party) w.1.1.state w.1.2
+                  s.game.exposed ∪ (nativeExposure P irl).rleak (s.game.stateAt party) w.1.2
                 else s.game.exposed },
               transcript := w.2.1, bad := w.2.2 } := by
   change z ∈ support (traceSend P hMac irl party leaking s) at hz
@@ -280,7 +280,7 @@ theorem mem_support_traceSend {party leaking : Bool} {s : TraceState P}
   rw [support_map] at hz
   obtain ⟨w, hw, rfl⟩ := hz
   dsimp only
-  by_cases hc : (leaking && decide ((exposure P irl).send (s.game.stateAt party) w.1.1.state
+  by_cases hc : (leaking && decide ((nativeExposure P irl).rleak (s.game.stateAt party) 
       w.1.2 ∩ s.game.challenged ≠ ∅)) = true
   · left
     rw [ite_eq_left hc]

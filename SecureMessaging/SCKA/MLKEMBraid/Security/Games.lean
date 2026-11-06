@@ -14,11 +14,6 @@ public import SecureMessaging.SCKA.MLKEMBraid.Security.KDFGame
 /-!
 # No-authentication Braid security games
 
-The security game with the exposure policy `exposure` and the game with the rule
-`deltaExposure` of [SCKA, Fig. 1] give the same experiment and the same guessing advantage
-(`securityGame_equiv_delta`). The proof compares the two rules on every send output that the
-protocol can produce. It uses neither correctness nor any property of the adversary.
-
 The trace game `traceImpl` runs the same security interface on a `TraceState`: the actual game
 state, records of the sampled key pairs and first-stage encapsulations, and a bad flag.
 -/
@@ -67,84 +62,6 @@ structure TraceState (P : Parameters ProbComp) where
   transcript : ℕ → MLKEMBraid.EpochTranscript P
   /-- Set at a first-stage encapsulation when decapsulation would not give the derived key. -/
   bad : Bool
-
-private theorem oracleSendArleak_eq_delta
-    (P : Parameters ProbComp) [DecidableEq P.EpochKey]
-    (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc) :
-    SCKAScheme.ExposurePolicy.oracleSendArleak (exposure P irl).send (scheme P hMac irl) =
-      SCKAScheme.ExposurePolicy.oracleSendArleak
-        (deltaExposure P irl).send (scheme P hMac irl) := by
-  funext u s
-  cases u
-  change (SCKAScheme.ExposurePolicy.oracleSendArleak (exposure P irl).send
-    (scheme P hMac irl) ()).run s =
-      (SCKAScheme.ExposurePolicy.oracleSendArleak
-        (deltaExposure P irl).send (scheme P hMac irl) ()).run s
-  simp only [SCKAScheme.ExposurePolicy.oracleSendArleak, deltaExposure,
-    SCKAScheme.ExposurePolicy.ofDelta,
-    StateT.run_bind, StateT.run_get, pure_bind, StateT.run_monadLift, monadLift_self,
-    scheme, MLKEMBraid.scheme, bind_assoc]
-  refine bind_congr_of_forall_mem_support _ fun out hout => ?_
-  rcases out with ⟨r, rand⟩
-  rw [sendExposure_eq_delta P hMac irl s.stA (r, rand) hout]
-  rfl
-
-private theorem oracleSendBrleak_eq_delta
-    (P : Parameters ProbComp) [DecidableEq P.EpochKey]
-    (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc) :
-    SCKAScheme.ExposurePolicy.oracleSendBrleak (exposure P irl).send (scheme P hMac irl) =
-      SCKAScheme.ExposurePolicy.oracleSendBrleak
-        (deltaExposure P irl).send (scheme P hMac irl) := by
-  funext u s
-  cases u
-  change (SCKAScheme.ExposurePolicy.oracleSendBrleak (exposure P irl).send
-    (scheme P hMac irl) ()).run s =
-      (SCKAScheme.ExposurePolicy.oracleSendBrleak
-        (deltaExposure P irl).send (scheme P hMac irl) ()).run s
-  simp only [SCKAScheme.ExposurePolicy.oracleSendBrleak, deltaExposure,
-    SCKAScheme.ExposurePolicy.ofDelta,
-    StateT.run_bind, StateT.run_get, pure_bind, StateT.run_monadLift, monadLift_self,
-    scheme, MLKEMBraid.scheme, bind_assoc]
-  refine bind_congr_of_forall_mem_support _ fun out hout => ?_
-  rcases out with ⟨r, rand⟩
-  rw [sendExposure_eq_delta P hMac irl s.stB (r, rand) hout]
-  rfl
-
-private theorem securityImpl_eq_delta
-    (P : Parameters ProbComp)
-    [SampleableType P.EpochKey] [DecidableEq P.EpochKey]
-    (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc) (b : Bool) :
-    SCKAScheme.ExposurePolicy.sckaSecurityImpl b (exposure P irl) (exposure P irl)
-        (scheme P hMac irl) =
-      SCKAScheme.ExposurePolicy.sckaSecurityImpl b
-        (deltaExposure P irl) (deltaExposure P irl) (scheme P hMac irl) := by
-  simp only [SCKAScheme.ExposurePolicy.sckaSecurityImpl]
-  rw [oracleSendArleak_eq_delta P hMac irl, oracleSendBrleak_eq_delta P hMac irl]
-  rfl
-
-/-- The games with the policies `exposure` and `deltaExposure` have equal output distributions and
-equal guessing advantages. -/
-theorem securityGame_equiv_delta
-    (P : Parameters ProbComp)
-    [SampleableType P.EpochKey] [DecidableEq P.EpochKey]
-    (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
-    (A : Adversary P irl) :
-    SCKAScheme.ExposurePolicy.securityExp (scheme P hMac irl) A
-        (exposure P irl) (exposure P irl) =ᵈ
-            SCKAScheme.ExposurePolicy.securityExp (scheme P hMac irl) A
-        (deltaExposure P irl) (deltaExposure P irl) ∧
-    SCKAScheme.ExposurePolicy.sckaGuessAdvantage (scheme P hMac irl) A
-        (exposure P irl) (exposure P irl) =
-      SCKAScheme.ExposurePolicy.sckaGuessAdvantage (scheme P hMac irl) A
-        (deltaExposure P irl) (deltaExposure P irl) := by
-  have hexp : SCKAScheme.ExposurePolicy.securityExp (scheme P hMac irl) A
-      (exposure P irl) (exposure P irl) =
-      SCKAScheme.ExposurePolicy.securityExp (scheme P hMac irl) A
-        (deltaExposure P irl) (deltaExposure P irl) := by
-    simp only [SCKAScheme.ExposurePolicy.securityExp, securityImpl_eq_delta P hMac irl]
-  constructor
-  · rw [hexp]
-  · simp only [SCKAScheme.ExposurePolicy.sckaGuessAdvantage, hexp]
 
 open ErasureCodePayload.Streaming
 
@@ -212,7 +129,7 @@ def traceSend (P : Parameters ProbComp) [DecidableEq P.EpochKey]
       (ℕ → EpochTranscript P) × Bool =>
     let result := w.1.1
     let coins := w.1.2
-    let leaked := (exposure P irl).send (s.game.stateAt party) result.state coins
+    let leaked := (nativeExposure P irl).rleak (s.game.stateAt party) coins
     if leaking && decide (leaked ∩ s.game.challenged ≠ ∅) then (none, s)
     else (some (result.sendingEpoch, result.outputKey.map Prod.fst, result.msg, coins),
       { game := { MLKEMBraid.sendUpdate s.game party result with
@@ -346,15 +263,35 @@ def run (P : Parameters ProbComp)
   (simulateQ (traceImpl P hMac irl repair mode) A).run
     (initTrace P hMac)
 
-/-- The security game with the exposure policy `exposure` and the challenge bit fixed to `b`. -/
+/-- The security game with the exposure functions `nativeExposure` and the challenge bit fixed to
+`b`, run from the initial states. -/
 def fixed (P : Parameters ProbComp)
     [SampleableType P.EpochKey] [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (A : Adversary P irl) (b : Bool) : ProbComp Bool :=
-  (simulateQ (SCKAScheme.ExposurePolicy.sckaSecurityImpl b
-    (exposure P irl) (exposure P irl) (scheme P hMac irl)) A).run'
+  (simulateQ (SCKAScheme.sckaSecurityImpl b
+    (nativeExposure P irl) (nativeExposure P irl) (scheme P hMac irl)) A).run'
       (SCKAScheme.initGameState (MLKEMBraid.initA P (auth P hMac) ())
         (MLKEMBraid.initB P (auth P hMac) ()))
+
+/-- `fixed A b` is the SCKA security experiment with the bit fixed to `b` and the functions
+`nativeExposure`. -/
+theorem fixed_eq_native
+    (P : Parameters ProbComp)
+    [SampleableType P.EpochKey] [DecidableEq P.EpochKey]
+    (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
+    (A : Adversary P irl) (b : Bool) :
+    fixed P hMac irl A b =
+      SCKAScheme.securityExpFixedBit (scheme P hMac irl) A b
+        (nativeExposure P irl) (nativeExposure P irl) := by
+  have h1 : (scheme P hMac irl).initKeyGen = pure () := rfl
+  have h2 : ∀ ik, (scheme P hMac irl).initA ik = pure (MLKEMBraid.initA P (auth P hMac) ik) :=
+    fun _ => rfl
+  have h3 : ∀ ik, (scheme P hMac irl).initB ik = pure (MLKEMBraid.initB P (auth P hMac) ik) :=
+    fun _ => rfl
+  simp only [SCKAScheme.securityExpFixedBit, h1, h2, h3, pure_bind]
+  simp only [fixed, StateT.run'_eq, map_eq_bind_pure_comp]
+  rfl
 
 /-- The repaired hybrid with uniform keys at the epochs `1, …, j` and real keys after them. -/
 def hybrid (P : Parameters ProbComp)

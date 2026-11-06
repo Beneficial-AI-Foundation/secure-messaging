@@ -281,7 +281,7 @@ theorem traceSend_keygen_run {s : TraceState P} {party : Bool} (leaking : Bool) 
   simp only [traceSend, sampledSend_eq_keygen hMac irl s party hst, Functor.map_map]
   congr 1
   funext y
-  simp [exposure, sendExposure, hst, State.epoch, keygenState, keygenStep_eq]
+  simp [nativeExposure, sendExposure, hst, State.epoch, keygenState, keygenStep_eq]
 
 /-- The installed key-generation send of `e`. -/
 theorem traceSendAt_keygen_run {s : TraceState P} {party : Bool} (leaking : Bool) {e : ℕ}
@@ -315,7 +315,7 @@ theorem traceSend_encaps1_run {s : TraceState P} {party : Bool} (leaking : Bool)
   simp only [traceSend, sampledSend_eq_encaps1 hMac irl s party hst, Functor.map_map]
   congr 1
   funext y
-  simp [exposure, sendExposure, hst, State.epoch, encaps1State, encaps1Step_eq]
+  simp [nativeExposure, sendExposure, hst, State.epoch, encaps1State, encaps1Step_eq]
 
 /-- The installed first-stage encapsulation send of `e`. -/
 theorem traceSendAt_encaps1_run {s : TraceState P} {party : Bool} (leaking : Bool) {e : ℕ}

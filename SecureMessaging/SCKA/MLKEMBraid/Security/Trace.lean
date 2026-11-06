@@ -296,17 +296,17 @@ private theorem tracePlain_map (party : Bool) (t : Unit) (s : TraceState P) :
   refine congrArg (fun f => f <$> sampledSend P hMac irl s party) (funext fun w => ?_)
   simp [sendUpdate_with_exposed]
 
-/-- The explicit-policy leaking send of A on the no-authentication scheme. -/
+/-- The leaking send of A in the security game with `nativeExposure`. -/
 private theorem oracleSendArleak_run (g : MLKEMBraid.GameState P Unit) :
-    (SCKAScheme.ExposurePolicy.oracleSendArleak (exposure P irl).send (scheme P hMac irl) ()).run
+    (SCKAScheme.oracleSendArleak (nativeExposure P irl).rleak (scheme P hMac irl) ()).run
         g =
       (fun out : SendResult P Unit × SendRand irl.KeygenRand irl.Encaps1Rand =>
-        if (exposure P irl).send g.stA out.1.state out.2 ∩ g.challenged ≠ ∅ then (none, g)
+        if (nativeExposure P irl).rleak g.stA out.2 ∩ g.challenged ≠ ∅ then (none, g)
         else (some (out.1.sendingEpoch, out.1.outputKey.map Prod.fst, out.1.msg, out.2),
           { sendUpdate g true out.1 with
-            exposed := g.exposed ∪ (exposure P irl).send g.stA out.1.state out.2 })) <$>
+            exposed := g.exposed ∪ (nativeExposure P irl).rleak g.stA out.2 })) <$>
         MLKEMBraid.sendRleak P irl (auth P hMac) g.stA := by
-  simp only [SCKAScheme.ExposurePolicy.oracleSendArleak, StateT.run_bind, StateT.run_get,
+  simp only [SCKAScheme.oracleSendArleak, StateT.run_bind, StateT.run_get,
     pure_bind, StateT.run_monadLift, monadLift_self, scheme, MLKEMBraid.scheme, bind_assoc,
     map_eq_bind_pure_comp]
   refine bind_congr fun out => ?_
@@ -317,17 +317,17 @@ private theorem oracleSendArleak_run (g : MLKEMBraid.GameState P Unit) :
   · rcases hk : r.outputKey with _ | ⟨tI, key⟩ <;>
       simp [hk, sendUpdate, SCKAScheme.sendAUpdate, SCKAScheme.knownPrefix, StateT.run_set]
 
-/-- The explicit-policy leaking send of B on the no-authentication scheme. -/
+/-- The leaking send of B in the security game with `nativeExposure`. -/
 private theorem oracleSendBrleak_run (g : MLKEMBraid.GameState P Unit) :
-    (SCKAScheme.ExposurePolicy.oracleSendBrleak (exposure P irl).send (scheme P hMac irl) ()).run
+    (SCKAScheme.oracleSendBrleak (nativeExposure P irl).rleak (scheme P hMac irl) ()).run
         g =
       (fun out : SendResult P Unit × SendRand irl.KeygenRand irl.Encaps1Rand =>
-        if (exposure P irl).send g.stB out.1.state out.2 ∩ g.challenged ≠ ∅ then (none, g)
+        if (nativeExposure P irl).rleak g.stB out.2 ∩ g.challenged ≠ ∅ then (none, g)
         else (some (out.1.sendingEpoch, out.1.outputKey.map Prod.fst, out.1.msg, out.2),
           { sendUpdate g false out.1 with
-            exposed := g.exposed ∪ (exposure P irl).send g.stB out.1.state out.2 })) <$>
+            exposed := g.exposed ∪ (nativeExposure P irl).rleak g.stB out.2 })) <$>
         MLKEMBraid.sendRleak P irl (auth P hMac) g.stB := by
-  simp only [SCKAScheme.ExposurePolicy.oracleSendBrleak, StateT.run_bind, StateT.run_get,
+  simp only [SCKAScheme.oracleSendBrleak, StateT.run_bind, StateT.run_get,
     pure_bind, StateT.run_monadLift, monadLift_self, scheme, MLKEMBraid.scheme, bind_assoc,
     map_eq_bind_pure_comp]
   refine bind_congr fun out => ?_
@@ -338,10 +338,10 @@ private theorem oracleSendBrleak_run (g : MLKEMBraid.GameState P Unit) :
   · rcases hk : r.outputKey with _ | ⟨tI, key⟩ <;>
       simp [hk, sendUpdate, SCKAScheme.sendBUpdate, SCKAScheme.knownPrefix, StateT.run_set]
 
-/-- Projecting a leaking trace send of A gives the explicit-policy leaking send. -/
+/-- Projecting a leaking trace send of A gives the leaking send of the security game. -/
 private theorem traceLeakA_map (t : Unit) (s : TraceState P) :
     Prod.map id TraceState.game <$> (traceLeak P hMac irl true t).run s =
-      (SCKAScheme.ExposurePolicy.oracleSendArleak (exposure P irl).send (scheme P hMac irl)
+      (SCKAScheme.oracleSendArleak (nativeExposure P irl).rleak (scheme P hMac irl)
         t).run s.game := by
   cases t
   rw [oracleSendArleak_run hMac irl s.game,
@@ -349,14 +349,14 @@ private theorem traceLeakA_map (t : Unit) (s : TraceState P) :
   change Prod.map id TraceState.game <$> traceSend P hMac irl true true s = _
   simp only [traceSend, Functor.map_map]
   refine congrArg (fun f => f <$> sampledSend P hMac irl s true) (funext fun w => ?_)
-  by_cases hc : (exposure P irl).send s.game.stA w.1.1.state w.1.2 ∩ s.game.challenged = ∅
+  by_cases hc : (nativeExposure P irl).rleak s.game.stA w.1.2 ∩ s.game.challenged = ∅
   · simp [hc, GameState.stateAt]
   · simp [hc, GameState.stateAt]
 
-/-- Projecting a leaking trace send of B gives the explicit-policy leaking send. -/
+/-- Projecting a leaking trace send of B gives the leaking send of the security game. -/
 private theorem traceLeakB_map (t : Unit) (s : TraceState P) :
     Prod.map id TraceState.game <$> (traceLeak P hMac irl false t).run s =
-      (SCKAScheme.ExposurePolicy.oracleSendBrleak (exposure P irl).send (scheme P hMac irl)
+      (SCKAScheme.oracleSendBrleak (nativeExposure P irl).rleak (scheme P hMac irl)
         t).run s.game := by
   cases t
   rw [oracleSendBrleak_run hMac irl s.game,
@@ -364,7 +364,7 @@ private theorem traceLeakB_map (t : Unit) (s : TraceState P) :
   change Prod.map id TraceState.game <$> traceSend P hMac irl false true s = _
   simp only [traceSend, Functor.map_map]
   refine congrArg (fun f => f <$> sampledSend P hMac irl s false) (funext fun w => ?_)
-  by_cases hc : (exposure P irl).send s.game.stB w.1.1.state w.1.2 ∩ s.game.challenged = ∅
+  by_cases hc : (nativeExposure P irl).rleak s.game.stB w.1.2 ∩ s.game.challenged = ∅
   · simp [hc, GameState.stateAt]
   · simp [hc, GameState.stateAt]
 
@@ -400,11 +400,11 @@ private theorem traceChallenge_map [SampleableType P.K] [SampleableType P.EpochK
             cases b <;> simp [challengeValue, StateT.run_bind, StateT.run_set,
               StateT.run_monadLift]
 
-/-- Each query of the real trace game projects to the explicit-policy game query. -/
+/-- Each query of the real trace game projects to the same query of the security game. -/
 private theorem traceImpl_real_map [SampleableType P.K] [SampleableType P.EpochKey] (b : Bool) :
     ∀ t s, Prod.map id TraceState.game <$>
         (traceImpl P hMac irl false (fun _ => if b then .uniform else .real) t).run s =
-      (SCKAScheme.ExposurePolicy.sckaSecurityImpl b (exposure P irl) (exposure P irl)
+      (SCKAScheme.sckaSecurityImpl b (nativeExposure P irl) (nativeExposure P irl)
         (scheme P hMac irl) t).run (TraceState.game s) :=
   queryMap_add _ (queryMap_add _ (queryMap_add _ (queryMap_add _ (queryMap_add _
     (queryMap_add _ (queryMap_add _ (queryMap_add _ (queryMap_add _
@@ -423,9 +423,9 @@ private theorem traceImpl_real_map [SampleableType P.K] [SampleableType P.EpochK
 
 end Erasure
 
-/-- Projecting the real trace run to its game state gives the security game of either fixed bit
-with the exposure policy `exposure`. The two computations are equal. The stream decoders need not
-be sound. -/
+/-- Projecting the real trace run to its game state gives the security game of either fixed bit with
+the exposure functions `nativeExposure`. The two computations are equal. The stream decoders need
+not be sound. -/
 theorem run_erase (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
     [DecidableEq P.EpochKey]
@@ -433,7 +433,7 @@ theorem run_erase (P : Parameters ProbComp)
     (A : Adversary P irl) (b : Bool) :
     Prod.map id TraceState.game <$>
         run P hMac irl false (fun _ => if b then .uniform else .real) A =
-      (simulateQ (SCKAScheme.ExposurePolicy.sckaSecurityImpl b (exposure P irl) (exposure P irl)
+      (simulateQ (SCKAScheme.sckaSecurityImpl b (nativeExposure P irl) (nativeExposure P irl)
         (scheme P hMac irl)) A).run
         (SCKAScheme.initGameState (MLKEMBraid.initA P (auth P hMac) ())
           (MLKEMBraid.initB P (auth P hMac) ())) :=
