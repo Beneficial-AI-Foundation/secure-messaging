@@ -283,19 +283,12 @@ def Sound (dec : StreamDecoder M Sym) (ecp : ErasureCodePayload M Sym) : Prop :=
     dec.decodedPayload (dec.run ecp p is) = none ∨
       dec.decodedPayload (dec.run ecp p is) = some p
 ```
-
-::::::gameGrid
-:::::gameCell "\\textsf{Illustration: a lossy stream}" (kind := "scheme")
-:::erasureCodeStreamingFigure
-:::
-:::::
-::::::
 :::::::
 
 :::defTitle "set_decoder" "Set-based decoder"
 :::
 
-::::definition "set_decoder" (parent := "erasure_code_payloads") (lean := "ErasureCodePayload.Streaming.SetDecoder.HasIndex, ErasureCodePayload.Streaming.SetDecoder.addChunk, ErasureCodePayload.Streaming.setDecoder") (tags := "gh-251") (uses := "erasure_code_payload, erasure_code_streaming")
+:::::::definition "set_decoder" (parent := "erasure_code_payloads") (lean := "ErasureCodePayload.Streaming.SetDecoder.HasIndex, ErasureCodePayload.Streaming.SetDecoder.addChunk, ErasureCodePayload.Streaming.setDecoder") (tags := "gh-251") (uses := "erasure_code_payload, erasure_code_streaming")
 The *set-based decoder* of an {bpref "erasure_code_payload"}[erasure-code payload] with decoding
 $`\mathsf{DecodePayload}:\mathcal P_{\mathrm{fin}}(\mathbb N\times\Sigma)\to Y\cup\{\bot\}` is the
 {bpref "erasure_code_streaming"}[stream decoder] whose state is the set of chunks received so far
@@ -337,7 +330,14 @@ def setDecoder [DecidableEq Sym] (ecp : ErasureCodePayload M Sym) : StreamDecode
   addChunk := SetDecoder.addChunk
   decodedPayload := ecp.decode
 ```
-::::
+
+::::::gameGrid
+:::::gameCell "\\textsf{Illustration: a lossy stream}" (kind := "scheme")
+:::erasureCodeStreamingFigure
+:::
+:::::
+::::::
+:::::::
 
 :::defTitle "set_decoder_soundness" "Set-based decoder soundness"
 :::
