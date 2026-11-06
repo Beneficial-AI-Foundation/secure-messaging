@@ -38,6 +38,7 @@ import SecureMessaging.CKA.FromDDH.Security.ReductionReal.RelStep
 import SecureMessaging.CKA.FromKEM.Basic
 import SecureMessaging.CKA.FromKEM.Construction
 import SecureMessaging.CKA.FromKEM.Correctness
+import SecureMessaging.CKA.FromKEM.FrodoKEM
 import SecureMessaging.CKA.FromKEM.Security
 import SecureMessaging.CKA.FromLWE.Basic
 import SecureMessaging.CKA.FromLWE.Reconciliation

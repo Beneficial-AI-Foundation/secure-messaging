@@ -7,6 +7,7 @@ import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessagingDocs.Chapters.CKA.Defs
 import SecureMessaging.CKA.FromKEM.Construction
 import SecureMessaging.CKA.FromKEM.Correctness
+import SecureMessaging.CKA.FromKEM.FrodoKEM
 import SecureMessaging.CKA.FromKEM.Security
 
 /-! # Blueprint chapter: CKA from KEM -/
@@ -63,8 +64,36 @@ def scheme {m : Type → Type u} [Monad m] {K PK SK C : Type}
 :::defTitle "cka_from_kem_correctness" "CKA from KEM correctness"
 :::
 
-::::theorem "cka_from_kem_correctness" (parent := "cka_cka_from_kem") (lean := "kemCKA.correctness") (tags := "gh-4") (uses := "cka_from_kem_spec, cka_correctness")
-$`\todo`
+::::theorem "cka_from_kem_correctness" (parent := "cka_cka_from_kem") (lean := "kemCKA.correctness_failure_le, kemCKA.correctness") (tags := "gh-4") (uses := "cka_from_kem_spec, cka_correctness")
+Let $`\delta` be the correctness error of the KEM: the probability that deterministic
+decapsulation of an honest encapsulation, under an honestly generated key pair, does not
+return the encapsulated key. If the adversary makes at most $`q` queries to the send oracles
+of both parties combined, the CKA correctness game fails with probability at most
+$`q\delta`. No correctness assumption on the KEM is needed.
+
+Each successful send encapsulates under the key pair generated before it, the first under the
+initial key pair, and generates the key pair used by the next send. The proof charges a freshly
+generated key pair only while send budget remains, so the initial expected charge is
+$`q\delta` rather than $`(q+1)\delta`; rejected sends still count towards $`q`. For a perfectly correct KEM
+($`\delta = 0`) the game succeeds with probability one for every adversary, without a query
+bound.
+
+:::leanPillCaption "Failure probability for at most $`q` send queries"
+:::
+
+```anchor correctnessFailureLe (project := ".") (module := SecureMessaging.CKA.FromKEM.Correctness)
+theorem correctness_failure_le [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : RandLeak kem)
+    (adv : CKAScheme.CKACorrectnessAdversary (Message C PK) K)
+    (q : ℕ) (hq : CKAScheme.SendQueryBound adv q) :
+    Pr{let x ← CKAScheme.correctnessExp (scheme kem hDet leak) adv}[x = false] ≤
+      (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp
+```
+
+:::leanPillCaption "Perfect correctness without a query bound"
+:::
 
 ```anchor correctness (project := ".") (module := SecureMessaging.CKA.FromKEM.Correctness)
 theorem correctness [DecidableEq K]
@@ -74,6 +103,68 @@ theorem correctness [DecidableEq K]
     (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
     (adv : CKAScheme.CKACorrectnessAdversary (Message C PK) K) :
     Pr{let x ← CKAScheme.correctnessExp (scheme kem hDet leak) adv}[x = true] = 1
+```
+::::
+
+:::defTitle "cka_from_kem_frodokem_correctness" "CKA from FrodoKEM correctness"
+:::
+
+::::theorem "cka_from_kem_frodokem_correctness" (parent := "cka_cka_from_kem") (lean := "kemCKA.frodoKEM_correctness_failure_le, kemCKA.frodoKEM_correctness_failure_tenth_power_le") (uses := "cka_from_kem_correctness, frodo_kem_scheme, frodo_kem_correctness")
+Instantiate the construction with FrodoKEM for a parameter set $`\mathsf{ps}` in the finite
+random-oracle model: a single table $`H` is sampled uniformly before the game and answers
+every SHAKE call of key generation, encapsulation and decapsulation in every epoch, while
+the public-matrix generator is fixed independently of $`H`. If the adversary makes at most
+$`q` send queries, the correctness game fails with probability at most
+$`q \cdot B_{\mathsf{ps}}`, averaged over $`H` and the game, where $`B_{\mathsf{ps}}` is
+the certified FrodoKEM failure bound. Consequently,
+$`\Pr[\text{failure}]^{10} \cdot 2^{e_{\mathsf{ps}}} \le q^{10}`, where $`e_{\mathsf{ps}}/10`
+is $`138.7`, $`199.6` and $`252.5` for FrodoKEM-640, -976 and -1344 and their ephemeral
+variants.
+
+For each fixed table the generic bound gives $`q \cdot \delta_H`; averaging $`\delta_H`
+over the table gives the FrodoKEM random-oracle failure probability, so no independence
+between epochs is assumed. The bound is an average over the table, not a bound for every
+fixed table or for concrete SHAKE. Each generated key-pair instance is used for at most one
+encapsulation; this is not a proof of the eFrodoKEM per-public-key usage limit.
+
+:::leanPillCaption "Failure probability for at most $`q` send queries"
+:::
+
+```anchor frodoKEMCorrectnessFailureLe (project := ".") (module := SecureMessaging.CKA.FromKEM.FrodoKEM)
+theorem frodoKEM_correctness_failure_le
+    (ps : FrodoKEM.ParameterSet) (gen : FrodoKEM.ROM.Generator ps)
+    (adv : CKAScheme.CKACorrectnessAdversary
+      (Message (FrodoKEM.Ciphertext ps) (FrodoKEM.PublicKey ps)) (FrodoKEM.SharedSecretBits ps))
+    (q : ℕ) (hq : CKAScheme.SendQueryBound adv q) :
+    Pr{
+      let H ← ToVCVio.FiniteXOF.sampleTable
+        (FrodoKEM.ROM.inputLengths ps) (FrodoKEM.ROM.outputBits ps)
+      let x ← CKAScheme.correctnessExp
+        (scheme (FrodoKEM.KEM.asKEMScheme (FrodoKEM.ROM.operations ps gen H))
+          (FrodoKEM.KEM.deterministicDecaps (FrodoKEM.ROM.operations ps gen H))
+          (RandLeak.noLeak (FrodoKEM.KEM.asKEMScheme (FrodoKEM.ROM.operations ps gen H))))
+        adv
+    }[x = false] ≤ (q : ℝ≥0∞) * FrodoKEM.Certificate.failureBound ps
+```
+
+:::leanPillCaption "Fractional-bit form"
+:::
+
+```anchor frodoKEMCorrectnessTenthPowerLe (project := ".") (module := SecureMessaging.CKA.FromKEM.FrodoKEM)
+theorem frodoKEM_correctness_failure_tenth_power_le
+    (ps : FrodoKEM.ParameterSet) (gen : FrodoKEM.ROM.Generator ps)
+    (adv : CKAScheme.CKACorrectnessAdversary
+      (Message (FrodoKEM.Ciphertext ps) (FrodoKEM.PublicKey ps)) (FrodoKEM.SharedSecretBits ps))
+    (q : ℕ) (hq : CKAScheme.SendQueryBound adv q) :
+    Pr{
+      let H ← ToVCVio.FiniteXOF.sampleTable
+        (FrodoKEM.ROM.inputLengths ps) (FrodoKEM.ROM.outputBits ps)
+      let x ← CKAScheme.correctnessExp
+        (scheme (FrodoKEM.KEM.asKEMScheme (FrodoKEM.ROM.operations ps gen H))
+          (FrodoKEM.KEM.deterministicDecaps (FrodoKEM.ROM.operations ps gen H))
+          (RandLeak.noLeak (FrodoKEM.KEM.asKEMScheme (FrodoKEM.ROM.operations ps gen H))))
+        adv
+    }[x = false] ^ 10 * 2 ^ FrodoKEM.Certificate.exponentTenths ps ≤ (q : ℝ≥0∞) ^ 10
 ```
 ::::
 
