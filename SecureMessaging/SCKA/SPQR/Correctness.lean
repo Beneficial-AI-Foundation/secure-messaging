@@ -5,6 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.ErasureCode.SPQRReedSolomon.Correctness
+import SecureMessaging.KEM.IncrementalKEM.FromMLKEM.Equivalence
 import SecureMessaging.SCKA.SPQR.Correctness.Relation
 import SecureMessaging.SCKA.SPQR.Instances
 
@@ -31,8 +32,7 @@ If the four erasure codes of `P` are correct and `Adv` makes at most `q` send qu
 
 * `correctness_error_le`: `1 - Pr[G(Adv) = true] ≤ q · ε`;
 * `v1Scheme_correctness_error_le`: the same bound for `v1Scheme`, whose four SPQR Reed-Solomon
-  codes are correct, with `ε` the correctness error of `v1Det.toKEM`. This is ML-KEM-768 with its
-  coins drawn as byte strings: 64 bytes for key generation and 32 bytes for encapsulation.
+  codes are correct, with `ε` the correctness error of ML-KEM-768.
 
 This is the bound of `MLKEMBraid.correctness_error_le`, for the SPQR scheme.
 
@@ -518,7 +518,7 @@ theorem correctness_error_le
 
 open ErasureCode.SPQRReedSolomon (Chunk GF16 erasureCode_correct) in
 /-- The bound of `correctness_error_le` for `v1Scheme`. The four SPQR Reed-Solomon codes are
-correct, and `ε` is the correctness error of `v1Det.toKEM`, ML-KEM-768 with byte-string coins. -/
+correct, and `ε` is the correctness error of ML-KEM-768. -/
 -- ANCHOR: SPQR_v1Scheme_correctness_error_le
 theorem v1Scheme_correctness_error_le {InitKey AuthState EpochKey Mac : Type}
     [DecidableEq EpochKey]
@@ -544,7 +544,7 @@ theorem v1Scheme_correctness_error_le {InitKey AuthState EpochKey Mac : Type}
         (v1Scheme kdfOK serializeHdr parseHdr parseHdr_serializeHdr serializeEk parseEk
           parseEk_serializeEk serializeCt1 parseCt1 parseCt1_serializeCt1 serializeCt2 parseCt2
           parseCt2_serializeCt2 auth sampleInitKey) adv)}[x = true] ≤
-      (q : ℝ≥0∞) * v1Det.toKEM.correctnessError ProbCompRuntime.probComp
+      (q : ℝ≥0∞) * MLKEM.mlkem768Scheme.correctnessError ProbCompRuntime.probComp
 -- ANCHOR_END: SPQR_v1Scheme_correctness_error_le
     := by
   let P₀ := v1Parameters kdfOK serializeHdr parseHdr parseHdr_serializeHdr serializeEk parseEk
@@ -559,6 +559,10 @@ theorem v1Scheme_correctness_error_le {InitKey AuthState EpochKey Mac : Type}
   let : DecidableEq P₀.Sym := by
     change DecidableEq (Chunk GF16)
     infer_instance
+  have hε : v1Det.toKEM.correctnessError ProbCompRuntime.probComp =
+      MLKEM.mlkem768Scheme.correctnessError ProbCompRuntime.probComp :=
+    MLKEM.mlkemIncrementalDet_correctnessError _ _ _
+  rw [← hε]
   exact correctness_error_le P₀ auth sampleInitKey
     (erasureCode_correct 3 (by norm_num) (by norm_num))
     (erasureCode_correct 36 (by norm_num) (by norm_num))

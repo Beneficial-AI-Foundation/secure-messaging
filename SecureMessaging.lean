@@ -53,6 +53,7 @@ import SecureMessaging.KEM.IncrementalKEM.Correctness
 import SecureMessaging.KEM.IncrementalKEM.Defs
 import SecureMessaging.KEM.IncrementalKEM.Derandomized
 import SecureMessaging.KEM.IncrementalKEM.FromMLKEM
+import SecureMessaging.KEM.IncrementalKEM.FromMLKEM.Equivalence
 import SecureMessaging.KEM.MLKEM.Construction
 import SecureMessaging.KEM.MLKEM.Correctness
 import SecureMessaging.KEM.MLKEM.Correctness.EasyCryptBoundary

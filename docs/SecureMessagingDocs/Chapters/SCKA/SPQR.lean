@@ -1294,8 +1294,7 @@ Assume that:
 
 Then $`1-\Pr\bigl[\Exp{\textsf{cor}}{\textsf{SPQR}}(\adv)=1\bigr] \le q\varepsilon`.
 For SPQR v1, the four SPQR Reed–Solomon codes are correct and $`\varepsilon` is the
-correctness error of ML-KEM-768 with its coins drawn as byte strings: 64 bytes for key
-generation and 32 bytes for encapsulation.
+correctness error of ML-KEM-768.
 
 :::leanPillCaption "Correctness error bound"
 :::
