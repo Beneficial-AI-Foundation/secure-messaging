@@ -41,7 +41,7 @@ Sparse Post-Quantum Ratchet (SPQR).
 :::defTitle "spqr_parameters" "SPQR parameters"
 :::
 
-:::::::definition "spqr_parameters" (parent := "cka_protocols_spqr") (lean := "SPQR.Parameters, SPQR.Parameters.generate, SPQR.Parameters.generateRleak, SPQR.Parameters.encaps1, SPQR.Parameters.encaps1Rleak, SPQR.Parameters.encaps2, SPQR.Parameters.decaps, SPQR.Parameters.ekMatchesHeader") (tags := "gh-252") (uses := "incremental_kem_det, erasure_code_payload, stream_decoder")
+:::::::definition "spqr_parameters" (parent := "cka_protocols_spqr") (lean := "SPQR.Parameters, SPQR.Parameters.generate, SPQR.Parameters.generateRleak, SPQR.Parameters.encaps1, SPQR.Parameters.encaps1Rleak, SPQR.Parameters.encaps2, SPQR.Parameters.decaps, SPQR.Parameters.ekMatchesHeader") (tags := "gh-252") (uses := "incremental_kem_det, erasure_code_payload, erasure_code_streaming")
 An *SPQR parameter set* $`P` consists of
 
 - an {bpref "incremental_kem_det"}[incremental KEM with explicit coins]:
@@ -59,7 +59,7 @@ An *SPQR parameter set* $`P` consists of
   - $`\mathsf{Code}_H`, $`\mathsf{Code}_V`, $`\mathsf{Code}_1`, and $`\mathsf{Code}_2`, with payloads
     $`H\times T`, $`V`, $`C_1`, and $`C_2\times T` respectively;
   - for each $`X\in\{H,V,1,2\}`, the encoder algorithms $`\mathsf{Enc}_X` and $`\mathsf{Next}` of
-    $`\mathsf{Code}_X`, and a {bpref "stream_decoder"}[stream decoder] for the payloads of
+    $`\mathsf{Code}_X`, and a {bpref "erasure_code_streaming"}[stream decoder] for the payloads of
     $`\mathsf{Code}_X`, with algorithms $`\mathsf{Empty}_X`, $`\mathsf{Add}`, and $`\mathsf{Decode}`.
 
 :::leanPillCaption "Parameters"

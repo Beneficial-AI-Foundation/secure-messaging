@@ -26,7 +26,8 @@ set_option pp.rawOnError true
 #doc (Manual) "Erasure-Code Payloads and Streaming" =>
 
 :::group "erasure_code_payloads"
-Payload encoding over erasure codes, stream decoders, and stateful streaming.
+Payload encoding over erasure codes, its streaming encoder and stream decoders, and the
+set-based decoder.
 :::
 
 :::defTitle "erasure_code_payload" "Erasure-code payload"
@@ -165,89 +166,19 @@ theorem decode_payloadChunks_none {M : Type}
 ```
 ::::
 
-:::defTitle "stream_decoder" "Stream decoder"
+:::defTitle "erasure_code_streaming" "Streaming encoder and stream decoder"
 :::
 
-::::definition "stream_decoder" (parent := "erasure_code_payloads") (lean := "ErasureCodePayload.Streaming.StreamDecoder, ErasureCodePayload.Streaming.StreamDecoder.run, ErasureCodePayload.Streaming.StreamDecoder.Sound, ErasureCodePayload.Streaming.StreamDecoder.Received") (tags := "gh-401") (uses := "erasure_code_payload")
-Consider a payload space $`Y` and a symbol alphabet $`\Sigma`. A *stream decoder* for $`Y` over
-$`\Sigma` consists of a state space $`\mathcal D` and the algorithms
-
-- $`\mathsf{Empty}\in\mathcal D`: the initial state;
-- $`\mathsf{Add}:\mathcal D\times(\mathbb N\times\Sigma)\to\mathcal D`: adding one indexed chunk;
-- $`\mathsf{Decode}:\mathcal D\to Y\cup\{\bot\}`: the decoded payload, or $`\bot`.
-
-:::leanPillCaption "StreamDecoder"
-:::
-
-```anchor StreamDecoder (project := ".") (module := SecureMessaging.ErasureCode.Streaming)
-structure StreamDecoder (M Sym : Type) where
-  /-- Decoder state. -/
-  D : Type
-  /-- Initial state. -/
-  empty : D
-  /-- Adds one indexed chunk. -/
-  addChunk : D → ℕ × Sym → D
-  /-- The decoded payload, if any. -/
-  decodedPayload : D → Option M
-```
-
-For an {bpref "erasure_code_payload"}[erasure-code payload] for $`Y` over $`\Sigma`, a payload
-$`y\in Y`, and counters $`i_1,\ldots,i_n\in\mathbb N`, the state after receiving the chunks of
-$`y` at these counters, in order, is
-
-$$`\mathsf{Run}(y;i_1,\ldots,i_n)=\mathsf{Add}(\cdots\mathsf{Add}(\mathsf{Empty},
-\mathsf{EncodePayload}(y,i_1))\cdots,\mathsf{EncodePayload}(y,i_n)).`
-
-:::leanPillCaption "run"
-:::
-
-```anchor StreamDecoder_run (project := ".") (module := SecureMessaging.ErasureCode.Streaming)
-def run (dec : StreamDecoder M Sym) (ecp : ErasureCodePayload M Sym) (p : M) (is : List ℕ) :
-    dec.D :=
-  is.foldl (fun d i => dec.addChunk d (ecp.encode p i)) dec.empty
-```
-
-A state $`\delta` *received only chunks of* $`y` if $`\delta=\mathsf{Run}(y;i_1,\ldots,i_n)` for
-some counters, possibly none.
-
-:::leanPillCaption "Received"
-:::
-
-```anchor StreamDecoder_Received (project := ".") (module := SecureMessaging.ErasureCode.Streaming)
-def Received (dec : StreamDecoder M Sym) (ecp : ErasureCodePayload M Sym) (p : M) (d : dec.D) :
-    Prop :=
-  ∃ is : List ℕ, d = dec.run ecp p is
-```
-
-The stream decoder is *sound* for the erasure-code payload if, for every payload $`y`, every
-$`n\ge1`, and all counters $`i_1,\ldots,i_n`,
-
-$$`\mathsf{Decode}(\mathsf{Run}(y;i_1,\ldots,i_n))\in\{\bot,y\}.`
-
-:::leanPillCaption "Sound"
-:::
-
-```anchor StreamDecoder_Sound (project := ".") (module := SecureMessaging.ErasureCode.Streaming)
-def Sound (dec : StreamDecoder M Sym) (ecp : ErasureCodePayload M Sym) : Prop :=
-  ∀ (p : M) (is : List ℕ), is ≠ [] →
-    dec.decodedPayload (dec.run ecp p is) = none ∨
-      dec.decodedPayload (dec.run ecp p is) = some p
-```
-::::
-
-:::defTitle "erasure_code_streaming" "Stateful erasure-code streaming"
-:::
-
-:::::::definition "erasure_code_streaming" (parent := "erasure_code_payloads") (lean := "ErasureCodePayload.Streaming.EncoderState, ErasureCodePayload.Streaming.EncoderState.init, ErasureCodePayload.Streaming.EncoderState.nextChunk, ErasureCodePayload.Streaming.SetDecoder.HasIndex, ErasureCodePayload.Streaming.SetDecoder.addChunk, ErasureCodePayload.Streaming.setDecoder") (tags := "gh-251") (uses := "erasure_code_payload, stream_decoder")
-Consider an {bpref "erasure_code_payload"}[erasure-code payload] for a payload space $`Y`, with
-chunk encoding $`\mathsf{EncodePayload}:Y\times\mathbb N\to\mathbb N\times\Sigma` and decoding
-$`\mathsf{DecodePayload}:\mathcal P_{\mathrm{fin}}(\mathbb N\times\Sigma)\to Y\cup\{\bot\}`. Its
-*stateful streaming* consists of the encoder below and the *set-based*
-{bpref "stream_decoder"}[stream decoder], whose state is the set of chunks received so far and
-which keeps the first symbol received at each index.
+:::::::definition "erasure_code_streaming" (parent := "erasure_code_payloads") (lean := "ErasureCodePayload.Streaming.EncoderState, ErasureCodePayload.Streaming.EncoderState.init, ErasureCodePayload.Streaming.EncoderState.nextChunk, ErasureCodePayload.Streaming.StreamDecoder, ErasureCodePayload.Streaming.StreamDecoder.run, ErasureCodePayload.Streaming.StreamDecoder.Received, ErasureCodePayload.Streaming.StreamDecoder.Sound") (tags := "gh-251, gh-401") (uses := "erasure_code_payload")
+Consider an {bpref "erasure_code_payload"}[erasure-code payload] for a payload space $`Y` over a
+symbol alphabet $`\Sigma`, with chunk encoding
+$`\mathsf{EncodePayload}:Y\times\mathbb N\to\mathbb N\times\Sigma`. Its *streaming encoder* emits,
+for a payload $`y`, the chunks $`\mathsf{EncodePayload}(y,i)` for $`i=0,1,2,\ldots` in turn. A
+*stream decoder* for $`Y` over $`\Sigma` adds the received chunks to its state one at a time and
+decodes the state to a payload or to $`\bot`:
 
 :::::gameGrid
-::::gameCell "\\textsf{Encoder}" (kind := "compact")
+::::gameCell "\\textsf{Streaming encoder}" (kind := "compact")
 $`\begin{array}{l}
 \mathcal E=Y\times\mathbb N\pcomment{\text{states }\eta=(y,i)}\\[0.3em]
 \mathsf{Enc}:Y\to\mathcal E,\quad\mathsf{Enc}(y)=(y,0)\\[0.3em]
@@ -286,15 +217,97 @@ def nextChunk (state : EncoderState M Sym) :
     { state with nextIndex := state.nextIndex + 1 })
 ```
 ::::
-::::gameCell "\\textsf{Set-based decoder}" (kind := "compact")
+::::gameCell "\\textsf{Stream decoder}" (kind := "compact")
 $`\begin{array}{l}
-\mathcal D=\mathcal P_{\mathrm{fin}}(\mathbb N\times\Sigma)\pcomment{\text{states }\delta}\\[0.3em]
-\mathsf{Empty}=\emptyset\\[0.3em]
+\mathcal D\pcomment{\text{states }\delta}\\[0.3em]
+\mathsf{Empty}\in\mathcal D\\[0.3em]
+\mathsf{Add}:\mathcal D\times(\mathbb N\times\Sigma)\to\mathcal D\\[0.3em]
+\mathsf{Decode}:\mathcal D\to Y\cup\{\bot\}
+\end{array}`
+
+:::leanPillCaption "StreamDecoder"
+:::
+
+```anchor StreamDecoder (project := ".") (module := SecureMessaging.ErasureCode.Streaming)
+structure StreamDecoder (M Sym : Type) where
+  /-- Decoder state. -/
+  D : Type
+  /-- Initial state. -/
+  empty : D
+  /-- Adds one indexed chunk. -/
+  addChunk : D → ℕ × Sym → D
+  /-- The decoded payload, if any. -/
+  decodedPayload : D → Option M
+```
+::::
+:::::
+
+For a payload $`y\in Y` and counters $`i_1,\ldots,i_n\in\mathbb N`, the state of a stream decoder
+after receiving the chunks of $`y` at these counters, in order, is
+
+$$`\mathsf{Run}(y;i_1,\ldots,i_n)=\mathsf{Add}(\cdots\mathsf{Add}(\mathsf{Empty},
+\mathsf{EncodePayload}(y,i_1))\cdots,\mathsf{EncodePayload}(y,i_n)).`
+
+:::leanPillCaption "run"
+:::
+
+```anchor StreamDecoder_run (project := ".") (module := SecureMessaging.ErasureCode.Streaming)
+def run (dec : StreamDecoder M Sym) (ecp : ErasureCodePayload M Sym) (p : M) (is : List ℕ) :
+    dec.D :=
+  is.foldl (fun d i => dec.addChunk d (ecp.encode p i)) dec.empty
+```
+
+A state $`\delta` *received only chunks of* $`y` if $`\delta=\mathsf{Run}(y;i_1,\ldots,i_n)` for
+some counters, possibly none.
+
+:::leanPillCaption "Received"
+:::
+
+```anchor StreamDecoder_Received (project := ".") (module := SecureMessaging.ErasureCode.Streaming)
+def Received (dec : StreamDecoder M Sym) (ecp : ErasureCodePayload M Sym) (p : M) (d : dec.D) :
+    Prop :=
+  ∃ is : List ℕ, d = dec.run ecp p is
+```
+
+A stream decoder is *sound* for the erasure-code payload if, for every payload $`y`, every
+$`n\ge1`, and all counters $`i_1,\ldots,i_n`,
+
+$$`\mathsf{Decode}(\mathsf{Run}(y;i_1,\ldots,i_n))\in\{\bot,y\}.`
+
+:::leanPillCaption "Sound"
+:::
+
+```anchor StreamDecoder_Sound (project := ".") (module := SecureMessaging.ErasureCode.Streaming)
+def Sound (dec : StreamDecoder M Sym) (ecp : ErasureCodePayload M Sym) : Prop :=
+  ∀ (p : M) (is : List ℕ), is ≠ [] →
+    dec.decodedPayload (dec.run ecp p is) = none ∨
+      dec.decodedPayload (dec.run ecp p is) = some p
+```
+
+::::::gameGrid
+:::::gameCell "\\textsf{Illustration: a lossy stream}" (kind := "scheme")
+:::erasureCodeStreamingFigure
+:::
+:::::
+::::::
+:::::::
+
+:::defTitle "set_decoder" "Set-based decoder"
+:::
+
+::::definition "set_decoder" (parent := "erasure_code_payloads") (lean := "ErasureCodePayload.Streaming.SetDecoder.HasIndex, ErasureCodePayload.Streaming.SetDecoder.addChunk, ErasureCodePayload.Streaming.setDecoder") (tags := "gh-251") (uses := "erasure_code_payload, erasure_code_streaming")
+The *set-based decoder* of an {bpref "erasure_code_payload"}[erasure-code payload] with decoding
+$`\mathsf{DecodePayload}:\mathcal P_{\mathrm{fin}}(\mathbb N\times\Sigma)\to Y\cup\{\bot\}` is the
+{bpref "erasure_code_streaming"}[stream decoder] whose state is the set of chunks received so far
+and which keeps the first symbol received at each index:
+
+$$`\begin{array}{l}
+\mathcal D=\mathcal P_{\mathrm{fin}}(\mathbb N\times\Sigma),\qquad\mathsf{Empty}=\emptyset,\qquad
+\mathsf{Decode}(\delta)=\mathsf{DecodePayload}(\delta),\\[0.6em]
 \mathsf{Add}(\delta,(j,s))=\begin{cases}
-\delta&\text{if }\exists s'.\,(j,s')\in\delta\\
-\delta\cup\{(j,s)\}&\text{otherwise}
-\end{cases}\\[0.3em]
-\mathsf{Decode}(\delta)=\mathsf{DecodePayload}(\delta)
+\delta&\text{if }\exists s'.\,(j,s')\in\delta,\\
+\delta\cup\{(j,s)\}&\text{otherwise.}
+\end{cases}
 \end{array}`
 
 :::leanPillCaption "HasIndex"
@@ -325,20 +338,11 @@ def setDecoder [DecidableEq Sym] (ecp : ErasureCodePayload M Sym) : StreamDecode
   decodedPayload := ecp.decode
 ```
 ::::
-:::::
 
-::::::gameGrid
-:::::gameCell "\\textsf{Illustration: a lossy stream}" (kind := "scheme")
-:::erasureCodeStreamingFigure
-:::
-:::::
-::::::
-:::::::
-
-:::defTitle "erasure_code_streaming_correctness" "Set-based decoder soundness"
+:::defTitle "set_decoder_soundness" "Set-based decoder soundness"
 :::
 
-::::theorem "erasure_code_streaming_correctness" (parent := "erasure_code_payloads") (lean := "ErasureCodePayload.Streaming.SetDecoder.addChunk_payloadChunks, ErasureCodePayload.Streaming.setDecoder_sound") (uses := "erasure_code_streaming, stream_decoder, erasure_code_payload_correctness")
+::::theorem "set_decoder_soundness" (parent := "erasure_code_payloads") (lean := "ErasureCodePayload.Streaming.SetDecoder.addChunk_payloadChunks, ErasureCodePayload.Streaming.setDecoder_sound") (uses := "set_decoder, erasure_code_streaming, erasure_code_payload_correctness")
 Consider an {bpref "erasure_code_payload"}[erasure-code payload] for a payload space $`Y` whose
 erasure code is {bpref "erasure_code_correctness"}[correct], and a payload $`y\in Y`. Let
 $`L_I(y)` be the chunk set of $`y` at $`I\subseteq[N]`, as in the
@@ -360,8 +364,8 @@ theorem addChunk_payloadChunks [DecidableEq Sym]
         (insert (ErasureCodePayload.counterIndex ecp i) I)
 ```
 
-We can therefore derive that the {bpref "erasure_code_streaming"}[set-based decoder] is
-{bpref "stream_decoder"}[sound].
+We can therefore derive that the {bpref "set_decoder"}[set-based decoder] is
+{bpref "erasure_code_streaming"}[sound].
 
 :::leanPillCaption "setDecoder_sound"
 :::
