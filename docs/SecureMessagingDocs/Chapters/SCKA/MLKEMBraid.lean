@@ -298,14 +298,15 @@ def initB (P : Parameters m)
 
 ::::definition "mlkem_braid_spec" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.scheme") (tags := "gh-271") (uses := "scka_scheme, mlkem_braid_protocol_parameters, mlkem_braid_ratcheted_authenticator, mlkem_braid_protocol_transitions, mlkem_braid_protocol_init")
 Let $`P` be a set of {bpref "mlkem_braid_protocol_parameters"}[protocol parameters], let
-$`\mathsf{Auth}` be a {bpref "mlkem_braid_ratcheted_authenticator"}[ratcheted authenticator] for the
-epoch keys, headers, ciphertexts $`C_1\times C_2` and tags of $`P`, and let $`\mathsf{InitKeyGen}`
-sample the initial key of $`\mathsf{Auth}`. ML-KEM Braid $`\mathsf{Braid}(P,\mathsf{Auth},\mathsf{InitKeyGen})`
-is the {bpref "scka_scheme"}[SCKA scheme] whose parties run the
-{bpref "mlkem_braid_protocol_transitions"}[send and receive algorithms] from the
+$`\mathsf{Auth}` be a {bpref "mlkem_braid_ratcheted_authenticator"}[ratcheted authenticator] for
+the epoch keys, headers, ciphertexts in $`C_1\times C_2` and tags of $`P`, and let
+$`\mathsf{InitKeyGen}` be an algorithm that samples the initial key of $`\mathsf{Auth}`. ML-KEM
+Braid $`\mathsf{Braid}(P,\mathsf{Auth},\mathsf{InitKeyGen})` is the
+{bpref "scka_scheme"}[SCKA scheme] whose parties run the
+{bpref "mlkem_braid_protocol_transitions"}[send and receive algorithms], starting from the
 {bpref "mlkem_braid_protocol_init"}[initial states]. Headers and ciphertexts carry tags that
-$`\mathsf{Auth}` computes and verifies, and $`\mathsf{Auth}` updates its state with each derived
-epoch key.
+$`\mathsf{Auth}` computes and verifies. $`\mathsf{Auth}` updates its state with each derived epoch
+key.
 
 :::leanPillCaption "ML-KEM Braid as an SCKA scheme"
 :::
@@ -371,7 +372,8 @@ theorem correctness_error_le
 ::::definition "mlkem_braid_noauth_spec" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.NoAuth.auth, MLKEMBraid.NoAuth.scheme") (uses := "mlkem_braid_spec, mlkem_braid_ratcheted_authenticator")
 Let $`P` be a set of protocol parameters whose tag space $`P.\mathsf{Mac}` is the unit type. The
 *trivial authenticator* $`\mathsf{Auth}_\top` has the unit type as its state space, gives the unit
-tag to every message, and accepts every tag: $`\mathsf{Verify}_H=\mathsf{Verify}_C=\mathsf{true}`.
+tag to every header and ciphertext, and accepts every tag:
+$`\mathsf{Verify}_H=\mathsf{Verify}_C=\mathsf{true}`.
 *ML-KEM Braid without authentication* is the protocol
 $`\mathsf{Braid}_{\mathsf{NoAuth}}(P)=\mathsf{Braid}(P,\mathsf{Auth}_\top,\mathsf{InitKeyGen}_\top)` of
 {bpref "mlkem_braid_spec"}[], where $`\mathsf{InitKeyGen}_\top` returns the unit initial key.
@@ -408,7 +410,7 @@ def scheme (P : Parameters ProbComp) [DecidableEq P.Sym]
 
 ::::definition "mlkem_braid_noauth_vulnerable_epochs" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.NoAuth.vuln, MLKEMBraid.NoAuth.sendExposure, MLKEMBraid.NoAuth.nativeExposure, MLKEMBraid.NoAuth.deltaExposure, MLKEMBraid.NoAuth.sendExposure_eq_delta, MLKEMBraid.NoAuth.securityGame_equiv_delta") (uses := "mlkem_braid_noauth_spec, mlkem_braid_protocol_states, scka_oracles")
 The security game of {bpref "scka_oracles"}[] for $`\mathsf{Braid}_{\mathsf{NoAuth}}(P)` uses the
-following functions for both parties. Let $`\mathsf{st}` be a local state
+following exposure functions for both parties. Let $`\mathsf{st}` be a local state
 ({bpref "mlkem_braid_protocol_states"}[]) with epoch $`\mathsf{ep}(\mathsf{st})`, and let $`r` be
 the randomness of a send. Then
 
@@ -420,15 +422,16 @@ $$`\mathsf{vuln}^{\mathsf{rleak}}(\mathsf{st},r)=\begin{cases}
 \{\mathsf{ep}(\mathsf{st})\} & r=\mathsf{keygen}(\cdot)\text{ or }r=\mathsf{encaps}_1(\cdot),\\
 \emptyset & r=\mathsf{none}.\end{cases}`
 
-Thus a corruption exposes the current epoch of the party, except before key generation, while the
-party waits for a header, and between receiving a header and the first stage of encapsulation. A
-send that reveals its randomness exposes its epoch if it generates a key pair or runs the first
+That is, a corruption exposes the current epoch of the party, except before key generation, while
+the party waits for a header, and between receiving a header and the first stage of encapsulation.
+A send that reveals its randomness exposes its epoch if it generates a key pair or runs the first
 stage of encapsulation.
 
-On every send that the protocol can produce,
-$`\mathsf{vuln}^{\mathsf{rleak}}(\mathsf{st},r)=\mathsf{vuln}^{\mathsf{corr}}(\mathsf{st}')\setminus\mathsf{vuln}^{\mathsf{corr}}(\mathsf{st})`,
-where $`\mathsf{st}'` is the state after the send. This is the exposure rule of
-{Informal.citet SCKA25}[], Figure 1, so the game with that rule has the same guessing advantage.
+If a send of the protocol with randomness $`r` takes a party from $`\mathsf{st}` to
+$`\mathsf{st}'`, then
+$`\mathsf{vuln}^{\mathsf{rleak}}(\mathsf{st},r)=\mathsf{vuln}^{\mathsf{corr}}(\mathsf{st}')\setminus\mathsf{vuln}^{\mathsf{corr}}(\mathsf{st})`.
+This is the exposure rule of {Informal.citet SCKA25}[], Figure 1, so the game with that rule has the
+same guessing advantage.
 
 :::leanPillCaption "epochs exposed by a corruption"
 :::
@@ -468,7 +471,8 @@ def nativeExposure (P : Parameters ProbComp)
 :::
 
 ::::theorem "mlkem_braid_noauth_security" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.NoAuth.security, MLKEMBraid.security, MLKEMBraid.Bounded.parameters, MLKEMBraid.NoAuth.SendQueryBound, MLKEMBraid.NoAuth.kemMixReduction, MLKEMBraid.NoAuth.kdfMixReduction, MLKEMBraid.NoAuth.KDFContextAdversary, MLKEMBraid.NoAuth.kdfContextExp, MLKEMBraid.NoAuth.kdfAdvantage") (tags := "gh-244") (uses := "mlkem_braid_noauth_spec, mlkem_braid_noauth_vulnerable_epochs, scka_security, scka_oracles, incremental_kem_scheme, incremental_kem_rand_leak, erasure_code_correctness")
-Let $`\Pi=\mathsf{Braid}_{\mathsf{NoAuth}}(P)` ({bpref "mlkem_braid_noauth_spec"}[]) such that:
+Let $`\Pi=\mathsf{Braid}_{\mathsf{NoAuth}}(P)` ({bpref "mlkem_braid_noauth_spec"}[]), and assume
+that:
 
 * the KEM $`\Gamma` of $`P` has an {bpref "incremental_kem_scheme"}[incremental structure] with
   {bpref "incremental_kem_rand_leak"}[randomness leakage], deterministic decapsulation and a
@@ -496,20 +500,20 @@ where:
   secrets. In this game $`\mathcal C` first chooses an epoch and a state,
   $`(e,\mathsf{st})\leftarrow\mathcal C.\mathsf{context}()`. Then
   $`\mathcal C.\mathsf{guess}(\mathsf{st},\cdot)` receives either $`\mathsf{kdfOK}(u,e)` for a
-  uniform shared secret $`u`, or a uniform epoch key. The advantage is the absolute difference of
-  the probabilities that $`\mathcal C` outputs $`1` in the two cases;
+  uniform shared secret $`u`, or a uniform epoch key. The advantage is the absolute difference
+  between the probabilities that $`\mathcal C` outputs $`1` in the two cases;
 * $`\mathcal B` and $`\mathcal C` draw an epoch $`e\leftarrow\mathsf{epochChoice}(q)`, which is
   uniform on $`\{1,\dots,q\}` for $`q>0` and is $`1` for $`q=0`. They then run $`\mathcal A`
-  against a simulation of the security game. $`\mathcal B` puts its challenge public key,
-  ciphertext and key at epoch $`e`, and $`\mathcal C` answers the challenge of epoch $`e` with the
+  against a simulation of the security game. $`\mathcal B` embeds its challenge public key,
+  ciphertext and key in epoch $`e`, and $`\mathcal C` answers the challenge of epoch $`e` with the
   key that it receives. Both answer the challenges of earlier epochs with uniform keys and those of
-  later epochs with their real keys. They output the bit of $`\mathcal A`, or $`0` if epoch $`e`
-  becomes exposed.
+  later epochs with their real keys. They output the bit that $`\mathcal A` outputs, or $`0` if
+  epoch $`e` becomes exposed.
 
-For ML-KEM with byte encodings of the prescribed lengths and Reed–Solomon codes for the four
-streams, the same bound holds, where $`\mathcal B` attacks ML-KEM and $`\varepsilon` is the
-correctness error of ML-KEM. Nothing is assumed about $`\mathsf{kdfOK}`. The Braid specification instantiates
-it with HKDF.
+The same bound holds for ML-KEM with byte encodings of the prescribed lengths, with Reed–Solomon
+codes on the four streams. Here $`\mathcal B` attacks ML-KEM and $`\varepsilon` is the
+correctness error of ML-KEM. The bound assumes nothing about $`\mathsf{kdfOK}`. The Braid
+specification instantiates it with HKDF.
 
 :::leanPillCaption "security for ML-KEM"
 :::
