@@ -13,10 +13,9 @@ Protocol-independent stateful wrappers over `ErasureCodePayload`. The encoder em
 successive natural-number-indexed chunks. An `EncoderState` stores its `ErasureCodePayload`
 scheme, so a stream cannot be encoded under a different scheme.
 
-A `StreamDecoder` is a decoder given by its operations: a state type, an initial state, an
-operation that adds one indexed chunk, and a partial decoding function. `StreamDecoder.Sound` is
-the law that the ML-KEM Braid correctness proofs use: a decoder that received only chunks of `p`,
-at least one, decodes to `none` or `some p`. SPQR uses the same decoder interface.
+A `StreamDecoder` is a structure defined by a state type, an initial state, an operation that
+adds one indexed chunk to a state, and a partial decoding function. `StreamDecoder.Sound` states
+that a decoder that received only chunks of `p`, at least one, decodes to `none` or `some p`.
 `StreamDecoder.Received` is the matching invariant, and `StreamDecoder.Sound.of_inv` proves
 soundness from an instance's own invariant.
 
@@ -24,9 +23,9 @@ soundness from an instance's own invariant.
 at most one symbol per index and keeps the first symbol received at a repeated index. It is sound
 when the erasure code is correct (`setDecoder_sound`).
 
-The encoder and `setDecoder` model the observable streaming behavior of ML-KEM Braid and SPQR.
-They abstract away the byte representation, polynomial caches, bounded storage, and
-serialization of Signal's implementation. Other `StreamDecoder` instances can model these.
+The encoder and `setDecoder` abstract away the byte representation, polynomial caches, bounded
+storage, and serialization of an implementation such as Signal's. Other `StreamDecoder` instances
+can model these.
 
 ## References
 
