@@ -17,8 +17,12 @@ Theorem 5 removes this `win` in the step from `H1` to `H2`.
 `NoFirstDeliverWin fs len` states that `O-Deliver-B` never changes `win` from false to true,
 in every game state that the oracles reach. A forgery that B accepts at an index that is
 not compromised already sets `win` in `O-Inject-B`, so a later delivery failure does not
-change the result of the experiment. `securityExp_eq_noDeliverWin` turns this into an
-equality of experiments: the game with the `win` of `O-Deliver-B` and the game without it.
+change the result of the experiment.
+
+The game `fs-aead-nd` ("no delivery check") is the game of Figure 5 with
+`O-Deliver-B^nd` (`oracleDeliverBNoWin`) for `O-Deliver-B`. It is a hybrid game for
+proofs, not a security notion. `securityExp_eq_noDeliverWin` states that for a scheme with
+`NoFirstDeliverWin`, its experiment `securityExpNoDeliverWin` equals `securityExp`.
 
 - [ACD19] Alwen, Coretti, Dodis.
   *The Double Ratchet: Security Notions, Proofs, and Modularization for the
@@ -64,8 +68,8 @@ def NoFirstDeliverWin (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) : P
 -- ANCHOR_END: NoFirstDeliverWin
 
 omit [DecidableEq M] in
-/-- `O-Deliver-B` without its two assignments to `win`. Everything else is as in
-`oracleDeliverB`. -/
+/-- `O-Deliver-B^nd`, the oracle of `fs-aead-nd`: `O-Deliver-B` without its two assignments
+`win ← true`. Everything else is as in `oracleDeliverB`. -/
 -- ANCHOR: oracleDeliverBNoWin
 def oracleDeliverBNoWin (fs : FSAEADScheme K StS StR AD M C) :
     QueryImpl (AD × C →ₒ Option (ℕ × Option M)) (GameM StS StR AD M C) :=
@@ -80,7 +84,9 @@ def oracleDeliverBNoWin (fs : FSAEADScheme K StS StR AD M C) :
       return some (i', if i ∈ st.chall then none else some m')
 -- ANCHOR_END: oracleDeliverBNoWin
 
-/-- The oracles of `fsaeadSecurityImpl`, with `oracleDeliverBNoWin` for `O-Deliver-B`. -/
+/-- The oracles of `fs-aead-nd`: `fsaeadSecurityImpl`, with `oracleDeliverBNoWin` for
+`O-Deliver-B`. -/
+-- ANCHOR: fsaeadNoDeliverWinImpl
 def fsaeadNoDeliverWinImpl (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : Bool) :
     QueryImpl (fsaeadSpec StS StR AD M C) (GameM StS StR AD M C) :=
   oracleUnif StS StR AD M C
@@ -90,14 +96,18 @@ def fsaeadNoDeliverWinImpl (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ
     + oracleCorrB StS StR AD M C
     + oracleDeliverBNoWin fs
     + oracleInjectB fs
+-- ANCHOR_END: fsaeadNoDeliverWinImpl
 
-/-- `securityExp` with `oracleDeliverBNoWin` for `O-Deliver-B`. -/
+/-- The experiment of `fs-aead-nd`: `securityExp` with `fsaeadNoDeliverWinImpl` for
+`fsaeadSecurityImpl`. -/
+-- ANCHOR: securityExpNoDeliverWin
 def securityExpNoDeliverWin [SampleableType K] (fs : FSAEADScheme K StS StR AD M C)
     (len : M → ℕ) (adversary : FSAEADAdversary StS StR AD M C) : ProbComp Bool := do
   let k ← $ᵗ K
   let b ← $ᵗ Bool
   let (b', st) ← (simulateQ (fsaeadNoDeliverWinImpl fs len b) adversary).run (.init fs k)
   return st.win || b == b'
+-- ANCHOR_END: securityExpNoDeliverWin
 
 /-- Let `st` be a state with `win = false`, and let every outcome of `O-Deliver-B(q)` from
 `st` have `win = false`. Then `O-Deliver-B(q)` and `oracleDeliverBNoWin` agree on `st`. -/
@@ -139,8 +149,8 @@ theorem oracleDeliverB_run_eq_noWin_of_win_true (fs : FSAEADScheme K StS StR AD 
   · simp only [hwin, Bool.not_and, Bool.true_or, bind_pure_comp, StateT.run_map, StateT.run_set,
         map_pure]
 
-/-- Let `fs` satisfy `NoFirstDeliverWin`. Then the security experiment equals the experiment
-without the `win` of `O-Deliver-B`. -/
+/-- Let `fs` satisfy `NoFirstDeliverWin len`. Then for every adversary, `securityExp` equals
+the experiment of `fs-aead-nd`. -/
 -- ANCHOR: securityExp_eq_noDeliverWin
 theorem securityExp_eq_noDeliverWin [SampleableType K] (fs : FSAEADScheme K StS StR AD M C)
     (len : M → ℕ) (h : fs.NoFirstDeliverWin len) (adversary : FSAEADAdversary StS StR AD M C) :

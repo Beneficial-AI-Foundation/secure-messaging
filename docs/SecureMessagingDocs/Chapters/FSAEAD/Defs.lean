@@ -427,14 +427,18 @@ noncomputable def advantage [SampleableType K] [DecidableEq AD] [DecidableEq M]
 {bpref "fs_aead_security"}[FS-AEAD security definition]: $`\ODeliverB` sets $`\mathsf{win}`
 if B rejects an honest ciphertext or outputs a wrong index or message.
 
-An FS-AEAD scheme is delivery-correct if $`\ODeliverB` never changes $`\mathsf{win}` from
-$`\mathsf{false}` to $`\mathsf{true}`, in every game state that the oracles reach from the
-initial state, for every key and challenge bit.
+Fix a length function $`|\cdot|` on messages. For a key $`k` and a challenge bit $`b`, a
+game state is reachable if the oracles of the
+{bpref "fs_aead_security"}[FS-AEAD security game] reach it from the initial state for
+$`k`, with challenge bit $`b`. An FS-AEAD scheme is delivery-correct if for every key
+$`k`, every challenge bit $`b`, every reachable state with $`\mathsf{win} = \mathsf{false}`
+and every query $`(a, e)`, every outcome of $`\ODeliverB(a, e)` has
+$`\mathsf{win} = \mathsf{false}`.
 
-A forgery that B accepts at an index outside $`\mathsf{comp}` sets $`\mathsf{win}` in
-$`\OInjectB` first. A later delivery failure then does not change the result of the
-experiment. Delivery correctness is not the correctness notion of Theorem 7 of
-{Informal.citet ACD19}[], because here $`\OCorrB` ends the game.
+The definition does not require that $`\ODeliverB` never sets $`\mathsf{win}`. A forgery
+that B accepts at an index outside $`\mathsf{comp}` can make a later delivery fail, but it
+sets $`\mathsf{win}` in $`\OInjectB` first. Delivery correctness is not the correctness
+notion of Theorem 7 of {Informal.citet ACD19}[], because here $`\OCorrB` ends the game.
 
 :::leanPillCaption "reachable game states"
 :::
@@ -462,17 +466,57 @@ def NoFirstDeliverWin (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) : P
 ```
 ::::
 
-:::defTitle "fs_aead_delivery_correctness_hop" "Removing the delivery check"
+:::defTitle "fs_aead_no_delivery_check_game" "FS-AEAD game without the delivery check"
 :::
 
-::::theorem "fs_aead_delivery_correctness_hop" (parent := "fs_aead") (lean := "FSAEADScheme.securityExp_eq_noDeliverWin, FSAEADScheme.oracleDeliverBNoWin, FSAEADScheme.securityExpNoDeliverWin") (tags := "gh-29") (uses := "fs_aead_delivery_correctness, fs_aead_security")
-Let an FS-AEAD scheme be {bpref "fs_aead_delivery_correctness"}[delivery-correct]. Then
-$`\Exp{\textsf{fs-aead}}{\textsf{FS-AEAD}}(\adv)` has the same distribution as the
-experiment in which $`\ODeliverB` does not set $`\mathsf{win}`, for every adversary
-$`\adv`.
+:::::::definition "fs_aead_no_delivery_check_game" (parent := "fs_aead") (lean := "FSAEADScheme.oracleDeliverBNoWin, FSAEADScheme.fsaeadNoDeliverWinImpl, FSAEADScheme.securityExpNoDeliverWin") (tags := "gh-29") (uses := "fs_aead_security")
+The game $`\textsf{fs-aead-nd}` ("no delivery check") is the
+{bpref "fs_aead_security"}[FS-AEAD security game] with one change: the oracle
+$`\ODeliverB^{\mathsf{nd}}` replaces $`\ODeliverB`. $`\ODeliverB^{\mathsf{nd}}` is
+$`\ODeliverB` without its two assignments $`\mathsf{win} \gets \mathsf{true}`. The
+initialization, the other oracles and the output are those of the FS-AEAD security game.
 
-:::leanPillCaption "O-Deliver-B without win"
-:::
+$`\textsf{fs-aead-nd}` is a hybrid game for proofs, not a security notion. A bound in
+$`\textsf{fs-aead-nd}` is a bound in the FS-AEAD security game only for a delivery-correct
+scheme, by {bpref "fs_aead_delivery_correctness_hop"}[the equality of the two experiments].
+
+::::::gameGrid
+:::::gameCell "\\ODeliverB(a, e)" (kind := "compact")
+$`\begin{array}{l}
+\req\;(i, a, m, e) \in \mathsf{trans}\text{, with the smallest such } i; \\
+r \gets \mathsf{FS\text{-}Rcv}(v_\B, a, e); \\
+\pcommentline{\text{correctness failure: B rejects the honest ciphertext } e} \\
+\pif\;r = \bot\;\pthen \\
+\quad\mathsf{win} \gets \mathsf{true}; \\
+\quad\Return \bot; \\
+(v_\B, i', m') \gets r; \\
+\pcommentline{\text{correctness failure: B outputs a wrong index or message}} \\
+\pif\;(i', m') \neq (i, m)\;\pthen \\
+\quad\mathsf{win} \gets \mathsf{true}; \\
+\pif\;i \in \mathsf{chall}\;\pthen \\
+\quad m' \gets \bot; \\
+\mathsf{delete}(i); \\
+\Return (i', m')
+\end{array}`
+:::::
+
+:::::gameCell "\\ODeliverB^{\\mathsf{nd}}(a, e)" (kind := "compact")
+$`\begin{array}{l}
+\req\;(i, a, m, e) \in \mathsf{trans}\text{, with the smallest such } i; \\
+r \gets \mathsf{FS\text{-}Rcv}(v_\B, a, e); \\
+\pcommentline{\text{no correctness check}} \\
+\pif\;r = \bot\;\pthen \\
+\quad\pcommentline{\text{removed: } \mathsf{win} \gets \mathsf{true}} \\
+\quad\Return \bot; \\
+(v_\B, i', m') \gets r; \\
+\pcommentline{\text{no correctness check}} \\
+\pcommentline{\text{removed: } \pif\;(i', m') \neq (i, m)\;\pthen} \\
+\pcommentline{\text{removed: } \quad\mathsf{win} \gets \mathsf{true}} \\
+\pif\;i \in \mathsf{chall}\;\pthen \\
+\quad m' \gets \bot; \\
+\mathsf{delete}(i); \\
+\Return (i', m')
+\end{array}`
 
 ```anchor oracleDeliverBNoWin (project := ".") (module := SecureMessaging.FSAEAD.Correctness)
 def oracleDeliverBNoWin (fs : FSAEADScheme K StS StR AD M C) :
@@ -487,6 +531,66 @@ def oracleDeliverBNoWin (fs : FSAEADScheme K StS StR AD M C) :
       set ({ st with vB }.delete i)
       return some (i', if i ∈ st.chall then none else some m')
 ```
+:::::
+::::::
+
+::::::gameGrid
+:::::gameCell "\\Exp{\\textsf{fs-aead-nd}}{\\textsf{FS-AEAD}}(\\adv)" (kind := "game")
+$`\begin{array}{l}
+\pcommentline{\text{As in the FS-AEAD security game}} \\
+k \sample \K;\quad v_\A \gets \mathsf{FS\text{-}Init\text{-}S}(k);\quad v_\B \gets \mathsf{FS\text{-}Init\text{-}R}(k); \\
+i_\A \gets 0;\quad \mathsf{corrA} \gets \mathsf{false};\quad \mathsf{win} \gets \mathsf{false};\quad \mathsf{end} \gets \mathsf{false}; \\
+\mathsf{trans}, \mathsf{chall}, \mathsf{comp} \gets \emptyset; \\
+\pcommentline{\text{The oracles } \O \text{, with } \ODeliverB^{\mathsf{nd}} \text{ for } \ODeliverB} \\
+b \sample \bit;\quad b' \gets \adv^{\O^{\mathsf{nd}}}; \\
+\Return(\mathsf{win} \vee b'=b)
+\end{array}`
+
+:::leanPillCaption "oracles of fs-aead-nd"
+:::
+
+```anchor fsaeadNoDeliverWinImpl (project := ".") (module := SecureMessaging.FSAEAD.Correctness)
+def fsaeadNoDeliverWinImpl (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : Bool) :
+    QueryImpl (fsaeadSpec StS StR AD M C) (GameM StS StR AD M C) :=
+  oracleUnif StS StR AD M C
+    + oracleTransmitA fs
+    + oracleChallA fs len b
+    + oracleCorrA StS StR AD M C
+    + oracleCorrB StS StR AD M C
+    + oracleDeliverBNoWin fs
+    + oracleInjectB fs
+```
+
+:::leanPillCaption "experiment of fs-aead-nd"
+:::
+
+```anchor securityExpNoDeliverWin (project := ".") (module := SecureMessaging.FSAEAD.Correctness)
+def securityExpNoDeliverWin [SampleableType K] (fs : FSAEADScheme K StS StR AD M C)
+    (len : M → ℕ) (adversary : FSAEADAdversary StS StR AD M C) : ProbComp Bool := do
+  let k ← $ᵗ K
+  let b ← $ᵗ Bool
+  let (b', st) ← (simulateQ (fsaeadNoDeliverWinImpl fs len b) adversary).run (.init fs k)
+  return st.win || b == b'
+```
+:::::
+::::::
+:::::::
+
+:::defTitle "fs_aead_delivery_correctness_hop" "Removing the delivery check"
+:::
+
+::::theorem "fs_aead_delivery_correctness_hop" (parent := "fs_aead") (lean := "FSAEADScheme.securityExp_eq_noDeliverWin") (tags := "gh-29") (uses := "fs_aead_delivery_correctness, fs_aead_no_delivery_check_game, fs_aead_security")
+Let an FS-AEAD scheme be {bpref "fs_aead_delivery_correctness"}[delivery-correct] for the
+length function $`|\cdot|`. Then for every adversary $`\adv`,
+
+$$`\Exp{\textsf{fs-aead}}{\textsf{FS-AEAD}}(\adv) = \Exp{\textsf{fs-aead-nd}}{\textsf{FS-AEAD}}(\adv)`
+
+as probabilistic computations. In particular, $`\Pr\bigl[\Exp{\textsf{fs-aead}}{\textsf{FS-AEAD}}(\adv) = 1\bigr] = \Pr\bigl[\Exp{\textsf{fs-aead-nd}}{\textsf{FS-AEAD}}(\adv) = 1\bigr]`.
+
+Proof idea: the two games differ only in $`\ODeliverB`. In a reachable state with
+$`\mathsf{win} = \mathsf{true}`, the assignments $`\mathsf{win} \gets \mathsf{true}` change
+nothing. In a reachable state with $`\mathsf{win} = \mathsf{false}`, delivery correctness
+says that they do not run. So the two oracles agree on every reachable state.
 
 :::leanPillCaption "equality of experiments"
 :::
