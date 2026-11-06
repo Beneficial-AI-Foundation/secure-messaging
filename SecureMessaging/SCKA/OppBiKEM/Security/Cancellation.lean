@@ -7,7 +7,6 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.SCKA.OppBiKEM.Security.Hybrid
-public import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 
 /-!
 # Opp-BiKEM — Cancellation of exposed-target paths

@@ -6,8 +6,14 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import ToMathlib.Control.StateT
 public import ToVCVio.Control.SimpAttr
+public import Aesop.BuiltinRules
+public import Mathlib.Data.Finset.Attr
+public import Mathlib.Tactic.Attr.Core
+public import Mathlib.Tactic.Finiteness.Attr
+public import Mathlib.Tactic.Lemma
+public import Mathlib.Tactic.SetLike
+public import Std.Do.Triple.SpecLemmas
 
 /-!
 # `StateT.run` rewrites

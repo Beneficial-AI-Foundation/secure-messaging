@@ -6,9 +6,9 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import VCVio.OracleComp.SimSemantics.Append
-public import VCVio.OracleComp.ProbComp
-public import ToMathlib.Control.StateT
+public import Mathlib.MeasureTheory.Integral.Bochner.Basic
+public import VCVio.EvalDist.ProbabilityNotation
+public import VCVio.OracleComp.SimSemantics.Append.Core
 
 /-!
 # Forwarding a lifted base computation through an identity-left `add` handler

@@ -7,8 +7,8 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.KEM.IncrementalKEM.Defs
-public import ToVCVio.ProgramLogic.Unary.WP
 public import VCVio.OracleComp.EvalDist.Sum
+public import VCVio.ProgramLogic.Unary.HoareTriple
 
 /-!
 # Correctness error of an incremental KEM per key pair

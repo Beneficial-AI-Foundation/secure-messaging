@@ -8,6 +8,7 @@ module
 
 public import SecureMessaging.AEAD.FromEtM.Security.Games
 public import ToVCVio.OracleComp.SimSemantics.StateT.LazyKey
+public import SecureMessaging.SymEnc.Defs
 
 /-!
 # Encrypt-then-MAC — one-time secrecy hop (`game2` → `game3`)

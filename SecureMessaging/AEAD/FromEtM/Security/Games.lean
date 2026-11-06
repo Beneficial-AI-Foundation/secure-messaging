@@ -6,20 +6,9 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.AEAD.FromEtM.Construction
-public import ToVCVio.OracleComp.Constructions.SampleableType
 public import VCVio.CryptoFoundations.PRF
-public import VCVio.OracleComp.QueryTracking.RandomOracle.Basic
-public import VCVio.OracleComp.Coercions.Add.Basic
-public import VCVio.OracleComp.SimSemantics.StateT.StateProjection
-public import VCVio.OracleComp.QueryTracking.SubSpec
-public import VCVio.EvalDist.MeasureTVDist.Basic
-public import VCVio.ProgramLogic.Relational.SimulateQ
-public import ToVCVio.CryptoFoundations.RandomOracleForgery
-public import ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate
-public import ToVCVio.OracleComp.SimSemantics.SimulateQForward
-public import ToVCVio.OracleComp.SimSemantics.StateT.MapStateTBase
-public import ToVCVio.OracleComp.SimSemantics.UnifLift
+public import SecureMessaging.AEAD.Defs
+public import VCVio.CryptoFoundations.SymmEncAlg.Deterministic
 
 /-!
 # Encrypt-then-MAC — game and reduction definitions

@@ -7,8 +7,6 @@ Authors: Beneficial AI Foundation
 module
 
 public import VCVio.EvalDist.MeasureTVDist.Bind
-public import VCVio.EvalDist.MeasureTVDist.Event
-public import VCVio.EvalDist.Monad.Map
 public import VCVio.EvalDist.EvalDistEq
 public import ToVCVio.EvalDist.Monad.Basic
 

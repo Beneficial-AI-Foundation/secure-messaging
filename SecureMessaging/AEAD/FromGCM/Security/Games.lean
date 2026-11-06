@@ -10,8 +10,6 @@ public import SecureMessaging.AEAD.FromGCM.Construction
 public import SecureMessaging.AEAD.FromGCM.Security.Encoding
 public import ToVCVio.CryptoFoundations.WegmanCarter.Defs
 public import ToVCVio.OracleComp.QueryTracking.LazySampling
-public import VCVio.OracleComp.SimSemantics.StateT.StateProjection
-public import VCVio.OracleComp.QueryTracking.RandomOracle.DeferredSampling
 
 /-!
 # GCM: game skeleton and games

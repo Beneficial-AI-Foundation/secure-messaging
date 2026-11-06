@@ -7,6 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.RKEM.FromDDHNonFS.Construction
+public import VCVio.OracleComp.EvalDist.Measure
 
 /-!
 # RKEM from DDH (non-forward-secure) — Correctness

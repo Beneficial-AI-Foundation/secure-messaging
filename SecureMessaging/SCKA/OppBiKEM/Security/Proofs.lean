@@ -8,6 +8,7 @@ module
 
 public import SecureMessaging.SCKA.OppBiKEM.Security.Simulation
 public import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
+public import SecureMessaging.SCKA.OppBiKEM.Security.Reduction
 
 /-!
 # Opp-BiKEM — Security proofs

@@ -6,9 +6,10 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.CKA.FromKEM.Security.Branches
-public import VCVio.ProgramLogic.Relational.SimulateQ
 public import ToVCVio.ProgramLogic.Relational.Basic
+public import SecureMessaging.CKA.FromKEM.Correctness
+public import SecureMessaging.CKA.FromKEM.Security.PostChallenge
+public import VCVio.ProgramLogic.Relational.SimulateQ.Coupling
 
 /-!
 # CKA from KEM — Hidden-State Simulation

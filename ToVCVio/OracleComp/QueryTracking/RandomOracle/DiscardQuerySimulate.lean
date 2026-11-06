@@ -7,12 +7,6 @@ Authors: Beneficial AI Foundation
 module
 
 public import VCVio.CryptoFoundations.PRF
-public import VCVio.OracleComp.QueryTracking.RandomOracle.Basic
-public import VCVio.OracleComp.QueryTracking.RandomOracle.Simulation
-public import VCVio.OracleComp.SimSemantics.SimulateQ
-public import VCVio.OracleComp.SimSemantics.StateT.Basic
-public import VCVio.OracleComp.SimSemantics.StateT.StateProjection
-public import VCVio.OracleComp.SimSemantics.Append
 
 /-!
 # Discarded random-oracle query removal under `simulateQ`

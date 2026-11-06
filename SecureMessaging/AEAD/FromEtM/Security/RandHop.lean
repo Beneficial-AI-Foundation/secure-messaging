@@ -7,6 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.AEAD.FromEtM.Security.Games
+public import SecureMessaging.AEAD.FromEtM.Construction
 
 /-!
 # Encrypt-then-MAC — random-experiment hop (`game3` = random)

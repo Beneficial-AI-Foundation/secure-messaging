@@ -8,7 +8,6 @@ module
 
 public import SecureMessaging.SCKA.Correctness
 public import ToVCVio.OracleComp.SimSemantics.StateT.Stop
-public import ToVCVio.ProgramLogic.Unary.WP
 
 /-!
 # SCKA security oracles

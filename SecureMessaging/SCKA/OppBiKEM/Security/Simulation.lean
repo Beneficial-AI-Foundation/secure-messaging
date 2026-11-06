@@ -7,7 +7,6 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.SCKA.OppBiKEM.Security.Eager
-public import SecureMessaging.SCKA.OppBiKEM.Security.Reduction
 
 /-!
 # Opp-BiKEM — The eager hybrid is the reduction's simulation

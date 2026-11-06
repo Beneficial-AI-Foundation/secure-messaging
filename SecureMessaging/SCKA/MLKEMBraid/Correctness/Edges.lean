@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.SCKA.MLKEMBraid.Construction
+public import SecureMessaging.SCKA.MLKEMBraid.Basic
 
 /-!
 # The edges of the Braid state machine

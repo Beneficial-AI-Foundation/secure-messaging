@@ -6,7 +6,8 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.KEM.MLKEM.Correctness.FailureBounds
+public import LatticeCrypto.MLKEM.KEM
+public import ToVCVio.CryptoFoundations.KeyEncapMech
 
 /-!
 # The FIPS 203 honest decapsulation-failure experiment

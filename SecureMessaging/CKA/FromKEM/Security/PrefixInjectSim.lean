@@ -5,9 +5,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 
 module
 
-public import SecureMessaging.CKA.FromKEM.Security.ChallengeBridge
 public import ToVCVio.ProgramLogic.Tactics.Support
-public import ToVCVio.EvalDist.Monad.Basic
+public import SecureMessaging.CKA.FromKEM.Security.Branches
+public import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
+public import VCVio.ProgramLogic.Relational.SimulateQ.Coupling
 
 /-!
 # CKA from KEM — Prefix Injection Simulation

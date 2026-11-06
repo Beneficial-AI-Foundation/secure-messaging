@@ -6,7 +6,6 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import ToVCVio.CryptoFoundations.PRP
 public import ToVCVio.CryptoFoundations.PRPSwitching
 public import SecureMessaging.AEAD.FromGCM.Security.PrfHop
 

@@ -8,7 +8,6 @@ module
 
 public import SecureMessaging.KEM.IncrementalKEM.Correctness
 public import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
-public import ToVCVio.ProgramLogic.Unary.WP
 
 /-!
 # Failure potential of the current epoch

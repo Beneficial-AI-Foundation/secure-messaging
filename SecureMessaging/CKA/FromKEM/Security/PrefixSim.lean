@@ -7,8 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.CKA.FromKEM.Security.HiddenStateSim
-public import ToVCVio.ProgramLogic.Relational.Basic
-public import VCVio.ProgramLogic.Relational.SimulateQ
+public import SecureMessaging.CKA.FromKEM.Security.ReductionBranch
 
 /-!
 # CKA from KEM — Prefix Simulation

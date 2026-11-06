@@ -6,13 +6,9 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import VCVio.OracleComp.Constructions.SampleableType
-public import VCVio.EvalDist.Monad.Map
-public import VCVio.EvalDist.Prod
-public import VCVio.EvalDist.List
 public import VCVio.OracleComp.Constructions.Replicate
-public import ToVCVio.OracleComp.Constructions.SampleableType
 public import Mathlib.Data.LawfulXor.Equiv
+public import VCVio.OracleComp.Constructions.SampleableType.Measure
 
 /-!
 # Uniform `BitVec` block concatenation

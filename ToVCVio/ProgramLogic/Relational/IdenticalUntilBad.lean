@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import VCVio.ProgramLogic.Relational.SimulateQ
+public import VCVio.ProgramLogic.Relational.SimulateQ.UntilBad
 
 /-!
 # Output-Projected Identical-Until-Bad

@@ -6,8 +6,8 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Projection
 public import ToVCVio.ProgramLogic.Unary.WP
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Core
 
 /-!
 # Opp-UniKEM-CKA Adversary Composition

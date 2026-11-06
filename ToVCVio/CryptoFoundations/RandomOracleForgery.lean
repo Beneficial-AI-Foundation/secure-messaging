@@ -7,11 +7,8 @@ Authors: Beneficial AI Foundation
 module
 
 public import ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate
-public import VCVio.OracleComp.QueryTracking.RandomOracle.Basic
-public import VCVio.OracleComp.QueryTracking.QueryBound
-public import VCVio.OracleComp.Constructions.SampleableType
 public import VCVio.OracleComp.EvalDist.Sum
-public import VCVio.OracleComp.SimSemantics.SimulateQ
+public import VCVio.EvalDist.Monad.Basic
 
 /-!
 # Lazy Random-Oracle One-Time Unforgeability

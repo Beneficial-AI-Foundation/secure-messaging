@@ -7,7 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.CKA.FromDDH.Security.ReductionGames
-public import ToVCVio.EvalDist.Monad.Basic
+public import ToVCVio.OracleComp.QueryTracking.LazySampling
 
 /-!
 # CKA from DDH — Game Oracles — Definitions

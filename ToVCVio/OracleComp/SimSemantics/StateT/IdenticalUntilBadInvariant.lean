@@ -7,8 +7,8 @@ Authors: Beneficial AI Foundation
 module
 
 public import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
-public import VCVio.OracleComp.ProbComp
 public import VCVio.EvalDist.Monad.Disagreement.Measure
+public import VCVio.EvalDist.Monad.Basic
 
 /-!
 # Identical until bad on invariant states

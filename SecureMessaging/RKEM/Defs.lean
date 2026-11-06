@@ -6,9 +6,9 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import VCVio.CryptoFoundations.SecExp
 public import VCVio.OracleComp.ProbCompLift
-public import VCVio.OracleComp.Constructions.SampleableType
+public import ToMathlib.MeasureTheory.Measure.TotalVariation
+public import VCVio.OracleComp.Constructions.SampleableType.Basic
 
 /-!
 # Ratcheting Key Encapsulation Mechanism (RKEM)

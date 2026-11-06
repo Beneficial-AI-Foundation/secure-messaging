@@ -7,7 +7,6 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.SCKA.MLKEMBraid.Correctness.KeyPrefixes
-public import SecureMessaging.SCKA.MLKEMBraid.Correctness.MessageReports
 
 /-!
 # Epoch bounds in the Braid correctness game

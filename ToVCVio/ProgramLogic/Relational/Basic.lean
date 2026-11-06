@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import VCVio.ProgramLogic.Relational.FromUnary
+public import VCVio.ProgramLogic.Relational.Basic
 
 /-!
 # Small `RelTriple` Helpers

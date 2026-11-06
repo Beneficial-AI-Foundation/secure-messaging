@@ -5,7 +5,6 @@ public import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.SendA
 public import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.RecvB
 public import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.SendB
 public import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.RecvA
-public import SecureMessaging.SCKA.Correctness
 public import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 
 /-!

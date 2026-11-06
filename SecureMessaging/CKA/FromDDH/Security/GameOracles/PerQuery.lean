@@ -8,6 +8,8 @@ module
 
 public import SecureMessaging.CKA.FromDDH.Security.GameOracles.Defs
 public import ToVCVio.Control.StateT
+public import SecureMessaging.CKA.FromDDH.Common
+public import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 
 /-!
 # CKA from DDH — Game Oracles — Per-Query Reasoning

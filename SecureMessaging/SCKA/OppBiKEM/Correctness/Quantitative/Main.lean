@@ -8,6 +8,8 @@ module
 
 public import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.SendStep
 public import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.SendTotal
+public import SecureMessaging.SCKA.Correctness.Tracked
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Init
 
 /-!
 # Opp-BiKEM-CKA — Reduction to KEM correctness

@@ -8,7 +8,7 @@ module
 
 public import SecureMessaging.KEM.OnOffKEM.Defs
 public import VCVio.OracleComp.EvalDist.Sum
-public import VCVio.OracleComp.QueryTracking.RandomOracle.DeferredSampling
+public import ToVCVio.CryptoFoundations.KeyEncapMech
 
 /-!
 # On/Off KEM — Correctness Error by Sampling Stage

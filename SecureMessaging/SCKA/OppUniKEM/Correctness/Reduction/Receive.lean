@@ -6,7 +6,8 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Send
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Core
 
 /-!
 # Opp-UniKEM-CKA Receive Transitions

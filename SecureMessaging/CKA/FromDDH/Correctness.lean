@@ -7,6 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.CKA.FromDDH.Common
+public import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 
 /-!
 # CKA from DDH — Correctness

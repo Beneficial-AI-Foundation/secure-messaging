@@ -9,7 +9,6 @@ module
 public import SecureMessaging.SCKA.Correctness
 public import SecureMessaging.SCKA.OppUniKEM.Construction
 public import SecureMessaging.ErasureCode.Payload
-public import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 
 /-!
 # Opp-UniKEM-CKA — Game Invariant

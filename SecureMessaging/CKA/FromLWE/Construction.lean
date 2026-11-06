@@ -8,8 +8,6 @@ module
 
 public import SecureMessaging.CKA.Defs
 public import SecureMessaging.CKA.FromLWE.Reconciliation
-public import VCVio.OracleComp.ProbComp
-public import VCVio.OracleComp.Constructions.SampleableType
 
 /-!
 # Continuous Key Agreement from Learning With Errors (LWE)

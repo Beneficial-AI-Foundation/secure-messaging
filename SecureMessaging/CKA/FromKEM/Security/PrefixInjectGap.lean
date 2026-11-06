@@ -6,8 +6,7 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.CKA.FromKEM.Security.PrefixInjectSplit
-public import ToVCVio.OracleComp.EvalDist
+public import SecureMessaging.CKA.FromKEM.Security.PrefixInjectSim
 
 /-!
 # CKA from KEM — Prefix Injection Gap

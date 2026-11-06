@@ -10,7 +10,7 @@ public import VCVio.CryptoFoundations.UniversalHash
 public import ToVCVio.CryptoFoundations.WegmanCarter.AbstractBounds
 public import ToVCVio.CryptoFoundations.WegmanCarter.LogRefinement
 public import ToVCVio.EvalDist.Monad.Basic
-public import VCVio.OracleComp.QueryTracking.QueryBound
+public import VCVio.OracleComp.QueryTracking.QueryBound.Simulation
 
 /-!
 # Wegman-Carter one-time authenticity: the forgery bound

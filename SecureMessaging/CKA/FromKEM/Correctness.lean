@@ -7,6 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.CKA.FromKEM.Construction
+public import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 
 /-!
 # CKA from KEM — Correctness Statements

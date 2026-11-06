@@ -7,6 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.CKA.FromKEM.Security.PrefixInjectCouplingCore
+public import SecureMessaging.CKA.FromKEM.Security.PrefixSim
 
 /-!
 # CKA from KEM — Injected-Prefix Coupling, challenged party B

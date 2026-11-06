@@ -7,8 +7,8 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.RKEM.Defs
-public import VCVio.CryptoFoundations.KeyEncapMech
 public import ToVCVio.CryptoFoundations.KeyEncapMech
+public import VCVio.EvalDist.Monad.Basic
 
 /-!
 # Ratcheting Key Encapsulation Mechanism from a Key Encapsulation Mechanism

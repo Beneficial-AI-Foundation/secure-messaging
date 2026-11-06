@@ -7,7 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.CKA.FromDDH.Security.GameOracles.PerQuery
-public import ToVCVio.ProgramLogic.Relational.SimulateQ
+public import VCVio.ProgramLogic.Relational.SimulateQ.Coupling
 
 /-!
 # CKA from DDH — Game Oracles — simulateQ Wrappers and Marginalization

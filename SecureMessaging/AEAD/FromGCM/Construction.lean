@@ -8,7 +8,6 @@ module
 
 public import SecureMessaging.AEAD.GCM
 public import SecureMessaging.AEAD.Defs
-public import ToVCVio.CryptoFoundations.PRP
 
 /-!
 # One-time-key GCM as an `AEADScheme` (ACD19)

@@ -8,7 +8,9 @@ module
 
 public import SecureMessaging.CKA.FromKEM.Security.PrefixInjectCouplingA
 public import SecureMessaging.CKA.FromKEM.Security.PrefixInjectCouplingB
-public import ToVCVio.EvalDist.Monad.Basic
+public import SecureMessaging.CKA.FromKEM.Security.ChallengeBridge
+public import SecureMessaging.CKA.FromKEM.Security.PrefixInjectGap
+public import ToVCVio.OracleComp.EvalDist
 
 /-!
 # CKA from KEM — Injected-Prefix Coupling

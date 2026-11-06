@@ -6,14 +6,10 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import VCVio.CryptoFoundations.SecExp
-public import VCVio.OracleComp.Constructions.SampleableType
-public import VCVio.OracleComp.QueryTracking.QueryBound
-public import VCVio.OracleComp.SimSemantics.Append
-public import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 public import ToVCVio.EvalDist.Monad.Basic
 public import ToVCVio.OracleComp.SimSemantics.UnifLift
 public import ToVCVio.OracleComp.Constructions.LenSampleable
+public import VCVio.OracleComp.QueryTracking.QueryBound.Basic
 
 /-!
 # Authenticated Encryption with Associated Data (AEAD)

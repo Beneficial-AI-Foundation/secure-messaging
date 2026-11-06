@@ -8,6 +8,8 @@ module
 
 public import ToVCVio.LatticeCrypto.FrodoKEM.Bits
 public import ToVCVio.LatticeCrypto.FrodoKEM.Parameters
+public import Mathlib.Data.ZMod.Basic
+public import Mathlib.Data.Matrix.Basic
 
 /-!
 # FrodoKEM matrix packing

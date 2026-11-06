@@ -6,8 +6,8 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import ToVCVio.EvalDist.Monad.Basic
 public import VCVio.OracleComp.EvalDist.Sum
+public import VCVio.OracleComp.ProbComp.Basic
 
 /-!
 # Support-wise bind sums and the Boolean complement

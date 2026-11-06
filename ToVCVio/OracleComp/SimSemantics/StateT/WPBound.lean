@@ -6,9 +6,9 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import ToVCVio.ProgramLogic.Unary.WP
 public import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
-public import VCVio.OracleComp.QueryTracking.QueryBound
+public import VCVio.OracleComp.QueryTracking.QueryBound.Simulation
+public import VCVio.ProgramLogic.Unary.HoareTriple
 
 /-!
 # Expected-payoff bound for stateful simulation

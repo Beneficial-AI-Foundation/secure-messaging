@@ -7,6 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.CKA.FromKEM.Security.PrefixInjectCoupling
+public import SecureMessaging.CKA.FromKEM.Security.PrefixInjectSplit
 
 /-!
 # CKA from KEM — Security Statements

@@ -7,7 +7,6 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.SCKA.Correctness
-public import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Init
 public import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Send
 public import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Recv
 

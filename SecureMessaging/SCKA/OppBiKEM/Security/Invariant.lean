@@ -9,6 +9,7 @@ module
 public import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.RecvStep
 public import SecureMessaging.SCKA.OppBiKEM.Security.Exposure
 public import SecureMessaging.SCKA.Security
+public import SecureMessaging.SCKA.OppBiKEM.Security.Interface
 
 /-!
 # Opp-BiKEM — Security oracle invariant

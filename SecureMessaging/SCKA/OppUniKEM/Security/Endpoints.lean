@@ -9,7 +9,6 @@ module
 public import SecureMessaging.SCKA.Security.CorrectnessOracles
 public import SecureMessaging.SCKA.OppUniKEM.Security.Invariant
 public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Projection
-public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Composition
 public import ToVCVio.OracleComp.SimSemantics.StateT.BadFlag
 public import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
 

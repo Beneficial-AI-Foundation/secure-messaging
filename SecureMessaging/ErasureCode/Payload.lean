@@ -7,6 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.ErasureCode.Defs
+public import Mathlib.Data.Fin.Embedding
 
 /-!
 # Erasure-Code Payload Lemmas

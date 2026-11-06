@@ -7,8 +7,8 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.AEAD.Defs
-public import SecureMessaging.SymEnc.Defs
 public import VCVio.CryptoFoundations.PRF
+public import VCVio.CryptoFoundations.SymmEncAlg.Deterministic
 
 /-!
 # Encrypt-then-MAC (EtM) Construction

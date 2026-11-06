@@ -9,7 +9,6 @@ module
 public import SecureMessaging.SCKA.OppBiKEM.Security.Cancellation
 public import SecureMessaging.SCKA.OppBiKEM.Security.Injected
 public import ToVCVio.OracleComp.QueryTracking.OneUseSampling
-public import ToVCVio.EvalDist.Monad.Basic
 
 /-!
 # Opp-BiKEM — Eager sampling of the target's values

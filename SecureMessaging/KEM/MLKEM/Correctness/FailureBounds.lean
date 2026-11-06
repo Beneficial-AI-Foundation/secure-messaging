@@ -8,7 +8,6 @@ module
 
 public import SecureMessaging.KEM.MLKEM.Correctness.Reduction
 public import SecureMessaging.KEM.MLKEM.Correctness.Noise
-public import SecureMessaging.KEM.MLKEM.Correctness.FailureRates
 
 /-!
 # K-PKE recovery failure as a coordinate union bound

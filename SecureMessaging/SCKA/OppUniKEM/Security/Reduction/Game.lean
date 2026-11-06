@@ -6,11 +6,8 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Simulator
 public import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Relation
-public import SecureMessaging.SCKA.Security
-public import ToVCVio.OracleComp.SimSemantics.StateT.Stop
-public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Receive
+public import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
 
 /-!
 # The honest intermediate game

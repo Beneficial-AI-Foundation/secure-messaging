@@ -8,7 +8,6 @@ module
 
 public import SecureMessaging.RKEM.FromDDHNonFS.Construction
 public import VCVio.CryptoFoundations.HardnessAssumptions.DiffieHellman
-public import VCVio.CryptoFoundations.SecExp.Measure
 
 /-!
 # RKEM from DDH (non-FS) — IND-CPA Security

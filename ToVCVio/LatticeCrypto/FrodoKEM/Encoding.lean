@@ -8,6 +8,7 @@ module
 
 public import ToVCVio.LatticeCrypto.FrodoKEM.Bits
 public import ToVCVio.LatticeCrypto.FrodoKEM.Parameters
+public import Mathlib.Data.ZMod.Basic
 
 /-!
 # FrodoKEM message encoding

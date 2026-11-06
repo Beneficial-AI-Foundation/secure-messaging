@@ -7,6 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.SCKA.MLKEMBraid.Correctness.RecordedPayload.Encapsulator
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.RecordedPayload.Generator
 
 /-!
 # Receiving a recorded message

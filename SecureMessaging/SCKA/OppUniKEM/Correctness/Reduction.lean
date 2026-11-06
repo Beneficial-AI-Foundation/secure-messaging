@@ -7,7 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Composition
-public import ToVCVio.OracleComp.SimSemantics.StateT.WPBound
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Projection
 
 /-!
 # Opp-UniKEM-CKA — Reduction to KEM Correctness

@@ -7,9 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
-public import ToVCVio.OracleComp.SimSemantics.StateT.Stop
-public import VCVio.OracleComp.SimSemantics.StateT.StateProjection
-public import VCVio.ProgramLogic.Relational.SimulateQ
+public import VCVio.ProgramLogic.Relational.SimulateQ.Coupling
 
 /-!
 # Ideal hybrids

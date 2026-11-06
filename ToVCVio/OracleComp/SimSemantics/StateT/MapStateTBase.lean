@@ -7,7 +7,6 @@ Authors: Beneficial AI Foundation
 module
 
 public import VCVio.OracleComp.SimSemantics.StateT.Basic
-public import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 
 /-!
 # Base-state invariant preservation through `mapStateTBase` / `flattenStateT`

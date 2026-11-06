@@ -7,6 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.CKA.FromDDH.Security.ReductionCommon
+public import SecureMessaging.CKA.FromDDH.Security.GameOracles.Bridge
 
 /-!
 # CKA from DDH — Reduction (real) — State Relation and Per-Query Step

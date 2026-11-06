@@ -7,8 +7,6 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.SCKA.SPQR.Params
-public import SecureMessaging.SCKA.MLKEMBraid.Authenticator
-public import ToVCVio.CryptoFoundations.KeyEncapMech
 
 /-!
 # Unchunked SPQR core

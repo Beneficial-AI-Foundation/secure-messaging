@@ -13,6 +13,7 @@ public import ToVCVio.OracleComp.Constructions.BitVec
 public import ToVCVio.OracleComp.QueryTracking.RandomOracle.FreshQueries
 public import VCVio.OracleComp.QueryTracking.Iter
 public import VCVio.OracleComp.QueryTracking.SubSpec
+public import ToVCVio.CryptoFoundations.PRF
 
 /-!
 # GCM: the PRF hop (`game0` → `game1`)

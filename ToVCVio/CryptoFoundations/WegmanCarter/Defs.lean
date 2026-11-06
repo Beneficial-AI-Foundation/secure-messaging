@@ -6,9 +6,9 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import ToVCVio.OracleComp.Constructions.BitVec
 public import ToVCVio.OracleComp.SimSemantics.UnifLift
-public import VCVio.OracleComp.SimSemantics.Append
+public import Mathlib.MeasureTheory.Integral.Bochner.Basic
+public import VCVio.OracleComp.SimSemantics.Append.Core
 
 /-!
 # Wegman-Carter one-time authenticity: the scheme and the game

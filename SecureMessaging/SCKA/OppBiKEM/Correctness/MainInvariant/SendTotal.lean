@@ -6,7 +6,8 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Game
+public import SecureMessaging.SCKA.Correctness
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant
 
 /-!
 # Opp-BiKEM-CKA — Totality of honest sends

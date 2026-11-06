@@ -6,9 +6,6 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import ToVCVio.LatticeCrypto.FrodoKEM.Encoding
-public import ToVCVio.LatticeCrypto.FrodoKEM.Packing
-public import ToVCVio.LatticeCrypto.FrodoKEM.Sampling
 public import ToVCVio.LatticeCrypto.FrodoKEM.Construction
 public import LatticeCrypto.Ring.Norms
 

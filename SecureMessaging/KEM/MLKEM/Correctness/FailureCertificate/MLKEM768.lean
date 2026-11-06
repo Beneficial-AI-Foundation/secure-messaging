@@ -9,8 +9,9 @@ module
 -- Import the previous per-set arithmetic check only to serialize the heavy kernel
 -- checks: lake builds imports first, so at most one such module
 -- elaborates at a time.
-public import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.MLKEM512
+import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.MLKEM512 -- shake: keep
 import all LatticeCrypto.MLKEM.Concrete.Encoding
+public import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.PackedMeasures
 
 /-!
 # The ML-KEM-768 failure-bound arithmetic check

@@ -6,8 +6,6 @@ Authors: Beneficial AI Foundation
 module
 
 public import VCVio.EvalDist.Monad.Basic
-public import VCVio.EvalDist.Monad.Map
-public import VCVio.OracleComp.Constructions.SampleableType
 public import VCVio.OracleComp.Constructions.SampleableType.Measure
 
 /-!

@@ -7,6 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.AEAD.FromEtM.Security.Games
+public import ToVCVio.CryptoFoundations.RandomOracleForgery
 
 /-!
 # Encrypt-then-MAC — auth hop: instrumented games and forge reduction

@@ -6,8 +6,8 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import LatticeCrypto.MLKEM.KEM
 public import LatticeCrypto.Ring.Norms
+public import LatticeCrypto.MLKEM.Internal
 
 /-!
 # ML-KEM K-PKE decryption noise

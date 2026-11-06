@@ -7,8 +7,6 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.HybridGame
-public import SecureMessaging.SCKA.Security
-public import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 
 /-!
 # Deferring the challenge-epoch samples

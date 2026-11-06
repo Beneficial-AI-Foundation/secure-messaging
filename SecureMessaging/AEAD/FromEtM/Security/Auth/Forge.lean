@@ -7,10 +7,8 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.AEAD.FromEtM.Security.Auth.Defs
-public import VCVio.OracleComp.QueryTracking.CachingOracle
-public import VCVio.OracleComp.QueryTracking.QueryBound
-public import ToVCVio.ProgramLogic.Relational.Basic
 public import ToVCVio.ProgramLogic.Relational.IdenticalUntilBad
+public import VCVio.ProgramLogic.Relational.SimulateQ.Coupling
 
 /-!
 # Encrypt-then-MAC — auth hop: forge-probability bound

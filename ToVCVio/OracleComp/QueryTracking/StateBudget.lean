@@ -6,10 +6,8 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import VCVio.OracleComp.QueryTracking.QueryBound
-public import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
-public import VCVio.OracleComp.SimSemantics.StateT.Basic
-public import VCVio.OracleComp.ProbComp
+public import Mathlib.MeasureTheory.Integral.Bochner.Basic
+public import VCVio.OracleComp.QueryTracking.QueryBound.Basic
 
 /-!
 # State counters bounded by adaptive queries

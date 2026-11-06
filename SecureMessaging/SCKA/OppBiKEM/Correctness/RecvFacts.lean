@@ -6,8 +6,7 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.SCKA.Correctness.Receive
-public import SecureMessaging.SCKA.OppBiKEM.Correctness.SendFacts
+public import SecureMessaging.SCKA.OppBiKEM.Construction
 
 /-!
 # Opp-BiKEM-CKA — Facts about a single receive

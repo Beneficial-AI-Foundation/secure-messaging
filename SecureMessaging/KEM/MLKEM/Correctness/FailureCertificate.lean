@@ -8,6 +8,8 @@ module
 
 public import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.MLKEM1024
 public import SecureMessaging.KEM.MLKEM.Correctness.FailureRates
+public import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.MLKEM512
+public import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.MLKEM768
 
 /-!
 # Exact certificate for the independent-model numerical inequality

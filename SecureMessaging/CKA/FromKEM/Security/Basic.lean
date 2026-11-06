@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.CKA.FromKEM.Correctness
+public import SecureMessaging.CKA.FromKEM.Construction
 
 /-!
 # CKA from KEM — Security Foundations

@@ -8,6 +8,7 @@ module
 
 public import SecureMessaging.CKA.FromDDH.Security.ReductionRand.Bridge
 public import ToVCVio.EvalDist.BoolDist
+public import SecureMessaging.CKA.FromDDH.Security.ReductionReal.Bridge
 
 /-!
 # CKA from DDH — Security Proof

@@ -7,7 +7,6 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.CKA.FromKEM.Security.ReductionBranch
-public import ToVCVio.OracleComp.EvalDist
 public import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
 
 /-!

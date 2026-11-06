@@ -7,9 +7,8 @@ Authors: Beneficial AI Foundation
 module
 
 public import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
-public import VCVio.OracleComp.SimSemantics.OptionT.Basic
-public import ToVCVio.EvalDist.Monad.Basic
 public import VCVio.OracleComp.EvalDist.Sum
+public import VCVio.EvalDist.Monad.Basic
 
 /-!
 # Stopping stateful simulations and comparing their outputs

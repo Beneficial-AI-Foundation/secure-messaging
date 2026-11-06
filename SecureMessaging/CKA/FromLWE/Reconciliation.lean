@@ -7,6 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.CKA.FromLWE.Basic
+public import Mathlib.Data.ZMod.Basic
 
 /-!
 # Frodo reconciliation for continuous key agreement from LWE

@@ -8,7 +8,6 @@ module
 
 public import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.RecvStep
 public import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.SendDist
-public import SecureMessaging.SCKA.OppBiKEM.Correctness.SendFacts
 
 /-!
 # Opp-BiKEM-CKA — One-step score bound for send queries

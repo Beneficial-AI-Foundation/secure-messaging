@@ -7,6 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.SCKA.MLKEMBraid.Correctness.EpochKnowledge
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.MessageReports
 
 /-!
 # Roles and message order in the Braid correctness game

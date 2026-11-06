@@ -6,7 +6,6 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.SCKA.MLKEMBraid.Construction
 public import SecureMessaging.SCKA.SPQR.Unchunked
 
 /-! # SPQR chunked protocol

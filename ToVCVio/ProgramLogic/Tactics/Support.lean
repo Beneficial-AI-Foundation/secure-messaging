@@ -6,9 +6,11 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import VCVio.EvalDist.Monad.Basic
-public import VCVio.OracleComp.ProbComp
 public import ToVCVio.Control.StateT
+public import Lean.Elab.Tactic.RCases
+public import Mathlib.MeasureTheory.Integral.Bochner.Basic
+public import VCVio.EvalDist.ProbabilityNotation
+public import VCVio.OracleComp.ProbComp.Basic
 
 /-!
 # Support tactics for VCV-io stateful computations

@@ -9,6 +9,7 @@ module
 public import SecureMessaging.AEAD.FromGCM.Security.Games
 public import ToVCVio.OracleComp.Constructions.BitVec
 public import ToVCVio.ProgramLogic.Relational.Basic
+public import VCVio.ProgramLogic.Relational.SimulateQ.Coupling
 
 /-!
 # GCM: the privacy hop (`game3` → `game4`)

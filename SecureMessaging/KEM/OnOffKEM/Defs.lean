@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import ToVCVio.CryptoFoundations.KeyEncapMech
+public import VCVio.CryptoFoundations.KeyEncapMech
 
 /-!
 # Online-Offline (On/Off) KEM

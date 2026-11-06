@@ -8,6 +8,7 @@ module
 
 public import SecureMessaging.CKA.FromDDH.Security.ReductionRand.EagerHonestBridge
 public import ToVCVio.OracleComp.Constructions.SampleableType
+public import SecureMessaging.CKA.FromDDH.Security.ReductionRand.RelStep
 
 /-!
 # CKA from DDH — Reduction (rand) — Endpoint Bridge

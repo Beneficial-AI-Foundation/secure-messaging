@@ -8,7 +8,6 @@ module
 
 public import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant
 public import SecureMessaging.SCKA.OppBiKEM.Correctness.RecvSpec
-public import SecureMessaging.SCKA.OppBiKEM.Correctness.RecvFacts
 
 /-!
 # Opp-BiKEM-CKA — Receive step of the main invariant

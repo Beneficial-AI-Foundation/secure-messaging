@@ -8,7 +8,6 @@ module
 
 public import SecureMessaging.AEAD.FromGCM.Security.GhashAXU
 public import SecureMessaging.AEAD.FromGCM.Security.GhashPolynomial
-public import ToVCVio.CryptoFoundations.AdjoinRootReflect
 public import ToVCVio.CryptoFoundations.RabinIrreducibility
 
 /-!

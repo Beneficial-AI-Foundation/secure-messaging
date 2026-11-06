@@ -8,6 +8,7 @@ module
 
 public import SecureMessaging.SCKA.Correctness
 public import SecureMessaging.SCKA.MLKEMBraid.Correctness.Edges
+public import SecureMessaging.SCKA.MLKEMBraid.Construction
 
 /-!
 # The oracles of the Braid correctness game

@@ -7,6 +7,8 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.CKA.FromDDH.Common
+public import SecureMessaging.CKA.FromDDH.Construction
+public import VCVio.CryptoFoundations.HardnessAssumptions.DiffieHellman
 public import VCVio.ProgramLogic.Relational.SimulateQ
 public import VCVio.ProgramLogic.Tactics.Relational
 public import ToVCVio.OracleComp.QueryTracking.LazySampling

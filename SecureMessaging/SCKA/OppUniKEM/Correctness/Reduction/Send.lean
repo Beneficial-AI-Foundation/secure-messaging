@@ -1,6 +1,7 @@
 module
 
 public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Core
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
 
 /-!
 # Opp-UniKEM-CKA Send Transitions

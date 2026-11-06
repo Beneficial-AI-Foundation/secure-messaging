@@ -7,7 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Receive
-public import ToVCVio.ProgramLogic.Unary.WP
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Send
 
 /-!
 # Opp-UniKEM-CKA One-Step Score Bounds

@@ -10,7 +10,7 @@ public import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
 public import SecureMessaging.SCKA.OppUniKEM.Security.IdealHybrids
 public import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Deferral
 public import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.HybridGame
-public import SecureMessaging.SCKA.Security
+public import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
 
 /-!
 # Opp-UniKEM SCKA security

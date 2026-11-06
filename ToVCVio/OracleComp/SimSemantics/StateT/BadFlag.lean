@@ -8,6 +8,7 @@ module
 
 public import ToVCVio.OracleComp.SimSemantics.StateT.WPBound
 public import VCVio.OracleComp.SimSemantics.StateT.StateProjection
+public import ToVCVio.ProgramLogic.Unary.WP
 
 /-!
 # Stateful simulation with a sticky bad flag

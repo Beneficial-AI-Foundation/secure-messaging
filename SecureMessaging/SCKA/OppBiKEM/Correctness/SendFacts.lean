@@ -7,7 +7,6 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.SCKA.OppBiKEM.Construction
-public import SecureMessaging.SCKA.Defs
 
 /-!
 # Opp-BiKEM-CKA — Facts about a single send

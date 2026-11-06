@@ -6,10 +6,8 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.KEM.OnOffKEM.CorrectnessError
 public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction
 public import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
-public import ToVCVio.OracleComp.SimSemantics.StateT.BadFlag
 
 /-!
 # Correctness of Opp-UniKEM-CKA

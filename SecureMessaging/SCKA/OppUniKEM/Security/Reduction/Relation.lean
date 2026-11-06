@@ -6,10 +6,8 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.SCKA.OppUniKEM.Security.Basic
 public import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
 public import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Simulator
-public import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
 public import SecureMessaging.SCKA.Security
 
 /-!

@@ -6,8 +6,9 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 public import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.SendTotal
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Game
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Init
 
 /-!
 # Opp-BiKEM-CKA — Correctness for a perfectly correct KEM

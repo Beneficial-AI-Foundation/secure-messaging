@@ -7,7 +7,6 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.SCKA.OppBiKEM.Construction
-public import VCVio.OracleComp.QueryTracking.QueryBound
 
 /-!
 # Opp-BiKEM — Security interface

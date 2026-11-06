@@ -8,7 +8,7 @@ module
 
 public import SecureMessaging.SCKA.OppBiKEM.Security.Endpoints
 public import SecureMessaging.SCKA.OppBiKEM.Security.EpochCount
-public import VCVio.ProgramLogic.Relational.SimulateQ
+public import VCVio.ProgramLogic.Relational.SimulateQ.Coupling
 
 /-!
 # Opp-BiKEM — Epoch challenge hybrids

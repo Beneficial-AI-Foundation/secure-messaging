@@ -6,9 +6,8 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import VCVio.OracleComp.Constructions.SampleableType
 public import VCVio.OracleComp.Constructions.SampleableType.Measure
-public import VCVio.EvalDist.ProbabilityBounds
+public import VCVio.EvalDist.Monad.Basic
 
 /-!
 # Uniform sampling by length

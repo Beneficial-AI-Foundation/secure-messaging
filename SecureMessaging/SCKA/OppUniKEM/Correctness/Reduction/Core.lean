@@ -6,8 +6,8 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
 public import SecureMessaging.KEM.OnOffKEM.CorrectnessError
+public import SecureMessaging.SCKA.OppUniKEM.Construction
 
 /-!
 # Opp-UniKEM-CKA Reduction Core

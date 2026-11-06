@@ -7,6 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.CKA.FromDDH.Security.GameOracles.SimulateQ
+public import ToVCVio.ProgramLogic.Relational.SimulateQ
 
 /-!
 # CKA from DDH — Game Oracles — Per-Event Step Lemmas

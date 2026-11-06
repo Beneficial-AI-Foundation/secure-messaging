@@ -6,12 +6,9 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import VCVio.CryptoFoundations.SecExp
-public import VCVio.OracleComp.Constructions.SampleableType
-public import VCVio.OracleComp.SimSemantics.Append
-public import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 public import ToVCVio.EvalDist.Monad.Basic
 public import ToVCVio.OracleComp.SimSemantics.UnifLift
+public import VCVio.OracleComp.SimSemantics.Append.Core
 
 /-!
 # Continuous Key Agreement (CKA)

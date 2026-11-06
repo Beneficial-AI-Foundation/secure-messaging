@@ -8,6 +8,8 @@ module
 
 public import SecureMessaging.AEAD.FromEtM.Security.Games
 public import ToVCVio.CryptoFoundations.PRF
+public import SecureMessaging.AEAD.FromEtM.Construction
+public import ToVCVio.OracleComp.SimSemantics.StateT.MapStateTBase
 
 /-!
 # Encrypt-then-MAC — PRF hop (`game0` → `game1`)

@@ -6,10 +6,9 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import VCVio.CryptoFoundations.SecExp
-public import VCVio.OracleComp.Constructions.SampleableType
-public import VCVio.OracleComp.SimSemantics.Append
 public import ToVCVio.OracleComp.SimSemantics.UnifLift
+public import VCVio.OracleComp.Constructions.SampleableType.Basic
+public import VCVio.OracleComp.SimSemantics.Append.Core
 
 /-!
 # Forward-Secure Authenticated Encryption with Associated Data (FS-AEAD)

@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.CKA.FromDDH.Security.ReductionRand.RelStep
+public import SecureMessaging.CKA.FromDDH.Security.GameOracles.Step
 
 /-!
 # CKA from DDH — Reduction (rand) — Eager-Honest Bridge

@@ -6,10 +6,10 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.SCKA.Correctness.Tracked
 public import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.Core
 public import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Game
 public import SecureMessaging.SCKA.OppBiKEM.Correctness.RecvFacts
+public import ToVCVio.OracleComp.SimSemantics.StateT.BadFlag
 
 /-!
 # Opp-BiKEM-CKA — One-step score bound for non-send queries

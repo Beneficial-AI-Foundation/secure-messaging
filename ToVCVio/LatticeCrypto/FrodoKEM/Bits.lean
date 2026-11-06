@@ -5,8 +5,13 @@ Authors: Beneficial AI Foundation
 -/
 module
 
-public import Mathlib.Data.Nat.Notation
-public import Mathlib.Data.Matrix.Basic
+public import Mathlib.Algebra.Group.End
+public import Mathlib.Algebra.Group.Nat.Defs
+public import Mathlib.Algebra.Order.Monoid.Unbundled.Basic
+public import Mathlib.Data.Finset.Attr
+public import Mathlib.LinearAlgebra.Matrix.Defs
+public import Mathlib.Tactic.Bound.Init
+public import Mathlib.Tactic.SetLike
 
 /-!
 # Matrices as bit strings

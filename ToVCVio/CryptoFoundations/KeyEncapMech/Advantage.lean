@@ -7,7 +7,6 @@ Authors: Beneficial AI Foundation
 module
 
 public import VCVio.CryptoFoundations.KeyEncapMech
-public import VCVio.CryptoFoundations.SecExp.Measure
 
 /-!
 # Two definitions of KEM IND-CPA advantage

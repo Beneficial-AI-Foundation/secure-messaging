@@ -6,11 +6,9 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
 public import SecureMessaging.SCKA.OppUniKEM.Security.IdealHybrids
 public import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Game
 public import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Simulation
-public import SecureMessaging.SCKA.Security
 public import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 
 /-!

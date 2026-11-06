@@ -6,7 +6,8 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.SCKA.OppBiKEM.Security.Tracked
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.Main
+public import SecureMessaging.SCKA.OppBiKEM.Security.Invariant
 
 /-!
 # Opp-BiKEM — Ideal receive

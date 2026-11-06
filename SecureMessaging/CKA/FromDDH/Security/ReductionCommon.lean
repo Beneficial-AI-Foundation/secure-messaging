@@ -6,8 +6,8 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.CKA.FromDDH.Security.GameOracles.Bridge
 public import ToVCVio.ProgramLogic.Relational.Basic
+public import SecureMessaging.CKA.FromDDH.Security.GameOracles.PerQuery
 
 /-!
 # Shared Left/Right Per-Query Relational Lemmas

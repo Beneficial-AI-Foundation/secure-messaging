@@ -7,8 +7,6 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.SCKA.OppUniKEM.Construction
-public import SecureMessaging.ErasureCode.Payload
-public import VCVio.OracleComp.QueryTracking.QueryBound
 
 /-!
 # Opp-UniKEM security interface

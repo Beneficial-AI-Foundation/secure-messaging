@@ -8,6 +8,7 @@ module
 
 public import VCVio.CryptoFoundations.UniversalHash
 public import ToVCVio.OracleComp.Constructions.BitVec
+public import VCVio.OracleComp.EvalDist.Sum
 
 /-!
 # Wegman-Carter one-time authenticity: the abstract bounds

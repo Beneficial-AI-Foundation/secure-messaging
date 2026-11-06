@@ -6,10 +6,7 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import VCVio.CryptoFoundations.SecExp
 public import VCVio.CryptoFoundations.PRG
-public import VCVio.OracleComp.Constructions.SampleableType
-public import VCVio.OracleComp.SimSemantics.Append
 public import ToVCVio.CryptoFoundations.PRP
 
 /-!

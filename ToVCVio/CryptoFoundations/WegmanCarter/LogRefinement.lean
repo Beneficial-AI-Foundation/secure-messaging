@@ -8,6 +8,8 @@ module
 
 public import ToVCVio.CryptoFoundations.WegmanCarter.Defs
 public import VCVio.OracleComp.SimSemantics.StateT.StateProjection
+public import VCVio.EvalDist.Monad.Basic
+public import VCVio.OracleComp.EvalDist.AnswerMeasure
 
 /-!
 # Wegman-Carter one-time authenticity: the log-refined handler

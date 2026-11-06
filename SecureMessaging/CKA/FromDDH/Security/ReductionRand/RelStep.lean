@@ -6,8 +6,8 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.CKA.FromDDH.Security.ReductionReal.Bridge
 public import SecureMessaging.CKA.FromDDH.Security.ReductionCommon
+public import VCVio.ProgramLogic.Relational.SimulateQ.Coupling
 
 /-!
 # CKA from DDH — Reduction (rand) — State Relation and Per-Query Step

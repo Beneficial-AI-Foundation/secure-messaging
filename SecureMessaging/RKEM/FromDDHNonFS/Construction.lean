@@ -7,6 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.RKEM.Defs
+public import VCVio.EvalDist.Monad.Basic
 
 /-!
 # Ratcheting Key Encapsulation Mechanism from Diffie-Hellman

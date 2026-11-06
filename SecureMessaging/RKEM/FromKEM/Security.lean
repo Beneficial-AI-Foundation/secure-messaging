@@ -7,7 +7,6 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.RKEM.FromKEM.Construction
-public import ToVCVio.CryptoFoundations.KeyEncapMech
 public import ToVCVio.EvalDist.Monad.Basic
 
 /-!

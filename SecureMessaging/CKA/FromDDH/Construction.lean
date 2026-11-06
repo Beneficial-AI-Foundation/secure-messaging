@@ -7,8 +7,6 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.CKA.Defs
-public import ToMathlib.Control.StateT
-public import VCVio.CryptoFoundations.HardnessAssumptions.DiffieHellman
 
 /-!
 # Continuous Key Agreement (CKA) from Decisional Diffie-Hellman (DDH) Assumption
