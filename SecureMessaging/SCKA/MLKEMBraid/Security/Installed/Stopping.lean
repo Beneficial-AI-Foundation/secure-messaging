@@ -203,8 +203,6 @@ theorem tracePlainAt_flagStep (e : ℕ) (kp : Option (P.PK × P.SK))
   obtain ⟨w, hw, rfl⟩ := mem_support_tracePlainAt hMac irl hz
   exact traceSendAt_flagStep hMac irl e kp ec hw
 
-variable [DecidableEq P.Sym]
-
 /-- A trace receive is a flag step. -/
 theorem traceReceive_flagStep (repair party : Bool) :
     ∀ n s z, z ∈ support ((traceReceive P hMac irl repair party n).run s) → FlagStep s z.2 := by
@@ -301,7 +299,7 @@ theorem traceChallenge_eq_of_exposed (m m' : ℕ → Mode) (e : ℕ)
     simp only [traceChallenge, ite_eq_left (Or.inl hs)]
   · simp only [traceChallenge, hm t ht]
 
-variable [DecidableEq P.EpochKey] [DecidableEq P.Sym] (hMac : P.Mac = Unit)
+variable [DecidableEq P.EpochKey] (hMac : P.Mac = Unit)
   (irl : P.kem.IncrementalRandLeak P.inc)
 
 /-- Two repaired trace games whose modes agree off `e` answer every query identically, except an
@@ -421,7 +419,7 @@ theorem traceChallengeAt_hit (mode : ℕ → Mode) (e : ℕ) (x : Option P.Epoch
   change traceChallengeAt P mode e x e s = _
   cases x <;> simp only [traceChallengeAt, ite_eq_right hex, hk, ↓reduceIte]
 
-variable [DecidableEq P.EpochKey] [DecidableEq P.Sym] (hMac : P.Mac = Unit)
+variable [DecidableEq P.EpochKey] (hMac : P.Mac = Unit)
   (irl : P.kem.IncrementalRandLeak P.inc)
 
 /-- Off an eligible challenge of `e`, the installed challenge value is unused. -/

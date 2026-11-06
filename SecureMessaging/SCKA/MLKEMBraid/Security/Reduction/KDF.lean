@@ -13,7 +13,7 @@ The hybrids `rawHybrid A e` and `hybrid A e` differ only at a challenge of `e`. 
 the first exposure of `e` and installing the challenge value identify the difference between
 their acceptance probabilities with the difference between the acceptance probabilities of
 `kdfReduction A e` on a derived key and on a uniform key (`kdf_signed_gap_eq`). This equality
-does not need correct erasure codes.
+does not need sound stream decoders.
 -/
 
 open OracleSpec OracleComp
@@ -26,7 +26,7 @@ answers an eligible challenge of `e` with the test value `x`, challenges of earl
 uniform keys and challenges of later epochs with their real keys. It returns `A`'s bit, or
 `false` when `e` becomes exposed. -/
 def kdfReduction (P : Parameters ProbComp) [SampleableType P.K] [SampleableType P.EpochKey]
-    [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (A : Adversary P irl) (e : ℕ) : P.EpochKey → ProbComp Bool :=
   fun x => match e with
@@ -42,7 +42,7 @@ epoch `n + 1` minus that of the hybrid with uniform keys through epoch `n + 1`. 
 code-correctness assumption is used. -/
 theorem kdf_signed_gap_eq (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
-    [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (A : Adversary P irl) (n : ℕ) :
     (Pr{let x ← kdfExp P (n + 1) (kdfReduction P hMac irl A (n + 1)) true}[x = true]).toReal -

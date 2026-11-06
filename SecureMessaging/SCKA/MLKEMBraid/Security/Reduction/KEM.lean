@@ -27,7 +27,7 @@ variable {P : Parameters ProbComp}
 section KEMGap
 
 variable [SampleableType P.K] [SampleableType P.EpochKey] [DecidableEq P.EpochKey]
-  [DecidableEq P.Sym] (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
+  (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
 
 omit [DecidableEq P.EpochKey] in
 /-- The fixed-bit IND-CPA experiment of `kemReduction`, with the challenge ciphertext split into
@@ -57,15 +57,15 @@ theorem indCPAExpProb_kemReduction (A : Adversary P irl) (n : ℕ) (b : Bool) :
 
 /-- **The real-key experiment** of `kemReduction` is the stopped repaired game with real keys
 from `e` on. -/
-theorem kem_real_side (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct) (n : ℕ)
+theorem kem_real_side (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1) (hCt2Sound : P.decCt2.Sound P.ecpCt2) (n : ℕ)
     (A : Adversary P irl) :
     Pr{let x ← KEMScheme.indCPAExpProb P.kem (kemReduction P hMac irl A (n + 1)) true}[x = true] =
       Pr{let x ← (stoppedRun (traceImplAt P hMac irl (n + 1) none none none
         (fun t => if t < n + 1 then .uniform else .real)) (targetStop (n + 1)) A
         (initTrace P hMac))}[x = true] := by
   rw [indCPAExpProb_kemReduction hMac irl A n true,
-    ← stoppedRun_installBoth hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct (n + 1) none
+    ← stoppedRun_installBoth hMac irl hHdrSound hEkSound hCt1Sound hCt2Sound (n + 1) none
       _ A]
   refine prEvent_bind_congr_of_support _ _ _ fun x hx =>
     prEvent_bind_congr_of_support _ _ _ fun c hc => ?_
@@ -73,14 +73,14 @@ theorem kem_real_side (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.
   obtain ⟨es, c1, k⟩ := c
   simp only [↓reduceIte]
   rw [OracleComp.prEvent_bind_const]
-  exact simStep_eq hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct (n + 1)
+  exact simStep_eq hMac irl hHdrSound hEkSound hCt1Sound hCt2Sound (n + 1)
     (P.kdfOK k (n + 1)) ⟨pk, c1, _, k⟩ rfl sk es k rfl none (fun _ h => by cases h)
     (fun _ => rfl) hx hc A
 
 /-- **The random-key experiment** of `kemReduction` is the stopped repaired game with a derived
 uniform key installed at `e`. -/
-theorem kem_rand_side (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct) (n : ℕ)
+theorem kem_rand_side (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1) (hCt2Sound : P.decCt2.Sound P.ecpCt2) (n : ℕ)
     (A : Adversary P irl) :
     Pr{let x ← KEMScheme.indCPAExpProb P.kem (kemReduction P hMac irl A (n + 1)) false}[x = true] =
       Pr{let x ← do
@@ -100,7 +100,7 @@ theorem kem_rand_side (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.
     intro x hx c hc u
     obtain ⟨pk, sk⟩ := x
     obtain ⟨es, c1, k⟩ := c
-    exact simStep_eq hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct (n + 1)
+    exact simStep_eq hMac irl hHdrSound hEkSound hCt1Sound hCt2Sound (n + 1)
       (P.kdfOK u (n + 1)) ⟨pk, c1, _, u⟩ rfl sk es k rfl (some (P.kdfOK u (n + 1)))
       (fun _ h => (Option.some.inj h).symm) (fun h => by cases h) hx hc A
   calc _ = Pr{let y ← do
@@ -115,8 +115,8 @@ theorem kem_rand_side (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.
             prEvent_bind_congr_of_support _ _ _ fun u _ => h1 x hx c hc u
     _ = _ := (prEvent_swap3 _ _ _ _).trans
         (prEvent_bind_congr_of_support _ _ _ fun _ _ =>
-          stoppedRun_installBoth hMac irl hHdrCorrect hEkCorrect
-            hCt1Correct hCt2Correct (n + 1) _ _ A)
+          stoppedRun_installBoth hMac irl hHdrSound hEkSound
+            hCt1Sound hCt2Sound (n + 1) _ _ A)
 
 end KEMGap
 
@@ -126,10 +126,10 @@ probability of the hybrid with uniform keys through epoch `n` minus that of the 
 derived uniform key at epoch `n + 1`. -/
 theorem kem_signed_gap_eq (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
-    [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
-    (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1) (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     (A : Adversary P irl) (n : ℕ) :
     (Pr{let x ← (P.kem.IND_CPA_Experiment ProbCompRuntime.probComp
         (kemReduction P hMac irl A (n + 1)) true)}[x = true]).toReal -
@@ -168,7 +168,7 @@ theorem kem_signed_gap_eq (P : Parameters ProbComp)
       Pr{let x ← (P.kem.IND_CPA_Experiment ProbCompRuntime.probComp
         (kemReduction P hMac irl A (n + 1)) true)}[x = true] := by
     rw [← KEMScheme.indCPAExpProb_prEvent_true_eq,
-      kem_real_side hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct n A,
+      kem_real_side hMac irl hHdrSound hEkSound hCt1Sound hCt2Sound n A,
       ← traceImplAt_none hMac irl (n + 1), hHD]
   have hJ : Pr{let x ← (stoppedRun (traceImpl P hMac irl true
         (fun t => if t < n + 1 then .uniform else if t = n + 1 then .derivedUniform else .real))
@@ -176,7 +176,7 @@ theorem kem_signed_gap_eq (P : Parameters ProbComp)
       Pr{let x ← (P.kem.IND_CPA_Experiment ProbCompRuntime.probComp
         (kemReduction P hMac irl A (n + 1)) false)}[x = true] := by
     rw [← KEMScheme.indCPAExpProb_prEvent_true_eq,
-      kem_rand_side hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct n A,
+      kem_rand_side hMac irl hHdrSound hEkSound hCt1Sound hCt2Sound n A,
       ← traceImplAt_none hMac irl (n + 1),
       ← stoppedRun_chalSample hMac irl (n + 1) none none
         (fun t => if t < n + 1 then .uniform else if t = n + 1 then .derivedUniform else .real)

@@ -407,7 +407,7 @@ def auth (P : Parameters ProbComp) (hMac : P.Mac = Unit) :
 :::
 
 ```anchor noAuthScheme (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security.NoAuth)
-def scheme (P : Parameters ProbComp) [DecidableEq P.Sym]
+def scheme (P : Parameters ProbComp)
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc) :=
   MLKEMBraid.scheme P (auth P hMac) irl (pure ())
 ```
@@ -478,14 +478,15 @@ def nativeExposure (P : Parameters ProbComp)
 :::defTitle "mlkem_braid_noauth_security" "Security of ML-KEM Braid without authentication"
 :::
 
-::::theorem "mlkem_braid_noauth_security" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.NoAuth.security, MLKEMBraid.security, MLKEMBraid.Bounded.parameters, MLKEMBraid.NoAuth.SendQueryBound, MLKEMBraid.NoAuth.kemMixReduction, MLKEMBraid.NoAuth.kdfMixReduction, MLKEMBraid.NoAuth.KDFContextAdversary, MLKEMBraid.NoAuth.kdfContextExp, MLKEMBraid.NoAuth.kdfAdvantage") (tags := "gh-244") (uses := "mlkem_braid_noauth_spec, mlkem_braid_noauth_vulnerable_epochs, scka_security, scka_oracles, incremental_kem_scheme, incremental_kem_rand_leak, erasure_code_correctness")
+::::theorem "mlkem_braid_noauth_security" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.NoAuth.security, MLKEMBraid.security, MLKEMBraid.Bounded.parameters, MLKEMBraid.NoAuth.SendQueryBound, MLKEMBraid.NoAuth.kemMixReduction, MLKEMBraid.NoAuth.kdfMixReduction, MLKEMBraid.NoAuth.KDFContextAdversary, MLKEMBraid.NoAuth.kdfContextExp, MLKEMBraid.NoAuth.kdfAdvantage") (tags := "gh-244") (uses := "mlkem_braid_noauth_spec, mlkem_braid_noauth_vulnerable_epochs, scka_security, scka_oracles, incremental_kem_scheme, incremental_kem_rand_leak, erasure_code_correctness, stream_decoder")
 Let $`\Pi=\mathsf{Braid}_{\mathsf{NoAuth}}(P)` ({bpref "mlkem_braid_noauth_spec"}[]), and assume
 that:
 
 * the KEM $`\Gamma` of $`P` has an {bpref "incremental_kem_scheme"}[incremental structure] with
   {bpref "incremental_kem_rand_leak"}[randomness leakage], deterministic decapsulation and a
   deterministic second stage;
-* the erasure codes of the four streams are correct ({bpref "erasure_code_correctness"}[]).
+* the decoders of the four streams are sound for their erasure codes
+  ({bpref "stream_decoder"}[]).
 
 Then for every SCKA adversary $`\mathcal A` against $`\Pi` making at most $`q` ordinary or
 leaking sends in total, the IND-CPA adversary $`\mathcal B` against $`\Gamma` and the
@@ -519,7 +520,7 @@ where:
   epoch $`e` becomes exposed.
 
 The same bound holds for ML-KEM with byte encodings of the prescribed lengths, with Reed–Solomon
-codes on the four streams. Here $`\mathcal B` attacks ML-KEM and $`\varepsilon` is the
+codes and the set-based decoder on the four streams. Here $`\mathcal B` attacks ML-KEM and $`\varepsilon` is the
 correctness error of ML-KEM. The bound assumes nothing about $`\mathsf{kdfOK}`. The Braid
 specification instantiates it with HKDF.
 
@@ -559,10 +560,10 @@ theorem MLKEMBraid.security
 ```anchor genericSecurity (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security)
 theorem MLKEMBraid.NoAuth.security (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
-    [DecidableEq P.K] [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [DecidableEq P.K] [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
-    (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1) (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     (A : Adversary P irl) (q : ℕ) (hq : SendQueryBound A q) :
     let ℬ := kemMixReduction P hMac irl A q
     let 𝒞 := kdfMixReduction P hMac irl A q

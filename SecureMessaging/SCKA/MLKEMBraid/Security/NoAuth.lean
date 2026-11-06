@@ -37,7 +37,7 @@ def auth (P : Parameters ProbComp) (hMac : P.Mac = Unit) :
 
 /-- The Braid scheme with the authenticator `auth`. -/
 -- ANCHOR: noAuthScheme
-def scheme (P : Parameters ProbComp) [DecidableEq P.Sym]
+def scheme (P : Parameters ProbComp)
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc) :=
   MLKEMBraid.scheme P (auth P hMac) irl (pure ())
 -- ANCHOR_END: noAuthScheme

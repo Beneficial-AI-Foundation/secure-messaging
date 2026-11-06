@@ -39,8 +39,6 @@ theorem ct2_of_local {T : ℕ → EpochTranscript P} {e : ℕ} {a : Unit} {ct2 :
   obtain ⟨rfl, rfl, rfl⟩ : es = es' ∧ c1 = c1' ∧ k = k' := by simpa using hec.symm.trans hec'
   exact congrArg Prod.fst hpay
 
-variable [DecidableEq P.Sym]
-
 /-- A receive edge from an ordinary state keeps it ordinary and its key unrelabelled. -/
 theorem recvEdge_unmasked {e : ℕ} {v : P.EpochKey} {st : State P Unit} {msg : Message P.Sym}
     {r : RecvResult P Unit} (hedge : ReceiveEdge (auth P hMac) st msg r)
@@ -115,7 +113,7 @@ private theorem maskedRecv_keysSampled {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C�
 
 /-- The masked receive of `headerSent`. -/
 private theorem maskedRecv_headerSent {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C₂} {a : Unit}
-    {sk : P.SK} {dec : DecoderState P.inc.C₁ P.Sym} {enc : EncoderState P.inc.PKvector P.Sym}
+    {sk : P.SK} {dec : P.decCt1.D} {enc : EncoderState P.inc.PKvector P.Sym}
     {msg : Message P.Sym} {key? : Option (ℕ × P.EpochKey)} {trcv : ℕ} {st' : State P Unit}
     (hr : MLKEMBraid.recvSCKA P (auth P hMac) (.headerSent e a sk dec enc) msg =
       some (key?, trcv, st')) :
@@ -131,7 +129,7 @@ private theorem maskedRecv_headerSent {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C�
     simp [maskedRecv, Message.wellFormed, maskState, relabelKey, he]
   subst he
   rename_i chunk
-  cases hd : (dec.addChunk chunk).decodedPayload <;>
+  cases hd : P.decCt1.decodedPayload (P.decCt1.addChunk dec chunk) <;>
     simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, hd, Bool.false_eq_true,
       Bool.not_true, Option.isSome_some, Option.some.injEq, Prod.mk.injEq, ↓reduceIte] at hr <;>
     obtain ⟨rfl, rfl, rfl⟩ := hr <;>
@@ -156,7 +154,7 @@ private theorem maskedRecv_ct1Received {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C�
 /-- The masked receive of `ekSentCt1Received`: the repaired completion outputs the test key. -/
 private theorem maskedRecv_ekSent {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C₂}
     {T : ℕ → EpochTranscript P} {a : Unit} {sk : P.SK} {ct1 : P.inc.C₁}
-    {dec : DecoderState (P.inc.C₂ × P.Mac) P.Sym} {x : P.inc.St × P.inc.C₁ × P.K}
+    {dec : P.decCt2.D} {x : P.inc.St × P.inc.C₁ × P.K}
     (hE : (T e).encaps1 = some x)
     {msg : Message P.Sym} {key? : Option (ℕ × P.EpochKey)} {trcv : ℕ} {st' : State P Unit}
     (hr : repairedRecv P hMac true T (.ekSentCt1Received e a sk ct1 dec) msg =
@@ -177,7 +175,7 @@ private theorem maskedRecv_ekSent {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C₂}
           obtain ⟨rfl, rfl, rfl⟩ := hr
           simp [maskedRecv, Message.wellFormed, maskState, relabelKey]
       | some chunk =>
-          cases hd : (dec.addChunk chunk).decodedPayload <;>
+          cases hd : P.decCt2.decodedPayload (P.decCt2.addChunk dec chunk) <;>
             simp only [repairedRecv, MLKEMBraid.recvSCKA, receive, Message.wellFormed, hd, hE,
               Bool.and_self, Bool.false_eq_true, Bool.not_true, decide_true,
               Option.isSome_some, Option.some.injEq, Prod.mk.injEq, ↓reduceIte] at hr <;>
@@ -202,7 +200,7 @@ private theorem maskedRecv_ekSent {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C₂}
 /-- The masked receive of `ct1Sampled`: a completed vector gives the challenge `ct₂`. -/
 private theorem maskedRecv_ct1Sampled {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C₂}
     {T : ℕ → EpochTranscript P} {hdr : P.inc.PKheader} {es : P.inc.St} {c1 : P.inc.C₁}
-    {enc : EncoderState P.inc.C₁ P.Sym} {dec : DecoderState P.inc.PKvector P.Sym}
+    {enc : EncoderState P.inc.C₁ P.Sym} {dec : P.decEk.D}
     (hloc : LocalPayloadInv (auth P hMac) () T (.ct1Sampled e () hdr es c1 enc dec))
     (hc2 : ∀ pk sk es c1 k, (T e).keypair = some (pk, sk) → (T e).encaps1 = some (es, c1, k) →
       c2 = P.hEnc2.encaps2Det es (P.inc.toHeader pk) (P.inc.toVector pk))
@@ -225,7 +223,7 @@ private theorem maskedRecv_ct1Sampled {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C�
           obtain ⟨rfl, rfl, rfl⟩ := hr
           simp [maskedRecv, Message.wellFormed, maskState, relabelKey]
       | some chunk =>
-          cases hd : (dec.addChunk chunk).decodedPayload with
+          cases hd : P.decEk.decodedPayload (P.decEk.addChunk dec chunk) with
           | none =>
               simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, hd,
                 Bool.false_eq_true, Bool.not_true, Option.isSome_some, Option.some.injEq,
@@ -248,7 +246,7 @@ private theorem maskedRecv_ct1Sampled {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C�
           obtain ⟨rfl, rfl, rfl⟩ := hr
           simp [maskedRecv, Message.wellFormed, maskState, relabelKey]
       | some chunk =>
-          cases hd : (dec.addChunk chunk).decodedPayload with
+          cases hd : P.decEk.decodedPayload (P.decEk.addChunk dec chunk) with
           | none =>
               simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, hd,
                 Bool.false_eq_true, Bool.not_true, Option.isSome_some, Option.some.injEq,
@@ -335,7 +333,7 @@ private theorem maskedRecv_ekReceived {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C�
 /-- The masked receive of `ct1Acknowledged`: a completed vector gives the challenge `ct₂`. -/
 private theorem maskedRecv_ct1Acknowledged {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C₂}
     {T : ℕ → EpochTranscript P} {hdr : P.inc.PKheader} {es : P.inc.St} {c1 : P.inc.C₁}
-    {dec : DecoderState P.inc.PKvector P.Sym}
+    {dec : P.decEk.D}
     (hloc : LocalPayloadInv (auth P hMac) () T (.ct1Acknowledged e () hdr es c1 dec))
     (hc2 : ∀ pk sk es c1 k, (T e).keypair = some (pk, sk) → (T e).encaps1 = some (es, c1, k) →
       c2 = P.hEnc2.encaps2Det es (P.inc.toHeader pk) (P.inc.toVector pk))
@@ -358,7 +356,7 @@ private theorem maskedRecv_ct1Acknowledged {e : ℕ} {v : P.EpochKey} {c2 : P.in
           obtain ⟨rfl, rfl, rfl⟩ := hr
           simp [maskedRecv, Message.wellFormed, maskState, relabelKey]
       | some chunk =>
-          cases hd : (dec.addChunk chunk).decodedPayload with
+          cases hd : P.decEk.decodedPayload (P.decEk.addChunk dec chunk) with
           | none =>
               simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, hd,
                 Bool.false_eq_true, Bool.not_true, Option.isSome_some, Option.some.injEq,
@@ -490,7 +488,7 @@ end Receives
 
 section ReceiveStep
 
-variable [DecidableEq P.EpochKey] [DecidableEq P.Sym] (hMac : P.Mac = Unit)
+variable [DecidableEq P.EpochKey] (hMac : P.Mac = Unit)
   (irl : P.kem.IncrementalRandLeak P.inc)
 
 /-- An accepted trace receive. -/
@@ -525,8 +523,8 @@ theorem traceReceive_missing (party : Bool) (n : ℕ) (s : TraceState P)
     rw [ite_eq_left rfl, SCKAScheme.oracleRecvA_run_eq_of_none _ _ hm', map_pure]
 
 /-- A receive query agrees under the repaired invariant. -/
-theorem recvStep (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct)
+theorem recvStep (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1) (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     (e : ℕ) (v : P.EpochKey) (ch : Challenge P) (hv : P.kdfOK ch.key e = v) (party : Bool)
     (n : ℕ) (s : TraceState P) (h : RepairInv hMac s.transcript s.game)
     (hc2 : ∀ pk sk es c1 k, (s.transcript e).keypair = some (pk, sk) →
@@ -547,8 +545,8 @@ theorem recvStep (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Co
       rfl
   | some entry =>
       obtain ⟨msg, tsnd⟩ := entry
-      obtain ⟨key?, st', -, htrue, hinv⟩ := recv_outcome hHdrCorrect hEkCorrect hCt1Correct
-        hCt2Correct irl h party hm true (fun h => absurd h (by decide))
+      obtain ⟨key?, st', -, htrue, hinv⟩ := recv_outcome hHdrSound hEkSound hCt1Sound
+        hCt2Sound irl h party hm true (fun h => absurd h (by decide))
       have hloc' : LocalPayloadInv (auth P hMac) () s.transcript st' := by
         simpa using hinv.local _ party
       have hS := simRecv_eq hMac ch hv (h.local _ party) hc2 htrue hloc'

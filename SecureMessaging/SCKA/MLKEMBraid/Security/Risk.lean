@@ -105,7 +105,7 @@ private theorem obs_sampledSend_keysUnsampled (s : TraceState P) (party : Bool) 
 omit [DecidableEq P.K] in
 /-- The coin tag, records and bad flag of a first-stage encapsulation sample. -/
 private theorem obs_sampledSend_headerReceived (s : TraceState P) (party : Bool) {e : ℕ}
-    {a : Unit} {hdr : P.inc.PKheader} {dec : DecoderState P.inc.PKvector P.Sym}
+    {a : Unit} {hdr : P.inc.PKheader} {dec : P.decEk.D}
     (hst : s.game.stateAt party = .headerReceived e a hdr dec) :
     (fun w => (w.1.2, w.2)) <$> sampledSend P hMac irl s party =
       (fun x : (P.inc.St × P.inc.C₁ × P.K) × irl.Encaps1Rand => (SendRand.encaps1 x.2,
@@ -291,7 +291,7 @@ theorem traceSend_payoff (party leaking : Bool) (s : TraceState P)
     refine wp_le_const_of_support _ fun z hz => ?_
     simp [badScore, traceSend_bad hMac irl hb hz, hb]
 
-variable [DecidableEq P.Sym] [SampleableType P.K] [SampleableType P.EpochKey]
+variable [SampleableType P.K] [SampleableType P.EpochKey]
 
 /-- One query of the real trace game raises the expected bad-event score by at most the KEM
 correctness error for a send, and not at all for any other query. -/
@@ -362,10 +362,10 @@ end BadEventBound
 `qS` times the KEM correctness error. -/
 theorem badEvent_le (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
-    [DecidableEq P.K] [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [DecidableEq P.K] [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
-    (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1) (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     (A : Adversary P irl) (qS : ℕ) (hqS : SendQueryBound A qS) (b : Bool) :
     Pr{let z ← run P hMac irl false (fun _ => if b then .uniform else .real) A}[z.2.bad = true] ≤
       (qS : ℝ≥0∞) * P.kem.correctnessError ProbCompRuntime.probComp := by
@@ -375,7 +375,7 @@ theorem badEvent_le (P : Parameters ProbComp)
     (traceImpl P hMac irl false (fun _ => if b then .uniform else .real))
     (TraceInv hMac false) badScore (fun t => isSendQuery t = true)
     (P.kem.correctnessError ProbCompRuntime.probComp)
-    (traceImpl_preservesInv hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct false _)
+    (traceImpl_preservesInv hMac irl hHdrSound hEkSound hCt1Sound hCt2Sound false _)
     (traceImpl_payoff hMac irl _) A qS hqS _ (traceInv_init hMac false)
   have h0 : badScore (P := P)
       { game := SCKAScheme.initGameState (MLKEMBraid.initA P (auth P hMac) ())

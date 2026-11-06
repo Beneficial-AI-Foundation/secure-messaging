@@ -112,7 +112,7 @@ theorem leak_keygen_refused (e : ℕ) (party : Bool) (s : TraceState P) {a0 : Un
 
 /-- The ordinary first-stage encapsulation send of `e`, lazily. -/
 theorem plain_encaps1_on (e : ℕ) (kp : Option (P.PK × P.SK)) (party : Bool) (s : TraceState P)
-    {a0 : Unit} {hdr : P.inc.PKheader} {dec : DecoderState P.inc.PKvector P.Sym}
+    {a0 : Unit} {hdr : P.inc.PKheader} {dec : P.decEk.D}
     (hst : s.game.stateAt party = .headerReceived e a0 hdr dec) :
     (tracePlainAt P hMac irl e kp none party ()).run s =ᵈ
         P.inc.encaps1 hdr >>= fun c => (tracePlainAt P hMac irl e kp (some c) party ()).run s := by
@@ -135,7 +135,7 @@ theorem plain_encaps1_on (e : ℕ) (kp : Option (P.PK × P.SK)) (party : Bool) (
 
 /-- The leaking first-stage encapsulation send of `e`, lazily, when it is not refused. -/
 theorem leak_encaps1_on (e : ℕ) (kp : Option (P.PK × P.SK)) (party : Bool) (s : TraceState P)
-    {a0 : Unit} {hdr : P.inc.PKheader} {dec : DecoderState P.inc.PKvector P.Sym}
+    {a0 : Unit} {hdr : P.inc.PKheader} {dec : P.decEk.D}
     (hst : s.game.stateAt party = .headerReceived e a0 hdr dec)
     (hc : ¬ (true && decide ({e} ∩ s.game.challenged ≠ ∅)) = true) :
     ((fun w => (if targetStop e w.2 then none else some w.1, w.2)) <$>
@@ -177,7 +177,7 @@ theorem leak_encaps1_on (e : ℕ) (kp : Option (P.PK × P.SK)) (party : Bool) (s
 sample. -/
 theorem leak_encaps1_refused (e : ℕ) (kp : Option (P.PK × P.SK)) (party : Bool)
     (s : TraceState P) {a0 : Unit} {hdr : P.inc.PKheader}
-    {dec : DecoderState P.inc.PKvector P.Sym}
+    {dec : P.decEk.D}
     (hst : s.game.stateAt party = .headerReceived e a0 hdr dec)
     (hc : (true && decide ({e} ∩ s.game.challenged ≠ ∅)) = true)
     (c : P.inc.St × P.inc.C₁ × P.K) :
@@ -202,7 +202,7 @@ end Installs
 section Dispatch
 
 variable [SampleableType P.K] [SampleableType P.EpochKey] [DecidableEq P.EpochKey]
-  [DecidableEq P.Sym] (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
+  (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
 
 /-- The queries other than sends ignore the installed samples. -/
 theorem traceImplAt_offSend (e : ℕ) (kp kp' : Option (P.PK × P.SK))
@@ -441,9 +441,9 @@ theorem encaps1_on (e : ℕ) (x : P.PK × P.SK) (ec' : Option (P.inc.St × P.inc
 
 /-- **Installing the key pair of `e`.** Sampling the key pair of `e` once before the stopped run
 and installing it is the same as sampling it at the key generation of `e`. -/
-theorem stoppedRun_installKeygen (hHdrCorrect : P.ecpHdr.ec.Correct)
-    (hEkCorrect : P.ecpEk.ec.Correct) (hCt1Correct : P.ecpCt1.ec.Correct)
-    (hCt2Correct : P.ecpCt2.ec.Correct) (e : ℕ) (xo : Option P.EpochKey) (m : ℕ → Mode)
+theorem stoppedRun_installKeygen (hHdrSound : P.decHdr.Sound P.ecpHdr)
+    (hEkSound : P.decEk.Sound P.ecpEk) (hCt1Sound : P.decCt1.Sound P.ecpCt1)
+    (hCt2Sound : P.decCt2.Sound P.ecpCt2) (e : ℕ) (xo : Option P.EpochKey) (m : ℕ → Mode)
     (A : Adversary P irl) (s : TraceState P) (hs : TraceInv hMac true s) :
     Pr{let y ← do
         let x ← P.kem.keygen
@@ -456,7 +456,7 @@ theorem stoppedRun_installKeygen (hHdrCorrect : P.ecpHdr.ec.Correct)
     (TraceInv hMac true) (fun s => (s.transcript e).keypair ≠ none) (sendHit (isKeygenAt e) e)
     (fun x hx q s hs z hz _ => by
       obtain ⟨w, hw, rfl⟩ := (OracleComp.mem_support_stopOnState _ _ _ _ _).1 hz
-      exact traceImplAt_traceInv hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct e
+      exact traceImplAt_traceInv hMac irl hHdrSound hEkSound hCt1Sound hCt2Sound e
         (some x) none xo m (fun y h => by cases h; exact hx) q s hs
         (fun _ _ _ _ _ h => by cases h) w hw)
     (fun x _ q s _ hu z hz _ => by
@@ -473,9 +473,9 @@ theorem stoppedRun_installKeygen (hHdrCorrect : P.ecpHdr.ec.Correct)
 /-- **Installing the first-stage sample of `e`.** With the key pair of `e` installed, sampling the
 first-stage encapsulation of `e` once before the stopped run and installing it is the same as
 sampling it at the first-stage encapsulation of `e`. -/
-theorem stoppedRun_installEncaps1 (hHdrCorrect : P.ecpHdr.ec.Correct)
-    (hEkCorrect : P.ecpEk.ec.Correct) (hCt1Correct : P.ecpCt1.ec.Correct)
-    (hCt2Correct : P.ecpCt2.ec.Correct) (e : ℕ) (x : P.PK × P.SK)
+theorem stoppedRun_installEncaps1 (hHdrSound : P.decHdr.Sound P.ecpHdr)
+    (hEkSound : P.decEk.Sound P.ecpEk) (hCt1Sound : P.decCt1.Sound P.ecpCt1)
+    (hCt2Sound : P.decCt2.Sound P.ecpCt2) (e : ℕ) (x : P.PK × P.SK)
     (hx : x ∈ support P.kem.keygen) (xo : Option P.EpochKey) (m : ℕ → Mode)
     (A : Adversary P irl) (s : TraceState P) (hs : InstInv hMac e (some x) none s) :
     Pr{let y ← do
@@ -490,7 +490,7 @@ theorem stoppedRun_installEncaps1 (hHdrCorrect : P.ecpHdr.ec.Correct)
     (sendHit (isEncaps1At e) e)
     (fun c hc q s hs z hz _ => by
       obtain ⟨w, hw, rfl⟩ := (OracleComp.mem_support_stopOnState _ _ _ _ _).1 hz
-      exact traceImplAt_instInv hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct e x
+      exact traceImplAt_instInv hMac irl hHdrSound hEkSound hCt1Sound hCt2Sound e x
         (some c) none xo m hx (fun c' h => by cases h; exact hc) (Or.inl rfl) q s hs w hw)
     (fun c _ q s _ hu z hz _ => by
       obtain ⟨w, hw, rfl⟩ := (OracleComp.mem_support_stopOnState _ _ _ _ _).1 hz
@@ -505,9 +505,9 @@ theorem stoppedRun_installEncaps1 (hHdrCorrect : P.ecpHdr.ec.Correct)
 
 /-- **Installing both samples of `e`.** Sampling the key pair and the first-stage sample of `e`
 once before the stopped run from the initial state is the same as sampling them at their sends. -/
-theorem stoppedRun_installBoth (hHdrCorrect : P.ecpHdr.ec.Correct)
-    (hEkCorrect : P.ecpEk.ec.Correct) (hCt1Correct : P.ecpCt1.ec.Correct)
-    (hCt2Correct : P.ecpCt2.ec.Correct) (e : ℕ) (xo : Option P.EpochKey) (m : ℕ → Mode)
+theorem stoppedRun_installBoth (hHdrSound : P.decHdr.Sound P.ecpHdr)
+    (hEkSound : P.decEk.Sound P.ecpEk) (hCt1Sound : P.decCt1.Sound P.ecpCt1)
+    (hCt2Sound : P.decCt2.Sound P.ecpCt2) (e : ℕ) (xo : Option P.EpochKey) (m : ℕ → Mode)
     (A : Adversary P irl) :
     Pr{let y ← do
         let x ← P.kem.keygen
@@ -517,10 +517,10 @@ theorem stoppedRun_installBoth (hHdrCorrect : P.ecpHdr.ec.Correct)
       Pr{let x ← (stoppedRun (traceImplAt P hMac irl e none none xo m) (targetStop e) A
         (initTrace P hMac))}[x = true] :=
   (prEvent_bind_congr_of_support _ _ _ fun x hx =>
-    stoppedRun_installEncaps1 hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct e x hx xo
+    stoppedRun_installEncaps1 hMac irl hHdrSound hEkSound hCt1Sound hCt2Sound e x hx xo
       m A (initTrace P hMac)
       ⟨traceInv_init hMac true, fun _ _ => Or.inl rfl, fun _ _ => Or.inl rfl⟩).trans
-    (stoppedRun_installKeygen hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct e xo m A
+    (stoppedRun_installKeygen hMac irl hHdrSound hEkSound hCt1Sound hCt2Sound e xo m A
       (initTrace P hMac) (traceInv_init hMac true))
 
 end Dispatch

@@ -118,7 +118,7 @@ def traceChallengeAt (P : Parameters ProbComp) [SampleableType P.K] [SampleableT
 /-- The repaired trace game with installed samples `kp`, `ec` at epoch `e` and installed
 challenge value `x` for an eligible challenge of `e`. -/
 def traceImplAt (P : Parameters ProbComp) [SampleableType P.K] [SampleableType P.EpochKey]
-    [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc) (e : ℕ)
     (kp : Option (P.PK × P.SK)) (ec : Option (P.inc.St × P.inc.C₁ × P.K))
     (x : Option P.EpochKey) (mode : ℕ → Mode) :
@@ -166,8 +166,6 @@ theorem traceChallengeAt_congr (m m' : ℕ → Mode) (e : ℕ) (x : P.EpochKey)
   by_cases ht : t = e
   · simp only [traceChallengeAt, ite_eq_left ht]
   · simp only [traceChallengeAt, ite_eq_right ht, h t ht]
-
-variable [DecidableEq P.Sym]
 
 /-- Without installed samples or challenge value the installed game is the repaired trace game. -/
 theorem traceImplAt_none (e : ℕ) (mode : ℕ → Mode) :
@@ -263,7 +261,7 @@ def keygenState [DecidableEq P.EpochKey] (hMac : P.Mac = Unit) (s : TraceState P
 /-- The state after the first-stage encapsulation send of `e` with the sample `c`. -/
 def encaps1State [DecidableEq P.EpochKey] (hMac : P.Mac = Unit) (s : TraceState P)
     (party leaking : Bool) (e : ℕ) (a : Unit) (hdr : P.inc.PKheader)
-    (dec : DecoderState P.inc.PKvector P.Sym) (c : P.inc.St × P.inc.C₁ × P.K) : TraceState P :=
+    (dec : P.decEk.D) (c : P.inc.St × P.inc.C₁ × P.K) : TraceState P :=
   { game := { sendUpdate s.game party (encaps1Step P hMac e a hdr dec c.1 c.2.1 c.2.2) with
       exposed := if leaking then s.game.exposed ∪ {e} else s.game.exposed }
     transcript := Function.update s.transcript e { (s.transcript e) with encaps1 := some c }
@@ -307,7 +305,7 @@ theorem traceSendAt_keygen_run {s : TraceState P} {party : Bool} (leaking : Bool
 
 /-- The lazy first-stage encapsulation send of `e`. -/
 theorem traceSend_encaps1_run {s : TraceState P} {party : Bool} (leaking : Bool) {e : ℕ}
-    {a : Unit} {hdr : P.inc.PKheader} {dec : DecoderState P.inc.PKvector P.Sym}
+    {a : Unit} {hdr : P.inc.PKheader} {dec : P.decEk.D}
     (hst : s.game.stateAt party = .headerReceived e a hdr dec) :
     (traceSend P hMac irl party leaking).run s =
       (fun y : (P.inc.St × P.inc.C₁ × P.K) × irl.Encaps1Rand =>
@@ -323,7 +321,7 @@ theorem traceSend_encaps1_run {s : TraceState P} {party : Bool} (leaking : Bool)
 
 /-- The installed first-stage encapsulation send of `e`. -/
 theorem traceSendAt_encaps1_run {s : TraceState P} {party : Bool} (leaking : Bool) {e : ℕ}
-    {a : Unit} {hdr : P.inc.PKheader} {dec : DecoderState P.inc.PKvector P.Sym}
+    {a : Unit} {hdr : P.inc.PKheader} {dec : P.decEk.D}
     (hst : s.game.stateAt party = .headerReceived e a hdr dec) (kp : Option (P.PK × P.SK))
     (c : P.inc.St × P.inc.C₁ × P.K) :
     (traceSendAt P hMac irl e kp (some c) party leaking).run s =

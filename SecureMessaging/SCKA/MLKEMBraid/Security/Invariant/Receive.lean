@@ -26,7 +26,7 @@ variable {P : Parameters ProbComp}
 
 section Receive
 
-variable [DecidableEq P.Sym] {hMac : P.Mac = Unit} {T : ℕ → EpochTranscript P}
+variable {hMac : P.Mac = Unit} {T : ℕ → EpochTranscript P}
   {s : MLKEMBraid.GameState P Unit}
 
 /-- Outside the generator's `ct₂` states, `repairedRecv` runs `recvSCKA`. -/
@@ -42,15 +42,15 @@ theorem repairedRecv_eq_of_not_ekSent (repair : Bool) (T : ℕ → EpochTranscri
 generator's epoch, or `receive` accepts it without an output key, keeps the local invariant, and
 `repairedRecv` runs it unchanged. -/
 theorem receive_cases
-    (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1) (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     (h : RepairInv hMac T s) (party : Bool) {n : ℕ} {msg : Message P.Sym} {tsnd : ℕ}
     (hmsg : s.messagesAt (!party) n = some (msg, tsnd)) :
     (∃ e sk ct1 dec chunk pk es k tag,
       s.stateAt party = .ekSentCt1Received e () sk ct1 dec ∧
       msg = ⟨e, .ct2, some chunk⟩ ∧ (T e).keypair = some (pk, sk) ∧
       (T e).encaps1 = some (es, ct1, k) ∧
-      (dec.addChunk chunk).decodedPayload =
+      P.decCt2.decodedPayload (P.decCt2.addChunk dec chunk) =
         some (P.hEnc2.encaps2Det es (P.inc.toHeader pk) (P.inc.toVector pk), tag)) ∨
     (∃ r, receive P (auth P hMac) (s.stateAt party) msg = .ok r ∧ r.outputKey = none ∧
       LocalPayloadInv (auth P hMac) () T r.state ∧
@@ -98,7 +98,7 @@ theorem receive_cases
       receive_keysSampled_payload (auth P hMac) () T e a sk vec enc msg hLocal hPayload
     exact Or.inr (hplain r hr hnone hinv (by intros; simp))
   case headerSent e a sk dec enc =>
-    obtain ⟨r, hr, hnone, hinv⟩ := receive_headerSent_payload (auth P hMac) hCt1Correct () T
+    obtain ⟨r, hr, hnone, hinv⟩ := receive_headerSent_payload (auth P hMac) hCt1Sound () T
       e a sk dec enc msg hLocal hPayload
     exact Or.inr (hplain r hr hnone hinv (by intros; simp))
   case ct1Received e a sk ct1 enc =>
@@ -123,13 +123,13 @@ theorem receive_cases
               obtain ⟨rfl, rfl, rfl⟩ : es = es' ∧ ct1 = ct1' ∧ key = key' := by
                 simpa using hc.symm.trans hc'
               have hch := Option.some.inj hchunk
-              have hC :=
-                DecoderState.addChunk_encode_of_payloadChunks P.ecpCt2 hCt2Correct _ dec hdec i
+              have hC := hCt2Sound.received_addChunk hdec i
               rw [← hch] at hC
-              obtain ⟨hecp, ⟨I, hchunks⟩, hnone | hsome⟩ := hC
-              · refine Or.inr ⟨⟨e - 1, none, .ekSentCt1Received e a sk ct1 (dec.addChunk chunk)⟩,
+              obtain ⟨hhon, hnone | hsome⟩ := hC
+              · refine Or.inr ⟨⟨e - 1, none,
+                    .ekSentCt1Received e a sk ct1 (P.decCt2.addChunk dec chunk)⟩,
                   by simp [receive, Message.wellFormed, hnone], rfl,
-                  ⟨Subsingleton.elim _ _, pk, es, key, hkp, hc, hecp, I, hchunks⟩,
+                  ⟨Subsingleton.elim _ _, pk, es, key, hkp, hc, hhon⟩,
                   fun repair => ?_⟩
                 cases repair
                 · rfl
@@ -155,13 +155,13 @@ theorem receive_cases
               e - 1 := rfl
           omega
     obtain ⟨r, hr, hnone, hinv⟩ := receive_noHeaderReceived_payload (auth P hMac) () T
-      hHdrCorrect e a dec msg hLocal hPayload hNoEncaps
+      hHdrSound e a dec msg hLocal hPayload hNoEncaps
     exact Or.inr (hplain r hr hnone hinv (by intros; simp))
   case headerReceived e a hdr dec =>
     exact Or.inr (hplain ⟨e - 1, none, .headerReceived e a hdr dec⟩
       (by simp [receive, State.epoch]) rfl hLocal (by intros; simp))
   case ct1Sampled e a hdr encapsState ct1 enc dec =>
-    obtain ⟨r, hr, hnone, hinv⟩ := receive_ct1Sampled_payload (auth P hMac) () T hEkCorrect
+    obtain ⟨r, hr, hnone, hinv⟩ := receive_ct1Sampled_payload (auth P hMac) () T hEkSound
       e a hdr encapsState ct1 enc dec msg hLocal hPayload
     exact Or.inr (hplain r hr hnone hinv (by intros; simp))
   case ekReceivedCt1Sampled e a encapsState ct1 hdr vec enc =>
@@ -170,7 +170,7 @@ theorem receive_cases
     exact Or.inr (hplain r hr hnone hinv (by intros; simp))
   case ct1Acknowledged e a hdr encapsState ct1 dec =>
     obtain ⟨r, hr, hnone, hinv⟩ := receive_ct1Acknowledged_payload (auth P hMac) () T
-      hEkCorrect e a hdr encapsState ct1 dec msg hLocal hPayload
+      hEkSound e a hdr encapsState ct1 dec msg hLocal hPayload
     exact Or.inr (hplain r hr hnone hinv (by intros; simp))
   case ct2Sampled e a enc =>
     have hkp : (T (e + 1)).keypair = none := by
@@ -192,7 +192,6 @@ theorem receive_cases
       receive_ct2Sampled_payload (auth P hMac) () T e a enc msg hLocal ⟨hkp, hce⟩
     exact Or.inr (hplain r hr hnone hinv (by intros; simp))
 
-omit [DecidableEq P.Sym] in
 /-- The game-state message bound needed by the known-prefix check of a receive. -/
 private theorem knownPrefix_recv (h : RepairInv hMac T s) (party : Bool) {n : ℕ}
     {msg : Message P.Sym} {tsnd : ℕ} (hmsg : s.messagesAt (!party) n = some (msg, tsnd)) :
@@ -272,7 +271,6 @@ private theorem recvNoKey (irl : P.kem.IncrementalRandLeak P.inc) [DecidableEq P
     · rw [ite_eq_right hwho, ite_eq_right hwho]
       exact h.keys who e
 
-omit [DecidableEq P.Sym] in
 /-- The current game epoch after a receive. -/
 private theorem tcurAt_recvSuccessor (s : MLKEMBraid.GameState P Unit) (party who : Bool)
     (r : RecvResult P Unit) (trcv : ℕ) :
@@ -280,15 +278,14 @@ private theorem tcurAt_recvSuccessor (s : MLKEMBraid.GameState P Unit) (party wh
       if who = party then max (s.tcurAt who) trcv else s.tcurAt who := by
   cases party <;> cases who <;> rfl
 
-omit [DecidableEq P.Sym] in
 /-- The repaired completion of epoch `e` keeps the control and pair invariants: the generator
 advances from `ekSentCt1Received e` to `noHeaderReceived (e + 1)`, its peer is `ct2Sampled e`, and
 its key table gains epoch `e`. -/
 private theorem completion_control (h : RepairInv hMac T s) (party : Bool) {e : ℕ}
-    {sk : P.SK} {ct1 : P.inc.C₁} {dec : DecoderState (P.inc.C₂ × P.Mac) P.Sym}
+    {sk : P.SK} {ct1 : P.inc.C₁} {dec : P.decCt2.D}
     (hst : s.stateAt party = .ekSentCt1Received e () sk ct1 dec) (key : P.EpochKey) :
     let s' := recvSuccessor s party
-      ⟨e - 1, some (e, key), .noHeaderReceived (e + 1) () (DecoderState.empty P.ecpHdr)⟩ (e - 1)
+      ⟨e - 1, some (e, key), .noHeaderReceived (e + 1) () (P.decHdr.empty)⟩ (e - 1)
     ControlInv s' ∧ StatePairInv s' := by
   intro s'
   obtain ⟨h1, h2, hpos, hposP, hcross, hcrossP, -⟩ := h.pairBounds _ party
@@ -301,7 +298,7 @@ private theorem completion_control (h : RepairInv hMac T s) (party : Bool) {e : 
   have hepS : (s.stateAt party).epoch = e := by rw [hst]; rfl
   have hcompP : (s.stateAt (!party)).completedEpoch = e := by rw [hpeer]; rfl
   have hepP : (s.stateAt (!party)).epoch = e := by rw [hpeer]; rfl
-  have hst' : s'.stateAt party = .noHeaderReceived (e + 1) () (DecoderState.empty P.ecpHdr) := by
+  have hst' : s'.stateAt party = .noHeaderReceived (e + 1) () (P.decHdr.empty) := by
     simp [s']
   have hpeer' : s'.stateAt (!party) = s.stateAt (!party) := by simp [s']
   have hkeys' : s'.keysAt party = Function.update (s.keysAt party) e (some key) := by simp [s']
@@ -420,15 +417,14 @@ private theorem completion_control (h : RepairInv hMac T s) (party : Bool) {e : 
       simp [PairInv, State.epoch, State.controlPosition]
   exact ⟨⟨hEK, hRR, hTcur true, hTcur false, hRoles⟩, ⟨hPair true, hPair false⟩⟩
 
-omit [DecidableEq P.Sym] in
 /-- The repaired completion of epoch `e` keeps the invariant for the same transcript: the
 generator outputs the transcript's derived key of epoch `e`, whatever actual decapsulation gives. -/
 private theorem completion [DecidableEq P.EpochKey] (h : RepairInv hMac T s) (party : Bool)
-    {e : ℕ} {sk : P.SK} {ct1 : P.inc.C₁} {dec : DecoderState (P.inc.C₂ × P.Mac) P.Sym}
+    {e : ℕ} {sk : P.SK} {ct1 : P.inc.C₁} {dec : P.decCt2.D}
     (hst : s.stateAt party = .ekSentCt1Received e () sk ct1 dec)
     {es : P.inc.St} {k : P.K} (hc : (T e).encaps1 = some (es, ct1, k)) :
     RepairInv hMac T (recvUpdate s party (e - 1)
-      ⟨e - 1, some (e, P.kdfOK k e), .noHeaderReceived (e + 1) () (DecoderState.empty P.ecpHdr)⟩
+      ⟨e - 1, some (e, P.kdfOK k e), .noHeaderReceived (e + 1) () (P.decHdr.empty)⟩
       (e - 1)) := by
   obtain ⟨h1, h2, hpos, hposP, hcross, hcrossP, -⟩ := h.pairBounds _ party
   obtain ⟨b, enc, hpeer⟩ :=
@@ -453,7 +449,7 @@ private theorem completion [DecidableEq P.EpochKey] (h : RepairInv hMac T s) (pa
     rw [hcompS] at htcur
     exact (hE.keyPrefix.keys party t).2 ⟨ht, by rw [hcompS]; omega⟩
   have hzc : (recvUpdate s party (e - 1) ⟨e - 1, some (e, P.kdfOK k e),
-      .noHeaderReceived (e + 1) () (DecoderState.empty P.ecpHdr)⟩ (e - 1)).correct = true := by
+      .noHeaderReceived (e + 1) () (P.decHdr.empty)⟩ (e - 1)).correct = true := by
     rw [recvUpdate_correct]
     simp only [hnone, hpeerKey, h.correct, Bool.and_eq_true, beq_self_eq_true,
       Option.isNone_none, Option.isNone_some, Bool.false_or, and_self, true_and]
@@ -478,7 +474,7 @@ private theorem completion [DecidableEq P.EpochKey] (h : RepairInv hMac T s) (pa
     · refine ⟨Subsingleton.elim _ _, ?_⟩
       cases (T (e + 1)).keypair with
       | none => exact rfl
-      | some kp => exact ⟨rfl, ∅, (ErasureCodePayload.payloadChunks_empty P.ecpHdr _).symm⟩
+      | some kp => exact P.decHdr.received_empty P.ecpHdr _
     · exact h.local _ who
   · intro who n' msg' tsnd' hmsg'
     exact h.messages who n' msg' tsnd'
@@ -504,8 +500,8 @@ private theorem completion [DecidableEq P.EpochKey] (h : RepairInv hMac T s) (pa
 message gets the same accepted result from the real and repaired receives, and the successor keeps
 the invariant for the same transcript. -/
 theorem recv_outcome [DecidableEq P.EpochKey]
-    (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1) (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     (irl : P.kem.IncrementalRandLeak P.inc)
     (h : RepairInv hMac T s) (party : Bool) {n : ℕ} {msg : Message P.Sym} {tsnd : ℕ}
     (hmsg : s.messagesAt (!party) n = some (msg, tsnd))
@@ -514,17 +510,17 @@ theorem recv_outcome [DecidableEq P.EpochKey]
       repairedRecv P hMac repair T (s.stateAt party) msg = some (key?, msg.epoch - 1, st') ∧
       repairedRecv P hMac true T (s.stateAt party) msg = some (key?, msg.epoch - 1, st') ∧
       RepairInv hMac T (recvUpdate s party tsnd ⟨msg.epoch - 1, key?, st'⟩ (msg.epoch - 1)) := by
-  rcases receive_cases hHdrCorrect hEkCorrect hCt1Correct hCt2Correct h party hmsg with
+  rcases receive_cases hHdrSound hEkSound hCt1Sound hCt2Sound h party hmsg with
     ⟨e, sk, ct1, dec, chunk, pk, es, k, tag, hst, rfl, hkp, hc, hdecode⟩ |
       ⟨r, hr, hnone, hinv, hrep⟩
   · have hrep_true : repairedRecv P hMac true T (s.stateAt party) ⟨e, .ct2, some chunk⟩ =
         some (some (e, P.kdfOK k e), e - 1,
-          .noHeaderReceived (e + 1) () (DecoderState.empty P.ecpHdr)) := by
+          .noHeaderReceived (e + 1) () (P.decHdr.empty)) := by
       rw [hst]
       simp [repairedRecv, Message.wellFormed, hdecode, hc]
     have htsnd : tsnd = e - 1 := h.control.recordedReport.report (!party) n _ tsnd hmsg
     subst htsnd
-    refine ⟨some (e, P.kdfOK k e), .noHeaderReceived (e + 1) () (DecoderState.empty P.ecpHdr),
+    refine ⟨some (e, P.kdfOK k e), .noHeaderReceived (e + 1) () (P.decHdr.empty),
       ?_, hrep_true, completion h party hst hc⟩
     cases repair
     · have hg := hgood rfl e pk sk es ct1 k hkp hc
@@ -554,7 +550,7 @@ theorem recv_outcome [DecidableEq P.EpochKey]
 end Receive
 
 variable [DecidableEq P.EpochKey] (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
-  [DecidableEq P.Sym]
+ 
 
 /-- The trace receive is the receive oracle of `recvScheme` on the game state. -/
 theorem traceReceive_run (repair party : Bool) (n : ℕ) (s : TraceState P) :
@@ -567,8 +563,8 @@ theorem traceReceive_run (repair party : Bool) (n : ℕ) (s : TraceState P) :
 /-- Under the repaired invariant, and decapsulation agreement for the real receive, the real and
 repaired trace receives are equal, keep the records and keep the invariant. -/
 theorem traceReceive_outcome
-    (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1) (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     (repair party : Bool) (n : ℕ) (s : TraceState P)
     (h : RepairInv hMac s.transcript s.game) (hgood : repair = false → DecapsGood s.transcript) :
     (traceReceive P hMac irl repair party n).run s = (traceReceive P hMac irl true party n).run s ∧
@@ -593,7 +589,7 @@ theorem traceReceive_outcome
   | some entry =>
       obtain ⟨msg, tsnd⟩ := entry
       obtain ⟨key?, st', hrep, htrue, hinv⟩ :=
-        recv_outcome hHdrCorrect hEkCorrect hCt1Correct hCt2Correct irl h party hm repair hgood
+        recv_outcome hHdrSound hEkSound hCt1Sound hCt2Sound irl h party hm repair hgood
       have hacc : ∀ rep, repairedRecv P hMac rep s.transcript (s.game.stateAt party) msg =
           some (key?, msg.epoch - 1, st') →
           (traceReceive P hMac irl rep party n).run s =

@@ -130,7 +130,7 @@ def keygenStep (P : Parameters ProbComp) (hMac : P.Mac = Unit) (t : ℕ) (a : Un
 /-- The first-stage encapsulation send of epoch `t` with the sample `(es, ct1, k)`: the result of
 the first-stage encapsulation branch of `sendRleak`. -/
 def encaps1Step (P : Parameters ProbComp) (hMac : P.Mac = Unit) (t : ℕ) (a : Unit)
-    (hdr : P.inc.PKheader) (dec : DecoderState P.inc.PKvector P.Sym) (es : P.inc.St)
+    (hdr : P.inc.PKheader) (dec : P.decEk.D) (es : P.inc.St)
     (ct1 : P.inc.C₁) (k : P.K) : SendResult P Unit :=
   let (chunk, enc) := (EncoderState.init P.ecpCt1 ct1).nextChunk
   { msg := { epoch := t, type := .ct1, data := some chunk }
@@ -159,7 +159,7 @@ theorem sampledSend_eq_keygen [DecidableEq P.EpochKey] (hMac : P.Mac = Unit)
 /-- The sample of a first-stage encapsulation send. -/
 theorem sampledSend_eq_encaps1 [DecidableEq P.EpochKey] (hMac : P.Mac = Unit)
     (irl : P.kem.IncrementalRandLeak P.inc) (s : TraceState P) (party : Bool) {t : ℕ}
-    {a : Unit} {hdr : P.inc.PKheader} {dec : DecoderState P.inc.PKvector P.Sym}
+    {a : Unit} {hdr : P.inc.PKheader} {dec : P.decEk.D}
     (hst : s.game.stateAt party = .headerReceived t a hdr dec) :
     sampledSend P hMac irl s party = (fun x : (P.inc.St × P.inc.C₁ × P.K) × irl.Encaps1Rand =>
       ((encaps1Step P hMac t a hdr dec x.1.1 x.1.2.1 x.1.2.2, SendRand.encaps1 x.2),
@@ -216,7 +216,7 @@ theorem keygenStep_eq (hMac : P.Mac = Unit) (t : ℕ) (a : Unit) (pk : P.PK) (sk
 
 /-- The first-stage encapsulation send in terms of `ct1Chunk`. -/
 theorem encaps1Step_eq (hMac : P.Mac = Unit) (t : ℕ) (a : Unit) (hdr : P.inc.PKheader)
-    (dec : DecoderState P.inc.PKvector P.Sym) (es : P.inc.St) (ct1 : P.inc.C₁) (k : P.K) :
+    (dec : P.decEk.D) (es : P.inc.St) (ct1 : P.inc.C₁) (k : P.K) :
     encaps1Step P hMac t a hdr dec es ct1 k =
       { msg := { epoch := t, type := .ct1, data := some (ct1Chunk P ct1).1 }
         sendingEpoch := t - 1, outputKey := some (t, P.kdfOK k t)

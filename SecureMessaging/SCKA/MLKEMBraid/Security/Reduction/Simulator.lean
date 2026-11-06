@@ -29,20 +29,20 @@ inductive Masked (P : Parameters ProbComp) where
   /-- `keysSampled` without the decapsulation key. -/
   | keysSampled (vec : P.inc.PKvector) (enc : EncoderState (P.inc.PKheader × P.Mac) P.Sym)
   /-- `headerSent` without the decapsulation key. -/
-  | headerSent (dec : DecoderState P.inc.C₁ P.Sym) (enc : EncoderState P.inc.PKvector P.Sym)
+  | headerSent (dec : P.decCt1.D) (enc : EncoderState P.inc.PKvector P.Sym)
   /-- `ct1Received` without the decapsulation key. -/
   | ct1Received (ct1 : P.inc.C₁) (enc : EncoderState P.inc.PKvector P.Sym)
   /-- `ekSentCt1Received` without the decapsulation key. -/
-  | ekSentCt1Received (ct1 : P.inc.C₁) (dec : DecoderState (P.inc.C₂ × P.Mac) P.Sym)
+  | ekSentCt1Received (ct1 : P.inc.C₁) (dec : P.decCt2.D)
   /-- `ct1Sampled` without the encapsulation state. -/
   | ct1Sampled (hdr : P.inc.PKheader) (ct1 : P.inc.C₁) (enc : EncoderState P.inc.C₁ P.Sym)
-      (dec : DecoderState P.inc.PKvector P.Sym)
+      (dec : P.decEk.D)
   /-- `ekReceivedCt1Sampled` without the encapsulation state. -/
   | ekReceivedCt1Sampled (ct1 : P.inc.C₁) (hdr : P.inc.PKheader) (vec : P.inc.PKvector)
       (enc : EncoderState P.inc.C₁ P.Sym)
   /-- `ct1Acknowledged` without the encapsulation state. -/
   | ct1Acknowledged (hdr : P.inc.PKheader) (ct1 : P.inc.C₁)
-      (dec : DecoderState P.inc.PKvector P.Sym)
+      (dec : P.decEk.D)
 
 /-- A party state of the simulator: an ordinary state, or a masked state of the selected epoch. -/
 abbrev SimParty (P : Parameters ProbComp) := State P Unit ⊕ Masked P
@@ -174,7 +174,7 @@ def maskedSend (e : ℕ) : Masked P → Message P.Sym × Masked P
 /-- The receive of a masked state of epoch `e`: the receive of the corresponding state, with the
 challenge's second ciphertext part `ct2` in place of the second encapsulation stage, and the
 derived test key `v` as the key where the generator completes epoch `e`. -/
-def maskedRecv (P : Parameters ProbComp) [DecidableEq P.Sym] (hMac : P.Mac = Unit) (e : ℕ)
+def maskedRecv (P : Parameters ProbComp) (hMac : P.Mac = Unit) (e : ℕ)
     (ct2 : P.inc.C₂) (v : P.EpochKey) (m : Masked P) (msg : Message P.Sym) :
     Option (Option (ℕ × P.EpochKey) × ℕ × SimParty P) :=
   let ignore : Option (Option (ℕ × P.EpochKey) × ℕ × SimParty P) :=
@@ -188,56 +188,57 @@ def maskedRecv (P : Parameters ProbComp) [DecidableEq P.Sym] (hMac : P.Mac = Uni
         match msg.type, msg.data with
         | .ct1, some chunk =>
             if msg.epoch = e then some (none, msg.epoch - 1, .inr (.headerSent
-              ((DecoderState.empty P.ecpCt1).addChunk chunk) (EncoderState.init P.ecpEk vec)))
+              (P.decCt1.addChunk P.decCt1.empty chunk) (EncoderState.init P.ecpEk vec)))
             else ignore
         | _, _ => ignore
     | .headerSent dec enc =>
         match msg.type, msg.data with
         | .ct1, some chunk =>
             if msg.epoch = e then
-              match (dec.addChunk chunk).decodedPayload with
+              match P.decCt1.decodedPayload (P.decCt1.addChunk dec chunk) with
               | some ct1 => some (none, msg.epoch - 1, .inr (.ct1Received ct1 enc))
-              | none => some (none, msg.epoch - 1, .inr (.headerSent (dec.addChunk chunk) enc))
+              | none =>
+                  some (none, msg.epoch - 1, .inr (.headerSent (P.decCt1.addChunk dec chunk) enc))
             else ignore
         | _, _ => ignore
     | .ct1Received ct1 _ =>
         match msg.type, msg.data with
         | .ct2, some chunk =>
             if msg.epoch = e then some (none, msg.epoch - 1, .inr (.ekSentCt1Received ct1
-              ((DecoderState.empty P.ecpCt2).addChunk chunk)))
+              (P.decCt2.addChunk P.decCt2.empty chunk)))
             else ignore
         | _, _ => ignore
     | .ekSentCt1Received ct1 dec =>
         match msg.type, msg.data with
         | .ct2, some chunk =>
             if msg.epoch = e then
-              match (dec.addChunk chunk).decodedPayload with
+              match P.decCt2.decodedPayload (P.decCt2.addChunk dec chunk) with
               | some _ => some (some (e, v), msg.epoch - 1,
-                  .inl (.noHeaderReceived (e + 1) () (DecoderState.empty P.ecpHdr)))
+                  .inl (.noHeaderReceived (e + 1) () P.decHdr.empty))
               | none => some (none, msg.epoch - 1,
-                  .inr (.ekSentCt1Received ct1 (dec.addChunk chunk)))
+                  .inr (.ekSentCt1Received ct1 (P.decCt2.addChunk dec chunk)))
             else ignore
         | _, _ => ignore
     | .ct1Sampled hdr ct1 enc dec =>
         match msg.type, msg.data with
         | .ek, some chunk =>
             if msg.epoch = e then
-              match (dec.addChunk chunk).decodedPayload with
+              match P.decEk.decodedPayload (P.decEk.addChunk dec chunk) with
               | some vec =>
                   if P.inc.validPK hdr vec then
                     some (none, msg.epoch - 1, .inr (.ekReceivedCt1Sampled ct1 hdr vec enc))
                   else none
               | none => some (none, msg.epoch - 1,
-                  .inr (.ct1Sampled hdr ct1 enc (dec.addChunk chunk)))
+                  .inr (.ct1Sampled hdr ct1 enc (P.decEk.addChunk dec chunk)))
             else ignore
         | .ekCt1Ack, some chunk =>
             if msg.epoch = e then
-              match (dec.addChunk chunk).decodedPayload with
+              match P.decEk.decodedPayload (P.decEk.addChunk dec chunk) with
               | some vec =>
                   if P.inc.validPK hdr vec then some (none, msg.epoch - 1, ct2Sampled ct1)
                   else none
               | none => some (none, msg.epoch - 1,
-                  .inr (.ct1Acknowledged hdr ct1 (dec.addChunk chunk)))
+                  .inr (.ct1Acknowledged hdr ct1 (P.decEk.addChunk dec chunk)))
             else ignore
         | _, _ => ignore
     | .ekReceivedCt1Sampled ct1 _ _ _ =>
@@ -249,12 +250,12 @@ def maskedRecv (P : Parameters ProbComp) [DecidableEq P.Sym] (hMac : P.Mac = Uni
         match msg.type, msg.data with
         | .ekCt1Ack, some chunk =>
             if msg.epoch = e then
-              match (dec.addChunk chunk).decodedPayload with
+              match P.decEk.decodedPayload (P.decEk.addChunk dec chunk) with
               | some vec =>
                   if P.inc.validPK hdr vec then some (none, msg.epoch - 1, ct2Sampled ct1)
                   else none
               | none => some (none, msg.epoch - 1,
-                  .inr (.ct1Acknowledged hdr ct1 (dec.addChunk chunk)))
+                  .inr (.ct1Acknowledged hdr ct1 (P.decEk.addChunk dec chunk)))
             else ignore
         | _, _ => ignore
 
@@ -327,7 +328,7 @@ def simSend (P : Parameters ProbComp) (hMac : P.Mac = Unit)
 
 /-- The receive of a simulator party state: the repaired receive of an ordinary state with the
 simulator's records, and `maskedRecv` for a masked state. -/
-def simRecv (P : Parameters ProbComp) [DecidableEq P.Sym] (hMac : P.Mac = Unit) (e : ℕ)
+def simRecv (P : Parameters ProbComp) (hMac : P.Mac = Unit) (e : ℕ)
     (ch : Challenge P) (v : P.EpochKey) (T : ℕ → EpochTranscript P) (st : SimParty P)
     (msg : Message P.Sym) : Option (Option (ℕ × P.EpochKey) × ℕ × SimParty P) :=
   match st with
@@ -335,7 +336,7 @@ def simRecv (P : Parameters ProbComp) [DecidableEq P.Sym] (hMac : P.Mac = Unit) 
   | .inr m => maskedRecv P hMac e ch.ct2 v m msg
 
 /-- The receive oracle of `party` in the simulator. -/
-def simReceive (P : Parameters ProbComp) [DecidableEq P.Sym] (hMac : P.Mac = Unit) (e : ℕ)
+def simReceive (P : Parameters ProbComp) (hMac : P.Mac = Unit) (e : ℕ)
     (ch : Challenge P) (party : Bool) :
     QueryImpl (ℕ →ₒ Option (ℕ × Option ℕ)) (StateT (SimState P) ProbComp) :=
   fun n s =>
@@ -395,7 +396,7 @@ def simLeak (P : Parameters ProbComp) (hMac : P.Mac = Unit)
 challenge `ch`. Earlier epochs are challenged with uniform keys and the others with their keys;
 the key of `e` is the derived test key. -/
 def simImpl (P : Parameters ProbComp) [SampleableType P.K] [SampleableType P.EpochKey]
-    [DecidableEq P.Sym]
+   
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc) (e : ℕ) (ch : Challenge P) :
     QueryImpl (Spec P irl) (StateT (SimState P) ProbComp) :=
   simUnif P + simPlain P hMac irl e ch true + simPlain P hMac irl e ch false +
@@ -425,7 +426,7 @@ against the masked simulation `simImpl` of the stopped repaired game, with the c
 key, ciphertext parts and test key installed at epoch `e`. It returns `A`'s bit, or `false` when
 `e` becomes exposed. -/
 def kemReduction (P : Parameters ProbComp) [SampleableType P.K] [SampleableType P.EpochKey]
-    [DecidableEq P.Sym]
+   
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (A : Adversary P irl) (e : ℕ) : P.kem.IND_CPA_Adversary :=
   match e with

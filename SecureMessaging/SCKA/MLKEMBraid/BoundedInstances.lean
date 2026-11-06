@@ -113,6 +113,10 @@ noncomputable def parameters (p : MLKEM.ParameterSet) (ring : MLKEM.NTTRingOps)
   ecpEk := publicKeyPayload p
   ecpCt1 := ct1Payload p
   ecpCt2 := ct2Payload p
+  decHdr := ErasureCodePayload.Streaming.setDecoder headerPayload
+  decEk := ErasureCodePayload.Streaming.setDecoder (publicKeyPayload p)
+  decCt1 := ErasureCodePayload.Streaming.setDecoder (ct1Payload p)
+  decCt2 := ErasureCodePayload.Streaming.setDecoder (ct2Payload p)
 
 section Instances
 

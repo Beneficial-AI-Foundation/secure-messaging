@@ -32,7 +32,7 @@ open OracleSpec OracleComp ENNReal ToVCVio
 namespace MLKEMBraid.NoAuth
 
 variable (P : Parameters ProbComp) [SampleableType P.K] [SampleableType P.EpochKey]
-  [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+  [DecidableEq P.EpochKey]
   (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
 
 /-- The IND-CPA adversary against `P.kem` that draws `e ← epochChoice q` and runs `kemReduction` at
@@ -127,9 +127,9 @@ theorem kdfMixReduction_signed_gap (A : Adversary P irl) (q : ℕ) (hq : q ≠ 0
 that on a random key, and `Δ_KDF` the acceptance probability of `kdfMixReduction A q` in
 `kdfContextExp` on a derived key minus that on a uniform key. For every `q`,
 `p_0 - p_q = q · (Δ_KEM + Δ_KDF)`. -/
-theorem hybrid_gap_eq_query_factor (hHdrCorrect : P.ecpHdr.ec.Correct)
-    (hEkCorrect : P.ecpEk.ec.Correct) (hCt1Correct : P.ecpCt1.ec.Correct)
-    (hCt2Correct : P.ecpCt2.ec.Correct) (A : Adversary P irl) (q : ℕ) :
+theorem hybrid_gap_eq_query_factor (hHdrSound : P.decHdr.Sound P.ecpHdr)
+    (hEkSound : P.decEk.Sound P.ecpEk) (hCt1Sound : P.decCt1.Sound P.ecpCt1)
+    (hCt2Sound : P.decCt2.Sound P.ecpCt2) (A : Adversary P irl) (q : ℕ) :
     (Pr{let x ← hybrid P hMac irl A 0}[x = true]).toReal -
       (Pr{let x ← hybrid P hMac irl A q}[x = true]).toReal =
     (q : ℝ) *
@@ -146,7 +146,7 @@ theorem hybrid_gap_eq_query_factor (hHdrCorrect : P.ecpHdr.ec.Correct)
   rw [kemMixReduction_signed_gap P hMac irl A q hq, kdfMixReduction_signed_gap P hMac irl A q hq,
     ← mul_add, ← Finset.sum_add_distrib, ← mul_assoc, mul_inv_cancel₀ (by exact_mod_cast hq),
     one_mul]
-  simp_rw [kem_signed_gap_eq P hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct A,
+  simp_rw [kem_signed_gap_eq P hMac irl hHdrSound hEkSound hCt1Sound hCt2Sound A,
     kdf_signed_gap_eq P hMac irl A, sub_add_sub_cancel]
   rw [Fin.sum_univ_eq_sum_range (fun i : ℕ =>
     (Pr{let x ← hybrid P hMac irl A i}[x = true]).toReal -

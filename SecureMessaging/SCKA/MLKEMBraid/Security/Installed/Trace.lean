@@ -124,7 +124,7 @@ theorem traceSendAt_keygen_records {s : TraceState P} {party leaking : Bool} {e 
 
 /-- A non-refused installed first-stage encapsulation send of `e` records the installed sample. -/
 theorem traceSendAt_encaps1_records {s : TraceState P} {party leaking : Bool} {e : ℕ} {a : Unit}
-    {hdr : P.inc.PKheader} {dec : DecoderState P.inc.PKvector P.Sym}
+    {hdr : P.inc.PKheader} {dec : P.decEk.D}
     (hst : s.game.stateAt party = .headerReceived e a hdr dec) (kp : Option (P.PK × P.SK))
     (c : P.inc.St × P.inc.C₁ × P.K)
     (hc : ¬ (leaking && decide ({e} ∩ s.game.challenged ≠ ∅)) = true)
@@ -280,7 +280,7 @@ theorem traceSendAt_ec_off (e : ℕ) (kp : Option (P.PK × P.SK)) (c : P.inc.St 
 /-- With no installed first-stage sample, the first-stage encapsulation of `e` is lazy. -/
 theorem traceSendAt_hdr_lazy (e : ℕ) (kp : Option (P.PK × P.SK)) (party leaking : Bool)
     (s : TraceState P) {a : Unit} {hdr : P.inc.PKheader}
-    {dec : DecoderState P.inc.PKvector P.Sym}
+    {dec : P.decEk.D}
     (hst : s.game.stateAt party = .headerReceived e a hdr dec) :
     (traceSendAt P hMac irl e kp none party leaking).run s =
       (traceSend P hMac irl party leaking).run s := by
@@ -308,7 +308,7 @@ variable (hMac : P.Mac = Unit)
 /-- Under `InstInv`, a first-stage encapsulation of `e` reads the installed header. -/
 theorem InstInv.header {e : ℕ} {x : P.PK × P.SK} {ec : Option (P.inc.St × P.inc.C₁ × P.K)}
     {s : TraceState P} (hs : InstInv hMac e (some x) ec s) {party : Bool} {a : Unit}
-    {hdr : P.inc.PKheader} {dec : DecoderState P.inc.PKvector P.Sym}
+    {hdr : P.inc.PKheader} {dec : P.decEk.D}
     (hst : s.game.stateAt party = .headerReceived e a hdr dec) : hdr = P.inc.toHeader x.1 := by
   have hl := (hs.1.1 (Or.inl rfl)).1.local _ party
   rw [hst] at hl
@@ -368,7 +368,7 @@ end InstInvLemmas
 section Dispatch
 
 variable [SampleableType P.K] [SampleableType P.EpochKey] [DecidableEq P.EpochKey]
-  [DecidableEq P.Sym] (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
+  (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
 
 /-- Every query records at most one sample, the installed one at `e`. -/
 theorem traceImplAt_transcriptStep (e : ℕ) (kp : Option (P.PK × P.SK))
@@ -410,9 +410,9 @@ theorem traceImplAt_transcriptStep (e : ℕ) (kp : Option (P.PK × P.SK))
         exact Or.inl rfl)
 
 /-- Every query of an installed game keeps the trace invariant of the repaired game. -/
-theorem traceImplAt_traceInv (hHdrCorrect : P.ecpHdr.ec.Correct)
-    (hEkCorrect : P.ecpEk.ec.Correct) (hCt1Correct : P.ecpCt1.ec.Correct)
-    (hCt2Correct : P.ecpCt2.ec.Correct) (e : ℕ) (kp : Option (P.PK × P.SK))
+theorem traceImplAt_traceInv (hHdrSound : P.decHdr.Sound P.ecpHdr)
+    (hEkSound : P.decEk.Sound P.ecpEk) (hCt1Sound : P.decCt1.Sound P.ecpCt1)
+    (hCt2Sound : P.decCt2.Sound P.ecpCt2) (e : ℕ) (kp : Option (P.PK × P.SK))
     (ec : Option (P.inc.St × P.inc.C₁ × P.K)) (xo : Option P.EpochKey) (m : ℕ → Mode)
     (hkp : ∀ x, kp = some x → x ∈ support P.kem.keygen) :
     ∀ (q : (Spec P irl).Domain) (s : TraceState P), TraceInv hMac true s →
@@ -430,10 +430,10 @@ theorem traceImplAt_traceInv (hHdrCorrect : P.ecpHdr.ec.Correct)
       exact traceSendAt_traceInv hMac irl e kp ec false false s hs hkp
         (fun c a hdr dec h1 h2 => H c false a hdr dec h1 h2) hw
   | .inl (.inl (.inl (.inl (.inl (.inl (.inr n)))))), s, hs, _, z, hz =>
-      traceReceive_preservesInv hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct true true
+      traceReceive_preservesInv hMac irl hHdrSound hEkSound hCt1Sound hCt2Sound true true
         n s hs z hz
   | .inl (.inl (.inl (.inl (.inl (.inr n))))), s, hs, _, z, hz =>
-      traceReceive_preservesInv hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct true false
+      traceReceive_preservesInv hMac irl hHdrSound hEkSound hCt1Sound hCt2Sound true false
         n s hs z hz
   | .inl (.inl (.inl (.inl (.inr t)))), s, hs, H, z, hz =>
       traceSendAt_traceInv hMac irl e kp ec true true s hs hkp
@@ -446,9 +446,9 @@ theorem traceImplAt_traceInv (hHdrCorrect : P.ecpHdr.ec.Correct)
   | .inr t, s, hs, _, z, hz => traceCorruptB_preservesInv hMac true t s hs z hz
 
 /-- Every query of an installed game keeps `InstInv`. -/
-theorem traceImplAt_instInv (hHdrCorrect : P.ecpHdr.ec.Correct)
-    (hEkCorrect : P.ecpEk.ec.Correct) (hCt1Correct : P.ecpCt1.ec.Correct)
-    (hCt2Correct : P.ecpCt2.ec.Correct) (e : ℕ) (x : P.PK × P.SK)
+theorem traceImplAt_instInv (hHdrSound : P.decHdr.Sound P.ecpHdr)
+    (hEkSound : P.decEk.Sound P.ecpEk) (hCt1Sound : P.decCt1.Sound P.ecpCt1)
+    (hCt2Sound : P.decCt2.Sound P.ecpCt2) (e : ℕ) (x : P.PK × P.SK)
     (ec ec' : Option (P.inc.St × P.inc.C₁ × P.K)) (xo : Option P.EpochKey) (m : ℕ → Mode)
     (hkp : x ∈ support P.kem.keygen)
     (hec : ∀ c, ec = some c → c ∈ support (P.inc.encaps1 (P.inc.toHeader x.1)))
@@ -458,7 +458,7 @@ theorem traceImplAt_instInv (hHdrCorrect : P.ecpHdr.ec.Correct)
         InstInv hMac e (some x) ec' z.2 := by
   intro q s hs z hz
   have hstep := traceImplAt_transcriptStep hMac irl e (some x) ec xo m q s z hz
-  refine ⟨traceImplAt_traceInv hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct e
+  refine ⟨traceImplAt_traceInv hMac irl hHdrSound hEkSound hCt1Sound hCt2Sound e
     (some x) ec xo m (fun y h => by cases h; exact hkp) q s hs.1 ?_ z hz,
     hstep.keypairAt hs.2.1, ?_⟩
   · intro c party a hdr dec hc hst

@@ -19,7 +19,7 @@ import ToVCVio.OracleComp.SimSemantics.StateT.QueryImplAdd
 The trace invariant `TraceInv` keeps the repaired invariant apart from decapsulation agreement.
 Before the bad event, the real and the repaired trace games answer every query in the same way.
 Forgetting the records and the bad flag of the real trace game gives the security game `fixed`
-(`run_erase`). This needs no assumption on the erasure codes.
+(`run_erase`). This needs no assumption on the stream decoders.
 -/
 
 open OracleSpec OracleComp ENNReal
@@ -175,12 +175,10 @@ theorem traceLeak_preservesInv (party repair : Bool) :
     QueryImpl.PreservesInv (traceLeak P hMac irl party) (TraceInv hMac repair) :=
   fun _ s hs _ hz => traceSend_traceInv hMac irl party true repair s hs hz
 
-variable [DecidableEq P.Sym]
-
 /-- A trace receive preserves `TraceInv`. -/
 theorem traceReceive_preservesInv
-    (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1) (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     (repair party : Bool) :
     QueryImpl.PreservesInv (traceReceive P hMac irl repair party) (TraceInv hMac repair) := by
   intro n s hs z hz
@@ -188,8 +186,8 @@ theorem traceReceive_preservesInv
   rw [traceReceive_run] at hz'
   obtain ⟨w, hw, rfl⟩ := mem_support_liftGame hz'
   refine TraceInv.step hs (fun hb => hb) (fun hR hG => ?_) ?_
-  · obtain ⟨h1, h2, -⟩ := (traceReceive_outcome hMac irl hHdrCorrect hEkCorrect hCt1Correct
-      hCt2Correct repair party n s hR hG).2 _ hz
+  · obtain ⟨h1, h2, -⟩ := (traceReceive_outcome hMac irl hHdrSound hEkSound hCt1Sound
+      hCt2Sound repair party n s hR hG).2 _ hz
     exact ⟨h1, fun hg _ => h2 ▸ hg⟩
   · change w.2.exposed ∩ w.2.challenged = ∅
     cases party
@@ -206,16 +204,16 @@ variable [SampleableType P.K] [SampleableType P.EpochKey]
 
 /-- Every query of a trace game preserves `TraceInv`. -/
 theorem traceImpl_preservesInv
-    (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1) (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     (repair : Bool) (mode : ℕ → Mode) :
     QueryImpl.PreservesInv (traceImpl P hMac irl repair mode) (TraceInv hMac repair) :=
   ((((((((((traceUnif_preservesInv hMac repair).add
     (tracePlain_preservesInv hMac irl true repair)).add
     (tracePlain_preservesInv hMac irl false repair)).add
-    (traceReceive_preservesInv hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct
+    (traceReceive_preservesInv hMac irl hHdrSound hEkSound hCt1Sound hCt2Sound
       repair true)).add
-    (traceReceive_preservesInv hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct
+    (traceReceive_preservesInv hMac irl hHdrSound hEkSound hCt1Sound hCt2Sound
       repair false)).add
     (traceLeak_preservesInv hMac irl true repair)).add
     (traceLeak_preservesInv hMac irl false repair)).add
@@ -225,15 +223,15 @@ theorem traceImpl_preservesInv
 
 /-- Before the bad event, the real and repaired trace games answer every query identically. -/
 theorem traceImpl_real_eq_repaired
-    (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1) (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     (mode : ℕ → Mode) :
     ∀ t s, (TraceInv hMac false s ∧ s.bad = false) →
       (traceImpl P hMac irl false mode t).run s = (traceImpl P hMac irl true mode t).run s := by
   have hR : ∀ (party : Bool) n (s : TraceState P), (TraceInv hMac false s ∧ s.bad = false) →
       (traceReceive P hMac irl false party n).run s =
         (traceReceive P hMac irl true party n).run s := fun party n s hs =>
-    (traceReceive_outcome hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct false party n s
+    (traceReceive_outcome hMac irl hHdrSound hEkSound hCt1Sound hCt2Sound false party n s
       (hs.1.1 (Or.inr hs.2)).1 (hs.1.1 (Or.inr hs.2)).2).1
   exact queryEq_add _ (queryEq_add _ (queryEq_add _ (queryEq_add _ (queryEq_add _
     (queryEq_add _ (queryEq_add _ (queryEq_add _ (queryEq_add _ (fun _ _ _ => rfl)
@@ -274,10 +272,9 @@ end Preservation
 
 section Erasure
 
-variable [DecidableEq P.EpochKey] [DecidableEq P.Sym] (hMac : P.Mac = Unit)
+variable [DecidableEq P.EpochKey] (hMac : P.Mac = Unit)
   (irl : P.kem.IncrementalRandLeak P.inc)
 
-omit [DecidableEq P.Sym] in
 /-- A non-leaking send records the update of `sendUpdate` with the exposed epochs unchanged. -/
 private theorem sendUpdate_with_exposed (g : MLKEMBraid.GameState P Unit) (party : Bool)
     (r : SendResult P Unit) :
@@ -371,7 +368,7 @@ private theorem traceLeakB_map (t : Unit) (s : TraceState P) :
   · simp [hc, GameState.stateAt]
   · simp [hc, GameState.stateAt]
 
-omit [DecidableEq P.EpochKey] [DecidableEq P.Sym] in
+omit [DecidableEq P.EpochKey] in
 /-- Projecting the challenge of the real trace game for bit `b` gives the challenge oracle. -/
 private theorem traceChallenge_map [SampleableType P.K] [SampleableType P.EpochKey] (b : Bool)
     (e : ℕ) (s : TraceState P) :
@@ -430,7 +427,7 @@ end Erasure
 security game of either fixed bit, as a term equality and without code-correctness assumptions. -/
 theorem run_erase (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
-    [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (A : Adversary P irl) (b : Bool) :
     Prod.map id TraceState.game <$>
@@ -446,10 +443,10 @@ theorem run_erase (P : Parameters ProbComp)
 same bit differ by at most the probability of the bad event. -/
 theorem fixed_repaired_gap_le (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
-    [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
-    (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1) (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     (A : Adversary P irl) (b : Bool) :
     (𝒟[fixed P hMac irl A b].boolDist
         𝒟[Prod.fst <$> run P hMac irl true (fun _ => if b then .uniform else .real) A]).toReal ≤
@@ -466,10 +463,10 @@ theorem fixed_repaired_gap_le (P : Parameters ProbComp)
     (traceImpl P hMac irl false (fun _ => if b then .uniform else .real))
     (traceImpl P hMac irl true (fun _ => if b then .uniform else .real))
     (TraceInv hMac false) (fun s => s.bad = true)
-    (traceImpl_preservesInv hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct false _)
+    (traceImpl_preservesInv hMac irl hHdrSound hEkSound hCt1Sound hCt2Sound false _)
     (traceImpl_bad_mono hMac irl false _)
-    (fun t s hs hb => traceImpl_real_eq_repaired hMac irl hHdrCorrect hEkCorrect hCt1Correct
-      hCt2Correct _ t s ⟨hs, by simpa using hb⟩)
+    (fun t s hs hb => traceImpl_real_eq_repaired hMac irl hHdrSound hEkSound hCt1Sound
+      hCt2Sound _ t s ⟨hs, by simpa using hb⟩)
     A (fun x => x = true) _ (traceInv_init hMac false)
 
 end MLKEMBraid.NoAuth

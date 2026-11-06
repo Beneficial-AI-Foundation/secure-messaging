@@ -90,7 +90,7 @@ theorem PairInv.peer_of_ekSentCt1Received {st peer : State P Unit}
     (hpos : 0 < st.epoch) (hposP : 0 < peer.epoch)
     (hcross : st.epoch ≤ peer.completedEpoch + 1) (hcrossP : peer.epoch ≤ st.completedEpoch + 1)
     {e : ℕ} {a : Unit} {sk : P.SK} {ct1 : P.inc.C₁}
-    {dec : DecoderState (P.inc.C₂ × P.Mac) P.Sym}
+    {dec : P.decCt2.D}
     (hst : st = .ekSentCt1Received e a sk ct1 dec) :
     ∃ b enc, peer = .ct2Sampled e b enc := by
   subst hst

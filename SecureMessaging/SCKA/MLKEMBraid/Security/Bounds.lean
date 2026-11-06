@@ -37,7 +37,7 @@ def nativeExposure (P : Parameters ProbComp)
 /-- For either bit, the security oracles with `exposure` and with `nativeExposure` are equal. -/
 theorem securityImpl_eq_native
     (P : Parameters ProbComp)
-    [SampleableType P.EpochKey] [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [SampleableType P.EpochKey] [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc) (b : Bool) :
     SCKAScheme.ExposurePolicy.sckaSecurityImpl b
         (exposure P irl) (exposure P irl) (scheme P hMac irl) =
@@ -48,7 +48,7 @@ theorem securityImpl_eq_native
 /-- From any initial state, the two security games give the same answers and final states. -/
 theorem security_run_eq_native
     (P : Parameters ProbComp)
-    [SampleableType P.EpochKey] [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [SampleableType P.EpochKey] [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (b : Bool) (A : Adversary P irl) (s : MLKEMBraid.GameState P Unit) :
     (simulateQ (SCKAScheme.ExposurePolicy.sckaSecurityImpl b
@@ -62,7 +62,7 @@ theorem security_run_eq_native
 `nativeExposure`. -/
 theorem fixed_eq_native
     (P : Parameters ProbComp)
-    [SampleableType P.EpochKey] [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [SampleableType P.EpochKey] [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (A : Adversary P irl) (b : Bool) :
     fixed P hMac irl A b =
@@ -82,7 +82,7 @@ theorem fixed_eq_native
 guessing advantage. -/
 theorem securityGame_equiv_native
     (P : Parameters ProbComp)
-    [SampleableType P.EpochKey] [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [SampleableType P.EpochKey] [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (A : Adversary P irl) :
     SCKAScheme.ExposurePolicy.securityExp (scheme P hMac irl) A

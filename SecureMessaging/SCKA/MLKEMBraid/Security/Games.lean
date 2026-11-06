@@ -74,7 +74,7 @@ structure TraceState (P : Parameters ProbComp) where
   bad : Bool
 
 private theorem oracleSendArleak_eq_delta
-    (P : Parameters ProbComp) [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    (P : Parameters ProbComp) [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc) :
     SCKAScheme.ExposurePolicy.oracleSendArleak (exposure P irl).send (scheme P hMac irl) =
       SCKAScheme.ExposurePolicy.oracleSendArleak
@@ -95,7 +95,7 @@ private theorem oracleSendArleak_eq_delta
   rfl
 
 private theorem oracleSendBrleak_eq_delta
-    (P : Parameters ProbComp) [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    (P : Parameters ProbComp) [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc) :
     SCKAScheme.ExposurePolicy.oracleSendBrleak (exposure P irl).send (scheme P hMac irl) =
       SCKAScheme.ExposurePolicy.oracleSendBrleak
@@ -117,7 +117,7 @@ private theorem oracleSendBrleak_eq_delta
 
 private theorem securityImpl_eq_delta
     (P : Parameters ProbComp)
-    [SampleableType P.EpochKey] [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [SampleableType P.EpochKey] [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc) (b : Bool) :
     SCKAScheme.ExposurePolicy.sckaSecurityImpl b (exposure P irl) (exposure P irl)
         (scheme P hMac irl) =
@@ -131,7 +131,7 @@ private theorem securityImpl_eq_delta
 same guessing advantage. -/
 theorem securityGame_equiv_delta
     (P : Parameters ProbComp)
-    [SampleableType P.EpochKey] [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [SampleableType P.EpochKey] [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (A : Adversary P irl) :
     SCKAScheme.ExposurePolicy.securityExp (scheme P hMac irl) A
@@ -227,7 +227,7 @@ def traceSend (P : Parameters ProbComp) [DecidableEq P.EpochKey]
 /-- The receive algorithm of the trace game. With `repair`, a well-formed `ct₂` message completing
 the decoder of `ekSentCt1Received e` outputs the recorded derived key of epoch `e` instead of
 decapsulating. Every other input runs `recvSCKA`. -/
-def repairedRecv (P : Parameters ProbComp) [DecidableEq P.Sym]
+def repairedRecv (P : Parameters ProbComp)
     (hMac : P.Mac = Unit) (repair : Bool) (T : ℕ → EpochTranscript P)
     (st : State P Unit) (msg : Message P.Sym) :
     Option (Option (ℕ × P.EpochKey) × ℕ × State P Unit) :=
@@ -235,17 +235,17 @@ def repairedRecv (P : Parameters ProbComp) [DecidableEq P.Sym]
     match st, msg.type, msg.data with
     | .ekSentCt1Received e _ _ _ dec, .ct2, some chunk =>
         if msg.wellFormed && decide (msg.epoch = e) then
-          match (dec.addChunk chunk).decodedPayload, (T e).encaps1 with
+          match P.decCt2.decodedPayload (P.decCt2.addChunk dec chunk), (T e).encaps1 with
           | some _, some (_, _, k) =>
               some (some (e, P.kdfOK k e), msg.epoch - 1,
-                .noHeaderReceived (e + 1) () (DecoderState.empty P.ecpHdr))
+                .noHeaderReceived (e + 1) () P.decHdr.empty)
           | _, _ => MLKEMBraid.recvSCKA P (auth P hMac) st msg
         else MLKEMBraid.recvSCKA P (auth P hMac) st msg
     | _, _, _ => MLKEMBraid.recvSCKA P (auth P hMac) st msg
   else MLKEMBraid.recvSCKA P (auth P hMac) st msg
 
 /-- The no-authentication scheme with the receive algorithm `repairedRecv` for transcript `T`. -/
-def recvScheme (P : Parameters ProbComp) [DecidableEq P.Sym]
+def recvScheme (P : Parameters ProbComp)
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (repair : Bool) (T : ℕ → EpochTranscript P) :
     SCKAScheme ProbComp Unit (State P Unit) (State P Unit) P.EpochKey (Message P.Sym)
@@ -256,7 +256,7 @@ def recvScheme (P : Parameters ProbComp) [DecidableEq P.Sym]
 
 /-- The receive oracle of `party`: the scheme's receive oracle with `repairedRecv`. -/
 def traceReceive (P : Parameters ProbComp)
-    [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (repair party : Bool) : QueryImpl (ℕ →ₒ Option (ℕ × Option ℕ))
       (StateT (TraceState P) ProbComp) :=
@@ -324,7 +324,7 @@ def traceCorruptB (P : Parameters ProbComp) :
 /-- The SCKA security interface with recorded samples and optional repaired receives. -/
 def traceImpl (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
-    [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (repair : Bool) (mode : ℕ → Mode) :
     QueryImpl (Spec P irl) (StateT (TraceState P) ProbComp) :=
@@ -337,7 +337,7 @@ def traceImpl (P : Parameters ProbComp)
 bad flag false. -/
 def run (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
-    [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (repair : Bool) (mode : ℕ → Mode) (A : Adversary P irl) :
     ProbComp (Bool × TraceState P) :=
@@ -349,7 +349,7 @@ def run (P : Parameters ProbComp)
 
 /-- The security game with the exposure policy `exposure` and the challenge bit fixed to `b`. -/
 def fixed (P : Parameters ProbComp)
-    [SampleableType P.EpochKey] [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [SampleableType P.EpochKey] [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (A : Adversary P irl) (b : Bool) : ProbComp Bool :=
   (simulateQ (SCKAScheme.ExposurePolicy.sckaSecurityImpl b
@@ -360,7 +360,7 @@ def fixed (P : Parameters ProbComp)
 /-- The repaired hybrid with uniform keys at the epochs `1, …, j` and real keys after them. -/
 def hybrid (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
-    [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (A : Adversary P irl) (j : ℕ) : ProbComp Bool :=
   Prod.fst <$> run P hMac irl true
@@ -370,7 +370,7 @@ def hybrid (P : Parameters ProbComp)
 uniform shared secret `u` at `e`, and real keys after `e`. -/
 def rawHybrid (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
-    [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (A : Adversary P irl) (e : ℕ) : ProbComp Bool :=
   Prod.fst <$> run P hMac irl true

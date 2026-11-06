@@ -198,8 +198,6 @@ private theorem traceSend_sendBound (party leaking : Bool) (s : TraceState P)
     · rw [Function.update_of_ne hte] at ht
       exact (hB t ht).trans (Nat.le_succ _)
 
-variable [DecidableEq P.Sym]
-
 /-- A trace receive keeps the records and the send counters. -/
 private theorem traceReceive_frame (repair party : Bool) :
     ∀ n s z, z ∈ support ((traceReceive P hMac irl repair party n).run s) →
@@ -275,8 +273,8 @@ private theorem traceImpl_count (repair : Bool) (mode : ℕ → Mode) :
 
 /-- Every query of a repaired trace game preserves `TraceInv` and the produced-epoch bound. -/
 private theorem traceImpl_sendBound
-    (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1) (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     (mode : ℕ → Mode) :
     QueryImpl.PreservesInv (traceImpl P hMac irl true mode)
       (fun s => TraceInv hMac true s ∧ SendBound s) := by
@@ -298,10 +296,10 @@ private theorem traceImpl_sendBound
     ⟨traceSend_traceInv hMac irl party leaking true s hs.1 hz,
       traceSend_sendBound hMac irl party leaking s (hs.1.1 (Or.inl rfl)).1 hs.2 hz⟩
   refine ((((((((((hframe _ (traceUnif_preservesInv hMac true) traceUnif_frame).add ?_).add
-    ?_).add (hframe _ (traceReceive_preservesInv hMac irl hHdrCorrect hEkCorrect hCt1Correct
-      hCt2Correct true true) (traceReceive_frame hMac irl true true))).add
-    (hframe _ (traceReceive_preservesInv hMac irl hHdrCorrect hEkCorrect hCt1Correct
-      hCt2Correct true false) (traceReceive_frame hMac irl true false))).add ?_).add ?_).add
+    ?_).add (hframe _ (traceReceive_preservesInv hMac irl hHdrSound hEkSound hCt1Sound
+      hCt2Sound true true) (traceReceive_frame hMac irl true true))).add
+    (hframe _ (traceReceive_preservesInv hMac irl hHdrSound hEkSound hCt1Sound
+      hCt2Sound true false) (traceReceive_frame hMac irl true false))).add ?_).add ?_).add
     (hframe _ (traceChallenge_preservesInv hMac mode true) (traceChallenge_frame mode))).add
     (hframe _ (traceCorruptA_preservesInv hMac true) traceCorruptA_frame)).add
     (hframe _ (traceCorruptB_preservesInv hMac true) traceCorruptB_frame))
@@ -317,8 +315,8 @@ private theorem traceImpl_sendBound
 /-- Two repaired trace runs whose modes agree on every positive epoch up to the send budget have
 the same output distribution. -/
 private theorem run_mode_evalDist_eq
-    (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1) (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     (A : Adversary P irl) (qS : ℕ) (hqS : SendQueryBound A qS) (m m' : ℕ → Mode)
     (hm : ∀ e, 0 < e → e ≤ qS → m e = m' e) :
     Prod.fst <$> run P hMac irl true m A =ᵈ Prod.fst <$> run P hMac irl true m' A := by
@@ -341,7 +339,7 @@ private theorem run_mode_evalDist_eq
   have habs := abs_prEvent_simulateQ_run_sub_le_bad_of_inv
     (traceImpl P hMac irl true m) (traceImpl P hMac irl true m')
     (fun s => TraceInv hMac true s ∧ SendBound s) (fun s => qS < sendCount s)
-    (traceImpl_sendBound hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct m)
+    (traceImpl_sendBound hMac irl hHdrSound hEkSound hCt1Sound hCt2Sound m)
     (fun t s hs z hz => lt_of_lt_of_le hs (traceImpl_count hMac irl true m t s z hz).1)
     (fun t s hs hb => traceImpl_mode_eq hMac irl true m m'
       (fun s => (TraceInv hMac true s ∧ SendBound s) ∧ ¬ qS < sendCount s)
@@ -364,10 +362,10 @@ repaired real-key game, and the hybrid with uniform keys through epoch `qS` has 
 the repaired uniform-key game. -/
 theorem hybrid_endpoints (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
-    [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
-    (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1) (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     (A : Adversary P irl) (qS : ℕ) (hqS : SendQueryBound A qS) :
     hybrid P hMac irl A 0 =ᵈ
         Prod.fst <$> run P hMac irl true (fun _ => if false then .uniform else .real) A ∧
@@ -375,9 +373,9 @@ theorem hybrid_endpoints (P : Parameters ProbComp)
           Prod.fst <$> run P hMac irl true (fun _ => if true then .uniform else .real) A :=
   -- Every available challenge key is for a positive epoch at most the number of accepted sends,
   -- which the send budget bounds along every adaptive run.
-  ⟨run_mode_evalDist_eq hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct A qS hqS _ _
+  ⟨run_mode_evalDist_eq hMac irl hHdrSound hEkSound hCt1Sound hCt2Sound A qS hqS _ _
       fun _ he _ => by simp [Nat.not_le.mpr he],
-    run_mode_evalDist_eq hMac irl hHdrCorrect hEkCorrect hCt1Correct hCt2Correct A qS hqS _ _
+    run_mode_evalDist_eq hMac irl hHdrSound hEkSound hCt1Sound hCt2Sound A qS hqS _ _
       fun _ _ he => by simp [he]⟩
 
 end MLKEMBraid.NoAuth

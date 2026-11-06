@@ -50,7 +50,7 @@ theorem sendStep_keygen (e : ℕ) (v : P.EpochKey) (ch : Challenge P) (sk : P.SK
 /-- The first-stage encapsulation send of `e` agrees. -/
 theorem sendStep_encaps1 (e : ℕ) (v : P.EpochKey) (ch : Challenge P) (hv : P.kdfOK ch.key e = v)
     (kp : Option (P.PK × P.SK)) (es : P.inc.St) (k : P.K) (party leaking : Bool)
-    (s : TraceState P) {a : Unit} {hdr : P.inc.PKheader} {dec : DecoderState P.inc.PKvector P.Sym}
+    (s : TraceState P) {a : Unit} {hdr : P.inc.PKheader} {dec : P.decEk.D}
     (hst : s.game.stateAt party = .headerReceived e a hdr dec) :
     (simSend P hMac irl e ch party leaking).run (simOf e v s) =ᵈ Prod.map id (simOf e v) <$>
         (traceSendAt P hMac irl e kp (some (es, ch.ct1, k)) party leaking).run s := by
