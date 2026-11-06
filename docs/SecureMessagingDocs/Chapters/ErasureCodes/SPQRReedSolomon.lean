@@ -3,6 +3,7 @@ import VersoBlueprint
 import SecureMessagingDocs.Bibliography
 import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
+import SecureMessagingDocs.Visuals.ErasureCodeFigures
 import SecureMessaging.ErasureCode.SPQRReedSolomon.Construction
 import SecureMessaging.ErasureCode.SPQRReedSolomon.Correctness
 
@@ -32,15 +33,24 @@ The 16-coordinate parallel Reed–Solomon construction and its SPQR specializati
 :::defTitle "parallel_reed_solomon_code" "Parallel Reed–Solomon erasure code"
 :::
 
-:::::definition "parallel_reed_solomon_code" (parent := "erasure_codes_spqr_reed_solomon") (lean := "ErasureCode.SPQRReedSolomon.Chunk, ErasureCode.SPQRReedSolomon.encode, ErasureCode.SPQRReedSolomon.coordinateChunks, ErasureCode.SPQRReedSolomon.decode, ErasureCode.SPQRReedSolomon.parallelErasureCode") (uses := "reed_solomon_erasure_code, erasure_code_scheme")
-$`\todo`
+:::::::definition "parallel_reed_solomon_code" (parent := "erasure_codes_spqr_reed_solomon") (lean := "ErasureCode.SPQRReedSolomon.Chunk, ErasureCode.SPQRReedSolomon.encode, ErasureCode.SPQRReedSolomon.coordinateChunks, ErasureCode.SPQRReedSolomon.decode, ErasureCode.SPQRReedSolomon.parallelErasureCode") (uses := "reed_solomon_erasure_code, erasure_code_scheme")
+Let $`(F,N,k,x_0,\ldots,x_{N-1})` be the parameters of a
+{bpref "reed_solomon_erasure_code"}[Reed–Solomon erasure code]
+$`(\Encode_{\mathsf{RS}},\Decode_{\mathsf{RS}})`. The *parallel Reed–Solomon erasure code* is the
+{bpref "erasure_code_scheme"}[erasure code] over the symbol set $`F^{16}`, with block length
+$`N` and message length $`k`, that runs the Reed–Solomon code on each of the 16
+coordinates. For a chunk $`c\in F^{16}` write $`c[\ell]` for its coordinate $`\ell<16`.
 
-:::leanPillCaption "16-coordinate chunk"
+:::leanPillCaption "Chunk"
 :::
 
 ```anchor parallelReedSolomon_Chunk (project := ".") (module := SecureMessaging.ErasureCode.SPQRReedSolomon.Construction)
 abbrev Chunk (F : Type) := Fin 16 → F
 ```
+
+For a message $`m\in(F^{16})^k` write $`m[\ell]=(m_0[\ell],\ldots,m_{k-1}[\ell])\in F^k`. The
+encoding runs the Reed–Solomon encoding on each coordinate:
+$`\Encode(m,j)[\ell]=\Encode_{\mathsf{RS}}(m[\ell],j)` for all $`\ell<16`.
 
 :::leanPillCaption "encode"
 :::
@@ -51,7 +61,9 @@ def encode (params : ReedSolomon.Parameters F) (message : Fin params.k → Chunk
   fun coordinate => params.encode (fun i => message i coordinate) index
 ```
 
-:::leanPillCaption "coordinate chunks"
+For a chunk set $`L` write $`L[\ell]=\{(j,c[\ell])\mid(j,c)\in L\}`.
+
+:::leanPillCaption "coordinateChunks"
 :::
 
 ```anchor parallelReedSolomon_coordinateChunks (project := ".") (module := SecureMessaging.ErasureCode.SPQRReedSolomon.Construction)
@@ -61,6 +73,10 @@ def coordinateChunks (params : ReedSolomon.Parameters F)
   classical
   exact chunks.image fun (j, y) => (j, y coordinate)
 ```
+
+The decoding interpolates each coordinate: $`\Decode(L)_i[\ell]=Q_{L[\ell]}(x_i)` for all
+$`i<k` and $`\ell<16` if $`L` is decodable, where $`Q_{L[\ell]}` is the decoding polynomial of
+$`L[\ell]`, and $`\Decode(L)=\bot` otherwise.
 
 :::leanPillCaption "decode"
 :::
@@ -77,7 +93,9 @@ noncomputable def decode (params : ReedSolomon.Parameters F)
     none
 ```
 
-:::leanPillCaption "ErasureCode instance"
+These algorithms form the parallel Reed–Solomon erasure code.
+
+:::leanPillCaption "parallelErasureCode"
 :::
 
 ```anchor parallelReedSolomon_erasureCode (project := ".") (module := SecureMessaging.ErasureCode.SPQRReedSolomon.Construction)
@@ -90,22 +108,34 @@ def parallelErasureCode (params : ReedSolomon.Parameters F) : ErasureCode (Chunk
   encode := encode params
   decode := decode params
 ```
+
+::::::gameGrid
+:::::gameCell "\\textsf{Illustration: parallel Reed–Solomon encoding}" (kind := "scheme")
+:::parallelReedSolomonFigure
+:::
 :::::
+::::::
+:::::::
 
 :::defTitle "spqr_reed_solomon_code" "SPQR erasure code"
 :::
 
 ::::definition "spqr_reed_solomon_code" (parent := "erasure_codes_spqr_reed_solomon") (lean := "ErasureCode.SPQRReedSolomon.GF16, ErasureCode.SPQRReedSolomon.spqrEvaluationPoints, ErasureCode.SPQRReedSolomon.spqrParameters, ErasureCode.SPQRReedSolomon.erasureCode") (uses := "parallel_reed_solomon_code")
-$`\todo`
+Adapted from {Informal.citet SPQR_ENC}[].
 
-:::leanPillCaption "galois field"
+Let $`\mathbb F_{2^{16}}` be the field with $`2^{16}` elements.
+
+:::leanPillCaption "GF16"
 :::
 
 ```anchor spqrReedSolomon_GF16 (project := ".") (module := SecureMessaging.ErasureCode.SPQRReedSolomon.Construction)
 abbrev GF16 := GaloisField 2 16
 ```
 
-:::leanPillCaption "evaluation points"
+Fix a bijection $`\varphi:[2^{16}]\to\mathbb F_{2^{16}}`. The evaluation points of SPQR are
+$`x_j=\varphi(j)` for $`j\in[2^{16}]`.
+
+:::leanPillCaption "spqrEvaluationPoints"
 :::
 
 ```anchor spqrReedSolomon_evaluationPoints (project := ".") (module := SecureMessaging.ErasureCode.SPQRReedSolomon.Construction)
@@ -113,7 +143,10 @@ def spqrEvaluationPoints : Fin (2 ^ 16) ≃ GF16 :=
   (Finite.equivFinOfCardEq gf16_card).symm
 ```
 
-:::leanPillCaption "Reed–Solomon parameters"
+For a message length $`0<k\le 2^{16}`, the Reed–Solomon parameters of SPQR are the field
+$`\mathbb F_{2^{16}}`, the block length $`N=2^{16}`, the message length $`k`, and these points.
+
+:::leanPillCaption "spqrParameters"
 :::
 
 ```anchor spqrReedSolomon_parameters (project := ".") (module := SecureMessaging.ErasureCode.SPQRReedSolomon.Construction)
@@ -129,7 +162,13 @@ def spqrParameters (k : ℕ) (hk : k ≤ 2 ^ 16) (hk_pos : 0 < k) :
   point_injective := spqrEvaluationPoints.injective
 ```
 
-:::leanPillCaption "ErasureCode instance"
+The *SPQR erasure code* with message length $`k` is the
+{bpref "parallel_reed_solomon_code"}[parallel Reed–Solomon erasure code] with these
+parameters. As in Signal's implementation, a chunk consists of 16 field elements. The model
+leaves $`\varphi` abstract: it does not fix the representation of field elements as 16-bit
+integers that Signal's implementation uses.
+
+:::leanPillCaption "erasureCode"
 :::
 
 ```anchor spqrReedSolomon_erasureCode (project := ".") (module := SecureMessaging.ErasureCode.SPQRReedSolomon.Construction)
@@ -142,7 +181,9 @@ def erasureCode (k : ℕ) (hk : k ≤ 2 ^ 16) (hk_pos : 0 < k) : ErasureCode (Ch
 :::
 
 ::::theorem "parallel_reed_solomon_correctness" (parent := "erasure_codes_spqr_reed_solomon") (lean := "ErasureCode.SPQRReedSolomon.parallelErasureCode_correct") (uses := "parallel_reed_solomon_code, reed_solomon_erasure_code_correctness, erasure_code_correctness")
-$`\todo`
+For all Reed–Solomon parameters $`(F,N,k,x_0,\ldots,x_{N-1})`, the
+{bpref "parallel_reed_solomon_code"}[parallel Reed–Solomon erasure code] is
+{bpref "erasure_code_correctness"}[correct].
 
 :::leanPillCaption "parallel correctness"
 :::
@@ -157,7 +198,9 @@ theorem parallelErasureCode_correct (params : ReedSolomon.Parameters F) :
 :::
 
 ::::theorem "spqr_reed_solomon_correctness" (parent := "erasure_codes_spqr_reed_solomon") (lean := "ErasureCode.SPQRReedSolomon.erasureCode_correct") (uses := "spqr_reed_solomon_code, parallel_reed_solomon_correctness")
-$`\todo`
+For every message length $`0<k\le 2^{16}`, the
+{bpref "spqr_reed_solomon_code"}[SPQR erasure code] is
+{bpref "erasure_code_correctness"}[correct].
 
 :::leanPillCaption "SPQR correctness"
 :::

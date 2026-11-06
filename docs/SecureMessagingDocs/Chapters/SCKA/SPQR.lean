@@ -58,9 +58,9 @@ An *SPQR parameter set* $`P` consists of
   $`\Sigma` with their {bpref "erasure_code_streaming"}[streaming] interface:
   - $`\mathsf{Code}_H`, $`\mathsf{Code}_V`, $`\mathsf{Code}_1`, and $`\mathsf{Code}_2`, with payloads
     $`H\times T`, $`V`, $`C_1`, and $`C_2\times T` respectively;
-  - encoder algorithms $`\mathsf{Enc}_X` and $`\mathsf{Next}`;
-  - one {bpref "stream_decoder"}[stream decoder] per stream, with algorithms $`\mathsf{Empty}_X`,
-    $`\mathsf{Add}`, and $`\mathsf{Decode}`.
+  - for each $`X\in\{H,V,1,2\}`, the encoder algorithms $`\mathsf{Enc}_X` and $`\mathsf{Next}` of
+    $`\mathsf{Code}_X`, and a {bpref "stream_decoder"}[stream decoder] for the payloads of
+    $`\mathsf{Code}_X`, with algorithms $`\mathsf{Empty}_X`, $`\mathsf{Add}`, and $`\mathsf{Decode}`.
 
 :::leanPillCaption "Parameters"
 :::

@@ -50,10 +50,12 @@ namespace ErasureCodePayload
 variable {Sym : Type} [DecidableEq Sym]
 
 /-- The natural-index representation of an honest subset of a payload's codeword. -/
+-- ANCHOR: payloadChunks
 noncomputable def payloadChunks {M : Type}
     (ecp : ErasureCodePayload M Sym) (payload : M)
     (I : Finset (Fin ecp.ec.N)) : Finset (ℕ × Sym) :=
   (ecp.ec.encodeChunks (ecp.serialize payload) I).map ErasureCode.chunkToNat
+-- ANCHOR_END: payloadChunks
 
 omit [DecidableEq Sym] in
 /-- The empty set of codeword positions gives no chunks. -/
@@ -105,11 +107,14 @@ theorem payloadChunks_boundedMap {M : Type}
 omit [DecidableEq Sym] in
 /-- Decoding an honest chunk set at or above the reconstruction threshold recovers
 its payload. -/
+-- ANCHOR: decode_payloadChunks
 theorem decode_payloadChunks {M : Type}
     (ecp : ErasureCodePayload M Sym) (hcorrect : ecp.ec.Correct)
     (payload : M) (I : Finset (Fin ecp.ec.N))
     (hcard : ecp.ec.nchunk ≤ I.card) :
-    ecp.decode (payloadChunks ecp payload I) = some payload := by
+    ecp.decode (payloadChunks ecp payload I) = some payload
+-- ANCHOR_END: decode_payloadChunks
+    := by
   classical
   rw [ErasureCodePayload.decode]
   split
@@ -122,11 +127,14 @@ theorem decode_payloadChunks {M : Type}
 
 omit [DecidableEq Sym] in
 /-- Decoding an honest chunk set below the reconstruction threshold fails. -/
+-- ANCHOR: decode_payloadChunks_none
 theorem decode_payloadChunks_none {M : Type}
     (ecp : ErasureCodePayload M Sym) (hcorrect : ecp.ec.Correct)
     (payload : M) (I : Finset (Fin ecp.ec.N))
     (hcard : I.card < ecp.ec.nchunk) :
-    ecp.decode (payloadChunks ecp payload I) = none := by
+    ecp.decode (payloadChunks ecp payload I) = none
+-- ANCHOR_END: decode_payloadChunks_none
+    := by
   classical
   rw [ErasureCodePayload.decode]
   split
@@ -156,6 +164,7 @@ theorem insert_payloadChunks {M : Type}
 
 /-- Inserting one honest chunk into an honest sub-threshold set either remains below
 the threshold or reaches it and decodes the original payload. -/
+-- ANCHOR: decode_insert_honest
 theorem decode_insert_honest {M : Type}
     (ecp : ErasureCodePayload M Sym) (hcorrect : ecp.ec.Correct)
     (payload : M) (I : Finset (Fin ecp.ec.N)) (i : ℕ)
@@ -165,7 +174,9 @@ theorem decode_insert_honest {M : Type}
         ecp.decode (insert (ecp.encode payload i) (payloadChunks ecp payload I)) = none) ∨
       (I'.card = ecp.ec.nchunk ∧
         ecp.decode (insert (ecp.encode payload i) (payloadChunks ecp payload I)) =
-          some payload) := by
+          some payload)
+-- ANCHOR_END: decode_insert_honest
+    := by
   dsimp only
   have hle : (insert (counterIndex ecp i) I).card ≤ ecp.ec.nchunk := by
     calc

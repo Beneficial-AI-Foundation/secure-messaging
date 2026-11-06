@@ -42,9 +42,9 @@ namespace ErasureCodePayload.Streaming
 
 variable {M Sym : Type}
 
--- ANCHOR: ErasureCodePayload_Streaming_States
 /-- Encoder state for one erasure-coded payload stream. It stores the erasure-code
 payload scheme, the payload being encoded, and the counter for the next chunk. -/
+-- ANCHOR: ErasureCodePayload_Streaming_EncoderState
 structure EncoderState (M Sym : Type) where
   /-- The erasure-code payload scheme used to encode this stream. -/
   ecp : ErasureCodePayload M Sym
@@ -52,22 +52,24 @@ structure EncoderState (M Sym : Type) where
   payload : M
   /-- The natural-number counter used for the next emitted chunk. -/
   nextIndex : ℕ
+-- ANCHOR_END: ErasureCodePayload_Streaming_EncoderState
 
--- ANCHOR_END: ErasureCodePayload_Streaming_States
 
 namespace EncoderState
--- ANCHOR: ErasureCodePayload_Streaming_Encoder
 
 /-- Initialize an encoder before emitting its first chunk. -/
+-- ANCHOR: ErasureCodePayload_Streaming_init
 def init (ecp : ErasureCodePayload M Sym) (payload : M) : EncoderState M Sym :=
   { ecp, payload, nextIndex := 0 }
+-- ANCHOR_END: ErasureCodePayload_Streaming_init
 
 /-- Emit the chunk at the current counter and advance the counter by one. -/
+-- ANCHOR: ErasureCodePayload_Streaming_nextChunk
 def nextChunk (state : EncoderState M Sym) :
     (ℕ × Sym) × EncoderState M Sym :=
   (state.ecp.encode state.payload state.nextIndex,
     { state with nextIndex := state.nextIndex + 1 })
--- ANCHOR_END: ErasureCodePayload_Streaming_Encoder
+-- ANCHOR_END: ErasureCodePayload_Streaming_nextChunk
 
 /-- The emitted chunk index is the encoder counter reduced modulo the codeword size. -/
 theorem nextChunk_index (state : EncoderState M Sym) :
@@ -76,8 +78,8 @@ theorem nextChunk_index (state : EncoderState M Sym) :
 end EncoderState
 
 
--- ANCHOR: StreamDecoder
 /-- A streaming decoder for payloads in `M` from indexed symbols in `Sym`. -/
+-- ANCHOR: StreamDecoder
 structure StreamDecoder (M Sym : Type) where
   /-- Decoder state. -/
   D : Type
@@ -87,25 +89,29 @@ structure StreamDecoder (M Sym : Type) where
   addChunk : D → ℕ × Sym → D
   /-- The decoded payload, if any. -/
   decodedPayload : D → Option M
+-- ANCHOR_END: StreamDecoder
 
 namespace StreamDecoder
 
 /-- The state of `dec` after it receives the chunks `ecp.encode p i` for `i` in `is`, in order. -/
+-- ANCHOR: StreamDecoder_run
 def run (dec : StreamDecoder M Sym) (ecp : ErasureCodePayload M Sym) (p : M) (is : List ℕ) :
     dec.D :=
   is.foldl (fun d i => dec.addChunk d (ecp.encode p i)) dec.empty
+-- ANCHOR_END: StreamDecoder_run
 
 /-- `dec` is sound for `ecp` if a decoder that received only chunks of `p`, at least one, decodes
 to `none` or `some p`. Soundness does not imply that `dec` ever decodes, and it does not constrain
 `decodedPayload` of the initial state. -/
+-- ANCHOR: StreamDecoder_Sound
 def Sound (dec : StreamDecoder M Sym) (ecp : ErasureCodePayload M Sym) : Prop :=
   ∀ (p : M) (is : List ℕ), is ≠ [] →
     dec.decodedPayload (dec.run ecp p is) = none ∨
       dec.decodedPayload (dec.run ecp p is) = some p
--- ANCHOR_END: StreamDecoder
+-- ANCHOR_END: StreamDecoder_Sound
 
--- ANCHOR: StreamDecoder_Received
 /-- The state `d` of `dec` received only chunks of `p`, possibly none. -/
+-- ANCHOR: StreamDecoder_Received
 def Received (dec : StreamDecoder M Sym) (ecp : ErasureCodePayload M Sym) (p : M) (d : dec.D) :
     Prop :=
   ∃ is : List ℕ, d = dec.run ecp p is
@@ -172,11 +178,12 @@ theorem Sound.of_inv (I : M → dec.D → Prop) (h0 : ∀ p, I p dec.empty)
 end StreamDecoder
 
 namespace SetDecoder
--- ANCHOR: ErasureCodePayload_Streaming_Decoder
 
 /-- The chunk set already contains a chunk at `index`. -/
+-- ANCHOR: SetDecoder_HasIndex
 def HasIndex (chunks : Finset (ℕ × Sym)) (index : ℕ) : Prop :=
   ∃ chunk ∈ chunks, chunk.1 = index
+-- ANCHOR_END: SetDecoder_HasIndex
 
 /-- Whether a chunk set contains a chunk at a given index is decidable. -/
 instance (chunks : Finset (ℕ × Sym)) (index : ℕ) : Decidable (HasIndex chunks index) := by
@@ -191,16 +198,17 @@ def IndexUnique (chunks : Finset (ℕ × Sym)) : Prop :=
 index is retained, so exact duplicates are harmless and later conflicts are ignored.
 The soundness and recovery results below cover only chunks encoded from one payload. Their
 indices are in range by construction. -/
+-- ANCHOR: SetDecoder_addChunk
 def addChunk [DecidableEq Sym] (chunks : Finset (ℕ × Sym)) (chunk : ℕ × Sym) :
     Finset (ℕ × Sym) :=
   if HasIndex chunks chunk.1 then chunks else insert chunk chunks
--- ANCHOR_END: ErasureCodePayload_Streaming_Decoder
+-- ANCHOR_END: SetDecoder_addChunk
 
 end SetDecoder
 
--- ANCHOR: setDecoder
 /-- The set-based decoder of `ecp`. It keeps the first symbol received at each index and decodes
 the stored chunk set with `ecp.decode`. -/
+-- ANCHOR: setDecoder
 def setDecoder [DecidableEq Sym] (ecp : ErasureCodePayload M Sym) : StreamDecoder M Sym where
   D := Finset (ℕ × Sym)
   empty := ∅
@@ -327,12 +335,15 @@ private theorem hasIndex_payloadChunks_iff
 
 /-- Adding a correctly encoded chunk to a chunk set built from chunks of the same payload
 preserves that representation and records the chunk's codeword position. -/
+-- ANCHOR: addChunk_payloadChunks
 theorem addChunk_payloadChunks [DecidableEq Sym]
     (ecp : ErasureCodePayload M Sym) (payload : M)
     (I : Finset (Fin ecp.ec.N)) (i : ℕ) :
     addChunk (ErasureCodePayload.payloadChunks ecp payload I) (ecp.encode payload i) =
       ErasureCodePayload.payloadChunks ecp payload
-        (insert (ErasureCodePayload.counterIndex ecp i) I) := by
+        (insert (ErasureCodePayload.counterIndex ecp i) I)
+-- ANCHOR_END: addChunk_payloadChunks
+    := by
   by_cases hmem : ErasureCodePayload.counterIndex ecp i ∈ I
   · have hhas := (hasIndex_payloadChunks_iff ecp payload I i).2 hmem
     rw [addChunk_eq_self_of_hasIndex _ _ hhas]
@@ -384,6 +395,7 @@ theorem addChunk_encode_of_payloadChunks [DecidableEq Sym]
 
 /-- Codeword positions delivered from the first `t` encoder counters. A counter absent
 from `delivered` models a lost chunk. -/
+-- ANCHOR: honestPrefixPositions
 def honestPrefixPositions (ecp : ErasureCodePayload M Sym)
     (delivered : Finset ℕ) : ℕ → Finset (Fin ecp.ec.N)
   | 0 => ∅
@@ -393,9 +405,11 @@ def honestPrefixPositions (ecp : ErasureCodePayload M Sym)
           (honestPrefixPositions ecp delivered t)
       else
         honestPrefixPositions ecp delivered t
+-- ANCHOR_END: honestPrefixPositions
 
 /-- Chunk set after processing the first `t` encoder emissions, adding exactly
 the counters selected by `delivered` and dropping the others. -/
+-- ANCHOR: honestPrefixDecoder
 def honestPrefixDecoder [DecidableEq Sym]
     (ecp : ErasureCodePayload M Sym) (payload : M)
     (delivered : Finset ℕ) : ℕ → Finset (ℕ × Sym)
@@ -405,6 +419,7 @@ def honestPrefixDecoder [DecidableEq Sym]
         addChunk (honestPrefixDecoder ecp payload delivered t) (ecp.encode payload t)
       else
         honestPrefixDecoder ecp payload delivered t
+-- ANCHOR_END: honestPrefixDecoder
 
 /-- Every lossy honest prefix run is reachable from `∅` by repeated `addChunk` steps. -/
 theorem honestPrefixDecoder_reachable [DecidableEq Sym]
@@ -440,11 +455,13 @@ theorem honestPrefixDecoder_succ [DecidableEq Sym]
 
 /-- A lossy run over the first `t` emissions yields exactly the honest chunk-set
 representation at the positions that were delivered. -/
+-- ANCHOR: honestPrefixDecoder_eq_payloadChunks
 theorem honestPrefixDecoder_eq_payloadChunks [DecidableEq Sym]
     (ecp : ErasureCodePayload M Sym) (payload : M) (delivered : Finset ℕ) :
     ∀ t,
       honestPrefixDecoder ecp payload delivered t =
         ErasureCodePayload.payloadChunks ecp payload (honestPrefixPositions ecp delivered t)
+-- ANCHOR_END: honestPrefixDecoder_eq_payloadChunks
   | 0 => by
       simp [honestPrefixDecoder, honestPrefixPositions]
   | t + 1 => by
@@ -456,11 +473,14 @@ theorem honestPrefixDecoder_eq_payloadChunks [DecidableEq Sym]
 
 /-- End-to-end recovery from an arbitrary lossy subset of the first `t` emissions,
 provided the delivered positions meet the reconstruction threshold. -/
+-- ANCHOR: decode_honestPrefix
 theorem decode_honestPrefix [DecidableEq Sym]
     (ecp : ErasureCodePayload M Sym) (hcorrect : ecp.ec.Correct)
     (payload : M) (delivered : Finset ℕ) (t : ℕ)
     (hcard : ecp.ec.nchunk ≤ (honestPrefixPositions ecp delivered t).card) :
-    ecp.decode (honestPrefixDecoder ecp payload delivered t) = some payload := by
+    ecp.decode (honestPrefixDecoder ecp payload delivered t) = some payload
+-- ANCHOR_END: decode_honestPrefix
+    := by
   rw [honestPrefixDecoder_eq_payloadChunks]
   exact ErasureCodePayload.decode_payloadChunks ecp hcorrect payload
     (honestPrefixPositions ecp delivered t) hcard
@@ -468,8 +488,11 @@ theorem decode_honestPrefix [DecidableEq Sym]
 end SetDecoder
 
 /-- Let the erasure code of `ecp` be correct. Then `setDecoder ecp` is sound for `ecp`. -/
+-- ANCHOR: setDecoder_sound
 theorem setDecoder_sound [DecidableEq Sym] (ecp : ErasureCodePayload M Sym)
-    (hcorrect : ecp.ec.Correct) : (setDecoder ecp).Sound ecp :=
+    (hcorrect : ecp.ec.Correct) : (setDecoder ecp).Sound ecp
+-- ANCHOR_END: setDecoder_sound
+    :=
   StreamDecoder.Sound.of_inv
     (fun p (chunks : Finset (ℕ × Sym)) =>
       ∃ I : Finset (Fin ecp.ec.N), chunks = ErasureCodePayload.payloadChunks ecp p I)
