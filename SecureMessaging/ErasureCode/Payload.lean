@@ -164,7 +164,6 @@ theorem insert_payloadChunks {M : Type}
 
 /-- Inserting one honest chunk into an honest sub-threshold set either remains below
 the threshold or reaches it and decodes the original payload. -/
--- ANCHOR: decode_insert_honest
 theorem decode_insert_honest {M : Type}
     (ecp : ErasureCodePayload M Sym) (hcorrect : ecp.ec.Correct)
     (payload : M) (I : Finset (Fin ecp.ec.N)) (i : ℕ)
@@ -174,9 +173,7 @@ theorem decode_insert_honest {M : Type}
         ecp.decode (insert (ecp.encode payload i) (payloadChunks ecp payload I)) = none) ∨
       (I'.card = ecp.ec.nchunk ∧
         ecp.decode (insert (ecp.encode payload i) (payloadChunks ecp payload I)) =
-          some payload)
--- ANCHOR_END: decode_insert_honest
-    := by
+          some payload) := by
   dsimp only
   have hle : (insert (counterIndex ecp i) I).card ≤ ecp.ec.nchunk := by
     calc

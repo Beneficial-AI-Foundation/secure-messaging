@@ -134,9 +134,7 @@ length $`N` and message length $`k`, for which there exist maps
 - $`\mathsf{Serialize}:Y\to\Sigma^k`, mapping each payload to a message of $`k` symbols, and
 - $`\mathsf{Parse}:\Sigma^k\to Y\cup\{\bot\}`, mapping each message to a payload or to $`\bot`,
 
-such that $`\mathsf{Parse}(\mathsf{Serialize}(y))=y` for every $`y\in Y`: the composite
-$`\mathsf{Parse}\circ\mathsf{Serialize}` is the identity on $`Y`, so $`\mathsf{Serialize}` is
-injective.
+such that $`\mathsf{Parse}(\mathsf{Serialize}(y))=y` for every $`y\in Y`.
 
 :::leanPillCaption "ErasureCodePayload"
 :::
@@ -153,15 +151,19 @@ structure ErasureCodePayload (M Sym : Type) where
   parse_serialize : ∀ payload, parse (serialize payload) = some payload
 ```
 
-The chunks of an erasure-code payload carry natural-number indices: the chunk encoding
-$`\mathsf{EncodePayload}` maps a payload and a counter $`i` to the chunk at the index
-$`i\bmod N`, and the decoding $`\mathsf{DecodePayload}` rejects a chunk set containing an index
-outside $`[N]`.
+Every erasure-code payload determines two algorithms on chunks with natural-number indices,
+defined from $`\Encode`, $`\Decode`, $`\mathsf{Serialize}`, and $`\mathsf{Parse}` in the panels
+below:
+
+- $`\mathsf{EncodePayload}:Y\times\mathbb N\to\mathbb N\times\Sigma`: the chunk of a payload at a
+  counter $`i`, placed at the index $`i\bmod N`;
+- $`\mathsf{DecodePayload}:\mathcal P_{\mathrm{fin}}(\mathbb N\times\Sigma)\to Y\cup\{\bot\}`: the
+  payload decoded from a finite chunk set, or $`\bot`; a chunk set containing an index outside
+  $`[N]` is rejected.
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Chunk encoding}" (kind := "compact")
 $`\begin{array}{l}
-\mathsf{EncodePayload}:Y\times\mathbb N\to\mathbb N\times\Sigma\\[0.3em]
 \mathsf{EncodePayload}(y,i):\\
 \quad j\gets i\bmod N\\
 \quad\Return(j,\Encode(\mathsf{Serialize}(y),j))
@@ -186,7 +188,6 @@ def encode (ecp : ErasureCodePayload M Sym) (payload : M) (i : ℕ) : ℕ × Sym
 :::::
 :::::gameCell "\\textsf{Decoding}" (kind := "compact")
 $`\begin{array}{l}
-\mathsf{DecodePayload}:\mathcal P_{\mathrm{fin}}(\mathbb N\times\Sigma)\to Y\cup\{\bot\}\\[0.3em]
 \mathsf{DecodePayload}(L):\\
 \quad\pif\ j\ge N\text{ for some }(j,c)\in L\ \pthen\ \Return\bot\\
 \quad M\gets\Decode(L)\\
@@ -200,11 +201,10 @@ $`\begin{array}{l}
 :::defTitle "erasure_code_payload_correctness" "Erasure-code payload correctness"
 :::
 
-::::theorem "erasure_code_payload_correctness" (parent := "erasure_codes") (lean := "ErasureCodePayload.payloadChunks, ErasureCodePayload.decode_payloadChunks, ErasureCodePayload.decode_payloadChunks_none, ErasureCodePayload.decode_insert_honest") (uses := "erasure_code_payload, erasure_code_correctness")
+::::theorem "erasure_code_payload_correctness" (parent := "erasure_codes") (lean := "ErasureCodePayload.payloadChunks, ErasureCodePayload.decode_payloadChunks, ErasureCodePayload.decode_payloadChunks_none") (uses := "erasure_code_payload, erasure_code_correctness")
 Consider an {bpref "erasure_code_payload"}[erasure-code payload] for a payload space $`Y`
 whose erasure code is {bpref "erasure_code_correctness"}[correct]. For a payload $`y\in Y` and an
-index set $`I\subseteq[N]`, the chunk set of $`y` at $`I`, with its indices read as natural
-numbers, is
+index set $`I\subseteq[N]`, the chunk set of $`y` at $`I` is
 
 $$`L_I(y)=L_I(\mathsf{Serialize}(y))=\{(i,\Encode(\mathsf{Serialize}(y),i))\mid i\in I\}.`
 
@@ -243,26 +243,6 @@ theorem decode_payloadChunks_none {M : Type}
     (payload : M) (I : Finset (Fin ecp.ec.N))
     (hcard : I.card < ecp.ec.nchunk) :
     ecp.decode (payloadChunks ecp payload I) = none
-```
-
-In particular, if $`|I|<k`, then adding one chunk $`\mathsf{EncodePayload}(y,i)` to $`L_I(y)` gives
-$`L_{I'}(y)` for $`I'=I\cup\{i\bmod N\}`, which decodes to $`\bot` if $`|I'|<k` and to $`y` if
-$`|I'|=k`.
-
-:::leanPillCaption "decode_insert_honest"
-:::
-
-```anchor decode_insert_honest (project := ".") (module := SecureMessaging.ErasureCode.Payload)
-theorem decode_insert_honest {M : Type}
-    (ecp : ErasureCodePayload M Sym) (hcorrect : ecp.ec.Correct)
-    (payload : M) (I : Finset (Fin ecp.ec.N)) (i : ℕ)
-    (hcard : I.card < ecp.ec.nchunk) :
-    let I' := insert (counterIndex ecp i) I
-    (I'.card < ecp.ec.nchunk ∧
-        ecp.decode (insert (ecp.encode payload i) (payloadChunks ecp payload I)) = none) ∨
-      (I'.card = ecp.ec.nchunk ∧
-        ecp.decode (insert (ecp.encode payload i) (payloadChunks ecp payload I)) =
-          some payload)
 ```
 ::::
 
