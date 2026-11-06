@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.OnOffKEM.Defs
-import VCVio.OracleComp.EvalDist.Sum
-import VCVio.OracleComp.QueryTracking.RandomOracle.DeferredSampling
+module
+
+public import SecureMessaging.KEM.OnOffKEM.Defs
+public import VCVio.OracleComp.EvalDist.Sum
+public import ToVCVio.CryptoFoundations.KeyEncapMech
 
 /-!
 # On/Off KEM — Correctness Error by Sampling Stage
@@ -90,6 +92,8 @@ Writing `KG := kem.keygen` and `OFF := onoff.encapsOff`, the total KEM error
   `ε = Σ (st, ct₀), Pr[OFF = (st, ct₀)] · ψ(st, ct₀)`.
 -/
 
+@[expose] public section
+
 universe u
 
 open OracleSpec OracleComp ENNReal
@@ -145,7 +149,7 @@ theorem factorCorrectnessError_eq [DecidableEq K]
 /-- The online correctness experiment after fixing `pk`, `sk`, `st`, and
 `ct₀`.  It samples `(ct₁, k) ← onoff.encapsOn st pk`, runs `kem.decaps` on
 the joined ciphertext, and returns whether the recovered key equals `k`. -/
-private def onlineCorrectExp [DecidableEq K]
+def onlineCorrectExp [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (pk : PK) (sk : SK) (st : onoff.St) (ct0 : onoff.C₀) : ProbComp Bool := do
   let (ct1, key) ← onoff.encapsOn st pk

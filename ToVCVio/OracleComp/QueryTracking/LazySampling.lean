@@ -3,9 +3,12 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import VCVio.ProgramLogic.Relational.SimulateQ
-import VCVio.OracleComp.Constructions.SampleableType
-import ToVCVio.EvalDist.Monad.Basic
+
+module
+
+public import VCVio.ProgramLogic.Relational.SimulateQ
+public import VCVio.OracleComp.Constructions.SampleableType
+public import ToVCVio.EvalDist.Monad.Basic
 
 /-!
 # External-sample commutation under `simulateQ`
@@ -50,6 +53,8 @@ updated state `(a', s') : spec.Range t × σ`.
   sample deferred).
 
 -/
+
+@[expose] public section
 
 open ToVCVio OracleComp OracleSpec ENNReal
 

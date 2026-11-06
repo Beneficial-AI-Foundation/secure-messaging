@@ -4,10 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.Defs
-import SecureMessaging.CKA.FromLWE.Reconciliation
-import VCVio.OracleComp.ProbComp
-import VCVio.OracleComp.Constructions.SampleableType
+module
+
+public import SecureMessaging.CKA.Defs
+public import SecureMessaging.CKA.FromLWE.Reconciliation
 
 /-!
 # Continuous Key Agreement from Learning With Errors (LWE)
@@ -71,6 +71,8 @@ State: (baseMatrix, P₂), ready to send        State: (baseMatrix, S₂), ready
   <https://eprint.iacr.org/2016/659>. Section and page references use the full version dated
   February 23, 2017: <https://www.douglas.stebila.ca/files/research/papers/CCS-BCDMNNRS16-full.pdf>.
 -/
+
+@[expose] public section
 
 namespace lweCKA
 

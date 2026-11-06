@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Construction
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Construction
 
 /-!
 # Opp-BiKEM-CKA — Decision-tree form of `recv`
@@ -15,6 +17,8 @@ intermediate values (`recvAck`, `recvReq`, `recvFinish`), and `recv_eq_recvSpec`
 two agree. Every later fact about a receive is read off `recvSpec` with one case split per
 named condition instead of a brute-force split of the elaborated `do` block.
 -/
+
+@[expose] public section
 
 open KEMScheme
 

@@ -4,8 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.CryptoFoundations.WegmanCarter.Defs
-import VCVio.OracleComp.SimSemantics.StateT.StateProjection
+module
+
+public import ToVCVio.CryptoFoundations.WegmanCarter.Defs
+public import VCVio.OracleComp.SimSemantics.StateT.StateProjection
+public import VCVio.EvalDist.Monad.Basic
+public import VCVio.OracleComp.EvalDist.AnswerMeasure
 
 /-!
 # Wegman-Carter one-time authenticity: the log-refined handler
@@ -19,6 +23,8 @@ fold `wcFlag` over the log.
 `prEvent_bad_wcInst_eq_wcLog` shows that the two handlers raise the flag with the same
 probability.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal ToVCVio
 

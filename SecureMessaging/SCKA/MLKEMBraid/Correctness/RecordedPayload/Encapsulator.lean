@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.RecordedPayload.Generator
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
 
 /-!
 # Recorded messages received by an encapsulator
@@ -12,21 +14,23 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.RecordedPayload.Generator
 An encapsulator that receives a recorded message keeps `LocalPayloadInv` and outputs no key.
 -/
 
+@[expose] public section
+
 open OracleSpec OracleComp
 open ErasureCodePayload.Streaming
 open SCKAScheme.sckaCorrectnessSpec
 
 namespace MLKEMBraid
 
-variable {P : Parameters ProbComp} [DecidableEq P.Sym] {InitKey AuthState : Type}
+variable {P : Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
     P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
   (ik : InitKey) (T : ℕ → EpochTranscript P)
 
 /-- Receiving a recorded message in `noHeaderReceived` succeeds without key output and preserves
 `LocalPayloadInv`. -/
-theorem receive_noHeaderReceived_payload (hHdrCorrect : P.ecpHdr.ec.Correct)
-    (e : ℕ) (a : AuthState) (dec : DecoderState (P.inc.PKheader × P.Mac) P.Sym)
+theorem receive_noHeaderReceived_payload (hHdrSound : P.decHdr.Sound P.ecpHdr)
+    (e : ℕ) (a : AuthState) (dec : P.decHdr.D)
     (msg : Message P.Sym)
     (hLocal : LocalPayloadInv auth ik T (.noHeaderReceived e a dec))
     (hPayload : MessagePayloadInv auth ik T msg)
@@ -48,16 +52,15 @@ theorem receive_noHeaderReceived_payload (hHdrCorrect : P.ecpHdr.ec.Correct)
             obtain ⟨ha, hdec⟩ := hLocal
             rw [hkp] at hdec
             have hch := Option.some.inj hchunk
-            have hC :=
-              DecoderState.addChunk_encode_of_payloadChunks P.ecpHdr hHdrCorrect _ dec hdec i
+            have hC := hHdrSound.received_addChunk hdec i
             rw [← hch] at hC
-            obtain ⟨hecp, ⟨I, hchunks⟩, hnone | hsome⟩ := hC
-            · refine ⟨⟨e - 1, none, .noHeaderReceived e a (dec.addChunk chunk)⟩,
+            obtain ⟨hhon, hnone | hsome⟩ := hC
+            · refine ⟨⟨e - 1, none, .noHeaderReceived e a (P.decHdr.addChunk dec chunk)⟩,
                 by simp [receive, Message.wellFormed, hnone], rfl, ha, ?_⟩
               rw [hkp]
-              exact ⟨hecp, I, hchunks⟩
+              exact hhon
             · refine ⟨⟨e - 1, none, .headerReceived e a (P.inc.toHeader pk)
-                (DecoderState.empty P.ecpEk)⟩, ?_, rfl, ha, hNoEncaps, pk, sk, hkp, rfl, rfl⟩
+                P.decEk.empty⟩, ?_, rfl, ha, hNoEncaps, pk, sk, hkp, rfl, rfl⟩
               simp [receive, Message.wellFormed, hsome, ha, auth.verifyHeader_correct]
           · exact ⟨⟨e - 1, none, .noHeaderReceived e a dec⟩,
               by simp [receive, Message.wellFormed, State.epoch, he], rfl, hLocal⟩
@@ -65,11 +68,11 @@ theorem receive_noHeaderReceived_payload (hHdrCorrect : P.ecpHdr.ec.Correct)
 
 /-- Receiving a recorded message in `ct1Sampled` succeeds without key output and preserves
 `LocalPayloadInv`. -/
-theorem receive_ct1Sampled_payload (hEkCorrect : P.ecpEk.ec.Correct)
+theorem receive_ct1Sampled_payload (hEkSound : P.decEk.Sound P.ecpEk)
     (e : ℕ) (a : AuthState) (hdr : P.inc.PKheader)
     (encapsState : P.inc.St) (ct1 : P.inc.C₁)
     (enc : EncoderState P.inc.C₁ P.Sym)
-    (dec : DecoderState P.inc.PKvector P.Sym)
+    (dec : P.decEk.D)
     (msg : Message P.Sym)
     (hLocal : LocalPayloadInv auth ik T (.ct1Sampled e a hdr encapsState ct1 enc dec))
     (hPayload : MessagePayloadInv auth ik T msg) :
@@ -93,12 +96,12 @@ theorem receive_ct1Sampled_payload (hEkCorrect : P.ecpEk.ec.Correct)
             obtain ⟨rfl, rfl⟩ : pk = pk' ∧ sk = sk' := by simpa using hkp.symm.trans hkp'
             subst hhdr
             have hch := Option.some.inj hchunk
-            have hC := DecoderState.addChunk_encode_of_payloadChunks P.ecpEk hEkCorrect _ dec hdec i
+            have hC := hEkSound.received_addChunk hdec i
             rw [← hch] at hC
-            obtain ⟨hecp, ⟨I, hchunks⟩, hnone | hsome⟩ := hC
+            obtain ⟨hhon, hnone | hsome⟩ := hC
             · exact ⟨⟨e - 1, none, .ct1Sampled e a (P.inc.toHeader pk) encapsState ct1 enc
-                  (dec.addChunk chunk)⟩, by simp [receive, Message.wellFormed, hnone], rfl,
-                ha, pk, sk, key, hkp, hc, rfl, henc, hecp, I, hchunks⟩
+                  (P.decEk.addChunk dec chunk)⟩, by simp [receive, Message.wellFormed, hnone], rfl,
+                ha, pk, sk, key, hkp, hc, rfl, henc, hhon⟩
             · exact ⟨⟨e - 1, none, .ekReceivedCt1Sampled e a encapsState ct1
                   (P.inc.toHeader pk) (P.inc.toVector pk) enc⟩,
                 by simp [receive, Message.wellFormed, hsome, hvalid], rfl,
@@ -117,13 +120,13 @@ theorem receive_ct1Sampled_payload (hEkCorrect : P.ecpEk.ec.Correct)
             obtain ⟨rfl, rfl⟩ : pk = pk' ∧ sk = sk' := by simpa using hkp.symm.trans hkp'
             subst hhdr ha
             have hch := Option.some.inj hchunk
-            have hC := DecoderState.addChunk_encode_of_payloadChunks P.ecpEk hEkCorrect _ dec hdec i
+            have hC := hEkSound.received_addChunk hdec i
             rw [← hch] at hC
-            obtain ⟨hecp, ⟨I, hchunks⟩, hnone | hsome⟩ := hC
+            obtain ⟨hhon, hnone | hsome⟩ := hC
             · exact ⟨⟨e - 1, none, .ct1Acknowledged e (transcriptAuth auth ik T e)
-                  (P.inc.toHeader pk) encapsState ct1 (dec.addChunk chunk)⟩,
+                  (P.inc.toHeader pk) encapsState ct1 (P.decEk.addChunk dec chunk)⟩,
                 by simp [receive, Message.wellFormed, hnone], rfl,
-                rfl, pk, sk, key, hkp, hc, rfl, hecp, I, hchunks⟩
+                rfl, pk, sk, key, hkp, hc, rfl, hhon⟩
             · exact ⟨⟨e - 1, none, .ct2Sampled e (transcriptAuth auth ik T e)
                   (EncoderState.init P.ecpCt2
                     (P.hEnc2.encaps2Det encapsState (P.inc.toHeader pk) (P.inc.toVector pk),
@@ -172,10 +175,10 @@ theorem receive_ekReceivedCt1Sampled_payload
 
 /-- Receiving a recorded message in `ct1Acknowledged` succeeds without key output and preserves
 `LocalPayloadInv`. -/
-theorem receive_ct1Acknowledged_payload (hEkCorrect : P.ecpEk.ec.Correct)
+theorem receive_ct1Acknowledged_payload (hEkSound : P.decEk.Sound P.ecpEk)
     (e : ℕ) (a : AuthState) (hdr : P.inc.PKheader)
     (encapsState : P.inc.St) (ct1 : P.inc.C₁)
-    (dec : DecoderState P.inc.PKvector P.Sym)
+    (dec : P.decEk.D)
     (msg : Message P.Sym)
     (hLocal : LocalPayloadInv auth ik T (.ct1Acknowledged e a hdr encapsState ct1 dec))
     (hPayload : MessagePayloadInv auth ik T msg) :
@@ -199,13 +202,13 @@ theorem receive_ct1Acknowledged_payload (hEkCorrect : P.ecpEk.ec.Correct)
             obtain ⟨rfl, rfl⟩ : pk = pk' ∧ sk = sk' := by simpa using hkp.symm.trans hkp'
             subst hhdr ha
             have hch := Option.some.inj hchunk
-            have hC := DecoderState.addChunk_encode_of_payloadChunks P.ecpEk hEkCorrect _ dec hdec i
+            have hC := hEkSound.received_addChunk hdec i
             rw [← hch] at hC
-            obtain ⟨hecp, ⟨I, hchunks⟩, hnone | hsome⟩ := hC
+            obtain ⟨hhon, hnone | hsome⟩ := hC
             · exact ⟨⟨e - 1, none, .ct1Acknowledged e (transcriptAuth auth ik T e)
-                  (P.inc.toHeader pk) encapsState ct1 (dec.addChunk chunk)⟩,
+                  (P.inc.toHeader pk) encapsState ct1 (P.decEk.addChunk dec chunk)⟩,
                 by simp [receive, Message.wellFormed, hnone], rfl,
-                rfl, pk, sk, key, hkp, hc, rfl, hecp, I, hchunks⟩
+                rfl, pk, sk, key, hkp, hc, rfl, hhon⟩
             · exact ⟨⟨e - 1, none, .ct2Sampled e (transcriptAuth auth ik T e)
                   (EncoderState.init P.ecpCt2
                     (P.hEnc2.encaps2Det encapsState (P.inc.toHeader pk) (P.inc.toVector pk),

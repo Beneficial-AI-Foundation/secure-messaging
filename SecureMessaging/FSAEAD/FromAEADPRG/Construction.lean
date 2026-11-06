@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.Defs
-import SecureMessaging.FSAEAD.Defs
-import VCVio.CryptoFoundations.PRG
+module
+
+public import SecureMessaging.AEAD.Defs
+public import SecureMessaging.FSAEAD.Defs
+public import VCVio.CryptoFoundations.PRG
 
 /-!
 # FS-AEAD from AEAD and PRG
@@ -74,6 +76,8 @@ B        K₁        K₂        K₃             K₁ = D[1], K₂ = D[2]
 - `skip(u)` runs `u - 1 - i_B` steps, by recursion on the number of steps (`skipSteps`)
   instead of a `while` loop.
 -/
+
+@[expose] public section
 
 namespace FSAEADScheme
 

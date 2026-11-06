@@ -4,8 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.CryptoFoundations.UniversalHash
-import ToVCVio.OracleComp.Constructions.BitVec
+module
+
+public import VCVio.CryptoFoundations.UniversalHash
+public import ToVCVio.OracleComp.Constructions.BitVec
+public import VCVio.OracleComp.EvalDist.Sum
 
 /-!
 # Wegman-Carter one-time authenticity: the abstract bounds
@@ -24,6 +27,8 @@ sees the challenge `(X*, T*)`. The two kinds are bounded using different randomn
 * `combine_pre_post_le`: the two are added under a single budget `q` on the number of
   decryption queries, which is what gives `q · ε` rather than `2 · q · ε`.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal ToVCVio UniversalHash
 

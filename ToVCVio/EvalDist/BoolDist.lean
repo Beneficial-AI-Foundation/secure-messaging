@@ -6,7 +6,6 @@ Authors: Beneficial AI Foundation
 module
 
 public import VCVio.EvalDist.ProbabilityNotation
-public import ToMathlib.MeasureTheory.Measure.Bool
 
 /-!
 # Boolean distance of two experiments in real form

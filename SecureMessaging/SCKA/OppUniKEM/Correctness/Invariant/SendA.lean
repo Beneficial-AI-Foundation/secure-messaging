@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
+module
+
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
 
 /-!
 # SendA Preserves the Reachability Invariant
@@ -12,6 +14,8 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
 With `ecEk.ec.nchunk > 0`, A's sends preserve `reachableInv` and record newly sampled key pairs
 in the transcript (`oracleSendA_preserves_reachableInv`).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal KEMScheme
 

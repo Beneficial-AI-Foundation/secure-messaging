@@ -6,15 +6,12 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import VCVio.OracleComp.Constructions.SampleableType
 public import ToVCVio.OracleComp.Constructions.SampleableType
 public import ToVCVio.EvalDist.UniformInjection
 public import VCVio.EvalDist.MeasureTVDist.Event
-public import Mathlib.Logic.Equiv.Fintype
-public import Mathlib.Data.Fintype.CardEmbedding
-public import VCVio.OracleComp.EvalDist.Sum
 public import ToVCVio.CryptoFoundations.PRP
 public import ToVCVio.OracleComp.QueryTracking.RandomOracle.FreshQueries
+public import ToVCVio.CryptoFoundations.PRF
 
 /-!
 # Fixed-list PRP/PRF switching

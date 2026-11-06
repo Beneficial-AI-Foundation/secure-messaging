@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Security.Cancellation
-import SecureMessaging.SCKA.OppBiKEM.Security.Injected
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Security.Cancellation
+public import SecureMessaging.SCKA.OppBiKEM.Security.Injected
 
 /-!
 # Opp-BiKEM — The KEM reduction
@@ -49,6 +51,8 @@ For `q = 0`, the target is `1`. The target draw is independent of the KEM materi
 its signed branch gaps telescopes to the endpoint hybrid gap divided by `2q` for `q > 0`
 (`securityReduction_signed_gap_eq`, `Proofs`), giving the single-adversary bound `security`.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme
 

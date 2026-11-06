@@ -6,7 +6,6 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import Mathlib.SetTheory.Cardinal.NatCard
 public import Mathlib.FieldTheory.Finite.GaloisField
 public import SecureMessaging.ErasureCode.ReedSolomon.Construction
 

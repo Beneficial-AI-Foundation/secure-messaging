@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.OracleComp.EvalDist.Measure
-import VCVio.OracleComp.SimSemantics.StateT.StateProjection
+module
+
+public import VCVio.OracleComp.EvalDist.Measure
+public import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 
 /-!
 # Sampling a key at the query that uses it
@@ -23,6 +25,8 @@ make the two games equal in distribution:
 * In a state that is not fresh, `impl k` and `impl'` agree for every key `k`.
 * A state that is not fresh stays not fresh.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 

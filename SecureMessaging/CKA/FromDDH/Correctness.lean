@@ -4,7 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromDDH.Common
+module
+
+public import SecureMessaging.CKA.FromDDH.Common
+public import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 
 /-!
 # CKA from DDH — Correctness
@@ -15,6 +18,8 @@ the Decisional Diffie-Hellman (DDH) assumption:
 The proof establishes a four-phase game invariant and shows it is preserved by
 every oracle call, using `smul_comm` to deduce that the derived keys by A and B are the same.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 

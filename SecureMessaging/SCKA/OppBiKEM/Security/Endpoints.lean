@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Security.BadEvent
-import SecureMessaging.SCKA.OppBiKEM.Security.IdealReceive
-import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Security.BadEvent
+public import SecureMessaging.SCKA.OppBiKEM.Security.IdealReceive
+public import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
 
 /-!
 # Opp-BiKEM — Real-to-ideal endpoint
@@ -31,6 +33,8 @@ The two games agree on every state satisfying `GameInv` without current KEM fail
 (`BadEvent`); the identical-until-bad bound on invariant states
 (`abs_prEvent_simulateQ_run_sub_le_bad_of_inv`) combines the two.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme ENNReal
 

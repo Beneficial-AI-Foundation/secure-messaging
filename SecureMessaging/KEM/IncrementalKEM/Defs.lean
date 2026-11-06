@@ -3,7 +3,10 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import ToVCVio.CryptoFoundations.KeyEncapMech
+
+module
+
+public import ToVCVio.CryptoFoundations.KeyEncapMech
 
 /-!
 # Incremental KEM
@@ -37,6 +40,8 @@ The example structure `KEMScheme.trivialIncremental` shows that any KEM scheme c
 as an incremental KEM taking the whole public key as the header.
 
 -/
+
+@[expose] public section
 
 universe u
 

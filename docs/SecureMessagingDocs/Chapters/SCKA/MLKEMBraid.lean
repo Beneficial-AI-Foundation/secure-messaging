@@ -144,6 +144,14 @@ structure Parameters (m : Type → Type u) [Monad m] where
   ecpCt1 : ErasureCodePayload inc.C₁ Sym
   /-- `ct₂` stream, recovering `ct₂ ‖ mac`. -/
   ecpCt2 : ErasureCodePayload (inc.C₂ × Mac) Sym
+  /-- Header-stream decoder. -/
+  decHdr : StreamDecoder (inc.PKheader × Mac) Sym
+  /-- Encapsulation-key-vector-stream decoder. -/
+  decEk : StreamDecoder inc.PKvector Sym
+  /-- `ct₁`-stream decoder. -/
+  decCt1 : StreamDecoder inc.C₁ Sym
+  /-- `ct₂`-stream decoder. -/
+  decCt2 : StreamDecoder (inc.C₂ × Mac) Sym
 ```
 ::::
 
@@ -206,25 +214,25 @@ inductive State (P : Parameters m) (AuthState : Type) where
       (headerEncoder : EncoderState (P.inc.PKheader × P.Mac) P.Sym)
   /-- "HeaderSent": `sk`, `ct1_decoder`, `ek_encoder`. -/
   | headerSent (epoch : ℕ) (auth : AuthState) (sk : P.SK)
-      (ct1Decoder : DecoderState P.inc.C₁ P.Sym)
+      (ct1Decoder : P.decCt1.D)
       (ekEncoder : EncoderState P.inc.PKvector P.Sym)
   /-- "Ct1Received": `sk`, `ct1`, `ek_encoder`. -/
   | ct1Received (epoch : ℕ) (auth : AuthState) (sk : P.SK) (ct1 : P.inc.C₁)
       (ekEncoder : EncoderState P.inc.PKvector P.Sym)
   /-- "EkSentCt1Received": `sk`, `ct1`, `ct2_decoder`. -/
   | ekSentCt1Received (epoch : ℕ) (auth : AuthState) (sk : P.SK) (ct1 : P.inc.C₁)
-      (ct2Decoder : DecoderState (P.inc.C₂ × P.Mac) P.Sym)
+      (ct2Decoder : P.decCt2.D)
   /-- "NoHeaderReceived": `header_decoder`. -/
   | noHeaderReceived (epoch : ℕ) (auth : AuthState)
-      (headerDecoder : DecoderState (P.inc.PKheader × P.Mac) P.Sym)
+      (headerDecoder : P.decHdr.D)
   /-- "HeaderReceived": `header`, `ek_decoder`. -/
   | headerReceived (epoch : ℕ) (auth : AuthState) (header : P.inc.PKheader)
-      (ekDecoder : DecoderState P.inc.PKvector P.Sym)
+      (ekDecoder : P.decEk.D)
   /-- "Ct1Sampled": `header`, `encaps_state`, `ct1`, `ct1_encoder`, `ek_decoder`. -/
   | ct1Sampled (epoch : ℕ) (auth : AuthState) (header : P.inc.PKheader)
       (encapsState : P.inc.St) (ct1 : P.inc.C₁)
       (ct1Encoder : EncoderState P.inc.C₁ P.Sym)
-      (ekDecoder : DecoderState P.inc.PKvector P.Sym)
+      (ekDecoder : P.decEk.D)
   /-- "EkReceivedCt1Sampled": `encaps_state`, `ct1`, `header`, `ek_vector`,
   `ct1_encoder`. -/
   | ekReceivedCt1Sampled (epoch : ℕ) (auth : AuthState)
@@ -233,7 +241,7 @@ inductive State (P : Parameters m) (AuthState : Type) where
   /-- "Ct1Acknowledged": `header`, `encaps_state`, `ct1`, `ek_decoder`. -/
   | ct1Acknowledged (epoch : ℕ) (auth : AuthState) (header : P.inc.PKheader)
       (encapsState : P.inc.St) (ct1 : P.inc.C₁)
-      (ekDecoder : DecoderState P.inc.PKvector P.Sym)
+      (ekDecoder : P.decEk.D)
   /-- "Ct2Sampled": `ct2_encoder`. -/
   | ct2Sampled (epoch : ℕ) (auth : AuthState)
       (ct2Encoder : EncoderState (P.inc.C₂ × P.Mac) P.Sym)
@@ -259,7 +267,7 @@ def send (P : Parameters m)
 :::
 
 ```anchor Braid_receive (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Basic)
-def receive (P : Parameters m) [DecidableEq P.Sym]
+def receive (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
     (st : State P AuthState) (msg : Message P.Sym) :
@@ -312,7 +320,7 @@ key.
 :::
 
 ```anchor Braid_scheme (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Construction)
-def scheme (P : Parameters m) [DecidableEq P.Sym]
+def scheme (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
     (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : m InitKey) :
@@ -340,7 +348,7 @@ def scheme (P : Parameters m) [DecidableEq P.Sym]
 :::defTitle "mlkem_braid_correctness" "ML-KEM Braid correctness"
 :::
 
-::::theorem "mlkem_braid_correctness" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.correctness_error_le, MLKEMBraid.mlkemBraidScheme_correctness_error_le") (tags := "gh-243") (uses := "mlkem_braid_spec, scka_correctness, incremental_kem_scheme, incremental_kem_rand_leak, erasure_code_correctness")
+::::theorem "mlkem_braid_correctness" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.correctness_error_le, MLKEMBraid.mlkemBraidScheme_correctness_error_le") (tags := "gh-243") (uses := "mlkem_braid_spec, scka_correctness, incremental_kem_scheme, incremental_kem_rand_leak, erasure_code_correctness, stream_decoder")
 $`\todo`
 
 :::leanPillCaption "Correctness error bound"
@@ -349,16 +357,16 @@ $`\todo`
 ```anchor Braid_correctness_error_le (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Correctness)
 theorem correctness_error_le
     (P : Parameters ProbComp) [DecidableEq P.K]
-    [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [DecidableEq P.EpochKey]
     {InitKey AuthState : Type}
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
     (irl : P.kem.IncrementalRandLeak P.inc)
     (sampleInitKey : ProbComp InitKey)
-    (hHdrCorrect : P.ecpHdr.ec.Correct)
-    (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct)
-    (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr)
+    (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1)
+    (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message P.Sym))
     (q : ℕ) (hq : SCKAScheme.SendQueryBound adv q) :
     1 - Pr{let x ← SCKAScheme.correctnessExp (scheme P auth irl sampleInitKey) adv}[x = true] ≤

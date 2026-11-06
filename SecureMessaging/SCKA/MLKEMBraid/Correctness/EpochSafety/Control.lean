@@ -4,7 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.EpochKnowledge
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.EpochKnowledge
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.MessageReports
 
 /-!
 # Roles and message order in the Braid correctness game
@@ -15,6 +18,8 @@ the epoch. `ControlInv` states that each party's role matches the parity of its 
 every recorded message fits its sender's role and step (`MessageControl`). This module proves
 that every send and receive oracle preserves `ControlInv`.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 open SCKAScheme.sckaCorrectnessSpec
@@ -144,7 +149,7 @@ theorem partyControl_send (party : Bool) {st peer : State P AuthState}
 /-- Accepting a message recorded by the peer preserves the `ct2Sampled` conditions of both parties
 and the receiver's role and `MessageControl` conditions, and the receiver's new current game epoch
 `max tcur (msg.epoch - 1)` is at most its new epoch minus one. -/
-theorem partyControl_receive [DecidableEq P.Sym] (party : Bool) {st peer : State P AuthState}
+theorem partyControl_receive (party : Bool) {st peer : State P AuthState}
     {messages : ℕ → Option (Message P.Sym × ℕ)} {msg : Message P.Sym}
     {r : RecvResult P AuthState} {tcur : ℕ}
     (hraw : receive P auth st msg = .ok r)
@@ -230,7 +235,7 @@ theorem partyControl_receive [DecidableEq P.Sym] (party : Bool) {st peer : State
         exact ControlPosition.ext hgenP (le_antisymm peer.controlPosition_step_le hstep4)
     · omega
 
-variable [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+variable [DecidableEq P.EpochKey]
   (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey)
 
 /-- The send oracle of either party preserves `ControlInv`. -/

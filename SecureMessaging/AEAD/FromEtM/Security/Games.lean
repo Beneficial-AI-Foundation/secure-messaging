@@ -4,20 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.FromEtM.Construction
-import ToVCVio.OracleComp.Constructions.SampleableType
-import VCVio.CryptoFoundations.PRF
-import VCVio.OracleComp.QueryTracking.RandomOracle.Basic
-import VCVio.OracleComp.Coercions.Add.Basic
-import VCVio.OracleComp.SimSemantics.StateT.StateProjection
-import VCVio.OracleComp.QueryTracking.SubSpec
-import VCVio.EvalDist.MeasureTVDist.Basic
-import VCVio.ProgramLogic.Relational.SimulateQ
-import ToVCVio.CryptoFoundations.RandomOracleForgery
-import ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate
-import ToVCVio.OracleComp.SimSemantics.SimulateQForward
-import ToVCVio.OracleComp.SimSemantics.StateT.MapStateTBase
-import ToVCVio.OracleComp.SimSemantics.UnifLift
+module
+
+public import VCVio.CryptoFoundations.PRF
+public import SecureMessaging.AEAD.Defs
+public import VCVio.CryptoFoundations.SymmEncAlg.Deterministic
 
 /-!
 # Encrypt-then-MAC — game and reduction definitions
@@ -26,6 +17,8 @@ The OracleSpec-polymorphic game skeleton, its `unifSpec` oracle handler, the fou
 `game0`–`game3` (instantiated at `spec = unifSpec`), and the PRF / one-time secrecy reductions
 (`prfReduction`, `encReduction`). Shared by every game-hop file.
 -/
+
+@[expose] public section
 
 namespace EtM
 

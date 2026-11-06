@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
-import SecureMessaging.KEM.OnOffKEM.CorrectnessError
+module
+
+public import SecureMessaging.KEM.OnOffKEM.CorrectnessError
+public import SecureMessaging.SCKA.OppUniKEM.Construction
 
 /-!
 # Opp-UniKEM-CKA Reduction Core
@@ -29,6 +31,8 @@ The remaining lemmas prove `V s ≤ 1` and `S (s, b) ≤ 1`, show that these
 quantities depend only on the relevant epoch and KEM fields, and characterize
 their values when A or B advances to the next epoch.
 -/
+
+@[expose] public section
 
 open ENNReal KEMScheme
 

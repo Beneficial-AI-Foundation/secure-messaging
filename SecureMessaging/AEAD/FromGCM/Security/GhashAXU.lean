@@ -8,9 +8,6 @@ module
 
 public import SecureMessaging.AEAD.FromGCM.Security.Axu
 public import SecureMessaging.AEAD.FromGCM.Security.GhashPolynomial
-public import VCVio.CryptoFoundations.UniversalHash
-public import ToVCVio.OracleComp.Constructions.BitVec
-public import Mathlib.Algebra.Polynomial.Roots
 public import Mathlib.Algebra.Field.ZMod
 public import Mathlib.Data.List.GetD
 

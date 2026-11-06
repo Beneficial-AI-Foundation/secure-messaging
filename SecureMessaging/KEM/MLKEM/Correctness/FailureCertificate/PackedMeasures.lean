@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.Tables
+module
+
+public import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.Tables
 
 /-!
 # Packed form of the coefficient-noise counting measure
@@ -42,6 +44,8 @@ These closed forms let the later `decide +kernel` certificate evaluate one
 finite natural-number expression instead of repeatedly unfolding
 convolutions.
 -/
+
+@[expose] public section
 
 open ToVCVio LatticeCrypto
 open scoped ENNReal

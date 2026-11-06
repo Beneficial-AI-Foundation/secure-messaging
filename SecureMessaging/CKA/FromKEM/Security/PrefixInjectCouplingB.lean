@@ -4,7 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromKEM.Security.PrefixInjectCouplingCore
+module
+
+public import SecureMessaging.CKA.FromKEM.Security.PrefixInjectCouplingCore
+public import SecureMessaging.CKA.FromKEM.Security.PrefixSim
 
 /-!
 # CKA from KEM — Injected-Prefix Coupling, challenged party B
@@ -14,6 +17,8 @@ send is `OSendA` at bumped counter `gp.challengeEpoch - 1`, the receive of
 the injected message is `ORecvB`, and the pause happens at `OChallB` in the
 `preBToAHonestState`/`preBToAReductionState` shapes.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal KEMScheme
 open OracleComp.ProgramLogic.Relational
@@ -30,7 +35,9 @@ alternation trace keeps `tA` at least two epochs below the challenge epoch at
 the receive that could precede the injecting send, and the challenge epoch is
 even. -/
 
-private def preTraceB
+/-- The counter shape before the injecting send against party B: `tA` and `tB`
+follow the A-first alternation for the last action and stay below the challenge epoch. -/
+def preTraceB
     (gp : CKAScheme.GameParams)
     (σ : SecurityState K PK SK C) : Prop :=
   match σ.lastAction with
@@ -41,7 +48,9 @@ private def preTraceB
   | some .recvA => σ.tA % 2 = 0 ∧ σ.tA = σ.tB ∧ σ.tA + 2 ≤ gp.challengeEpoch
   | some .challA | some .challB => False
 
-private def preInvB
+/-- The pre-injection invariant for challenged party B: `securityShapeInv`, a challenge
+epoch of at least `2`, and `preTraceB`. -/
+def preInvB
     (kem : KEMScheme ProbComp K PK SK C)
     (gp : CKAScheme.GameParams)
     (σ : SecurityState K PK SK C) : Prop :=

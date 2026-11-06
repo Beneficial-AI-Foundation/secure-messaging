@@ -4,10 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.FromGCM.Security.Axu
-import SecureMessaging.AEAD.FromGCM.Security.Games
-import ToVCVio.CryptoFoundations.WegmanCarter.Security
-import ToVCVio.ProgramLogic.Relational.IdenticalUntilBad
+module
+
+public import SecureMessaging.AEAD.FromGCM.Security.Axu
+public import SecureMessaging.AEAD.FromGCM.Security.Games
+public import ToVCVio.CryptoFoundations.WegmanCarter.Security
+public import ToVCVio.ProgramLogic.Relational.IdenticalUntilBad
 
 /-!
 # GCM: the authenticity hop (`game2` → `game3`)
@@ -30,6 +32,8 @@ the privacy hop (`PrivacyHop.lean`) comes after this one.
 
 Main result: `game2_game3_le_auth`.
 -/
+
+@[expose] public section
 
 namespace GCM
 

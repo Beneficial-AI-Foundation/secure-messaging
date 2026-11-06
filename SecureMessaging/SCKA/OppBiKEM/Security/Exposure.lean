@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Security.Interface
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Construction
 
 /-!
 # Opp-BiKEM — Exposure policy and leaking sends
@@ -26,6 +28,8 @@ a secret, and the security oracle's acceptance guard is a separate condition.
 Dropping the returned randomness from a leaking send gives the ordinary send computation,
 including effects preceding a failed send (`sendWith_rleak_forget`).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme
 

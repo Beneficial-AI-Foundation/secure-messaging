@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.Defs
-import ToVCVio.CryptoFoundations.KeyEncapMech
+module
+
+public import SecureMessaging.CKA.Defs
+public import ToVCVio.CryptoFoundations.KeyEncapMech
 
 /-!
 # Continuous Key Agreement from a Key Encapsulation Mechanism
@@ -49,6 +51,8 @@ function (`KEMScheme.DeterministicDecaps`). The randomness leaked by one send
 is described by a `KEMScheme.RandLeak` package, with
 `KEMScheme.RandLeak.noLeak` covering KEMs that do not expose their coins.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal KEMScheme
 

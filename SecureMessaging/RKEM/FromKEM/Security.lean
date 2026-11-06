@@ -3,9 +3,11 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import SecureMessaging.RKEM.FromKEM.Construction
-import ToVCVio.CryptoFoundations.KeyEncapMech
-import ToVCVio.EvalDist.Monad.Basic
+
+module
+
+public import SecureMessaging.RKEM.FromKEM.Construction
+public import ToVCVio.EvalDist.Monad.Basic
 
 /-!
 # RKEM from KEM — FS-IND-CPA Security
@@ -35,6 +37,8 @@ dividing its real value by `2` converts between the two conventions without any 
 (`IND_CPA_Advantage_eq_game_bias`,
 `Measure.boolBias_eq_two_mul_absDiff_half_of_isProbabilityMeasure`).
 -/
+
+@[expose] public section
 
 open ToVCVio KEMScheme RKEMScheme
 

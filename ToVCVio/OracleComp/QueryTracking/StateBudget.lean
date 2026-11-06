@@ -4,10 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.OracleComp.QueryTracking.QueryBound
-import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
-import VCVio.OracleComp.SimSemantics.StateT.Basic
-import VCVio.OracleComp.ProbComp
+module
+
+public import Mathlib.MeasureTheory.Integral.Bochner.Basic
+public import VCVio.OracleComp.QueryTracking.QueryBound.Basic
 
 /-!
 # State counters bounded by adaptive queries
@@ -35,6 +35,8 @@ queries can only preserve or decrease it.
 for every `oa` and `q` with `oa.IsQueryBoundP p q` and every initial state `s`, each supported
 final state `s'` satisfies `count s' ≤ count s + q`.
 -/
+
+@[expose] public section
 
 open OracleSpec
 

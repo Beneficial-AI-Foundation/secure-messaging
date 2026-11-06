@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppUniKEM.Security.Basic
-import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
-import ToVCVio.OracleComp.Constructions.EpochChoice
+module
+
+public import SecureMessaging.SCKA.OppUniKEM.Security.Basic
+public import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
+public import ToVCVio.OracleComp.Constructions.EpochChoice
 
 /-!
 # The IND-CPA reduction and its fixed branches
@@ -48,6 +50,8 @@ Pr[𝓑_real = true] - Pr[𝓑_random = true]
   = q⁻¹ · ∑_{e=1}^{q} (Pr[𝓑_e^real = true] - Pr[𝓑_e^random = true])
 ```
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme ToVCVio
 open SCKAScheme.sckaSecuritySpec

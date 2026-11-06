@@ -4,7 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Game
+module
+
+public import SecureMessaging.SCKA.Correctness
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant
 
 /-!
 # Opp-BiKEM-CKA — Totality of honest sends
@@ -21,6 +24,8 @@ to the reachable states of the correctness game by `sends_never_rejected_of_noFa
 `Quantitative.Main` (as long as no KEM failure has occurred) and by
 `sends_never_rejected_of_perfectKEM` in `PerfectKEM` (always, for a perfectly correct KEM).
 -/
+
+@[expose] public section
 
 open OracleComp KEMScheme
 

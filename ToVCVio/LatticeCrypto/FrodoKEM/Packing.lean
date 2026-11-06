@@ -3,8 +3,13 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import ToVCVio.LatticeCrypto.FrodoKEM.Bits
-import ToVCVio.LatticeCrypto.FrodoKEM.Parameters
+
+module
+
+public import ToVCVio.LatticeCrypto.FrodoKEM.Bits
+public import ToVCVio.LatticeCrypto.FrodoKEM.Parameters
+public import Mathlib.Data.ZMod.Basic
+public import Mathlib.Data.Matrix.Basic
 
 /-!
 # FrodoKEM matrix packing
@@ -49,6 +54,8 @@ at `D` bits per entry, which `Encoding.lean` uses at `B` bits instead.
 The Section 6.4 bit order and layout are fixed by the `example`s beside their
 definitions.
 -/
+
+@[expose] public section
 namespace FrodoKEM
 
 /-- The `D` bits of one entry, most significant first: line 5 of Algorithm 11,

@@ -3,8 +3,12 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import ToVCVio.LatticeCrypto.FrodoKEM.Bits
-import ToVCVio.LatticeCrypto.FrodoKEM.Parameters
+
+module
+
+public import ToVCVio.LatticeCrypto.FrodoKEM.Bits
+public import ToVCVio.LatticeCrypto.FrodoKEM.Parameters
+public import Mathlib.Data.ZMod.Basic
 
 /-!
 # FrodoKEM message encoding
@@ -69,6 +73,8 @@ The specification's `Frodo.Encode` and `Frodo.Decode` are
   pinned by the `example`s beside the definitions.
 -/
 
+@[expose] public section
+
 namespace FrodoKEM
 
 /-- `Frodo.Encode`'s scalar map (Appendix B of `[CiC25]`, Section 6.3 of
@@ -120,7 +126,7 @@ def chunkToBits (p : Params) (k : ZMod (2 ^ p.B)) : Vector Bool p.B :=
 /-- The chunk with the given `B` bits, least significant first. `Nat.ofBits`
 is that reading, and `[LBES26]` uses the same convention. -/
 def bitsToChunk (p : Params) (v : Vector Bool p.B) : ZMod (2 ^ p.B) :=
-  ((Nat.ofBits fun t => v[t] : ℕ) : ZMod (2 ^ p.B))
+  ((Nat.ofBits fun t : Fin p.B => v[t] : ℕ) : ZMod (2 ^ p.B))
 
 /-- The chunk convention on a fixed value: with `B = 2`, the chunk `1` reads as
 the bits `[1, 0]`, least significant first. -/

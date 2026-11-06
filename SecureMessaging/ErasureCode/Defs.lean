@@ -7,7 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import Mathlib.Data.Finset.Card
-public import Mathlib.Data.Finset.Sort
+public import Mathlib.Tactic.ToAdditive
 
 /-!
 # Erasure Codes

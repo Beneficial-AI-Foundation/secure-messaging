@@ -6,8 +6,10 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import Mathlib.Data.Matrix.Mul
-public import Mathlib.Data.ZMod.Basic
+public import Mathlib.Algebra.Ring.Nat
+public import Mathlib.Data.ZMod.Defs
+public import Mathlib.LinearAlgebra.Matrix.Defs
+public import Mathlib.Tactic.Bound.Init
 
 /-!
 # Basic types for continuous key agreement from LWE

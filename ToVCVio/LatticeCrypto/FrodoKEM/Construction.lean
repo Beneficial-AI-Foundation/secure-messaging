@@ -3,11 +3,14 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import ToVCVio.LatticeCrypto.FrodoKEM.Encoding
-import ToVCVio.LatticeCrypto.FrodoKEM.Packing
-import ToVCVio.LatticeCrypto.FrodoKEM.Sampling
-import VCVio.CryptoFoundations.AsymmEncAlg.Defs
-import VCVio.CryptoFoundations.KeyEncapMech
+
+module
+
+public import ToVCVio.LatticeCrypto.FrodoKEM.Encoding
+public import ToVCVio.LatticeCrypto.FrodoKEM.Packing
+public import ToVCVio.LatticeCrypto.FrodoKEM.Sampling
+public import VCVio.CryptoFoundations.AsymmEncAlg.Defs
+public import VCVio.CryptoFoundations.KeyEncapMech
 
 /-!
 # FrodoPKE and FrodoKEM constructions
@@ -182,6 +185,8 @@ The FrodoKEM modules use the following references:
 The version and date are part of the second citation because an
 Internet-Draft expires, this one on 24 December 2026.
 -/
+
+@[expose] public section
 
 namespace FrodoKEM
 

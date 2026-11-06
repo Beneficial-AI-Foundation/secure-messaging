@@ -4,9 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.Defs
-import SecureMessaging.SCKA.MLKEMBraid.Construction
-import SecureMessaging.SCKA.SPQR.Chunked
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Construction
+public import SecureMessaging.SCKA.SPQR.Chunked
 
 /-! # SPQR as an SCKA scheme
 
@@ -31,6 +32,8 @@ The model fixes protocol version 1. Signal's Rust implementation,
 the version at the start of a session and may downgrade it once to the peer's version, including
 version 0, which disables SPQR.
 -/
+
+@[expose] public section
 
 open ErasureCodePayload.Streaming
 open MLKEMBraid (SendRand)
@@ -100,7 +103,7 @@ theorem map_snd_sendRleak [LawfulMonad m] (P : Parameters m)
 
 /-- Adapt `Chunked.recv` to SCKA; an error refuses delivery and a success forwards its report. -/
 -- ANCHOR: SPQR_recvSCKA
-def recvSCKA (P : Parameters m) [DecidableEq P.Sym]
+def recvSCKA (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : PartyState P AuthState) (msg : Message P.Sym) :
@@ -111,7 +114,7 @@ def recvSCKA (P : Parameters m) [DecidableEq P.Sym]
 
 /-- SPQR as an `SCKAScheme`; both parties use the same algorithms and distinct initial states. -/
 -- ANCHOR: SPQR_scheme
-def scheme (P : Parameters m) [DecidableEq P.Sym]
+def scheme (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (sampleInitKey : m InitKey) :

@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.ErasureCode.Payload
-import SecureMessaging.SCKA.OppBiKEM.Correctness.Transcript
-import SecureMessaging.SCKA.OppBiKEM.Correctness.SendFacts
+module
+
+public import SecureMessaging.ErasureCode.Payload
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.Transcript
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.SendFacts
 
 /-!
 # Opp-BiKEM-CKA — Main invariant
@@ -54,6 +56,8 @@ receive. KEM correctness is used only there, for the key emitted by a decapsulat
 The support-level facts about one `send` or `recv` that these proofs use are in `SendFacts`
 and `RecvFacts`.
 -/
+
+@[expose] public section
 
 open OracleComp KEMScheme ErasureCodePayload
 

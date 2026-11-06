@@ -4,10 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.CryptoFoundations.SecExp
-import VCVio.OracleComp.Constructions.SampleableType
-import VCVio.OracleComp.SimSemantics.Append
-import ToVCVio.OracleComp.SimSemantics.UnifLift
+module
+
+public import ToVCVio.OracleComp.SimSemantics.UnifLift
+public import VCVio.OracleComp.Constructions.SampleableType.Basic
+public import VCVio.OracleComp.SimSemantics.Append.Core
 
 /-!
 # Forward-Secure Authenticated Encryption with Associated Data (FS-AEAD)
@@ -98,6 +99,8 @@ to a receiver B, keyed by a pre-shared key.
   start of the oracle, and `end` sets `end_`, which every oracle checks first.
 - As in `AEADScheme`, the adversary also has a uniform-randomness oracle.
 -/
+
+@[expose] public section
 
 open ToVCVio OracleSpec OracleComp ENNReal
 

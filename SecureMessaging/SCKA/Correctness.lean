@@ -4,10 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.Defs
-import ToVCVio.OracleComp.EvalDist
-import ToVCVio.ProgramLogic.Unary.WP
-import ToVCVio.OracleComp.SimSemantics.StateT.WPBound
+module
+
+public import SecureMessaging.SCKA.Defs
+public import ToVCVio.OracleComp.EvalDist
+public import ToVCVio.ProgramLogic.Unary.WP
+public import ToVCVio.OracleComp.SimSemantics.StateT.WPBound
 
 /-!
 # Invariants of the SCKA correctness game
@@ -23,6 +25,8 @@ and a query from a state satisfying an invariant raises the expected potential b
 send and `0` for any other query, then every adversary making at most `q` send queries ends with a
 false correctness flag with probability at most `q · ε` (`correctness_error_le_of_potential`).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 open OracleComp.ProgramLogic

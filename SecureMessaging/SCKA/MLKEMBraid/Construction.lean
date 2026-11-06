@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Basic
-import SecureMessaging.SCKA.Defs
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Basic
+public import SecureMessaging.SCKA.Defs
 
 /-!
 # ML-KEM Braid as an SCKA scheme
@@ -19,6 +21,8 @@ and `sampleInitKey` draws their initial common value.
 delivery when `receive` returns a `Failure` and reports the message-derived epoch required
 by SCKA. `Basic.receive` keeps the state-derived report from Braid §2.5.
 -/
+
+@[expose] public section
 
 open ErasureCodePayload.Streaming
 
@@ -107,7 +111,7 @@ theorem map_snd_sendRleak [LawfulMonad m] (P : Parameters m)
 
 /-- Adapt `receive` to SCKA. Failures refuse delivery; successes report the sender's epoch. -/
 -- ANCHOR: Braid_recvSCKA
-def recvSCKA (P : Parameters m) [DecidableEq P.Sym]
+def recvSCKA (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
     (st : State P AuthState) (msg : Message P.Sym) :
@@ -129,7 +133,7 @@ def recvSCKA (P : Parameters m) [DecidableEq P.Sym]
 /-- ML-KEM Braid as an `SCKAScheme`. Both parties run the same algorithms and differ
 only in their initial state. -/
 -- ANCHOR: Braid_scheme
-def scheme (P : Parameters m) [DecidableEq P.Sym]
+def scheme (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
     (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : m InitKey) :

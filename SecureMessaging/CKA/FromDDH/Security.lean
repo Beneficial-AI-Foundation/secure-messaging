@@ -4,8 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromDDH.Security.ReductionRand.Bridge
-import ToVCVio.EvalDist.BoolDist
+module
+
+public import SecureMessaging.CKA.FromDDH.Security.ReductionRand.Bridge
+public import ToVCVio.EvalDist.BoolDist
+public import SecureMessaging.CKA.FromDDH.Security.ReductionReal.Bridge
 
 /-!
 # CKA from DDH — Security Proof
@@ -207,6 +210,8 @@ ordinary fixed-bit CKA experiment
 The `ToVCVio` helper lemmas provide the generic probability and `simulateQ`
 facts used across these modules.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 open OracleComp.ProgramLogic.Relational

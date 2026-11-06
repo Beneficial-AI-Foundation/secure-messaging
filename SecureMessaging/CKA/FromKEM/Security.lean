@@ -4,7 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromKEM.Security.PrefixInjectCoupling
+module
+
+public import SecureMessaging.CKA.FromKEM.Security.PrefixInjectCoupling
+public import SecureMessaging.CKA.FromKEM.Security.PrefixInjectSplit
 
 /-!
 # CKA from KEM — Security Statements
@@ -21,6 +24,8 @@ distinguishing advantage by the IND-CPA advantage of the concrete reduction
 gap equalities proved in the `Security/` modules. `security_exists` repackages
 it in the paper-style existential form.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal KEMScheme
 

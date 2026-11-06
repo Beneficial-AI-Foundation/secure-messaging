@@ -6,9 +6,6 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import Mathlib.RingTheory.AdjoinRoot
-public import Mathlib.Algebra.Polynomial.Monic
-public import Mathlib.Data.ZMod.Basic
 public import SecureMessaging.AEAD.GCM
 public import ToVCVio.CryptoFoundations.AdjoinRootReflect
 

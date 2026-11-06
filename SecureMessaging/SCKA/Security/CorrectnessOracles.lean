@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.Correctness
+module
+
+public import SecureMessaging.SCKA.Correctness
 
 /-!
 # State preservation by correctness queries
@@ -16,6 +18,8 @@ For an SCKA scheme `scka` over `ProbComp`, every query of `sckaCorrectnessImpl s
 - preserves each predicate on the local states (`stA`, `stB`), or on B's key table (`keyB`), that
   the local send and receive algorithms preserve.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 

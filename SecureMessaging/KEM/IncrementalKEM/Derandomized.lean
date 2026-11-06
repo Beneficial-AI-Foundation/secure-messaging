@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.IncrementalKEM.Defs
+module
+
+public import SecureMessaging.KEM.IncrementalKEM.Defs
 
 /-!
 # Incremental KEM with explicit coins
@@ -18,6 +20,8 @@ samplers, and the second stage and decapsulation are deterministic.
 is its incremental structure. `toRandLeak` is its randomness leakage: key generation and the
 first stage also return the coins they draw.
 -/
+
+@[expose] public section
 
 namespace KEMScheme
 

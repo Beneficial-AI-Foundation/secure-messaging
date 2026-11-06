@@ -4,13 +4,17 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.ProgramLogic.Unary.WP
-import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
-import VCVio.OracleComp.QueryTracking.QueryBound
+module
+
+public import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
+public import VCVio.OracleComp.QueryTracking.QueryBound.Simulation
+public import VCVio.ProgramLogic.Unary.HoareTriple
 
 /-!
 # Expected-payoff bound for stateful simulation
 -/
+
+@[expose] public section
 
 open OracleSpec ENNReal
 open OracleComp.ProgramLogic
