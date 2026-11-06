@@ -36,25 +36,31 @@ def auth (P : Parameters ProbComp) (hMac : P.Mac = Unit) :
 -- ANCHOR_END: noAuthAuthenticator
 
 /-- The Braid scheme with the authenticator `auth`. -/
+-- ANCHOR: noAuthScheme
 def scheme (P : Parameters ProbComp) [DecidableEq P.Sym]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc) :=
   MLKEMBraid.scheme P (auth P hMac) irl (pure ())
+-- ANCHOR_END: noAuthScheme
 
 /-- The epochs that revealing the local state exposes: none before key generation, while
 awaiting a header, or after receiving a header and before first-stage encapsulation. Otherwise
 the current epoch. -/
+-- ANCHOR: noAuthVuln
 def vuln {P : Parameters ProbComp} (st : State P Unit) : Finset ℕ :=
   match st with
   | .keysUnsampled .. | .noHeaderReceived .. | .headerReceived .. => ∅
   | _ => {st.epoch}
+-- ANCHOR_END: noAuthVuln
 
 /-- The epochs that a send exposes when it reveals its coins: the current epoch for the coins of
 key generation or of first-stage encapsulation, and none otherwise. The new state is not used. -/
+-- ANCHOR: noAuthSendExposure
 def sendExposure {P : Parameters ProbComp} {KeygenRand Encaps1Rand : Type}
     (st _st' : State P Unit) (coins : SendRand KeygenRand Encaps1Rand) : Finset ℕ :=
   match coins with
   | .none => ∅
   | .keygen _ | .encaps1 _ => {st.epoch}
+-- ANCHOR_END: noAuthSendExposure
 
 /-- The exposure policy of Braid without authentication: `vuln` for corruption and
 `sendExposure` for a send that reveals its coins. -/

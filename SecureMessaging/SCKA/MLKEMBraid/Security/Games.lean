@@ -47,10 +47,12 @@ def isSendQuery {P : Parameters ProbComp}
 
 /-- On every path of oracle answers, `A` makes at most `qS` send queries in total, counting all
 four send queries. -/
+-- ANCHOR: sendQueryBound
 def SendQueryBound {P : Parameters ProbComp}
     {irl : P.kem.IncrementalRandLeak P.inc}
     (A : Adversary P irl) (qS : ℕ) : Prop :=
   A.IsQueryBoundP (fun t => isSendQuery (P := P) (irl := irl) t = true) qS
+-- ANCHOR_END: sendQueryBound
 
 /-- How the challenge oracle answers a successful challenge of an epoch. -/
 inductive Mode where

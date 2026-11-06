@@ -476,16 +476,6 @@ def incrementalRandLeak {params : Params} (ring : NTTRingOps)
     simp only [incrementalStructure, pure_bind]
 ```
 
-:::leanPillCaption "randomness leakage with the concrete byte encoding"
-:::
-
-```anchor mlkemIncrementalRandLeak (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
-def mlkemIncrementalRandLeak (p : ParameterSet) (ring : NTTRingOps)
-    (prims : Primitives (ParameterSet.params p)
-      (Concrete.concreteEncoding (ParameterSet.params p))) :
-    (mlkemScheme p ring prims).IncrementalRandLeak (mlkemIncremental p ring prims) :=
-  incrementalRandLeak ring (Concrete.concreteEncoding (ParameterSet.params p)) prims
-```
 ::::
 
 *References:*
