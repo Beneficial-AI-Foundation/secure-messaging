@@ -139,6 +139,150 @@ private theorem obs_sampledSend_steady (s : TraceState P) (party : Bool)
   obtain ⟨r, -, rfl⟩ := hw
   rfl
 
+/-- Let the repaired invariant hold and the bad flag be unset. From `keysUnsampled`, the
+key-generation send raises the expected bad-event score by at most the KEM correctness error. -/
+private theorem traceSend_payoff_keygen
+    (leaking : Bool) (s : TraceState P) (party : Bool)
+    (hR : RepairInv hMac s.transcript s.game) (hb : s.bad = false)
+    {e : ℕ} {a : Unit} (hst : s.game.stateAt party = .keysUnsampled e a) :
+    wp ((fun w => (w.1.2, w.2)) <$> sampledSend P hMac irl s party)
+        (fun o => if (leaking && decide ((nativeExposure P irl).rleak (s.game.stateAt party) o.1 ∩
+          s.game.challenged ≠ ∅)) then pendingPotential s.transcript
+          else if o.2.2 then 1 else pendingPotential o.2.1) ≤
+      pendingPotential s.transcript + P.kem.correctnessError ProbCompRuntime.probComp := by
+  let R : SendRand irl.KeygenRand irl.Encaps1Rand → Bool := fun tag =>
+    leaking && decide ((nativeExposure P irl).rleak (s.game.stateAt party) tag ∩
+      s.game.challenged ≠ ∅)
+  let H : SendRand irl.KeygenRand irl.Encaps1Rand × (ℕ → EpochTranscript P) × Bool → ℝ≥0∞ :=
+    fun o => if R o.1 then pendingPotential s.transcript
+      else if o.2.2 then 1 else pendingPotential o.2.1
+  change wp ((fun w => (w.1.2, w.2)) <$> sampledSend P hMac irl s party) H ≤ _
+  have hRe : ∀ r, R (SendRand.keygen r) =
+      (leaking && decide ({e} ∩ s.game.challenged ≠ ∅)) := by
+    intro r
+    simp only [R, hst]
+    rfl
+  have hL := hR.local _ party
+  rw [hst] at hL
+  obtain ⟨-, h1, h2⟩ := hL
+  rw [obs_sampledSend_keysUnsampled hMac irl s party hst, wp_map]
+  by_cases hRk : (leaking && decide ({e} ∩ s.game.challenged ≠ ∅)) = true
+  · refine le_trans (wp_le_const_of_support _
+      fun x _ => le_of_eq ?_) le_self_add
+    simp only [H, Function.comp_apply]
+    rw [hRe x.2, ite_eq_left hRk]
+  · have hstep : ∀ x : (P.PK × P.SK) × irl.KeygenRand,
+        H (SendRand.keygen x.2,
+          Function.update s.transcript e { (s.transcript e) with keypair := some x.1 }, s.bad)
+          = P.inc.decapsFailureProb (P.inc.toHeader x.1.1) (P.inc.toVector x.1.1) x.1.2 +
+            pendingPotential s.transcript := by
+      rintro ⟨⟨pk, sk⟩, rand⟩
+      have hu := pendingPotential_update s.transcript e
+        { (s.transcript e) with keypair := some (pk, sk) }
+      have h0 : pendingRisk (s.transcript e) = 0 := by simp [pendingRisk, h1, h2]
+      have hr : pendingRisk { (s.transcript e) with keypair := some (pk, sk) } =
+          P.inc.decapsFailureProb (P.inc.toHeader pk) (P.inc.toVector pk) sk := by
+        simp [pendingRisk, h2]
+      rw [h0, hr, add_zero] at hu
+      simp only [H]
+      rw [hRe rand, ite_eq_right hRk, hb, ite_eq_right Bool.false_ne_true, hu, add_comm]
+    have hkg : wp irl.keygenRleak (fun x : (P.PK × P.SK) × irl.KeygenRand =>
+        P.inc.decapsFailureProb (P.inc.toHeader x.1.1) (P.inc.toVector x.1.1) x.1.2) =
+        P.kem.correctnessError ProbCompRuntime.probComp := by
+      rw [← P.inc.wp_keygen_decapsFailureProb, ← irl.keygen_fst, bind_pure_comp,
+        wp_map]
+      try rfl
+    refine le_trans (wp_mono _ fun x => le_of_eq (hstep x)) ?_
+    refine le_trans (wp_add_const_le _ _ _) ?_
+    rw [hkg]
+    exact le_of_eq (add_comm _ _)
+
+/-- Let the repaired invariant hold and the bad flag be unset. From `headerReceived`, the
+first-stage encapsulation send raises the expected bad-event score by at most the KEM correctness
+error. -/
+private theorem traceSend_payoff_encaps1
+    (leaking : Bool) (s : TraceState P) (party : Bool)
+    (hR : RepairInv hMac s.transcript s.game) (hb : s.bad = false)
+    {e : ℕ} {a : Unit} {hdr : P.inc.PKheader} {dec : P.decEk.D}
+    (hst : s.game.stateAt party = .headerReceived e a hdr dec) :
+    wp ((fun w => (w.1.2, w.2)) <$> sampledSend P hMac irl s party)
+        (fun o => if (leaking && decide ((nativeExposure P irl).rleak (s.game.stateAt party) o.1 ∩
+          s.game.challenged ≠ ∅)) then pendingPotential s.transcript
+          else if o.2.2 then 1 else pendingPotential o.2.1) ≤
+      pendingPotential s.transcript + P.kem.correctnessError ProbCompRuntime.probComp := by
+  let R : SendRand irl.KeygenRand irl.Encaps1Rand → Bool := fun tag =>
+    leaking && decide ((nativeExposure P irl).rleak (s.game.stateAt party) tag ∩
+      s.game.challenged ≠ ∅)
+  let H : SendRand irl.KeygenRand irl.Encaps1Rand × (ℕ → EpochTranscript P) × Bool → ℝ≥0∞ :=
+    fun o => if R o.1 then pendingPotential s.transcript
+      else if o.2.2 then 1 else pendingPotential o.2.1
+  change wp ((fun w => (w.1.2, w.2)) <$> sampledSend P hMac irl s party) H ≤ _
+  obtain ⟨pk, sk, -, -, hkpT, -, hhdr⟩ := peer_keysSampled_of_headerReceived _ hR party hst
+  subst hhdr
+  have hRe : ∀ r, R (SendRand.encaps1 r) =
+      (leaking && decide ({e} ∩ s.game.challenged ≠ ∅)) := by
+    intro r
+    simp only [R, hst]
+    rfl
+  have hL := hR.local _ party
+  rw [hst] at hL
+  have hc0 : (s.transcript e).encaps1 = none := hL.2.1
+  have hrisk : pendingRisk (s.transcript e) =
+      P.inc.decapsFailureProb (P.inc.toHeader pk) (P.inc.toVector pk) sk := by
+    simp [pendingRisk, hkpT, hc0]
+  obtain ⟨c, hc, hupd⟩ : ∃ c : ℝ≥0∞,
+      c + P.inc.decapsFailureProb (P.inc.toHeader pk) (P.inc.toVector pk) sk =
+        pendingPotential s.transcript ∧
+      ∀ x : P.inc.St × P.inc.C₁ × P.K, pendingPotential
+        (Function.update s.transcript e { (s.transcript e) with encaps1 := some x }) = c := by
+    refine ⟨∑' t, Function.update (fun t => pendingRisk (s.transcript t)) e 0 t, ?_,
+      fun x => ?_⟩
+    · have h := tsum_update_add (fun t => pendingRisk (s.transcript t)) e 0
+      simp only [add_zero] at h
+      rw [hrisk] at h
+      exact h
+    · refine tsum_congr fun t => ?_
+      have h0 : pendingRisk { (s.transcript e) with encaps1 := some x } = 0 := by
+        simp [pendingRisk, hkpT]
+      rw [Function.apply_update (fun _ => pendingRisk) s.transcript e _ t, h0]
+  rw [obs_sampledSend_headerReceived hMac irl s party hst, wp_map]
+  by_cases hRk : (leaking && decide ({e} ∩ s.game.challenged ≠ ∅)) = true
+  · refine le_trans (wp_le_const_of_support _
+      fun x _ => le_of_eq ?_) le_self_add
+    simp only [H, Function.comp_apply]
+    rw [hRe x.2, ite_eq_left hRk]
+  · have hfp : wp (irl.encaps1Rleak (P.inc.toHeader pk))
+        (fun x : (P.inc.St × P.inc.C₁ × P.K) × irl.Encaps1Rand =>
+          if P.hDet.decapsDet sk (P.inc.splitC.symm (x.1.2.1,
+            P.hEnc2.encaps2Det x.1.1 (P.inc.toHeader pk) (P.inc.toVector pk))) = some x.1.2.2
+          then 0 else 1) =
+        P.inc.decapsFailureProb (P.inc.toHeader pk) (P.inc.toVector pk) sk := by
+      rw [P.inc.decapsFailureProb_eq_wp P.hDet P.hEnc2, ← irl.encaps1_fst,
+        bind_pure_comp, wp_map]
+      try rfl
+    refine le_trans (wp_mono _ (post' :=
+      fun x : (P.inc.St × P.inc.C₁ × P.K) × irl.Encaps1Rand =>
+        (if P.hDet.decapsDet sk (P.inc.splitC.symm (x.1.2.1,
+          P.hEnc2.encaps2Det x.1.1 (P.inc.toHeader pk) (P.inc.toVector pk))) = some x.1.2.2
+        then 0 else 1) + c) fun x => ?_) ?_
+    · simp only [H, Function.comp_apply]
+      rw [hRe x.2, ite_eq_right hRk, hupd x.1]
+      simp only [hkpT, hb, Bool.false_or]
+      by_cases hfail : P.hDet.decapsDet sk (P.inc.splitC.symm (x.1.2.1,
+          P.hEnc2.encaps2Det x.1.1 (P.inc.toHeader pk) (P.inc.toVector pk))) = some x.1.2.2
+      · have hk : decapsEpochKey (P := P) e pk sk x.1.1 x.1.2.1 = some (P.kdfOK x.1.2.2 e) :=
+          congrArg (Option.map fun k => P.kdfOK k e) hfail
+        have hnot : ¬ (decide (decapsEpochKey (P := P) e pk sk x.1.1 x.1.2.1 ≠
+            some (P.kdfOK x.1.2.2 e)) = true) := fun h => of_decide_eq_true h hk
+        rw [ite_eq_right hnot, ite_eq_left hfail, zero_add]
+      · rw [ite_eq_right hfail]
+        split_ifs
+        · exact le_self_add
+        · exact le_add_self
+    · refine le_trans (wp_add_const_le _ _ _) ?_
+      rw [hfp, add_comm _ c, hc]
+      exact le_self_add
+
 /-- A trace send raises the expected bad-event score by at most the KEM correctness error. -/
 theorem traceSend_payoff (party leaking : Bool) (s : TraceState P)
     (hs : TraceInv hMac false s) :
@@ -175,111 +319,9 @@ theorem traceSend_payoff (party leaking : Bool) (s : TraceState P)
     rw [hpay]
     cases hst : s.game.stateAt party
     case keysUnsampled e a =>
-      have hRe : ∀ r, R (SendRand.keygen r) =
-          (leaking && decide ({e} ∩ s.game.challenged ≠ ∅)) := by
-        intro r
-        simp only [R, hst]
-        rfl
-      have hL := hR.local _ party
-      rw [hst] at hL
-      obtain ⟨-, h1, h2⟩ := hL
-      rw [obs_sampledSend_keysUnsampled hMac irl s party hst, wp_map]
-      by_cases hRk : (leaking && decide ({e} ∩ s.game.challenged ≠ ∅)) = true
-      · refine le_trans (wp_le_const_of_support _
-          fun x _ => le_of_eq ?_) le_self_add
-        simp only [H, Function.comp_apply]
-        rw [hRe x.2, ite_eq_left hRk]
-      · have hstep : ∀ x : (P.PK × P.SK) × irl.KeygenRand,
-            H (SendRand.keygen x.2,
-              Function.update s.transcript e { (s.transcript e) with keypair := some x.1 }, s.bad)
-              = P.inc.decapsFailureProb (P.inc.toHeader x.1.1) (P.inc.toVector x.1.1) x.1.2 +
-                pendingPotential s.transcript := by
-          rintro ⟨⟨pk, sk⟩, rand⟩
-          have hu := pendingPotential_update s.transcript e
-            { (s.transcript e) with keypair := some (pk, sk) }
-          have h0 : pendingRisk (s.transcript e) = 0 := by simp [pendingRisk, h1, h2]
-          have hr : pendingRisk { (s.transcript e) with keypair := some (pk, sk) } =
-              P.inc.decapsFailureProb (P.inc.toHeader pk) (P.inc.toVector pk) sk := by
-            simp [pendingRisk, h2]
-          rw [h0, hr, add_zero] at hu
-          simp only [H]
-          rw [hRe rand, ite_eq_right hRk, hb, ite_eq_right Bool.false_ne_true, hu, add_comm]
-        have hkg : wp irl.keygenRleak (fun x : (P.PK × P.SK) × irl.KeygenRand =>
-            P.inc.decapsFailureProb (P.inc.toHeader x.1.1) (P.inc.toVector x.1.1) x.1.2) =
-            P.kem.correctnessError ProbCompRuntime.probComp := by
-          rw [← P.inc.wp_keygen_decapsFailureProb, ← irl.keygen_fst, bind_pure_comp,
-            wp_map]
-          try rfl
-        refine le_trans (wp_mono _ fun x => le_of_eq (hstep x)) ?_
-        refine le_trans (wp_add_const_le _ _ _) ?_
-        rw [hkg]
-        exact le_of_eq (add_comm _ _)
+      exact traceSend_payoff_keygen hMac irl leaking s party hR hb hst
     case headerReceived e a hdr dec =>
-      obtain ⟨pk, sk, -, -, hkpT, -, hhdr⟩ := peer_keysSampled_of_headerReceived _ hR party hst
-      subst hhdr
-      have hRe : ∀ r, R (SendRand.encaps1 r) =
-          (leaking && decide ({e} ∩ s.game.challenged ≠ ∅)) := by
-        intro r
-        simp only [R, hst]
-        rfl
-      have hL := hR.local _ party
-      rw [hst] at hL
-      have hc0 : (s.transcript e).encaps1 = none := hL.2.1
-      have hrisk : pendingRisk (s.transcript e) =
-          P.inc.decapsFailureProb (P.inc.toHeader pk) (P.inc.toVector pk) sk := by
-        simp [pendingRisk, hkpT, hc0]
-      obtain ⟨c, hc, hupd⟩ : ∃ c : ℝ≥0∞,
-          c + P.inc.decapsFailureProb (P.inc.toHeader pk) (P.inc.toVector pk) sk =
-            pendingPotential s.transcript ∧
-          ∀ x : P.inc.St × P.inc.C₁ × P.K, pendingPotential
-            (Function.update s.transcript e { (s.transcript e) with encaps1 := some x }) = c := by
-        refine ⟨∑' t, Function.update (fun t => pendingRisk (s.transcript t)) e 0 t, ?_,
-          fun x => ?_⟩
-        · have h := tsum_update_add (fun t => pendingRisk (s.transcript t)) e 0
-          simp only [add_zero] at h
-          rw [hrisk] at h
-          exact h
-        · refine tsum_congr fun t => ?_
-          have h0 : pendingRisk { (s.transcript e) with encaps1 := some x } = 0 := by
-            simp [pendingRisk, hkpT]
-          rw [Function.apply_update (fun _ => pendingRisk) s.transcript e _ t, h0]
-      rw [obs_sampledSend_headerReceived hMac irl s party hst, wp_map]
-      by_cases hRk : (leaking && decide ({e} ∩ s.game.challenged ≠ ∅)) = true
-      · refine le_trans (wp_le_const_of_support _
-          fun x _ => le_of_eq ?_) le_self_add
-        simp only [H, Function.comp_apply]
-        rw [hRe x.2, ite_eq_left hRk]
-      · have hfp : wp (irl.encaps1Rleak (P.inc.toHeader pk))
-            (fun x : (P.inc.St × P.inc.C₁ × P.K) × irl.Encaps1Rand =>
-              if P.hDet.decapsDet sk (P.inc.splitC.symm (x.1.2.1,
-                P.hEnc2.encaps2Det x.1.1 (P.inc.toHeader pk) (P.inc.toVector pk))) = some x.1.2.2
-              then 0 else 1) =
-            P.inc.decapsFailureProb (P.inc.toHeader pk) (P.inc.toVector pk) sk := by
-          rw [P.inc.decapsFailureProb_eq_wp P.hDet P.hEnc2, ← irl.encaps1_fst,
-            bind_pure_comp, wp_map]
-          try rfl
-        refine le_trans (wp_mono _ (post' :=
-          fun x : (P.inc.St × P.inc.C₁ × P.K) × irl.Encaps1Rand =>
-            (if P.hDet.decapsDet sk (P.inc.splitC.symm (x.1.2.1,
-              P.hEnc2.encaps2Det x.1.1 (P.inc.toHeader pk) (P.inc.toVector pk))) = some x.1.2.2
-            then 0 else 1) + c) fun x => ?_) ?_
-        · simp only [H, Function.comp_apply]
-          rw [hRe x.2, ite_eq_right hRk, hupd x.1]
-          simp only [hkpT, hb, Bool.false_or]
-          by_cases hfail : P.hDet.decapsDet sk (P.inc.splitC.symm (x.1.2.1,
-              P.hEnc2.encaps2Det x.1.1 (P.inc.toHeader pk) (P.inc.toVector pk))) = some x.1.2.2
-          · have hk : decapsEpochKey (P := P) e pk sk x.1.1 x.1.2.1 = some (P.kdfOK x.1.2.2 e) :=
-              congrArg (Option.map fun k => P.kdfOK k e) hfail
-            have hnot : ¬ (decide (decapsEpochKey (P := P) e pk sk x.1.1 x.1.2.1 ≠
-                some (P.kdfOK x.1.2.2 e)) = true) := fun h => of_decide_eq_true h hk
-            rw [ite_eq_right hnot, ite_eq_left hfail, zero_add]
-          · rw [ite_eq_right hfail]
-            split_ifs
-            · exact le_self_add
-            · exact le_add_self
-        · refine le_trans (wp_add_const_le _ _ _) ?_
-          rw [hfp, add_comm _ c, hc]
-          exact le_self_add
+      exact traceSend_payoff_encaps1 hMac irl leaking s party hR hb hst
     all_goals
       have hsteady : (s.game.stateAt party).SendsNoSample := by
         rw [hst]
