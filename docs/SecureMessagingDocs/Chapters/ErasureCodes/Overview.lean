@@ -8,6 +8,7 @@ import SecureMessagingDocs.Visuals.ErasureCodeFigures
 import SecureMessagingDocs.Chapters.ErasureCodes.Defs
 import SecureMessagingDocs.Chapters.ErasureCodes.ReedSolomon
 import SecureMessagingDocs.Chapters.ErasureCodes.SPQRReedSolomon
+import SecureMessagingDocs.Chapters.ErasureCodes.Payloads
 
 /-! # Blueprint chapter: Erasure Codes -/
 
@@ -40,6 +41,8 @@ set_option linter.hashCommand false
 {include 1 SecureMessagingDocs.Chapters.ErasureCodes.ReedSolomon}
 
 {include 1 SecureMessagingDocs.Chapters.ErasureCodes.SPQRReedSolomon}
+
+{include 1 SecureMessagingDocs.Chapters.ErasureCodes.Payloads}
 
 {blueprint_graph}
 

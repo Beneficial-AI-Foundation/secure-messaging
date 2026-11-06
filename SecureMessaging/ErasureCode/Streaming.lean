@@ -395,7 +395,6 @@ theorem addChunk_encode_of_payloadChunks [DecidableEq Sym]
 
 /-- Codeword positions delivered from the first `t` encoder counters. A counter absent
 from `delivered` models a lost chunk. -/
--- ANCHOR: honestPrefixPositions
 def honestPrefixPositions (ecp : ErasureCodePayload M Sym)
     (delivered : Finset ℕ) : ℕ → Finset (Fin ecp.ec.N)
   | 0 => ∅
@@ -405,11 +404,9 @@ def honestPrefixPositions (ecp : ErasureCodePayload M Sym)
           (honestPrefixPositions ecp delivered t)
       else
         honestPrefixPositions ecp delivered t
--- ANCHOR_END: honestPrefixPositions
 
 /-- Chunk set after processing the first `t` encoder emissions, adding exactly
 the counters selected by `delivered` and dropping the others. -/
--- ANCHOR: honestPrefixDecoder
 def honestPrefixDecoder [DecidableEq Sym]
     (ecp : ErasureCodePayload M Sym) (payload : M)
     (delivered : Finset ℕ) : ℕ → Finset (ℕ × Sym)
@@ -419,7 +416,6 @@ def honestPrefixDecoder [DecidableEq Sym]
         addChunk (honestPrefixDecoder ecp payload delivered t) (ecp.encode payload t)
       else
         honestPrefixDecoder ecp payload delivered t
--- ANCHOR_END: honestPrefixDecoder
 
 /-- Every lossy honest prefix run is reachable from `∅` by repeated `addChunk` steps. -/
 theorem honestPrefixDecoder_reachable [DecidableEq Sym]
@@ -455,13 +451,11 @@ theorem honestPrefixDecoder_succ [DecidableEq Sym]
 
 /-- A lossy run over the first `t` emissions yields exactly the honest chunk-set
 representation at the positions that were delivered. -/
--- ANCHOR: honestPrefixDecoder_eq_payloadChunks
 theorem honestPrefixDecoder_eq_payloadChunks [DecidableEq Sym]
     (ecp : ErasureCodePayload M Sym) (payload : M) (delivered : Finset ℕ) :
     ∀ t,
       honestPrefixDecoder ecp payload delivered t =
         ErasureCodePayload.payloadChunks ecp payload (honestPrefixPositions ecp delivered t)
--- ANCHOR_END: honestPrefixDecoder_eq_payloadChunks
   | 0 => by
       simp [honestPrefixDecoder, honestPrefixPositions]
   | t + 1 => by
@@ -473,14 +467,11 @@ theorem honestPrefixDecoder_eq_payloadChunks [DecidableEq Sym]
 
 /-- End-to-end recovery from an arbitrary lossy subset of the first `t` emissions,
 provided the delivered positions meet the reconstruction threshold. -/
--- ANCHOR: decode_honestPrefix
 theorem decode_honestPrefix [DecidableEq Sym]
     (ecp : ErasureCodePayload M Sym) (hcorrect : ecp.ec.Correct)
     (payload : M) (delivered : Finset ℕ) (t : ℕ)
     (hcard : ecp.ec.nchunk ≤ (honestPrefixPositions ecp delivered t).card) :
-    ecp.decode (honestPrefixDecoder ecp payload delivered t) = some payload
--- ANCHOR_END: decode_honestPrefix
-    := by
+    ecp.decode (honestPrefixDecoder ecp payload delivered t) = some payload := by
   rw [honestPrefixDecoder_eq_payloadChunks]
   exact ErasureCodePayload.decode_payloadChunks ecp hcorrect payload
     (honestPrefixPositions ecp delivered t) hcard
