@@ -83,16 +83,16 @@ theorem kdf_signed_gap_eq (P : Parameters ProbComp)
       Pr{let x ← kdfExp P (n + 1) (kdfReduction P hMac irl A (n + 1)) true}[x = true] := by
     rw [← traceImplAt_none hMac irl (n + 1), ← stoppedRun_chalSample hMac irl (n + 1) none none _
       ((fun u => P.kdfOK u (n + 1)) <$> ($ᵗ P.K)) (fun k => by simp [challengeValue])]
-    simp only [kdfExp, kdfReduction, ↓reduceIte, bind_map_left, map_bind,
-      traceImplAt_congr hMac irl (n + 1) none none _ _ _ hJD]
+    simp only [kdfExp, PRGScheme.prgRealExperiment, kdfReduction, ↓reduceIte, bind_map_left,
+      map_bind, traceImplAt_congr hMac irl (n + 1) none none _ _ _ hJD]
   have hH : Pr{let x ← (stoppedRun (traceImpl P hMac irl true
         (fun t => if t ≤ n + 1 then .uniform else .real))
         (targetStop (n + 1)) A (initTrace P hMac))}[x = true] =
       Pr{let x ← kdfExp P (n + 1) (kdfReduction P hMac irl A (n + 1)) false}[x = true] := by
     rw [← traceImplAt_none hMac irl (n + 1), ← stoppedRun_chalSample hMac irl (n + 1) none none _
       ($ᵗ P.EpochKey) (fun k => by simp [challengeValue])]
-    simp only [kdfExp, kdfReduction, Bool.false_eq_true, ↓reduceIte, map_bind,
-      traceImplAt_congr hMac irl (n + 1) none none _ _ _ hHD]
+    simp only [kdfExp, PRGScheme.prgIdealExperiment, kdfReduction, Bool.false_eq_true, ↓reduceIte,
+      map_bind, traceImplAt_congr hMac irl (n + 1) none none _ _ _ hHD]
   unfold rawHybrid hybrid
   rw [hgap, hJ, hH]
 

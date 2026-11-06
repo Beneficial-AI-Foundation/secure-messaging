@@ -302,7 +302,7 @@ correctness error for a send, and not at all for any other query. -/
 theorem traceImpl_payoff (mode : ℕ → Mode) :
     ∀ t s, TraceInv hMac false s →
       wp ((traceImpl P hMac irl false mode t).run s) (fun z => badScore z.2) ≤
-        badScore s + if isSendQuery t = true then
+        badScore s + if SCKAScheme.sckaSecuritySpec.isSendQuery t = true then
           P.kem.correctnessError ProbCompRuntime.probComp else 0 := by
   intro t s hs
   rw [isSendQuery_eq_sendElim irl t]
@@ -378,7 +378,7 @@ theorem badEvent_le (P : Parameters ProbComp)
   -- key pair is consumed at first-stage encapsulation.
   have hE := wp_simulateQ_run_le
     (traceImpl P hMac irl false (fun _ => if b then .uniform else .real))
-    (TraceInv hMac false) badScore (fun t => isSendQuery t = true)
+    (TraceInv hMac false) badScore (fun t => SCKAScheme.sckaSecuritySpec.isSendQuery t = true)
     (P.kem.correctnessError ProbCompRuntime.probComp)
     (traceImpl_preservesInv hMac irl hHdrSound hEkSound hCt1Sound hCt2Sound false _)
     (traceImpl_payoff hMac irl _) A qS hqS _ (traceInv_init hMac false)

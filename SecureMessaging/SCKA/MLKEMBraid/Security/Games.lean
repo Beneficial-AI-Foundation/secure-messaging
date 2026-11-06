@@ -9,6 +9,7 @@ module
 public import SecureMessaging.SCKA.MLKEMBraid.Security.NoAuth
 public import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
 public import ToVCVio.EvalDist.BoolDist
+public import SecureMessaging.SCKA.MLKEMBraid.Security.KDFGame
 
 /-!
 # No-authentication Braid security games
@@ -39,23 +40,13 @@ abbrev Adversary (P : Parameters ProbComp)
     (irl : P.kem.IncrementalRandLeak P.inc) :=
   OracleComp (Spec P irl) Bool
 
-/-- Whether a query is one of the four send queries: an ordinary or a leaking send of either
-party. -/
-def isSendQuery {P : Parameters ProbComp}
-    {irl : P.kem.IncrementalRandLeak P.inc} : (Spec P irl).Domain → Bool
-  | .inl (.inl (.inl (.inl (.inl t)))) =>
-      SCKAScheme.isSendQuery (Rho := Message P.Sym) t
-  | .inl (.inl (.inl (.inl (.inr _)))) => true
-  | .inl (.inl (.inl (.inr _))) => true
-  | _ => false
-
 /-- On every path of oracle answers, `A` makes at most `qS` send queries in total, counting all
 four send queries. -/
 -- ANCHOR: sendQueryBound
 def SendQueryBound {P : Parameters ProbComp}
     {irl : P.kem.IncrementalRandLeak P.inc}
     (A : Adversary P irl) (qS : ℕ) : Prop :=
-  A.IsQueryBoundP (fun t => isSendQuery (P := P) (irl := irl) t = true) qS
+  A.IsQueryBoundP (fun t => SCKAScheme.sckaSecuritySpec.isSendQuery t = true) qS
 -- ANCHOR_END: sendQueryBound
 
 /-- How the challenge oracle answers a successful challenge of an epoch. -/
@@ -384,42 +375,5 @@ def rawHybrid (P : Parameters ProbComp)
   Prod.fst <$> run P hMac irl true
     (fun t => if t < e then .uniform
       else if t = e then .derivedUniform else .real) A
-
-/-- The key-derivation game at the label `e`. With `derived = true` the distinguisher `D`
-receives `kdfOK u e` for a uniform shared secret `u`, and with `derived = false` a uniform epoch
-key. -/
--- ANCHOR: kdfGame
-def kdfExp (P : Parameters ProbComp)
-    [SampleableType P.K] [SampleableType P.EpochKey]
-    (e : ℕ) (D : P.EpochKey → ProbComp Bool) (derived : Bool) : ProbComp Bool :=
-  if derived then do
-    let u ← $ᵗ P.K
-    D (P.kdfOK u e)
-  else do
-    let x ← $ᵗ P.EpochKey
-    D x
-
-/-- A key-derivation distinguisher that first chooses the epoch label. -/
-structure KDFContextAdversary (P : Parameters ProbComp) where
-  /-- The information kept between choosing the label and guessing. -/
-  State : Type
-  /-- Choose the epoch label and the kept information. -/
-  context : ProbComp (ℕ × State)
-  /-- Guess from the kept information and the epoch key received. -/
-  guess : State → P.EpochKey → ProbComp Bool
-
-/-- The key-derivation game with a chosen label. The distinguisher `C` first chooses the label
-`e`, and then `kdfExp` runs the game at `e`. -/
-def kdfContextExp (P : Parameters ProbComp) [SampleableType P.K] [SampleableType P.EpochKey]
-    (C : KDFContextAdversary P) (derived : Bool) : ProbComp Bool := do
-  let (e, st) ← C.context
-  kdfExp P e (C.guess st) derived
-
-/-- The advantage of `C` in the key-derivation game: the distance between its output
-distributions for derived and for uniform keys. -/
-noncomputable def kdfAdvantage (P : Parameters ProbComp) [SampleableType P.K]
-    [SampleableType P.EpochKey] (C : KDFContextAdversary P) : ℝ :=
-  (𝒟[kdfContextExp P C true].boolDist 𝒟[kdfContextExp P C false]).toReal
--- ANCHOR_END: kdfGame
 
 end MLKEMBraid.NoAuth

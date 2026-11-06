@@ -233,7 +233,8 @@ private theorem traceImpl_mode_eq (repair : Bool) (m m' : ℕ → Mode) (Q : Tra
 private theorem traceImpl_count (repair : Bool) (mode : ℕ → Mode) :
     ∀ t s z, z ∈ support ((traceImpl P hMac irl repair mode t).run s) →
       sendCount s ≤ sendCount z.2 ∧
-        sendCount z.2 ≤ sendCount s + if isSendQuery t = true then 1 else 0 := by
+        sendCount z.2 ≤
+          sendCount s + if SCKAScheme.sckaSecuritySpec.isSendQuery t = true then 1 else 0 := by
   intro t s z hz
   rw [isSendQuery_eq_sendElim irl t]
   have hzero : ∀ {ι : Type} {spec : OracleSpec ι}

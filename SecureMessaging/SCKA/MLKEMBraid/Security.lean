@@ -160,8 +160,9 @@ Paths are relative to `MLKEMBraid/Security/`.
    `Bounded.payloads_correct` and `setDecoder_sound` show that the set-based decoders of the four
    streams are sound (`MLKEMBraid.security`).
 
-Supporting modules: `NoAuth` (authenticator and exposure policy), `Games` (games and hybrids),
-`Reduction/Simulator` (the simulation that `ℬ_e` runs), ToVCVio (`epochChoice`, stopping).
+Supporting modules: `NoAuth` (authenticator and exposure policy), `KDFGame` (the key-derivation
+game), `Games` (games and hybrids), `Reduction/Simulator` (the simulation that `ℬ_e` runs), ToVCVio
+(`epochChoice`, stopping).
 -/
 
 @[expose] public section

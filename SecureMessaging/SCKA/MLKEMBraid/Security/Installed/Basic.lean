@@ -24,6 +24,7 @@ of `Installed.Sampling` (`stoppedRun_installKeygen`, `stoppedRun_installEncaps1`
 @[expose] public section
 
 open OracleSpec OracleComp
+open SCKAScheme.sckaSecuritySpec SCKAScheme.sckaCorrectnessSpec
 open ErasureCodePayload.Streaming
 
 namespace MLKEMBraid.NoAuth
@@ -192,20 +193,20 @@ def isEncaps1At (e : ℕ) : State P Unit → Bool
 /-- A send query of a state passing `test`, unless it is a refused leaking send of `e`. -/
 def sendHit {irl : P.kem.IncrementalRandLeak P.inc} (test : State P Unit → Bool) (e : ℕ) :
     (Spec P irl).Domain → TraceState P → Bool
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inl (.inr _)))))))), s => test (s.game.stateAt true)
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inr _))))))), s => test (s.game.stateAt false)
-  | .inl (.inl (.inl (.inl (.inr _)))), s =>
+  | OCorrectness OSendA, s => test (s.game.stateAt true)
+  | OCorrectness OSendB, s => test (s.game.stateAt false)
+  | OSendArleak, s =>
       test (s.game.stateAt true) && !decide ({e} ∩ s.game.challenged ≠ ∅)
-  | .inl (.inl (.inl (.inr _))), s =>
+  | OSendBrleak, s =>
       test (s.game.stateAt false) && !decide ({e} ∩ s.game.challenged ≠ ∅)
   | _, _ => false
 
 /-- The queries other than the four sends. -/
 def NonSend {irl : P.kem.IncrementalRandLeak P.inc} : (Spec P irl).Domain → Prop
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inl (.inr _)))))))) => False
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inr _))))))) => False
-  | .inl (.inl (.inl (.inl (.inr _)))) => False
-  | .inl (.inl (.inl (.inr _))) => False
+  | OCorrectness OSendA => False
+  | OCorrectness OSendB => False
+  | OSendArleak => False
+  | OSendBrleak => False
   | _ => True
 
 section Hits
@@ -234,16 +235,16 @@ theorem isEncaps1At_eq_true {e : ℕ} {st : State P Unit} (h : isEncaps1At e st 
 theorem sendHit_false {test : State P Unit → Bool} {e : ℕ} {s : TraceState P}
     (h : ∀ p, test (s.game.stateAt p) = false) :
     ∀ q : (Spec P irl).Domain, sendHit test e q s = false
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inl (.inl _)))))))) => rfl
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inl (.inr _)))))))) => h true
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inr _))))))) => h false
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inr _)))))) => rfl
-  | .inl (.inl (.inl (.inl (.inl (.inr _))))) => rfl
-  | .inl (.inl (.inl (.inl (.inr _)))) => by simp [sendHit, h true]
-  | .inl (.inl (.inl (.inr _))) => by simp [sendHit, h false]
-  | .inl (.inl (.inr _)) => rfl
-  | .inl (.inr _) => rfl
-  | .inr _ => rfl
+  | OCorrectness (OUnif _) => rfl
+  | OCorrectness OSendA => h true
+  | OCorrectness OSendB => h false
+  | OCorrectness (ORecvA _) => rfl
+  | OCorrectness (ORecvB _) => rfl
+  | OSendArleak => by simp [sendHit, h true]
+  | OSendBrleak => by simp [sendHit, h false]
+  | OChall _ => rfl
+  | OCorruptA => rfl
+  | OCorruptB => rfl
 
 end Hits
 

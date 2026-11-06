@@ -21,7 +21,8 @@ that the installation results of `Installed.Sampling` use.
 
 @[expose] public section
 
-open OracleSpec OracleComp ENNReal
+open OracleSpec OracleComp
+open SCKAScheme.sckaSecuritySpec SCKAScheme.sckaCorrectnessSpec ENNReal
 open ErasureCodePayload.Streaming
 
 namespace MLKEMBraid.NoAuth
@@ -423,31 +424,31 @@ theorem traceImplAt_traceInv (hHdrSound : P.decHdr.Sound P.ecpHdr)
       (∀ c party a hdr dec, ec = some c → s.game.stateAt party = .headerReceived e a hdr dec →
         c ∈ support (P.inc.encaps1 hdr)) →
       ∀ z ∈ support ((traceImplAt P hMac irl e kp ec xo m q).run s), TraceInv hMac true z.2
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inl (.inl t)))))))), s, hs, _, z, hz =>
+  | OCorrectness (OUnif t), s, hs, _, z, hz =>
       traceUnif_preservesInv hMac true t s hs z hz
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inl (.inr t)))))))), s, hs, H, z, hz => by
+  | OCorrectness OSendA, s, hs, H, z, hz => by
       obtain ⟨w, hw, rfl⟩ := mem_support_tracePlainAt hMac irl hz
       exact traceSendAt_traceInv hMac irl e kp ec true false s hs hkp
         (fun c a hdr dec h1 h2 => H c true a hdr dec h1 h2) hw
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inr t))))))), s, hs, H, z, hz => by
+  | OCorrectness OSendB, s, hs, H, z, hz => by
       obtain ⟨w, hw, rfl⟩ := mem_support_tracePlainAt hMac irl hz
       exact traceSendAt_traceInv hMac irl e kp ec false false s hs hkp
         (fun c a hdr dec h1 h2 => H c false a hdr dec h1 h2) hw
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inr n)))))), s, hs, _, z, hz =>
+  | OCorrectness (ORecvA n), s, hs, _, z, hz =>
       traceReceive_preservesInv hMac irl hHdrSound hEkSound hCt1Sound hCt2Sound true true
         n s hs z hz
-  | .inl (.inl (.inl (.inl (.inl (.inr n))))), s, hs, _, z, hz =>
+  | OCorrectness (ORecvB n), s, hs, _, z, hz =>
       traceReceive_preservesInv hMac irl hHdrSound hEkSound hCt1Sound hCt2Sound true false
         n s hs z hz
-  | .inl (.inl (.inl (.inl (.inr t)))), s, hs, H, z, hz =>
+  | OSendArleak, s, hs, H, z, hz =>
       traceSendAt_traceInv hMac irl e kp ec true true s hs hkp
         (fun c a hdr dec h1 h2 => H c true a hdr dec h1 h2) hz
-  | .inl (.inl (.inl (.inr t))), s, hs, H, z, hz =>
+  | OSendBrleak, s, hs, H, z, hz =>
       traceSendAt_traceInv hMac irl e kp ec false true s hs hkp
         (fun c a hdr dec h1 h2 => H c false a hdr dec h1 h2) hz
-  | .inl (.inl (.inr t)), s, hs, _, z, hz => traceChallengeAt_traceInv hMac m e xo t s hs z hz
-  | .inl (.inr t), s, hs, _, z, hz => traceCorruptA_preservesInv hMac true t s hs z hz
-  | .inr t, s, hs, _, z, hz => traceCorruptB_preservesInv hMac true t s hs z hz
+  | OChall t, s, hs, _, z, hz => traceChallengeAt_traceInv hMac m e xo t s hs z hz
+  | OCorruptA, s, hs, _, z, hz => traceCorruptA_preservesInv hMac true () s hs z hz
+  | OCorruptB, s, hs, _, z, hz => traceCorruptB_preservesInv hMac true () s hs z hz
 
 /-- Every query of an installed game keeps `InstInv`. -/
 theorem traceImplAt_instInv (hHdrSound : P.decHdr.Sound P.ecpHdr)
@@ -479,17 +480,17 @@ theorem keygen_hit_records (e : ℕ) (x : P.PK × P.SK) (xo : Option P.EpochKey)
     ∀ (q : (Spec P irl).Domain) (s : TraceState P), sendHit (isKeygenAt e) e q s = true →
       ∀ w ∈ support ((traceImplAt P hMac irl e (some x) none xo m q).run s),
         (w.2.transcript e).keypair ≠ none
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inl (.inr t)))))))), s, h, w, hw => by
+  | OCorrectness OSendA, s, h, w, hw => by
       have h' : isKeygenAt e (s.game.stateAt true) = true := h
       obtain ⟨a0, hst⟩ := isKeygenAt_eq_true h'
       obtain ⟨u, hu, rfl⟩ := mem_support_tracePlainAt hMac irl hw
       exact traceSendAt_keygen_records hMac irl hst x (by simp) hu
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inr t))))))), s, h, w, hw => by
+  | OCorrectness OSendB, s, h, w, hw => by
       have h' : isKeygenAt e (s.game.stateAt false) = true := h
       obtain ⟨a0, hst⟩ := isKeygenAt_eq_true h'
       obtain ⟨u, hu, rfl⟩ := mem_support_tracePlainAt hMac irl hw
       exact traceSendAt_keygen_records hMac irl hst x (by simp) hu
-  | .inl (.inl (.inl (.inl (.inr t)))), s, h, w, hw => by
+  | OSendArleak, s, h, w, hw => by
       have h' : (isKeygenAt e (s.game.stateAt true) &&
           !decide ({e} ∩ s.game.challenged ≠ ∅)) = true := h
       rw [Bool.and_eq_true] at h'
@@ -497,7 +498,7 @@ theorem keygen_hit_records (e : ℕ) (x : P.PK × P.SK) (xo : Option P.EpochKey)
       obtain ⟨a0, hst⟩ := isKeygenAt_eq_true hk
       have hc : ¬ (true && decide ({e} ∩ s.game.challenged ≠ ∅)) = true := by simpa using hn
       exact traceSendAt_keygen_records hMac irl hst x hc hw
-  | .inl (.inl (.inl (.inr t))), s, h, w, hw => by
+  | OSendBrleak, s, h, w, hw => by
       have h' : (isKeygenAt e (s.game.stateAt false) &&
           !decide ({e} ∩ s.game.challenged ≠ ∅)) = true := h
       rw [Bool.and_eq_true] at h'
@@ -505,13 +506,13 @@ theorem keygen_hit_records (e : ℕ) (x : P.PK × P.SK) (xo : Option P.EpochKey)
       obtain ⟨a0, hst⟩ := isKeygenAt_eq_true hk
       have hc : ¬ (true && decide ({e} ∩ s.game.challenged ≠ ∅)) = true := by simpa using hn
       exact traceSendAt_keygen_records hMac irl hst x hc hw
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inl (.inl _)))))))), _, h, _, _ => by
+  | OCorrectness (OUnif _), _, h, _, _ => by
       simp [sendHit] at h
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inr _)))))), _, h, _, _ => by simp [sendHit] at h
-  | .inl (.inl (.inl (.inl (.inl (.inr _))))), _, h, _, _ => by simp [sendHit] at h
-  | .inl (.inl (.inr _)), _, h, _, _ => by simp [sendHit] at h
-  | .inl (.inr _), _, h, _, _ => by simp [sendHit] at h
-  | .inr _, _, h, _, _ => by simp [sendHit] at h
+  | OCorrectness (ORecvA _), _, h, _, _ => by simp [sendHit] at h
+  | OCorrectness (ORecvB _), _, h, _, _ => by simp [sendHit] at h
+  | OChall _, _, h, _, _ => by simp [sendHit] at h
+  | OCorruptA, _, h, _, _ => by simp [sendHit] at h
+  | OCorruptB, _, h, _, _ => by simp [sendHit] at h
 
 /-- A hit first-stage encapsulation records the installed sample. -/
 theorem encaps1_hit_records (e : ℕ) (kp : Option (P.PK × P.SK))
@@ -519,17 +520,17 @@ theorem encaps1_hit_records (e : ℕ) (kp : Option (P.PK × P.SK))
     ∀ (q : (Spec P irl).Domain) (s : TraceState P), sendHit (isEncaps1At e) e q s = true →
       ∀ w ∈ support ((traceImplAt P hMac irl e kp (some c) xo m q).run s),
         (w.2.transcript e).encaps1 ≠ none
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inl (.inr t)))))))), s, h, w, hw => by
+  | OCorrectness OSendA, s, h, w, hw => by
       have h' : isEncaps1At e (s.game.stateAt true) = true := h
       obtain ⟨a0, hdr, dec, hst⟩ := isEncaps1At_eq_true h'
       obtain ⟨u, hu, rfl⟩ := mem_support_tracePlainAt hMac irl hw
       exact traceSendAt_encaps1_records hMac irl hst kp c (by simp) hu
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inr t))))))), s, h, w, hw => by
+  | OCorrectness OSendB, s, h, w, hw => by
       have h' : isEncaps1At e (s.game.stateAt false) = true := h
       obtain ⟨a0, hdr, dec, hst⟩ := isEncaps1At_eq_true h'
       obtain ⟨u, hu, rfl⟩ := mem_support_tracePlainAt hMac irl hw
       exact traceSendAt_encaps1_records hMac irl hst kp c (by simp) hu
-  | .inl (.inl (.inl (.inl (.inr t)))), s, h, w, hw => by
+  | OSendArleak, s, h, w, hw => by
       have h' : (isEncaps1At e (s.game.stateAt true) &&
           !decide ({e} ∩ s.game.challenged ≠ ∅)) = true := h
       rw [Bool.and_eq_true] at h'
@@ -537,7 +538,7 @@ theorem encaps1_hit_records (e : ℕ) (kp : Option (P.PK × P.SK))
       obtain ⟨a0, hdr, dec, hst⟩ := isEncaps1At_eq_true hk
       have hc : ¬ (true && decide ({e} ∩ s.game.challenged ≠ ∅)) = true := by simpa using hn
       exact traceSendAt_encaps1_records hMac irl hst kp c hc hw
-  | .inl (.inl (.inl (.inr t))), s, h, w, hw => by
+  | OSendBrleak, s, h, w, hw => by
       have h' : (isEncaps1At e (s.game.stateAt false) &&
           !decide ({e} ∩ s.game.challenged ≠ ∅)) = true := h
       rw [Bool.and_eq_true] at h'
@@ -545,13 +546,13 @@ theorem encaps1_hit_records (e : ℕ) (kp : Option (P.PK × P.SK))
       obtain ⟨a0, hdr, dec, hst⟩ := isEncaps1At_eq_true hk
       have hc : ¬ (true && decide ({e} ∩ s.game.challenged ≠ ∅)) = true := by simpa using hn
       exact traceSendAt_encaps1_records hMac irl hst kp c hc hw
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inl (.inl _)))))))), _, h, _, _ => by
+  | OCorrectness (OUnif _), _, h, _, _ => by
       simp [sendHit] at h
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inr _)))))), _, h, _, _ => by simp [sendHit] at h
-  | .inl (.inl (.inl (.inl (.inl (.inr _))))), _, h, _, _ => by simp [sendHit] at h
-  | .inl (.inl (.inr _)), _, h, _, _ => by simp [sendHit] at h
-  | .inl (.inr _), _, h, _, _ => by simp [sendHit] at h
-  | .inr _, _, h, _, _ => by simp [sendHit] at h
+  | OCorrectness (ORecvA _), _, h, _, _ => by simp [sendHit] at h
+  | OCorrectness (ORecvB _), _, h, _, _ => by simp [sendHit] at h
+  | OChall _, _, h, _, _ => by simp [sendHit] at h
+  | OCorruptA, _, h, _, _ => by simp [sendHit] at h
+  | OCorruptB, _, h, _, _ => by simp [sendHit] at h
 
 end Dispatch
 

@@ -583,7 +583,7 @@ theorem MLKEMBraid.NoAuth.security (P : Parameters ProbComp)
 def SendQueryBound {P : Parameters ProbComp}
     {irl : P.kem.IncrementalRandLeak P.inc}
     (A : Adversary P irl) (qS : ℕ) : Prop :=
-  A.IsQueryBoundP (fun t => isSendQuery (P := P) (irl := irl) t = true) qS
+  A.IsQueryBoundP (fun t => SCKAScheme.sckaSecuritySpec.isSendQuery t = true) qS
 ```
 
 :::leanPillCaption "IND-CPA adversary B"
@@ -614,16 +614,12 @@ def kdfMixReduction (A : Adversary P irl) (q : ℕ) : KDFContextAdversary P wher
 :::leanPillCaption "key-derivation game and advantage"
 :::
 
-```anchor kdfGame (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security.Games)
+```anchor kdfGame (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security.KDFGame)
 def kdfExp (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
     (e : ℕ) (D : P.EpochKey → ProbComp Bool) (derived : Bool) : ProbComp Bool :=
-  if derived then do
-    let u ← $ᵗ P.K
-    D (P.kdfOK u e)
-  else do
-    let x ← $ᵗ P.EpochKey
-    D x
+  if derived then PRGScheme.prgRealExperiment ⟨(P.kdfOK · e)⟩ D
+  else PRGScheme.prgIdealExperiment D
 
 /-- A key-derivation distinguisher that first chooses the epoch label. -/
 structure KDFContextAdversary (P : Parameters ProbComp) where

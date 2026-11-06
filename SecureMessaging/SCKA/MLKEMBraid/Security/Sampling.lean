@@ -21,6 +21,7 @@ send result, the leaked coins, the records and the bad flag together.
 @[expose] public section
 
 open OracleSpec OracleComp
+open SCKAScheme.sckaSecuritySpec SCKAScheme.sckaCorrectnessSpec
 open ErasureCodePayload.Streaming
 
 namespace MLKEMBraid.NoAuth
@@ -106,19 +107,19 @@ def sendElim (P : Parameters ProbComp) (irl : P.kem.IncrementalRandLeak P.inc) :
     (fun _ => false) (fun _ => true)) (fun _ => true)) (fun _ => false)) (fun _ => false))
     (fun _ => true)) (fun _ => true)) (fun _ => false)) (fun _ => false)) (fun _ => false)
 
-/-- `isSendQuery` selects the four send components of `traceImpl`. -/
+/-- `sckaSecuritySpec.isSendQuery` selects the four send components of `traceImpl`. -/
 theorem isSendQuery_eq_sendElim (irl : P.kem.IncrementalRandLeak P.inc) :
-    ∀ t : (Spec P irl).Domain, isSendQuery t = sendElim P irl t
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inl (.inl _)))))))) => rfl
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inl (.inr _)))))))) => rfl
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inr _))))))) => rfl
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inr _)))))) => rfl
-  | .inl (.inl (.inl (.inl (.inl (.inr _))))) => rfl
-  | .inl (.inl (.inl (.inl (.inr _)))) => rfl
-  | .inl (.inl (.inl (.inr _))) => rfl
-  | .inl (.inl (.inr _)) => rfl
-  | .inl (.inr _) => rfl
-  | .inr _ => rfl
+    ∀ t : (Spec P irl).Domain, SCKAScheme.sckaSecuritySpec.isSendQuery t = sendElim P irl t
+  | OCorrectness (OUnif _) => rfl
+  | OCorrectness OSendA => rfl
+  | OCorrectness OSendB => rfl
+  | OCorrectness (ORecvA _) => rfl
+  | OCorrectness (ORecvB _) => rfl
+  | OSendArleak => rfl
+  | OSendBrleak => rfl
+  | OChall _ => rfl
+  | OCorruptA => rfl
+  | OCorruptB => rfl
 
 /-- The key-generation send of epoch `t` with the key pair `(pk, sk)`: the result of the
 key-generation branch of `sendRleak`. -/
