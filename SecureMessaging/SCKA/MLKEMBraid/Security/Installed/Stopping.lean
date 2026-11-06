@@ -374,13 +374,6 @@ theorem signedGap_stop (m m' : ℕ → Mode) (e : ℕ) (hm : ∀ t, t ≠ e → 
 
 end Stopping
 
-/-- A stopped oracle step depends only on the oracle's step. -/
-private theorem stopOnState_run_congr {ι σ : Type} {spec : OracleSpec ι}
-    {impl impl' : QueryImpl spec (StateT σ ProbComp)} (stop : σ → Bool) {t : spec.Domain} {s : σ}
-    (h : (impl t).run s = (impl' t).run s) :
-    ((stopOnState impl stop t).run).run s = ((stopOnState impl' stop t).run).run s := by
-  rw [OracleComp.stopOnState_run_eq_map, OracleComp.stopOnState_run_eq_map, h]
-
 section ChallengeSample
 
 /-- The eligible challenge of epoch `e`: unexposed, unchallenged, with an available key. -/
@@ -465,7 +458,8 @@ private theorem chalSample_step (e : ℕ) (kp : Option (P.PK × P.SK))
     have heq : ∀ x, ((stopOnState (traceImplAt P hMac irl e kp ec (some x) mode)
         (targetStop e) q).run).run s =
         ((stopOnState (traceImplAt P hMac irl e kp ec none mode) (targetStop e) q).run).run s :=
-      fun x => stopOnState_run_congr _ (traceImplAt_offHit hMac irl e kp ec mode x q s hq')
+      fun x => OracleComp.stopOnState_run_congr _
+        (traceImplAt_offHit hMac irl e kp ec mode x q s hq')
     simp only [heq]
     exact (EvalDistEq.bind_const _ _).symm
 

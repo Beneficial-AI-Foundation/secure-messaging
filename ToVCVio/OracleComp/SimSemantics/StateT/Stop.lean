@@ -262,6 +262,13 @@ theorem stopped_congr {ι σ : Type} {spec : OracleSpec ι}
   rw [stopOnState_run_eq_map, stopOnState_run_eq_map]
   exact h.map _
 
+/-- A stopped oracle step depends only on the oracle's step. -/
+theorem stopOnState_run_congr {ι σ : Type} {spec : OracleSpec ι}
+    {impl impl' : QueryImpl spec (StateT σ ProbComp)} (stop : σ → Bool) {t : spec.Domain} {s : σ}
+    (h : (impl t).run s = (impl' t).run s) :
+    ((stopOnState impl stop t).run).run s = ((stopOnState impl' stop t).run).run s := by
+  rw [stopOnState_run_eq_map, stopOnState_run_eq_map, h]
+
 /-- Stopping commutes with sampling a parameter before a single oracle step. -/
 theorem stopped_bind {ι σ α : Type} {spec : OracleSpec ι}
     (sample : ProbComp α)

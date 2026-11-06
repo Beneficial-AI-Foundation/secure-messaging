@@ -79,29 +79,23 @@ theorem kemMixReduction_signed_gap (A : Adversary P irl) (q : ℕ) (hq : q ≠ 0
         (kemReduction P hMac irl A (i.val + 1)) true)}[x = true]).toReal -
        (Pr{let x ← (P.kem.IND_CPA_Experiment ProbCompRuntime.probComp
         (kemReduction P hMac irl A (i.val + 1)) false)}[x = true]).toReal) := by
-  have hb : ∀ b : Bool,
-      (Pr{let x ← (P.kem.IND_CPA_Experiment ProbCompRuntime.probComp
-        (kemMixReduction P hMac irl A q) b)}[x = true]).toReal =
-      (q : ℝ)⁻¹ * ∑ i : Fin q,
-        (Pr{let x ← (P.kem.IND_CPA_Experiment ProbCompRuntime.probComp
-          (kemReduction P hMac irl A (i.val + 1)) b)}[x = true]).toReal := by
+  -- Key generation does not depend on the epoch, so the epoch can be drawn first.
+  have hb : ∀ b : Bool, Pr{let x ← (P.kem.IND_CPA_Experiment ProbCompRuntime.probComp
+      (kemMixReduction P hMac irl A q) b)}[x = true] =
+      Pr{let x ← (do
+        let e ← epochChoice q
+        P.kem.IND_CPA_Experiment ProbCompRuntime.probComp
+          (kemReduction P hMac irl A e) b)}[x = true] := by
     intro b
-    -- Key generation does not depend on the epoch, so the epoch can be drawn first.
-    have hswap : Pr{let x ← (P.kem.IND_CPA_Experiment ProbCompRuntime.probComp
-        (kemMixReduction P hMac irl A q) b)}[x = true] =
-        Pr{let x ← (do
-          let e ← epochChoice q
-          P.kem.IND_CPA_Experiment ProbCompRuntime.probComp
-            (kemReduction P hMac irl A e) b)}[x = true] := by
-      refine EvalDistEq.prEvent_eq ?_ _
-      unfold KEMScheme.IND_CPA_Experiment
-      simp only [kemMixReduction, ProbCompRuntime.probComp,
-        ProbCompRuntime.liftProbComp, ProbCompLift.id, bind_assoc, pure_bind]
-      refine (OracleComp.EvalDistEq.bind_bind_swap P.kem.keygen (epochChoice q) _).trans ?_
-      refine EvalDistEq.bind_right _ fun e => ?_
-      rcases e with _ | e <;> simp only [kemReduction, pure_bind] <;> exact EvalDistEq.rfl
-    rw [hswap, toReal_prEvent_epochChoice_bind q hq]
-  rw [hb true, hb false, Finset.sum_sub_distrib, mul_sub]
+    refine EvalDistEq.prEvent_eq ?_ _
+    unfold KEMScheme.IND_CPA_Experiment
+    simp only [kemMixReduction, ProbCompRuntime.probComp,
+      ProbCompRuntime.liftProbComp, ProbCompLift.id, bind_assoc, pure_bind]
+    refine (OracleComp.EvalDistEq.bind_bind_swap P.kem.keygen (epochChoice q) _).trans ?_
+    refine EvalDistEq.bind_right _ fun e => ?_
+    rcases e with _ | e <;> simp only [kemReduction, pure_bind] <;> exact EvalDistEq.rfl
+  rw [hb true, hb false]
+  exact toReal_prEvent_epochChoice_bind_sub q hq _ _ _
 
 /-- For `q ≠ 0`, the probability that `kdfMixReduction A q` outputs `true` in `kdfContextExp` on a
 derived key, minus the same probability on a uniform epoch key, is the average over
@@ -114,15 +108,8 @@ theorem kdfMixReduction_signed_gap (A : Adversary P irl) (q : ℕ) (hq : q ≠ 0
         (kdfReduction P hMac irl A (i.val + 1)) true)}[x = true]).toReal -
        (Pr{let x ← (kdfExp P (i.val + 1)
         (kdfReduction P hMac irl A (i.val + 1)) false)}[x = true]).toReal) := by
-  have hd : ∀ derived : Bool,
-      (Pr{let x ← kdfContextExp P (kdfMixReduction P hMac irl A q) derived}[x = true]).toReal =
-      (q : ℝ)⁻¹ * ∑ i : Fin q,
-        (Pr{let x ← (kdfExp P (i.val + 1)
-          (kdfReduction P hMac irl A (i.val + 1)) derived)}[x = true]).toReal := by
-    intro derived
-    simp only [kdfContextExp, kdfMixReduction, bind_assoc, pure_bind]
-    exact toReal_prEvent_epochChoice_bind q hq _ _
-  rw [hd true, hd false, Finset.sum_sub_distrib, mul_sub]
+  simp only [kdfContextExp, kdfMixReduction, bind_assoc, pure_bind]
+  exact toReal_prEvent_epochChoice_bind_sub q hq _ _ _
 
 /-! ## Telescoping over the hybrids -/
 

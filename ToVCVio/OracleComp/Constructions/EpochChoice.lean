@@ -41,4 +41,14 @@ theorem toReal_prEvent_epochChoice_bind {α : Type} (q : ℕ) (hq : q ≠ 0) (X 
   rw [ENNReal.toReal_mul, ENNReal.toReal_inv, ENNReal.toReal_natCast,
     ENNReal.toReal_sum (fun _ _ => prEvent_ne_top _)]
 
+/-- For `q ≠ 0`, the difference of two probabilities after the draw `e ← epochChoice q` is the
+average over `e ∈ {1, …, q}` of the differences at `e`. -/
+theorem toReal_prEvent_epochChoice_bind_sub {α : Type} (q : ℕ) (hq : q ≠ 0)
+    (X Y : ℕ → ProbComp α) (p : α → Prop) :
+    (Pr{let x ← epochChoice q >>= X}[p x]).toReal - (Pr{let x ← epochChoice q >>= Y}[p x]).toReal =
+      (q : ℝ)⁻¹ * ∑ i : Fin q,
+        ((Pr{let x ← X (i.val + 1)}[p x]).toReal - (Pr{let x ← Y (i.val + 1)}[p x]).toReal) := by
+  rw [toReal_prEvent_epochChoice_bind q hq X p, toReal_prEvent_epochChoice_bind q hq Y p,
+    Finset.sum_sub_distrib, mul_sub]
+
 end ToVCVio
