@@ -27,8 +27,9 @@ and decapsulation `Decaps(sk, c)`, which recovers the shared secret from the cip
   public-key vector, and the two ciphertext components) that are sound for their erasure codes
   (`StreamDecoder.Sound`);
 - the exposure functions `nativeExposure P irl` for both parties: corrupting a party exposes its
-  current epoch, except before key generation, while it awaits a header, and between receiving a
-  header and the first stage of encapsulation (`vuln`); a send that reveals its random coins
+  current epoch, except before key generation, while it awaits a header, between receiving a
+  header and the first stage of encapsulation, and after the second stage of encapsulation
+  (`vuln`); a send that reveals its random coins
   exposes the current epoch when it generates a key pair or performs the first stage of
   encapsulation (`sendExposure`);
 - an adversary `A : Adversary P irl` making at most `q` send requests to the two parties in

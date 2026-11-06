@@ -48,12 +48,13 @@ def scheme (P : Parameters ProbComp)
 -- ANCHOR_END: noAuthScheme
 
 /-- The epochs that revealing the local state exposes: none before key generation, while
-awaiting a header, or after receiving a header and before first-stage encapsulation. Otherwise
-the current epoch. -/
+awaiting a header, after receiving a header and before first-stage encapsulation, or after the
+second stage of encapsulation, when the state keeps only the encoder of `ct₂` (`ct2Sampled`).
+Otherwise the current epoch. -/
 -- ANCHOR: noAuthVuln
 def vuln {P : Parameters ProbComp} (st : State P Unit) : Finset ℕ :=
   match st with
-  | .keysUnsampled .. | .noHeaderReceived .. | .headerReceived .. => ∅
+  | .keysUnsampled .. | .noHeaderReceived .. | .headerReceived .. | .ct2Sampled .. => ∅
   | _ => {st.epoch}
 -- ANCHOR_END: noAuthVuln
 

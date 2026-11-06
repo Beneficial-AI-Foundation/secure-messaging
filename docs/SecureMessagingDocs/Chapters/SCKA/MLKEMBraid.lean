@@ -423,7 +423,7 @@ following exposure functions for both parties. Let $`\mathsf{st}` be a local sta
 the randomness of a send. Then
 
 $$`\mathsf{vuln}^{\mathsf{corr}}(\mathsf{st})=\begin{cases}
-\emptyset & \mathsf{st}\text{ is }\mathsf{keysUnsampled},\ \mathsf{noHeaderReceived}\text{ or }\mathsf{headerReceived},\\
+\emptyset & \mathsf{st}\text{ is }\mathsf{keysUnsampled},\ \mathsf{noHeaderReceived},\ \mathsf{headerReceived}\text{ or }\mathsf{ct2Sampled},\\
 \{\mathsf{ep}(\mathsf{st})\} & \text{otherwise},\end{cases}`
 
 $$`\mathsf{vuln}^{\mathsf{rleak}}(\mathsf{st},r)=\begin{cases}
@@ -431,7 +431,9 @@ $$`\mathsf{vuln}^{\mathsf{rleak}}(\mathsf{st},r)=\begin{cases}
 \emptyset & r=\mathsf{none}.\end{cases}`
 
 That is, a corruption exposes the current epoch of the party, except before key generation, while
-the party waits for a header, and between receiving a header and the first stage of encapsulation.
+the party waits for a header, between receiving a header and the first stage of encapsulation, and
+after the second stage of encapsulation, when the party keeps only the encoder of the second
+ciphertext component.
 A send that reveals its randomness exposes its epoch if it generates a key pair or runs the first
 stage of encapsulation.
 
@@ -446,7 +448,7 @@ This is the exposure rule of {Informal.citet SCKA25}[], Figure 1.
 ```anchor noAuthVuln (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security.NoAuth)
 def vuln {P : Parameters ProbComp} (st : State P Unit) : Finset ℕ :=
   match st with
-  | .keysUnsampled .. | .noHeaderReceived .. | .headerReceived .. => ∅
+  | .keysUnsampled .. | .noHeaderReceived .. | .headerReceived .. | .ct2Sampled .. => ∅
   | _ => {st.epoch}
 ```
 
