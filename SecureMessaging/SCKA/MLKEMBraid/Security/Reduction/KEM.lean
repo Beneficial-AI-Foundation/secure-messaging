@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.Projection
-import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Sampling
-import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.Projection
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Sampling
+public import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
 
 /-!
 # The IND-CPA experiments of the KEM reduction
@@ -16,6 +18,8 @@ games with the key pair and the first-stage encapsulation of `e` installed. Inst
 once removes it again. Stopping at the exposure of `e` then identifies the difference between the
 two experiments with the difference between adjacent hybrids (`kem_signed_gap_eq`).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 open ErasureCodePayload.Streaming

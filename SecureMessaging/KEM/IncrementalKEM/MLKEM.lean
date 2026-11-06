@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.IncrementalKEM.Defs
-import LatticeCrypto.MLKEM.KEM
+module
+
+public import SecureMessaging.KEM.IncrementalKEM.Defs
+public import LatticeCrypto.MLKEM.KEM
 
 /-!
 # Encoding-polymorphic incremental ML-KEM
@@ -14,6 +16,8 @@ This module defines incremental ML-KEM for any byte encoding `encoding`. The two
 stages use the samplers of ML-KEM. Only the encoded public vector and the encoded ciphertext
 components depend on `encoding`.
 -/
+
+@[expose] public section
 
 open OracleComp KEMScheme LatticeCrypto
 

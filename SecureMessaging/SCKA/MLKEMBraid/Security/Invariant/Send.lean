@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Security.Invariant.Basic
-import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.SendInvariant
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Invariant.Basic
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.SendInvariant
 
 /-!
 # Sends preserve the repaired invariant
@@ -17,6 +19,8 @@ pair or runs the first stage of encapsulation adds its sample to the transcript.
 invariant holds after every send of the trace game. Decapsulation agreement holds after the send
 while the bad flag stays false.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 open ErasureCodePayload.Streaming

@@ -4,12 +4,14 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Basic
-import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
-import ToVCVio.OracleComp.SimSemantics.StateT.Stop
-import ToVCVio.OracleComp.QueryTracking.OneUseSampling
-import VCVio.OracleComp.SimSemantics.StateT.StateProjection
-import ToVCVio.OracleComp.SimSemantics.StateT.QueryImplAdd
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Basic
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
+public import ToVCVio.OracleComp.SimSemantics.StateT.Stop
+public import ToVCVio.OracleComp.QueryTracking.OneUseSampling
+public import VCVio.OracleComp.SimSemantics.StateT.StateProjection
+public import ToVCVio.OracleComp.SimSemantics.StateT.QueryImplAdd
 
 /-!
 # Stopping at exposure and installing the challenge value
@@ -20,6 +22,8 @@ exposure of `e` keeps the difference of their acceptance probabilities (`signedG
 Sampling the challenge value of `e` once before the run gives the same distribution as sampling
 it at the challenge (`stoppedRun_chalSample`).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 open ErasureCodePayload.Streaming

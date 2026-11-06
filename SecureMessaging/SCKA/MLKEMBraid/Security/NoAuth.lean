@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.Exposure
-import SecureMessaging.SCKA.MLKEMBraid.Construction
+module
+
+public import SecureMessaging.SCKA.Exposure
+public import SecureMessaging.SCKA.MLKEMBraid.Construction
 
 /-!
 # Braid without internal authentication
@@ -15,6 +17,8 @@ The authenticator keeps no state, emits unit tags and accepts every tag. The exp
 runs the first stage of encapsulation. On every send output that the protocol can produce, this
 policy agrees with the rule `vuln st' \ vuln st` (`sendExposure_eq_delta`).
 -/
+
+@[expose] public section
 
 open OracleComp
 

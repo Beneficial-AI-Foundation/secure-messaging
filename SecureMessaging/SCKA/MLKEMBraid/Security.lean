@@ -4,11 +4,13 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Security.Bounds
-import SecureMessaging.SCKA.MLKEMBraid.Security.Hybrids
-import SecureMessaging.SCKA.MLKEMBraid.Security.Risk
-import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.Average
-import SecureMessaging.SCKA.MLKEMBraid.BoundedInstances
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Bounds
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Hybrids
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Risk
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.Average
+public import SecureMessaging.SCKA.MLKEMBraid.BoundedInstances
 
 /-!
 # Security of ML-KEM Braid without internal authentication
@@ -158,6 +160,8 @@ Paths are relative to `MLKEMBraid/Security/`.
 Supporting modules: `NoAuth` (authenticator and exposure policy), `Games` (games and hybrids),
 `Reduction/Simulator` (the simulation that `ℬ_e` runs), ToVCVio (`epochChoice`, stopping).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 

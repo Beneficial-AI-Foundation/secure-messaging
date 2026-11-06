@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.ProjectionBasic
-import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Basic
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.ProjectionBasic
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Basic
 
 /-!
 # Sends of the simulator
@@ -15,6 +17,8 @@ challenge. Other sends of an ordinary state agree with the trace send on the sim
 masked state sends the same chunks. Each equality compares the joint distribution of the answer
 and the next state.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 open ErasureCodePayload.Streaming

@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.ProgramLogic.Unary.WP
-import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
+module
+
+public import ToVCVio.ProgramLogic.Unary.WP
+public import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 
 /-!
 # Query-wise facts over a sum of stateful implementations
@@ -17,6 +19,8 @@ this for the step properties used in hybrid arguments: a counter bound, a relati
 states before and after a query, an equality of runs, a projection of the state, and an
 expected-payoff bound.
 -/
+
+@[expose] public section
 
 open OracleSpec ENNReal
 open OracleComp.ProgramLogic

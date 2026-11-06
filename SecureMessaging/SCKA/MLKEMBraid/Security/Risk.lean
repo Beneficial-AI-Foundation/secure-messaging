@@ -4,12 +4,14 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Security.Trace
-import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
-import SecureMessaging.KEM.IncrementalKEM.Correctness
-import ToVCVio.ProgramLogic.Unary.WP
-import ToVCVio.OracleComp.SimSemantics.StateT.WPBound
-import ToVCVio.OracleComp.SimSemantics.StateT.QueryImplAdd
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Trace
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
+public import SecureMessaging.KEM.IncrementalKEM.Correctness
+public import ToVCVio.ProgramLogic.Unary.WP
+public import ToVCVio.OracleComp.SimSemantics.StateT.WPBound
+public import ToVCVio.OracleComp.SimSemantics.StateT.QueryImplAdd
 
 /-!
 # Conditional decapsulation risk and the bad-event bound
@@ -18,6 +20,8 @@ Key generation adds its mean failure risk. A retained key pair carries its own c
 risk until first-stage encapsulation consumes it. The score and drift argument below do not
 replace that conditional quantity by the fresh-key mean at an adaptive state.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 open ErasureCodePayload.Streaming

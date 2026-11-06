@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Security.NoAuth
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
-import ToVCVio.EvalDist.BoolDist
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Security.NoAuth
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
+public import ToVCVio.EvalDist.BoolDist
 
 /-!
 # No-authentication Braid security games
@@ -19,6 +21,8 @@ protocol can produce. It uses neither correctness nor any property of the advers
 The trace game `traceImpl` runs the same security interface on a `TraceState`: the actual game
 state, records of the sampled key pairs and first-stage encapsulations, and a bad flag.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 

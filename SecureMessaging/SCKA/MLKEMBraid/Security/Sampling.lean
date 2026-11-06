@@ -4,10 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Security.Games
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.SendPayload
-import SecureMessaging.SCKA.Correctness
-import SecureMessaging.SCKA.Security
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Games
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.SendPayload
+public import SecureMessaging.SCKA.Correctness
+public import SecureMessaging.SCKA.Security
 
 /-!
 # Joint sampling and elementary trace transitions
@@ -15,6 +17,8 @@ import SecureMessaging.SCKA.Security
 This module rewrites the sends of the trace game for each kind of sample. Each equation keeps the
 send result, the leaked coins, the records and the bad flag together.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 open ErasureCodePayload.Streaming

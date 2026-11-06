@@ -4,7 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import LatticeCrypto.MLKEM.Concrete.Encoding
+module
+
+public import LatticeCrypto.MLKEM.Concrete.Encoding
+import all LatticeCrypto.MLKEM.Concrete.Encoding
 
 /-!
 # Output lengths of concrete ML-KEM encodings
@@ -13,6 +16,8 @@ These lengths hold for every input, including zero widths and zero vector length
 read the output of the concrete encoder directly. They use no ring laws, no conditions on
 canonical inputs and no correctness of the primitives.
 -/
+
+@[expose] public section
 
 namespace MLKEM.Concrete
 

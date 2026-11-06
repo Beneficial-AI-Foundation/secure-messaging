@@ -4,12 +4,14 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.MLKEM.Bounded
-import SecureMessaging.KEM.IncrementalKEM.MLKEM
-import SecureMessaging.ErasureCode.SPQRReedSolomon.Payload
-import SecureMessaging.ErasureCode.SPQRReedSolomon.Correctness
-import SecureMessaging.ErasureCode.Payload
-import SecureMessaging.SCKA.MLKEMBraid.Construction
+module
+
+public import SecureMessaging.KEM.MLKEM.Bounded
+public import SecureMessaging.KEM.IncrementalKEM.MLKEM
+public import SecureMessaging.ErasureCode.SPQRReedSolomon.Payload
+public import SecureMessaging.ErasureCode.SPQRReedSolomon.Correctness
+public import SecureMessaging.ErasureCode.Payload
+public import SecureMessaging.SCKA.MLKEMBraid.Construction
 
 /-!
 # Bounded ML-KEM Braid parameters
@@ -17,6 +19,8 @@ import SecureMessaging.SCKA.MLKEMBraid.Construction
 The four payloads use bijective byte representations and the abstract SPQR Reed–Solomon code.
 Decoding inverts encoding for every bounded payload, with no condition of canonical encoding.
 -/
+
+@[expose] public section
 
 namespace MLKEMBraid.Bounded
 

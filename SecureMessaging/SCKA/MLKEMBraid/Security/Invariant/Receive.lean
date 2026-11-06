@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Security.Invariant.Basic
-import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.ReceiveInvariant
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Invariant.Basic
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.ReceiveInvariant
 
 /-!
 # Receives preserve the repaired invariant
@@ -16,6 +18,8 @@ the second ciphertext component at the key generator. In the second case the rep
 outputs the recorded key. The invariant holds after both kinds of receive. The proof of the
 second case does not assume that decapsulation succeeds.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 open ErasureCodePayload.Streaming

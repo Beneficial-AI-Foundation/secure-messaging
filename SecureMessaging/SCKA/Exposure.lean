@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.Defs
+module
+
+public import SecureMessaging.SCKA.Defs
 
 /-!
 # Explicit SCKA exposure policies
@@ -21,6 +23,8 @@ exposes and the old state does not. This module keeps that rule available, so th
 proof can relate its game to [SCKA, Fig. 1]. The ML-KEM Braid proof does this in
 `MLKEMBraid.NoAuth.securityGame_equiv_delta`.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 

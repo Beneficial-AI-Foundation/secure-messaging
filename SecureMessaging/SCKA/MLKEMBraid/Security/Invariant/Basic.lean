@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Security.Games
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Games
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
 
 /-!
 # The repaired transcript invariant
@@ -15,6 +17,8 @@ payloads and the output keys agree with the transcript. `DecapsGood` is the extr
 decapsulation of every recorded encapsulation gives its key. The module also proves that the
 invariant ignores the exposed and challenged epochs.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 open ErasureCodePayload.Streaming

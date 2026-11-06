@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.Receive
-import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.Send
-import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Trace
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.Receive
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.Send
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Trace
 
 /-!
 # The simulator and the installed trace game
@@ -17,6 +19,8 @@ challenges. So each query of the simulator agrees with the query of the installe
 the simulator view of the state. The ToVCVio result `prEvent_optionRun_eq_of_state_map` on runs
 and maps of states then gives the same acceptance probability for the stopped runs.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 open ErasureCodePayload.Streaming

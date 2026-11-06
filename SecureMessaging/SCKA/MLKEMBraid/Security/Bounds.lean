@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.Security
-import SecureMessaging.SCKA.MLKEMBraid.Security.Games
+module
+
+public import SecureMessaging.SCKA.Security
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Games
 
 /-!
 # The native exposure functions
@@ -16,6 +18,8 @@ With these functions, the SCKA security game and the game with the policy `expos
 computation, for either bit and every query (`securityImpl_eq_native`, `fixed_eq_native`,
 `securityGame_equiv_native`).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 

@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.OracleComp.Constructions.EpochChoice
-import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.KEM
-import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.KDF
+module
+
+public import ToVCVio.OracleComp.Constructions.EpochChoice
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.KEM
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.KDF
 
 /-!
 # Reductions that choose the epoch at random
@@ -26,6 +28,8 @@ over `e ∈ {1, …, q}` of the same difference for the reduction at `e`
 up to the difference between two consecutive hybrids, so their sum over `e` telescopes
 (`hybrid_gap_eq_query_factor`).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal ToVCVio
 

@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
-import ToVCVio.OracleComp.SimSemantics.StateT.Stop
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
+public import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 
 /-!
 # The simulator of the KEM reduction
@@ -15,6 +17,8 @@ epoch `e` the simulator does not know the decapsulation key or the encapsulation
 keeps the states of `e` without them (masked states). This module defines the simulator and the
 reduction.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 open ErasureCodePayload.Streaming

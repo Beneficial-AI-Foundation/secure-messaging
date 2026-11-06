@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.ProjectionBasic
-import SecureMessaging.SCKA.MLKEMBraid.Security.Invariant.Receive
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.ProjectionBasic
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Invariant.Receive
 
 /-!
 # Receives of the simulator
@@ -15,6 +17,8 @@ state it hides. The payload invariant identifies the second ciphertext component
 keeps. The repaired completion outputs the test key, and the proof does not assume that
 decapsulation succeeds.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 open ErasureCodePayload.Streaming

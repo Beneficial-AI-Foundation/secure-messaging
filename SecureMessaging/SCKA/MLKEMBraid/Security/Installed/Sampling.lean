@@ -4,11 +4,13 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Trace
-import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Stopping
-import ToVCVio.OracleComp.QueryTracking.OneUseSampling
-import VCVio.ProgramLogic.Relational.Quantitative
-import ToVCVio.OracleComp.EvalDist
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Trace
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Stopping
+public import ToVCVio.OracleComp.QueryTracking.OneUseSampling
+public import VCVio.ProgramLogic.Relational.Quantitative
+public import ToVCVio.OracleComp.EvalDist
 
 /-!
 # Sampling the key pair and the first-stage encapsulation once
@@ -19,6 +21,8 @@ of send, including refused leaking sends and stopping at the exposure of `e`. Th
 whole runs then follows from the one-use installation result of ToVCVio, because a query keeps
 the records and the first use of a sample records it.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 open ErasureCodePayload.Streaming

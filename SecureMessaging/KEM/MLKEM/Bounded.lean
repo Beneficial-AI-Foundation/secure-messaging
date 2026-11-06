@@ -4,9 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.MLKEM.Encoding
-import SecureMessaging.KEM.MLKEM.Construction
-import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
+module
+
+public import SecureMessaging.KEM.MLKEM.Encoding
+public import SecureMessaging.KEM.MLKEM.Construction
+public import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
+import all Extern.MLKEM.Instance
 
 /-!
 # Fixed-length byte representations of ML-KEM
@@ -16,6 +19,8 @@ the length and keeps the bytes. The primitive functions are the supplied raw fun
 with this forgetful map. A raw input is admissible if it has the exact length. Admissibility does
 not check canonical encoding, hashes or membership in the image of key generation.
 -/
+
+@[expose] public section
 
 open OracleComp KEMScheme
 

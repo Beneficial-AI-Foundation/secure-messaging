@@ -4,14 +4,16 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.EvalDist.BoolDist
-import SecureMessaging.SCKA.MLKEMBraid.Security.Invariant.Send
-import SecureMessaging.SCKA.MLKEMBraid.Security.Invariant.Receive
-import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
-import VCVio.OracleComp.SimSemantics.StateT.StateProjection
-import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
-import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
-import ToVCVio.OracleComp.SimSemantics.StateT.QueryImplAdd
+module
+
+public import ToVCVio.EvalDist.BoolDist
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Invariant.Send
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Invariant.Receive
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
+public import VCVio.OracleComp.SimSemantics.StateT.StateProjection
+public import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
+public import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
+public import ToVCVio.OracleComp.SimSemantics.StateT.QueryImplAdd
 
 /-!
 # The trace invariant and the real game
@@ -21,6 +23,8 @@ Before the bad event, the real and the repaired trace games answer every query i
 Forgetting the records and the bad flag of the real trace game gives the security game `fixed`
 (`run_erase`). This needs no assumption on the stream decoders.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 open ErasureCodePayload.Streaming

@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
 
 /-!
 # Trace games with installed samples
@@ -18,6 +20,8 @@ of `Installed.Sampling` (`stoppedRun_installKeygen`, `stoppedRun_installEncaps1`
 `stoppedRun_installBoth`) compare the two games only for runs that stop at the first exposure of
 `e`. This module defines these games and proves their equations for one query.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 open ErasureCodePayload.Streaming

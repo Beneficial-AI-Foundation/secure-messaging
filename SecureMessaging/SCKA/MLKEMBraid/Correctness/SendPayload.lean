@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
 
 /-!
 # Payload preservation for sends without sampling
@@ -13,6 +15,8 @@ A send that neither generates a key pair nor runs the first stage of encapsulati
 local payload invariant and the epochs, outputs no key, and emits an honestly encoded payload.
 The proofs use only the local invariant, so they also apply to the repaired security game.
 -/
+
+@[expose] public section
 
 open ErasureCodePayload.Streaming
 

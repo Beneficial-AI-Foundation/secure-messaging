@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Security.Trace
-import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
-import ToVCVio.OracleComp.SimSemantics.StateT.QueryImplAdd
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Trace
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
+public import ToVCVio.OracleComp.SimSemantics.StateT.QueryImplAdd
 
 /-!
 # Endpoints of the hybrids
@@ -17,6 +19,8 @@ repaired game with uniform keys (`hybrid_endpoints`). Indeed, every key that a c
 return is for a positive epoch with a recorded encapsulation. That epoch is at most the number of
 accepted sends, and the send budget bounds this number on every path.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 open ErasureCodePayload.Streaming

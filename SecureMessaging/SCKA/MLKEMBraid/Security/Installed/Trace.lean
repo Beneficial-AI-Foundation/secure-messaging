@@ -4,10 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Basic
-import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Stopping
-import SecureMessaging.SCKA.MLKEMBraid.Security.Trace
-import ToVCVio.OracleComp.SimSemantics.StateT.QueryImplAdd
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Basic
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Stopping
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Trace
+public import ToVCVio.OracleComp.SimSemantics.StateT.QueryImplAdd
 
 /-!
 # Records of the installed trace games
@@ -16,6 +18,8 @@ A query of an installed game records at most one sample, and at the selected epo
 installed sample. With the repaired trace invariant, these facts give the invariant `InstInv`
 that the installation results of `Installed.Sampling` use.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 open ErasureCodePayload.Streaming

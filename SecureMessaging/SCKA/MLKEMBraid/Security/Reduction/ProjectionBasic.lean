@@ -4,12 +4,14 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.Simulator
-import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Basic
-import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
-import ToVCVio.OracleComp.SimSemantics.StateT.Stop
-import ToVCVio.OracleComp.EvalDist
-import ToVCVio.OracleComp.SimSemantics.UnifLift
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.Simulator
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Basic
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Sampling
+public import ToVCVio.OracleComp.SimSemantics.StateT.Stop
+public import ToVCVio.OracleComp.EvalDist
+public import ToVCVio.OracleComp.SimSemantics.UnifLift
 
 /-!
 # The simulator view of a trace state
@@ -19,6 +21,8 @@ of `e` by the test key and erases the records of `e`. This module compares one q
 simulator with one query of the trace game on this view. The comparison covers the answer and the
 next state, and allows for the answers that stopping at the exposure of `e` drops.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 open ErasureCodePayload.Streaming

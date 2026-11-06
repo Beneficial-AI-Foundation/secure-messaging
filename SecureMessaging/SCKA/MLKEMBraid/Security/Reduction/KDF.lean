@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Stopping
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Security.Installed.Stopping
 
 /-!
 # The key-derivation reduction
@@ -15,6 +17,8 @@ their acceptance probabilities with the difference between the acceptance probab
 `kdfReduction A e` on a derived key and on a uniform key (`kdf_signed_gap_eq`). This equality
 does not need sound stream decoders.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 
