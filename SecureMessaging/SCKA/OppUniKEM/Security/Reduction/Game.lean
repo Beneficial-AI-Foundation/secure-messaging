@@ -4,11 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Simulator
-import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Relation
-import SecureMessaging.SCKA.Security
-import ToVCVio.OracleComp.SimSemantics.StateT.Stop
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Receive
+module
+
+public import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Relation
+public import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
 
 /-!
 # The honest intermediate game
@@ -33,6 +32,8 @@ The protocol instances and security oracles are defined as follows:
   is the *honest game* `Q_e(kemMat, kStar)`, which returns `false` on stopping and the
   adversary's output on normal completion.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme
 

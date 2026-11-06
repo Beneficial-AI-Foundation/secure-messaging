@@ -4,10 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Relation
-import ToVCVio.OracleComp.SimSemantics.StateT.Stop
-import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Game
-import SecureMessaging.SCKA.Security
+module
+
+public import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Game
 
 /-!
 # The simulation theorem
@@ -40,6 +39,8 @@ The simulation theorem is the acceptance equality (`fixedBranch_eq_honestStopped
 Pr[𝓑_e^x = true] = Pr[kemMat ← sampleMaterial leak; k ←$ K; Q_e(kemMat, k_x) = true].
 ```
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme
 

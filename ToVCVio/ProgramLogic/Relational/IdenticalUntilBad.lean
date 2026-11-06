@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.ProgramLogic.Relational.SimulateQ
+module
+
+public import VCVio.ProgramLogic.Relational.SimulateQ.UntilBad
 
 /-!
 # Output-Projected Identical-Until-Bad
@@ -14,6 +16,8 @@ between the outputs of two simulations whose implementations agree on every even
 monotone bad predicate holds. The theorem below specialises it to a bad flag stored next to the
 state and to agreement stated pointwise on good-to-good transitions.
 -/
+
+@[expose] public section
 
 open OracleComp OracleSpec ENNReal
 

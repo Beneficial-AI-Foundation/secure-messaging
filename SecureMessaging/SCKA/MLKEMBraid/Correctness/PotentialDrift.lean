@@ -4,15 +4,19 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.Risk
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.SendInvariant
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.ReceiveInvariant
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.Risk
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.SendInvariant
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.ReceiveInvariant
 
 /-!
 # Drift of the failure potential
 
 Per-query bounds for `failurePotential`, used by `MLKEMBraid.correctness_error_le`.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 open OracleComp.ProgramLogic
@@ -22,13 +26,12 @@ open ENNReal
 
 namespace MLKEMBraid
 
-variable {P : Parameters ProbComp} [DecidableEq P.K] [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+variable {P : Parameters ProbComp} [DecidableEq P.K] [DecidableEq P.EpochKey]
   {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
     P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
   (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey)
 
-omit [DecidableEq P.Sym] in
 /-- `derivedKeyFailure` is at most the indicator that decapsulation does not return the KEM
 key. -/
 private theorem derivedKeyFailure_le
@@ -49,7 +52,6 @@ private theorem derivedKeyFailure_le
   · rw [ite_eq_right hb]
     split_ifs <;> simp
 
-omit [DecidableEq P.Sym] in
 /-- The failure potential is at most `1`. -/
 private theorem failurePotential_le_one (s : GameState P AuthState) :
     failurePotential s ≤ 1 := by
@@ -70,7 +72,6 @@ private theorem failurePotential_le_one (s : GameState P AuthState) :
         | exact hrisk _ _ _
         | (split <;> first | exact zero_le_one | exact hderived _ _ _ _ _))
 
-omit [DecidableEq P.Sym] in
 /-- When `currentEpochFailure s ≠ 1`, the recorded samples at either party's epoch decapsulate to
 the recorded derived key. -/
 private theorem decaps_eq_of_currentEpochFailure_ne_one
@@ -141,10 +142,10 @@ omit [DecidableEq P.K] in
 /-- Correct decapsulation of the receiver's recorded samples keeps the correctness flag true on
 supported receive outcomes. -/
 private theorem recv_correct_of_decaps_eq
-    (hHdrCorrect : P.ecpHdr.ec.Correct)
-    (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct)
-    (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr)
+    (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1)
+    (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     {ik : InitKey} {T : ℕ → EpochTranscript P} {s : GameState P AuthState}
     (hT : TranscriptConsistent auth ik T s) (party : Bool) (n : ℕ)
     (hgood : ∀ pk sk encapsState ct1 key,
@@ -162,7 +163,7 @@ private theorem recv_correct_of_decaps_eq
   · exact hT.correct
   all_goals
     obtain ⟨r₀, hr₀, hagree⟩ :=
-      (receive_recorded_payload auth hHdrCorrect hEkCorrect hCt1Correct hCt2Correct hT party n
+      (receive_recorded_payload auth hHdrSound hEkSound hCt1Sound hCt2Sound hT party n
         msg tsnd hentry).2 hgood
   · rw [hr₀] at hraw
     cases hraw
@@ -192,7 +193,6 @@ private theorem recv_correct_of_decaps_eq
     exact ⟨⟨⟨⟨hT.correct, by simp [hrep]⟩, by simp [hnone]⟩, by simp [hpeer]⟩,
       SCKAScheme.knownPrefix_update_some hknown tI key⟩
 
-omit [DecidableEq P.Sym] in
 /-- If `party` is key-generating and its peer is not, `currentEpochFailure` is `pairFailure` of
 their states at equal epochs and `0` otherwise. -/
 private theorem currentEpochFailure_eq_pair
@@ -244,7 +244,7 @@ private theorem wp_failurePotential_send_keysUnsampled
 private theorem wp_failurePotential_send_headerReceived_le
     {ik : InitKey} {T : ℕ → EpochTranscript P} {s : GameState P AuthState}
     (hT : TranscriptConsistent auth ik T s) (party : Bool) {e : ℕ} {a : AuthState}
-    {hdr : P.inc.PKheader} {dec : DecoderState P.inc.PKvector P.Sym}
+    {hdr : P.inc.PKheader} {dec : P.decEk.D}
     (hst : (s.stateAt party) = .headerReceived e a hdr dec) :
     wp
         ((oracleSend auth irl sampleInitKey party ()).run s)
@@ -330,10 +330,10 @@ private theorem send_correct_and_currentEpochFailure_eq
 /-- With a true successor flag and unchanged epochs, a supported receive does not increase
 `currentEpochFailure`. -/
 private theorem recv_currentEpochFailure_le_of_epochs_eq
-    (hHdrCorrect : P.ecpHdr.ec.Correct)
-    (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct)
-    (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr)
+    (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1)
+    (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     {ik : InitKey} {T : ℕ → EpochTranscript P} {s : GameState P AuthState}
     (hT : TranscriptConsistent auth ik T s) (party : Bool) (n : ℕ)
     (z : Option (ℕ × Option ℕ) × GameState P AuthState)
@@ -342,18 +342,18 @@ private theorem recv_currentEpochFailure_le_of_epochs_eq
     (hzc : z.2.correct = true)
     (hepA : z.2.stA.epoch = s.stA.epoch) (hepB : z.2.stB.epoch = s.stB.epoch) :
     currentEpochFailure z.2 ≤ currentEpochFailure s := by
-  have hTz := oracleRecv_preserves_transcriptConsistent auth irl sampleInitKey hHdrCorrect
-    hEkCorrect hCt1Correct hCt2Correct hT party n z hz hzc
+  have hTz := oracleRecv_preserves_transcriptConsistent auth irl sampleInitKey hHdrSound
+    hEkSound hCt1Sound hCt2Sound hT party n z hz hzc
   rw [currentEpochFailure_eq_transcript auth hTz, currentEpochFailure_eq_transcript auth hT,
     hepA, hepB]
 
 /-- With a true successor flag, a supported receive changing a party's epoch leaves
 `currentEpochFailure = 0`. -/
 private theorem recv_currentEpochFailure_eq_zero_of_epoch_ne
-    (hHdrCorrect : P.ecpHdr.ec.Correct)
-    (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct)
-    (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr)
+    (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1)
+    (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     {ik : InitKey} {T : ℕ → EpochTranscript P} {s : GameState P AuthState}
     (hT : TranscriptConsistent auth ik T s) (party : Bool) (n : ℕ)
     (z : Option (ℕ × Option ℕ) × GameState P AuthState)
@@ -362,8 +362,8 @@ private theorem recv_currentEpochFailure_eq_zero_of_epoch_ne
     (hzc : z.2.correct = true)
     (hchange : z.2.stA.epoch ≠ s.stA.epoch ∨ z.2.stB.epoch ≠ s.stB.epoch) :
     currentEpochFailure z.2 = 0 := by
-  have hTz := oracleRecv_preserves_transcriptConsistent auth irl sampleInitKey hHdrCorrect
-    hEkCorrect hCt1Correct hCt2Correct hT party n z hz hzc
+  have hTz := oracleRecv_preserves_transcriptConsistent auth irl sampleInitKey hHdrSound
+    hEkSound hCt1Sound hCt2Sound hT party n z hz hzc
   rw [currentEpochFailure_eq_transcript_party auth hTz party]
   rcases oracleRecv_run_cases auth irl sampleInitKey party hz with
     ⟨-, rfl⟩ | ⟨msg, tsnd, err, -, -, rfl⟩ | ⟨msg, tsnd, r, hentry, hraw, hzeq⟩
@@ -432,13 +432,13 @@ private theorem wp_failurePotential_send_le
         party (by rw [hst]; trivial) z hz
       simp [failurePotential, hzc, hpot, hT.correct]
 
-/-- With correct erasure codes, either party's receive does not raise expected `failurePotential`.
+/-- With sound stream decoders, either party's receive does not raise expected `failurePotential`.
 -/
 private theorem wp_failurePotential_recv_le
-    (hHdrCorrect : P.ecpHdr.ec.Correct)
-    (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct)
-    (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr)
+    (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1)
+    (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     (ik : InitKey) (s : GameState P AuthState)
     (hs : CorrectnessInv auth ik s) (party : Bool) (n : ℕ) :
     wp
@@ -458,26 +458,26 @@ private theorem wp_failurePotential_recv_le
     -- the recorded key.
     have h : currentEpochFailure s = 1 := by
       by_contra hne
-      simpa [hzc] using recv_correct_of_decaps_eq auth irl sampleInitKey hHdrCorrect hEkCorrect
-        hCt1Correct hCt2Correct hT party n
+      simpa [hzc] using recv_correct_of_decaps_eq auth irl sampleInitKey hHdrSound hEkSound
+        hCt1Sound hCt2Sound hT party n
         (decaps_eq_of_currentEpochFailure_ne_one auth hT hne party) z hz
     simp [failurePotential, hzc, h]
   · simp only [failurePotential, hzc, ite_true]
     by_cases h : z.2.stA.epoch = s.stA.epoch ∧ z.2.stB.epoch = s.stB.epoch
-    · exact recv_currentEpochFailure_le_of_epochs_eq auth irl sampleInitKey hHdrCorrect
-        hEkCorrect hCt1Correct hCt2Correct hT party n z hz hzc h.1 h.2
-    · rw [recv_currentEpochFailure_eq_zero_of_epoch_ne auth irl sampleInitKey hHdrCorrect
-        hEkCorrect hCt1Correct hCt2Correct hT party n z hz hzc (not_and_or.mp h)]
+    · exact recv_currentEpochFailure_le_of_epochs_eq auth irl sampleInitKey hHdrSound
+        hEkSound hCt1Sound hCt2Sound hT party n z hz hzc h.1 h.2
+    · rw [recv_currentEpochFailure_eq_zero_of_epoch_ne auth irl sampleInitKey hHdrSound
+        hEkSound hCt1Sound hCt2Sound hT party n z hz hzc (not_and_or.mp h)]
       exact zero_le
 
 /-- One query of the correctness game raises the expected failure potential by at most the
 KEM correctness error for a send query, and not at all for other queries. The state must
-satisfy the correctness invariant, and the four erasure codes must be correct. -/
+satisfy the correctness invariant, and the four stream decoders must be sound. -/
 theorem wp_failurePotential_query_le
-    (hHdrCorrect : P.ecpHdr.ec.Correct)
-    (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct)
-    (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr)
+    (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1)
+    (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     (ik : InitKey)
     (t : (SCKAScheme.sckaCorrectnessSpec (Message P.Sym)).Domain)
     (s : GameState P AuthState)
@@ -502,11 +502,11 @@ theorem wp_failurePotential_query_le
       exact wp_failurePotential_send_le auth irl sampleInitKey ik s hs false
   | SCKAScheme.sckaCorrectnessSpec.ORecvA n =>
       rw [ite_eq_right (by simp [SCKAScheme.isSendQuery]), add_zero]
-      exact wp_failurePotential_recv_le auth irl sampleInitKey hHdrCorrect hEkCorrect
-        hCt1Correct hCt2Correct ik s hs true n
+      exact wp_failurePotential_recv_le auth irl sampleInitKey hHdrSound hEkSound
+        hCt1Sound hCt2Sound ik s hs true n
   | SCKAScheme.sckaCorrectnessSpec.ORecvB n =>
       rw [ite_eq_right (by simp [SCKAScheme.isSendQuery]), add_zero]
-      exact wp_failurePotential_recv_le auth irl sampleInitKey hHdrCorrect hEkCorrect
-        hCt1Correct hCt2Correct ik s hs false n
+      exact wp_failurePotential_recv_le auth irl sampleInitKey hHdrSound hEkSound
+        hCt1Sound hCt2Sound ik s hs false n
 
 end MLKEMBraid

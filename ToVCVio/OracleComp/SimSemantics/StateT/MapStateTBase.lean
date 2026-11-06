@@ -4,8 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.OracleComp.SimSemantics.StateT.Basic
-import VCVio.OracleComp.SimSemantics.StateT.StateProjection
+module
+
+public import VCVio.OracleComp.SimSemantics.StateT.Basic
 
 /-!
 # Base-state invariant preservation through `mapStateTBase` / `flattenStateT`
@@ -15,6 +16,8 @@ without changing its `σ`-state component. Therefore any per-query invariant on
 `σ` is preserved by `outer.mapStateTBase inner`. After `flattenStateT`, the same
 invariant holds on the first component of the product state `σ × τ`.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 

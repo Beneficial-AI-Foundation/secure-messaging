@@ -3,9 +3,12 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import SecureMessaging.RKEM.FromKEM.Construction
-import ToVCVio.CryptoFoundations.KeyEncapMech
-import ToVCVio.EvalDist.Monad.Basic
+
+module
+
+public import SecureMessaging.RKEM.FromKEM.Construction
+public import ToVCVio.CryptoFoundations.KeyEncapMech
+public import ToVCVio.EvalDist.Monad.Basic
 
 /-!
 # RKEM from KEM — Correctness
@@ -25,6 +28,8 @@ correctness is never needed for this half, and the `0` cannot be improved to dep
 other direction either — it already is the tightest possible bound. The first half (`K = K'`) has
 no such shortcut and genuinely inherits `δ` from the underlying KEM.
 -/
+
+@[expose] public section
 
 open ToVCVio OracleSpec OracleComp ENNReal KEMScheme RKEMScheme
 

@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.FromGCM.Construction
+module
+
+public import SecureMessaging.AEAD.FromGCM.Construction
 
 /-!
 # One-time-key GCM: correctness
@@ -14,6 +16,8 @@ recovers the plaintext. The tag check passes because `decrypt` recomputes the sa
 `S`/`T` as `encrypt`, and `gctr` is an involution (`gctr_involution`), so `GCTR`
 inverts the ciphertext back to the plaintext.
 -/
+
+@[expose] public section
 
 namespace GCM
 

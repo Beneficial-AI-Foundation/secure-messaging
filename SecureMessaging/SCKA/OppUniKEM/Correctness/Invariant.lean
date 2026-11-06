@@ -4,10 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.Correctness
-import SecureMessaging.SCKA.OppUniKEM.Construction
-import SecureMessaging.ErasureCode.Payload
-import VCVio.OracleComp.SimSemantics.StateT.StateProjection
+module
+
+public import SecureMessaging.SCKA.Correctness
+public import SecureMessaging.SCKA.OppUniKEM.Construction
+public import SecureMessaging.ErasureCode.Payload
 
 /-!
 # Opp-UniKEM-CKA — Game Invariant
@@ -38,6 +39,8 @@ The four protocol specific oracles are handled in `Invariant.SendA`, `Invariant.
 
 
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal KEMScheme
 

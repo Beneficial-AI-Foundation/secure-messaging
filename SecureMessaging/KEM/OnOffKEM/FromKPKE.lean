@@ -3,9 +3,12 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import SecureMessaging.KEM.OnOffKEM.Defs
-import LatticeCrypto.MLKEM.KPKE
-import Extern.MLKEM.Instance
+
+module
+
+public import SecureMessaging.KEM.OnOffKEM.Defs
+public import LatticeCrypto.MLKEM.KPKE
+public import Extern.MLKEM.Instance
 
 /-!
 # ML-KEM's K-PKE as an online-offline KEM
@@ -116,6 +119,8 @@ separately (`u = ct0` offline, `v = ct1` online, as in `encrypt` above):
 `schemeKyber768` / `onOffKyber768` fix the concrete Kyber-768 encoding, NTT, and
 primitive bundles.
 -/
+
+@[expose] public section
 
 open MLKEM
 

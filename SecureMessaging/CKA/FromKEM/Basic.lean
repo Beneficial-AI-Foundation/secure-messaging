@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromKEM.Construction
+module
+
+public import SecureMessaging.CKA.FromKEM.Construction
 
 /-!
 # CKA from KEM — Basic Results for Correctness and Security
@@ -15,6 +17,8 @@ proves these facts by lifting the `KEMScheme.RandLeak` fields `keygen_fst`
 and `encaps_fst` from the two KEM calls to the CKA send algorithm and then to
 the game oracles.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal KEMScheme
 

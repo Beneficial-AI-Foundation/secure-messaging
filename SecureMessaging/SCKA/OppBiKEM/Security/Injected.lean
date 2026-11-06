@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Security.IdealReceive
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Security.IdealReceive
 
 /-!
 # Opp-BiKEM — Target injection and its invariant
@@ -35,6 +37,8 @@ The state map in `Simulation` relates these injected runs to the reduction.
 
 Supporting facts about sends, receives, and target epochs are used in `Eager`.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme
 

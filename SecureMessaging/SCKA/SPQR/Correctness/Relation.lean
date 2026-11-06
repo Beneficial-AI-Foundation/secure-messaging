@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.SPQR.Correspondence
-import SecureMessaging.SCKA.MLKEMBraid.Correctness
+module
+
+public import SecureMessaging.SCKA.SPQR.Correspondence
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness
 
 /-!
 # The SPQR and ML-KEM Braid correctness games
@@ -58,6 +60,8 @@ At the late delivery, however, A is in `ct1Received`, so A could have sent the s
 acknowledging vector chunk. B's SPQR step is the Braid step on that relabelled record.
 `SPQR.Correctness` uses this to transport the Braid correctness bound to SPQR.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 open ErasureCodePayload.Streaming
@@ -166,7 +170,7 @@ private theorem toMLKEMBraid_sendBUpdate [DecidableEq P.EpochKey] (s : GameState
   rcases keyOpt with _ | ⟨tI, key⟩ <;>
     simp only [SCKAScheme.sendBUpdate, GameState.toMLKEMBraid, hmsg] <;> rfl
 
-variable [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+variable [DecidableEq P.EpochKey]
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
     P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
   (sampleInitKey : ProbComp InitKey)
@@ -276,12 +280,12 @@ private def PartyCt1Ack (st : PartyState P AuthState)
   ∀ n msg tsnd, msgs n = some (msg, tsnd) → msg.payload = .ct1Ack →
     msg.epoch < st.epoch ∨ ∃ core dec, st = .ekSentCt1Received core dec ∧ core.ep = msg.epoch
 
-omit [DecidableEq P.EpochKey] [DecidableEq P.Sym] in
+omit [DecidableEq P.EpochKey] in
 private theorem ct1AckInv_iff (s : GameState P AuthState) :
     Ct1AckInv s ↔ PartyCt1Ack s.stA s.msgA ∧ PartyCt1Ack s.stB s.msgB :=
   ⟨fun h => ⟨h true, h false⟩, fun h party => by cases party; exacts [h.2, h.1]⟩
 
-omit [DecidableEq P.EpochKey] [DecidableEq P.Sym] in
+omit [DecidableEq P.EpochKey] in
 /-- A send keeps the epoch and stamps the message with it. It sends `ct1Ack` only from
 `ekSentCt1Received`, which it keeps. -/
 private theorem send_ct1Ack {st : PartyState P AuthState} {r : SendResult P AuthState}
@@ -305,7 +309,7 @@ private theorem send_ct1Ack {st : PartyState P AuthState} {r : SendResult P Auth
     subst hr
     simp [PartyState.epoch]
 
-omit [DecidableEq P.EpochKey] [DecidableEq P.Sym] in
+omit [DecidableEq P.EpochKey] in
 /-- A successful second-ciphertext receive moves to the next epoch. -/
 private theorem recvCt2_ep {core : EkSender.EkSentCt1Received P AuthState} {c2 : P.det.C₂}
     {tag : P.Mac} {next : CtSender.NoHeaderReceived AuthState} {key : ℕ × P.EpochKey}
@@ -358,7 +362,7 @@ private theorem recv_ct1Ack {st : PartyState P AuthState} {msg : Chunked.Message
       | (simp only [Option.some.injEq] at *; subst_vars; simp_all [PartyState.epoch]; done)
       | simp_all [PartyState.epoch, recvCt2_ep auth (by assumption)]
 
-omit [DecidableEq P.EpochKey] [DecidableEq P.Sym] in
+omit [DecidableEq P.EpochKey] in
 private theorem partyCt1Ack_send {st : PartyState P AuthState}
     {msgs : ℕ → Option (Chunked.Message P.Sym × ℕ)} (h : PartyCt1Ack st msgs)
     {r : SendResult P AuthState} (hr : r ∈ support (send P auth st)) (k tsnd : ℕ) :
@@ -391,8 +395,8 @@ private theorem partyCt1Ack_recv {st : PartyState P AuthState}
     · exact Or.inr ⟨core', dec', hst', hep'.trans hep⟩
     · exact Or.inl (hep ▸ hlt)
 
-omit [DecidableEq P.EpochKey] [DecidableEq P.Sym] in
-private theorem partyCt1Ack_recvSCKA [DecidableEq P.Sym] {st : PartyState P AuthState}
+omit [DecidableEq P.EpochKey] in
+private theorem partyCt1Ack_recvSCKA {st : PartyState P AuthState}
     {msgs : ℕ → Option (Chunked.Message P.Sym × ℕ)} (h : PartyCt1Ack st msgs)
     {msg : Chunked.Message P.Sym} {keyOpt : Option (ℕ × P.EpochKey)} {trcv : ℕ}
     {st' : PartyState P AuthState}
@@ -445,18 +449,18 @@ theorem sckaCorrectnessImpl_preserves_ct1AckInv :
 
 /-! ### The divergent deliveries under the invariants -/
 
-omit [DecidableEq P.EpochKey] [DecidableEq P.Sym] in
+omit [DecidableEq P.EpochKey] in
 private theorem toMLKEMBraid_epoch (st : PartyState P AuthState) :
     st.toMLKEMBraid.epoch = st.epoch := by
   cases st <;> rfl
 
-omit [DecidableEq P.EpochKey] [DecidableEq P.Sym] in
+omit [DecidableEq P.EpochKey] in
 private theorem message_toMLKEMBraid_epoch (msg : Chunked.Message P.Sym) :
     msg.toMLKEMBraid.epoch = msg.epoch := by
   obtain ⟨e, payload⟩ := msg
   cases payload <;> rfl
 
-omit [DecidableEq P.EpochKey] [DecidableEq P.Sym] in
+omit [DecidableEq P.EpochKey] in
 /-- Let `msg` be recorded by the peer of a receiver in state `st`, with the epoch bounds and the
 pair invariant of the Braid correctness proof for the translated states. A delivery of `msg` in
 `RecvDivergence` is then a plain vector chunk of the receiver's epoch, and the receiver is in
@@ -499,7 +503,7 @@ private theorem recvDivergence_ct1Acknowledged_ek {st peer : PartyState P AuthSt
     subst heq hpay
     exact ⟨core, dec, chunk, rfl, rfl⟩
 
-omit [DecidableEq P.EpochKey] [DecidableEq P.Sym] in
+omit [DecidableEq P.EpochKey] in
 /-- In a state whose translation satisfies the Braid control and pair invariants and that
 satisfies `Ct1AckInv`, a divergent delivery is a plain vector chunk of the receiver's epoch
 delivered to a party in `ct1Acknowledged`. -/
@@ -509,7 +513,7 @@ theorem DeliveryDivergence.ct1Acknowledged_ek {s : GameState P AuthState}
     (hC : MLKEMBraid.ControlInv s.toMLKEMBraid) (hP : MLKEMBraid.StatePairInv s.toMLKEMBraid)
     (hack : Ct1AckInv s) (h : DeliveryDivergence s t) :
     ∃ (party : Bool) (n : ℕ) (core : CtSender.Ct1Sent P AuthState)
-      (dec : DecoderState P.det.PKvector P.Sym) (chunk : ℕ × P.Sym) (tsnd : ℕ),
+      (dec : P.decEk.D) (chunk : ℕ × P.Sym) (tsnd : ℕ),
       t = (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
         else SCKAScheme.sckaCorrectnessSpec.ORecvB n) ∧
       (if party then s.stA else s.stB) = .ct1Acknowledged core dec ∧
@@ -550,7 +554,7 @@ successor state has the distribution of the Braid successor state of the transla
 record is an acknowledging vector chunk, once the record is restored. -/
 -- ANCHOR: Relation_sckaCorrectnessImpl_run_toMLKEMBraidAck
 theorem sckaCorrectnessImpl_run_toMLKEMBraidAck (s : GameState P AuthState) (party : Bool)
-    (n : ℕ) (core : CtSender.Ct1Sent P AuthState) (dec : DecoderState P.det.PKvector P.Sym)
+    (n : ℕ) (core : CtSender.Ct1Sent P AuthState) (dec : P.decEk.D)
     (chunk : ℕ × P.Sym) (tsnd : ℕ)
     (hst : (if party then s.stA else s.stB) = .ct1Acknowledged core dec)
     (hmsg : (if party then s.msgB else s.msgA) n = some (⟨core.ep, .ek chunk⟩, tsnd)) :

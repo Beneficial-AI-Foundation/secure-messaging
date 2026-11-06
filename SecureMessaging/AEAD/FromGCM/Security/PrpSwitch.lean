@@ -4,9 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.CryptoFoundations.PRP
-import ToVCVio.CryptoFoundations.PRPSwitching
-import SecureMessaging.AEAD.FromGCM.Security.PrfHop
+module
+
+public import ToVCVio.CryptoFoundations.PRPSwitching
+public import SecureMessaging.AEAD.FromGCM.Security.PrfHop
 
 /-!
 # GCM: PRP/PRF switching
@@ -34,6 +35,8 @@ Main results:
   EUROCRYPT 2006, https://eprint.iacr.org/2004/331.pdf
 -/
 
+@[expose] public section
+
 open OracleSpec OracleComp GCM AEADScheme PRPScheme
 
 namespace GCM
@@ -42,7 +45,7 @@ variable {L : ℕ}
 
 /-- The adversary run of `prfReduction` as a function of the list of oracle answers: GHASH
 key, tag mask, then the keystream blocks. -/
-private noncomputable def cipherInputsTail
+noncomputable def cipherInputsTail
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
     (l : List (BitVec 128)) : ProbComp Bool :=
   (simulateQ (gcmTupleImpl

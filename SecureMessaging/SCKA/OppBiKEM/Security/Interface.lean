@@ -4,8 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Construction
-import VCVio.OracleComp.QueryTracking.QueryBound
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Construction
 
 /-!
 # Opp-BiKEM — Security interface
@@ -15,6 +16,8 @@ This module specializes the SCKA security oracle interface and adversary type to
 oracle-response path. The security bounds use this budget to bound both KEM failures and the
 number of challengeable epochs.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme
 

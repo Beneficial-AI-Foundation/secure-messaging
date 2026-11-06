@@ -4,8 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Security.Eager
-import SecureMessaging.SCKA.OppBiKEM.Security.Reduction
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Security.Eager
 
 /-!
 # Opp-BiKEM — The eager hybrid is the reduction's simulation
@@ -36,6 +37,8 @@ Pr[E_t^x(pk, sk, c, kReal, kRand) = true] = Pr[Sim_t(pk, dummy, c, k_x) = true].
 ```
 
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme ENNReal
 

@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.IncrementalKEM.FromMLKEM
-import SecureMessaging.KEM.MLKEM.Construction
+module
+
+public import SecureMessaging.KEM.IncrementalKEM.FromMLKEM
+public import SecureMessaging.KEM.MLKEM.Construction
 
 /-!
 # Correctness error of ML-KEM with explicit coins
@@ -21,6 +23,8 @@ Encapsulation and decapsulation are the same computations in both KEMs. So the t
 same correctness error (`mlkemIncrementalDet_correctnessError`). This module compares only the
 correctness error.
 -/
+
+@[expose] public section
 
 open OracleComp KEMScheme SampleableType
 

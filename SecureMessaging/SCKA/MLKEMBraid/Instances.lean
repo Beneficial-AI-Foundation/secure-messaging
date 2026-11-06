@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.IncrementalKEM.FromMLKEM
-import SecureMessaging.SCKA.MLKEMBraid.Construction
+module
+
+public import SecureMessaging.KEM.IncrementalKEM.FromMLKEM
+public import SecureMessaging.SCKA.MLKEMBraid.Construction
 
 /-!
 # Concrete ML-KEM Braid adapter
@@ -15,6 +17,8 @@ choose the epoch-key derivation, ratcheted authenticator, MAC and symbol types, 
 codes, and initial-key sampler.
 -/
 
+@[expose] public section
+
 namespace MLKEMBraid
 
 /-- Assemble the Braid parameters around concrete incremental ML-KEM. -/
@@ -22,7 +26,7 @@ namespace MLKEMBraid
 def mlkemBraidParameters (p : MLKEM.ParameterSet) (ring : MLKEM.NTTRingOps)
     (prims : MLKEM.Primitives (MLKEM.ParameterSet.params p)
       (MLKEM.Concrete.concreteEncoding (MLKEM.ParameterSet.params p)))
-    {EpochKey Mac Sym : Type} (kdfOK : MLKEM.SharedSecret → ℕ → EpochKey)
+    {EpochKey Mac Sym : Type} [DecidableEq Sym] (kdfOK : MLKEM.SharedSecret → ℕ → EpochKey)
     (ecpHdr : ErasureCodePayload
       ((MLKEM.mlkemIncremental p ring prims).PKheader × Mac) Sym)
     (ecpEk : ErasureCodePayload (MLKEM.mlkemIncremental p ring prims).PKvector Sym)
@@ -50,6 +54,10 @@ def mlkemBraidParameters (p : MLKEM.ParameterSet) (ring : MLKEM.NTTRingOps)
   ecpEk := ecpEk
   ecpCt1 := ecpCt1
   ecpCt2 := ecpCt2
+  decHdr := ErasureCodePayload.Streaming.setDecoder ecpHdr
+  decEk := ErasureCodePayload.Streaming.setDecoder ecpEk
+  decCt1 := ErasureCodePayload.Streaming.setDecoder ecpCt1
+  decCt2 := ErasureCodePayload.Streaming.setDecoder ecpCt2
 
 /-- Instantiate the SCKA scheme with concrete incremental ML-KEM. -/
 -- ANCHOR: mlkemBraidScheme
@@ -76,12 +84,8 @@ def mlkemBraidScheme (p : MLKEM.ParameterSet) (ring : MLKEM.NTTRingOps)
       (SendRand (MLKEM.mlkemIncrementalRandLeak p ring prims).KeygenRand
         (MLKEM.mlkemIncrementalRandLeak p ring prims).Encaps1Rand)
 -- ANCHOR_END: mlkemBraidScheme
-    := by
-  letI : DecidableEq
-      (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2).Sym := by
-    change DecidableEq Sym
-    infer_instance
-  exact scheme (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2) auth
+    :=
+  scheme (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2) auth
     (MLKEM.mlkemIncrementalRandLeak p ring prims) sampleInitKey
 
 end MLKEMBraid

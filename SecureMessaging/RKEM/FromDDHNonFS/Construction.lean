@@ -3,7 +3,11 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import SecureMessaging.RKEM.Defs
+
+module
+
+public import SecureMessaging.RKEM.Defs
+public import VCVio.EvalDist.Monad.Basic
 
 /-!
 # Ratcheting Key Encapsulation Mechanism from Diffie-Hellman
@@ -77,6 +81,8 @@ scalar `x`, and the deterministic `REnc-P` leaks empty coins.
   *The Double Ratchet: Security Notions, Proofs, and Modularization for the Signal Protocol.*
   EUROCRYPT 2019, https://eprint.iacr.org/2018/1037.pdf
 -/
+
+@[expose] public section
 
 namespace ddhRKEM
 

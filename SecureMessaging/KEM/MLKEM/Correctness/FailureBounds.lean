@@ -4,9 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.MLKEM.Correctness.Reduction
-import SecureMessaging.KEM.MLKEM.Correctness.Noise
-import SecureMessaging.KEM.MLKEM.Correctness.FailureRates
+module
+
+public import SecureMessaging.KEM.MLKEM.Correctness.Reduction
+public import SecureMessaging.KEM.MLKEM.Correctness.Noise
 
 /-!
 # K-PKE recovery failure as a coordinate union bound
@@ -28,6 +29,8 @@ The symmetric recovery-radius proposition gives a second, coarser implication:
 recovery failure implies that the noise exceeds the safe radius.  The exact
 coordinate event is the one used in the numerical proof.
 -/
+
+@[expose] public section
 
 open OracleComp LatticeCrypto
 open scoped ENNReal

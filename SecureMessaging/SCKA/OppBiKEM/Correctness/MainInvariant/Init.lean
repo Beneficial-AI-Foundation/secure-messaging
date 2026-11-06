@@ -4,13 +4,17 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant
 
 /-!
 # Opp-BiKEM-CKA — Initialization
 
 The initial game state satisfies `GameInv`, witnessed by the empty transcript (`gameInv_init`).
 -/
+
+@[expose] public section
 
 open OracleComp KEMScheme
 

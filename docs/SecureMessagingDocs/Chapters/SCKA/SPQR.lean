@@ -42,7 +42,7 @@ Sparse Post-Quantum Ratchet (SPQR).
 :::defTitle "spqr_parameters" "SPQR parameters"
 :::
 
-:::::::definition "spqr_parameters" (parent := "cka_protocols_spqr") (lean := "SPQR.Parameters, SPQR.Parameters.generate, SPQR.Parameters.generateRleak, SPQR.Parameters.encaps1, SPQR.Parameters.encaps1Rleak, SPQR.Parameters.encaps2, SPQR.Parameters.decaps, SPQR.Parameters.ekMatchesHeader") (tags := "gh-252") (uses := "incremental_kem_det, erasure_code_payload")
+:::::::definition "spqr_parameters" (parent := "cka_protocols_spqr") (lean := "SPQR.Parameters, SPQR.Parameters.generate, SPQR.Parameters.generateRleak, SPQR.Parameters.encaps1, SPQR.Parameters.encaps1Rleak, SPQR.Parameters.encaps2, SPQR.Parameters.decaps, SPQR.Parameters.ekMatchesHeader") (tags := "gh-252") (uses := "incremental_kem_det, erasure_code_payload, stream_decoder")
 An *SPQR parameter set* $`P` consists of
 
 - an {bpref "incremental_kem_det"}[incremental KEM with explicit coins]:
@@ -59,7 +59,8 @@ An *SPQR parameter set* $`P` consists of
   $`\Sigma` with their {bpref "erasure_code_streaming"}[streaming] interface:
   - $`\mathsf{Code}_H`, $`\mathsf{Code}_V`, $`\mathsf{Code}_1`, and $`\mathsf{Code}_2`, with payloads
     $`H\times T`, $`V`, $`C_1`, and $`C_2\times T` respectively;
-  - encoder algorithms $`\mathsf{Enc}_X` and $`\mathsf{Next}`, decoder algorithms $`\mathsf{Empty}_X`,
+  - encoder algorithms $`\mathsf{Enc}_X` and $`\mathsf{Next}`;
+  - one {bpref "stream_decoder"}[stream decoder] per stream, with algorithms $`\mathsf{Empty}_X`,
     $`\mathsf{Add}`, and $`\mathsf{Decode}`.
 
 :::leanPillCaption "Parameters"
@@ -93,6 +94,14 @@ structure Parameters (m : Type → Type u) [Monad m] where
   ecpCt1 : ErasureCodePayload det.C₁ Sym
   /-- `ct₂` stream, recovering `ct₂ ‖ mac`. -/
   ecpCt2 : ErasureCodePayload (det.C₂ × Mac) Sym
+  /-- Header-stream decoder. -/
+  decHdr : ErasureCodePayload.Streaming.StreamDecoder (det.PKheader × Mac) Sym
+  /-- Encapsulation-key-vector-stream decoder. -/
+  decEk : ErasureCodePayload.Streaming.StreamDecoder det.PKvector Sym
+  /-- `ct₁`-stream decoder. -/
+  decCt1 : ErasureCodePayload.Streaming.StreamDecoder det.C₁ Sym
+  /-- `ct₂`-stream decoder. -/
+  decCt2 : ErasureCodePayload.Streaming.StreamDecoder (det.C₂ × Mac) Sym
 ```
 
 :::leanPillCaption "KEM operations"
@@ -162,7 +171,7 @@ initial-key generator $`\Init\text{-}\KeyGen` and the algorithms below.
 :::
 
 ```anchor SPQR_scheme (project := ".") (module := SecureMessaging.SCKA.SPQR.Construction)
-def scheme (P : Parameters m) [DecidableEq P.Sym]
+def scheme (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (sampleInitKey : m InitKey) :
@@ -279,32 +288,32 @@ inductive PartyState (P : Parameters m) (AuthState : Type) where
   /-- Sending the vector and receiving the first ciphertext component (`states.rs:19-20`). -/
   | headerSent (core : EkSender.EkSent P AuthState)
       (sendingEk : EncoderState P.det.PKvector P.Sym)
-      (receivingCt1 : DecoderState P.det.C₁ P.Sym)
+      (receivingCt1 : P.decCt1.D)
   /-- Sending vector chunks that acknowledge complete first-ciphertext receipt
   (`states.rs:21`). -/
   | ct1Received (core : EkSender.EkSentCt1Received P AuthState)
       (sendingEk : EncoderState P.det.PKvector P.Sym)
   /-- Receiving the second ciphertext component (`states.rs:22`). -/
   | ekSentCt1Received (core : EkSender.EkSentCt1Received P AuthState)
-      (receivingCt2 : DecoderState (P.det.C₂ × P.Mac) P.Sym)
+      (receivingCt2 : P.decCt2.D)
   /-- Receiving the authenticated header stream (`states.rs:23`). -/
   | noHeaderReceived (core : CtSender.NoHeaderReceived AuthState)
-      (receivingHdr : DecoderState (P.det.PKheader × P.Mac) P.Sym)
+      (receivingHdr : P.decHdr.D)
   /-- Receiving the encapsulation-key vector after authenticating the header
   (`states.rs:24`). -/
   | headerReceived (core : CtSender.HeaderReceived P AuthState)
-      (receivingEk : DecoderState P.det.PKvector P.Sym)
+      (receivingEk : P.decEk.D)
   /-- Sending the first ciphertext component while receiving the vector
   (`states.rs:25`). -/
   | ct1Sampled (core : CtSender.Ct1Sent P AuthState)
       (sendingCt1 : EncoderState P.det.C₁ P.Sym)
-      (receivingEk : DecoderState P.det.PKvector P.Sym)
+      (receivingEk : P.decEk.D)
   /-- Sending the first ciphertext after validating the vector (`states.rs:26`). -/
   | ekReceivedCt1Sampled (core : CtSender.Ct1SentEkReceived P AuthState)
       (sendingCt1 : EncoderState P.det.C₁ P.Sym)
   /-- Receiving the vector after the first ciphertext is acknowledged (`states.rs:27`). -/
   | ct1Acknowledged (core : CtSender.Ct1Sent P AuthState)
-      (receivingEk : DecoderState P.det.PKvector P.Sym)
+      (receivingEk : P.decEk.D)
   /-- Sending the second ciphertext component (`states.rs:28`). -/
   | ct2Sampled (core : CtSender.Ct2Sent AuthState)
       (sendingCt2 : EncoderState (P.det.C₂ × P.Mac) P.Sym)
@@ -372,7 +381,7 @@ def initB (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (ik : InitKey) : PartyState P AuthState :=
-  .noHeaderReceived ⟨1, auth.init ik 1⟩ (DecoderState.empty P.ecpHdr)
+  .noHeaderReceived ⟨1, auth.init ik 1⟩ P.decHdr.empty
 ```
 :::::
 ::::::
@@ -690,7 +699,7 @@ $`\begin{array}{l}
 :::
 
 ```anchor Chunked_recv (project := ".") (module := SecureMessaging.SCKA.SPQR.Chunked)
-def recv (P : Parameters m) [DecidableEq P.Sym]
+def recv (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : PartyState P AuthState) (msg : Message P.Sym) :
@@ -720,37 +729,37 @@ def recv (P : Parameters m) [DecidableEq P.Sym]
         let (core', ek) := EkSender.sendEk P core
         .ok ⟨msg.epoch - 1, none,
           .headerSent core' (EncoderState.init P.ecpEk ek)
-            ((DecoderState.empty P.ecpCt1).addChunk chunk)⟩
+            (P.decCt1.addChunk P.decCt1.empty chunk)⟩
     | .headerSent core enc dec, .ct1 chunk =>
         -- states.rs:307-330, cell 3
-        let dec' := dec.addChunk chunk
-        match dec'.decodedPayload with
+        let dec' := P.decCt1.addChunk dec chunk
+        match P.decCt1.decodedPayload dec' with
         | some c1 => .ok ⟨msg.epoch - 1, none, .ct1Received (EkSender.recvCt1 P core c1) enc⟩
         | none => .ok ⟨msg.epoch - 1, none, .headerSent core enc dec'⟩
     | .ct1Received core _, .ct2 chunk =>
         -- states.rs:332-348, cell 4
         .ok ⟨msg.epoch - 1, none,
-          .ekSentCt1Received core ((DecoderState.empty P.ecpCt2).addChunk chunk)⟩
+          .ekSentCt1Received core (P.decCt2.addChunk P.decCt2.empty chunk)⟩
     | .ekSentCt1Received core dec, .ct2 chunk =>
         -- states.rs:350-380, cell 5
-        let dec' := dec.addChunk chunk
-        match dec'.decodedPayload with
+        let dec' := P.decCt2.addChunk dec chunk
+        match P.decCt2.decodedPayload dec' with
         | some (c2, tag) =>
             match EkSender.recvCt2 P auth core c2 tag with
             | some (next, key) =>
                 .ok ⟨msg.epoch - 1, some key,
-                  .noHeaderReceived next (DecoderState.empty P.ecpHdr)⟩
+                  .noHeaderReceived next P.decHdr.empty⟩
             | none => .error .macVerifyFailed
         | none => .ok ⟨msg.epoch - 1, none, .ekSentCt1Received core dec'⟩
     | .noHeaderReceived core dec, .hdr chunk =>
         -- states.rs:380-405, cell 6
-        let dec' := dec.addChunk chunk
-        match dec'.decodedPayload with
+        let dec' := P.decHdr.addChunk dec chunk
+        match P.decHdr.decodedPayload dec' with
         | some (hdr, tag) =>
             match CtSender.recvHeader P auth core hdr tag with
             | some core' =>
                 .ok ⟨msg.epoch - 1, none,
-                  .headerReceived core' (DecoderState.empty P.ecpEk)⟩
+                  .headerReceived core' P.decEk.empty⟩
             | none => .error .macVerifyFailed
         | none => .ok ⟨msg.epoch - 1, none, .noHeaderReceived core dec'⟩
     | .headerReceived _ _, _ =>
@@ -758,8 +767,8 @@ def recv (P : Parameters m) [DecidableEq P.Sym]
         ignore
     | .ct1Sampled core enc dec, .ek chunk =>
         -- states.rs:412-458, cell 8
-        let dec' := dec.addChunk chunk
-        match dec'.decodedPayload with
+        let dec' := P.decEk.addChunk dec chunk
+        match P.decEk.decodedPayload dec' with
         | some ek =>
             match CtSender.recvEk P core ek with
             | some core' => .ok ⟨msg.epoch - 1, none, .ekReceivedCt1Sampled core' enc⟩
@@ -767,8 +776,8 @@ def recv (P : Parameters m) [DecidableEq P.Sym]
         | none => .ok ⟨msg.epoch - 1, none, .ct1Sampled core enc dec'⟩
     | .ct1Sampled core _ dec, .ekCt1Ack chunk =>
         -- states.rs:412-458, cell 9
-        let dec' := dec.addChunk chunk
-        match dec'.decodedPayload with
+        let dec' := P.decEk.addChunk dec chunk
+        match P.decEk.decodedPayload dec' with
         | some ek =>
             match CtSender.recvEk P core ek with
             | some core' => .ok ⟨msg.epoch - 1, none, completeCt2 P auth core'⟩
@@ -788,8 +797,8 @@ def recv (P : Parameters m) [DecidableEq P.Sym]
         ignore
     | .ct1Acknowledged core dec, .ek chunk =>
         -- states.rs:479-520 and states.rs:487, cell 14
-        let dec' := dec.addChunk chunk
-        match dec'.decodedPayload with
+        let dec' := P.decEk.addChunk dec chunk
+        match P.decEk.decodedPayload dec' with
         | some ek =>
             match CtSender.recvEk P core ek with
             | some core' => .ok ⟨msg.epoch - 1, none, completeCt2 P auth core'⟩
@@ -797,8 +806,8 @@ def recv (P : Parameters m) [DecidableEq P.Sym]
         | none => .ok ⟨msg.epoch - 1, none, .ct1Acknowledged core dec'⟩
     | .ct1Acknowledged core dec, .ekCt1Ack chunk =>
         -- states.rs:479-520, cell 15
-        let dec' := dec.addChunk chunk
-        match dec'.decodedPayload with
+        let dec' := P.decEk.addChunk dec chunk
+        match P.decEk.decodedPayload dec' with
         | some ek =>
             match CtSender.recvEk P core ek with
             | some core' => .ok ⟨msg.epoch - 1, none, completeCt2 P auth core'⟩
@@ -856,7 +865,7 @@ structure RecvResult (P : Parameters m) (AuthState : Type) where
 :::
 
 ```anchor SPQR_recvSCKA (project := ".") (module := SecureMessaging.SCKA.SPQR.Construction)
-def recvSCKA (P : Parameters m) [DecidableEq P.Sym]
+def recvSCKA (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : PartyState P AuthState) (msg : Message P.Sym) :
@@ -1120,24 +1129,29 @@ noncomputable def v1Parameters {EpochKey Mac : Type}
     (serializeCt2 : v1Incremental.C₂ × Mac → Fin 5 → Chunk GF16)
     (parseCt2 : (Fin 5 → Chunk GF16) → Option (v1Incremental.C₂ × Mac))
     (parseCt2_serializeCt2 : ∀ payload, parseCt2 (serializeCt2 payload) = some payload) :
-    Parameters ProbComp where
-  K := MLKEM.SharedSecret
-  PK := MLKEM.EncapsulationKey MLKEM.mlkem768 MLKEM.Concrete.mlkem768Encoding
-  SK := MLKEM.DecapsulationKey MLKEM.mlkem768 MLKEM.Concrete.mlkem768Encoding
-  C := MLKEM.Ciphertext MLKEM.mlkem768 MLKEM.Concrete.mlkem768Encoding
-  det := v1Det
-  EpochKey := EpochKey
-  Mac := Mac
-  Sym := Chunk GF16
-  kdfOK := kdfOK
-  ecpHdr := v1ErasureCodePayload 3 (by norm_num) (by norm_num) serializeHdr parseHdr
+    Parameters ProbComp :=
+  let ecpHdr := v1ErasureCodePayload 3 (by norm_num) (by norm_num) serializeHdr parseHdr
     parseHdr_serializeHdr
-  ecpEk := v1ErasureCodePayload 36 (by norm_num) (by norm_num) serializeEk parseEk
+  let ecpEk := v1ErasureCodePayload 36 (by norm_num) (by norm_num) serializeEk parseEk
     parseEk_serializeEk
-  ecpCt1 := v1ErasureCodePayload 30 (by norm_num) (by norm_num) serializeCt1 parseCt1
+  let ecpCt1 := v1ErasureCodePayload 30 (by norm_num) (by norm_num) serializeCt1 parseCt1
     parseCt1_serializeCt1
-  ecpCt2 := v1ErasureCodePayload 5 (by norm_num) (by norm_num) serializeCt2 parseCt2
+  let ecpCt2 := v1ErasureCodePayload 5 (by norm_num) (by norm_num) serializeCt2 parseCt2
     parseCt2_serializeCt2
+  { K := MLKEM.SharedSecret
+    PK := MLKEM.EncapsulationKey MLKEM.mlkem768 MLKEM.Concrete.mlkem768Encoding
+    SK := MLKEM.DecapsulationKey MLKEM.mlkem768 MLKEM.Concrete.mlkem768Encoding
+    C := MLKEM.Ciphertext MLKEM.mlkem768 MLKEM.Concrete.mlkem768Encoding
+    det := v1Det
+    EpochKey := EpochKey
+    Mac := Mac
+    Sym := Chunk GF16
+    kdfOK := kdfOK
+    ecpHdr, ecpEk, ecpCt1, ecpCt2
+    decHdr := ErasureCodePayload.Streaming.setDecoder ecpHdr
+    decEk := ErasureCodePayload.Streaming.setDecoder ecpEk
+    decCt1 := ErasureCodePayload.Streaming.setDecoder ecpCt1
+    decCt2 := ErasureCodePayload.Streaming.setDecoder ecpCt2 }
 ```
 
 :::leanPillCaption "v1Incremental"
@@ -1187,13 +1201,8 @@ noncomputable def v1Scheme {InitKey AuthState EpochKey Mac : Type}
         serializeEk parseEk parseEk_serializeEk serializeCt1 parseCt1 parseCt1_serializeCt1
         serializeCt2 parseCt2 parseCt2_serializeCt2) AuthState)
       EpochKey (Chunked.Message (Chunk GF16))
-      (SendRand (MLKEM.Bytes 64) MLKEM.Message) := by
-  letI : DecidableEq (v1Parameters kdfOK serializeHdr parseHdr parseHdr_serializeHdr
-      serializeEk parseEk parseEk_serializeEk serializeCt1 parseCt1 parseCt1_serializeCt1
-      serializeCt2 parseCt2 parseCt2_serializeCt2).Sym := by
-    change DecidableEq (Chunk GF16)
-    infer_instance
-  exact scheme
+      (SendRand (MLKEM.Bytes 64) MLKEM.Message) :=
+  scheme
     (v1Parameters kdfOK serializeHdr parseHdr parseHdr_serializeHdr serializeEk parseEk
       parseEk_serializeEk serializeCt1 parseCt1 parseCt1_serializeCt1 serializeCt2 parseCt2
       parseCt2_serializeCt2)
@@ -1283,18 +1292,18 @@ theorem sckaCorrectnessImpl_run_toMLKEMBraid (s : GameState P AuthState)
 :::defTitle "spqr_protocol_correctness" "SPQR protocol correctness"
 :::
 
-::::theorem "spqr_protocol_correctness" (parent := "cka_protocols_spqr") (lean := "SPQR.correctness_error_le, SPQR.v1Scheme_correctness_error_le") (tags := "gh-269") (uses := "spqr_protocol_spec, spqr_mlkem_braid_relation, mlkem_braid_correctness, scka_correctness, erasure_code_correctness, incremental_kem_scheme, incremental_kem_det")
+::::theorem "spqr_protocol_correctness" (parent := "cka_protocols_spqr") (lean := "SPQR.correctness_error_le, SPQR.v1Scheme_correctness_error_le") (tags := "gh-269") (uses := "spqr_protocol_spec, spqr_mlkem_braid_relation, mlkem_braid_correctness, scka_correctness, erasure_code_correctness, stream_decoder, incremental_kem_scheme, incremental_kem_det")
 Assume that:
 
 * $`\adv` is any SCKA correctness adversary making at most $`q` send-oracle
   queries;
 * the incremental KEM has deterministic decapsulation and a deterministic
   second stage, and has correctness error at most $`\varepsilon`;
-* and the four erasure codes are correct.
+* and the four stream decoders are sound for their erasure codes ({bpref "stream_decoder"}[]).
 
 Then $`1-\Pr\bigl[\Exp{\textsf{cor}}{\textsf{SPQR}}(\adv)=1\bigr] \le q\varepsilon`.
-For SPQR v1, the four SPQR Reed–Solomon codes are correct and $`\varepsilon` is the
-correctness error of ML-KEM-768.
+For SPQR v1, the four SPQR Reed–Solomon codes are correct, so their set-based decoders are
+sound, and $`\varepsilon` is the correctness error of ML-KEM-768.
 
 :::leanPillCaption "Correctness error bound"
 :::
@@ -1302,15 +1311,15 @@ correctness error of ML-KEM-768.
 ```anchor SPQR_correctness_error_le (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness)
 theorem correctness_error_le
     (P : SPQR.Parameters ProbComp) [DecidableEq P.K]
-    [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [DecidableEq P.EpochKey]
     {InitKey AuthState : Type}
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (sampleInitKey : ProbComp InitKey)
-    (hHdrCorrect : P.ecpHdr.ec.Correct)
-    (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct)
-    (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr)
+    (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1)
+    (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Chunked.Message P.Sym))
     (q : ℕ) (hq : SCKAScheme.SendQueryBound adv q) :
     1 - Pr{let x ← SCKAScheme.correctnessExp (scheme P auth sampleInitKey) adv}[x = true] ≤

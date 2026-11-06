@@ -4,11 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppUniKEM.Security.Basic
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
-import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Simulator
-import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
-import SecureMessaging.SCKA.Security
+module
+
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
+public import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Simulator
+public import SecureMessaging.SCKA.Security
 
 /-!
 # Hiding challenge-epoch secrets in protocol states
@@ -30,6 +30,8 @@ honest game `Q_e(kemMat, kStar)` (`Game`), which knows them.
   `0 < t < e`, `kStar` if `t = e`, and the recorded key otherwise, and the simulator reads a
   hidden recorded key as `kStar`.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme
 

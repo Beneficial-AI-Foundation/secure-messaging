@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import Mathlib.Data.Nat.Basic
+public import Mathlib.Data.Nat.Notation
 
 /-!
 # Ratcheted Authenticator

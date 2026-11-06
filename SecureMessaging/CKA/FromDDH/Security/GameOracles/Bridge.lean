@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromDDH.Security.GameOracles.Step
+module
+
+public import SecureMessaging.CKA.FromDDH.Security.GameOracles.Step
 
 /-!
 # CKA from DDH — Game Oracles — Bridge
@@ -71,6 +73,8 @@ Main results in this file:
     form with the regular CKA game.
 
 -/
+
+@[expose] public section
 
 open ToVCVio OracleSpec OracleComp ENNReal
 open OracleComp.ProgramLogic.Relational

@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.Defs
+module
+
+public import SecureMessaging.SCKA.Defs
 
 /-!
 # Successful SCKA receives and current epochs
@@ -13,6 +15,8 @@ This file establishes basic facts about the epoch progression after a `receive`.
 A successful `receive` for each receiver advances their current epoch, while leaving the sender's
 epoch unchanged.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 

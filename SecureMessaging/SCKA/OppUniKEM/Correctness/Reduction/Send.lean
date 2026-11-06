@@ -1,4 +1,7 @@
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Core
+module
+
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Core
+public import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
 
 /-!
 # Opp-UniKEM-CKA Send Transitions
@@ -6,6 +9,8 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Core
 This module establishes the transition laws for the failure potential `V` and
 tracked failure score `S` under `SendA` and `SendB`.
 -/
+
+@[expose] public section
 
 open ENNReal KEMScheme
 

@@ -4,10 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.ErasureCode.SPQRReedSolomon.Correctness
-import SecureMessaging.KEM.IncrementalKEM.FromMLKEM.Equivalence
-import SecureMessaging.SCKA.SPQR.Correctness.Relation
-import SecureMessaging.SCKA.SPQR.Instances
+module
+
+public import SecureMessaging.ErasureCode.SPQRReedSolomon.Correctness
+public import SecureMessaging.KEM.IncrementalKEM.FromMLKEM.Equivalence
+public import SecureMessaging.SCKA.SPQR.Correctness.Relation
+public import SecureMessaging.SCKA.SPQR.Instances
 
 /-!
 # SPQR correctness
@@ -28,7 +30,8 @@ message or when a check on the reported epochs and the output keys fails.
 
 ## Main results
 
-If the four erasure codes of `P` are correct and `Adv` makes at most `q` send queries, then
+If the four stream decoders of `P` are sound for their erasure codes and `Adv` makes at most `q`
+send queries, then
 
 * `correctness_error_le`: `1 - Pr[G(Adv) = true] ≤ q · ε`;
 * `v1Scheme_correctness_error_le`: the same bound for `v1Scheme`, whose four SPQR Reed-Solomon
@@ -67,6 +70,8 @@ sections 2.3 to 2.6. The correctness game follows Definition 3.1, Figure 1, and 
   *How to Compare Bandwidth Constrained Two-Party Secure Messaging Protocols.*
   USENIX Security 2025, https://eprint.iacr.org/2025/2267
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 open OracleComp.ProgramLogic
@@ -218,7 +223,7 @@ private theorem messageControl_ekCt1Ack {ik : InitKey}
     {s : MLKEMBraid.GameState P.toBraid AuthState}
     (hT : MLKEMBraid.TranscriptConsistent auth ik T s)
     (party : Bool) {n e : ℕ} {a : AuthState} {hdr : P.det.PKheader} {es : P.det.St}
-    {ct1 : P.det.C₁} {dec : DecoderState P.det.PKvector P.Sym} {chunk : ℕ × P.Sym} {tsnd : ℕ}
+    {ct1 : P.det.C₁} {dec : P.decEk.D} {chunk : ℕ × P.Sym} {tsnd : ℕ}
     (hst : s.stateAt party = .ct1Acknowledged e a hdr es ct1 dec)
     (hmsg : s.messagesAt (!party) n = some (⟨e, .ek, some chunk⟩, tsnd)) :
     MLKEMBraid.MessageControl (!party) (s.stateAt (!party)) ⟨e, .ekCt1Ack, some chunk⟩ := by
@@ -233,16 +238,16 @@ private theorem messageControl_ekCt1Ack {ik : InitKey}
     simp_all [MLKEMBraid.PairInv, MLKEMBraid.AllowedStatePair, MLKEMBraid.State.controlPosition,
       MLKEMBraid.State.epoch, MLKEMBraid.State.completedEpoch, MLKEMBraid.MessageType.sendStep]
 
-variable [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+variable [DecidableEq P.EpochKey]
   (sampleInitKey : ProbComp InitKey)
 
-omit [DecidableEq P.EpochKey] [DecidableEq P.Sym] in
+omit [DecidableEq P.EpochKey] in
 /-- If the translation of a state is consistent with a transcript, so is its relabelling at a plain
 vector chunk delivered to a party in `ct1Acknowledged`. -/
 private theorem transcriptConsistent_toMLKEMBraidAck {ik : InitKey}
     {T : ℕ → MLKEMBraid.EpochTranscript P.toBraid} {s : GameState P AuthState}
     (hT : MLKEMBraid.TranscriptConsistent auth ik T s.toMLKEMBraid) (party : Bool) (n : ℕ)
-    {core : CtSender.Ct1Sent P AuthState} {dec : DecoderState P.det.PKvector P.Sym}
+    {core : CtSender.Ct1Sent P AuthState} {dec : P.decEk.D}
     {chunk : ℕ × P.Sym} {tsnd : ℕ}
     (hst : (if party then s.stA else s.stB) = .ct1Acknowledged core dec)
     (hmsg : (if party then s.msgB else s.msgA) n = some (⟨core.ep, .ek chunk⟩, tsnd)) :
@@ -266,7 +271,7 @@ private theorem transcriptConsistent_toMLKEMBraidAck {ik : InitKey}
   · have hraw : s.toMLKEMBraid.msgB n = some (⟨core.ep, .ek, some chunk⟩, tsnd) := hmsg'
     simpa [GameState.toMLKEMBraidAck, hraw] using h
 
-omit [DecidableEq P.EpochKey] [DecidableEq P.Sym] in
+omit [DecidableEq P.EpochKey] in
 /-- After a query of the relabelled translation, restoring the plain vector chunk keeps the Braid
 invariant. -/
 private theorem correctnessInv_restore {ik : InitKey} (party : Bool) (n : ℕ)
@@ -347,12 +352,12 @@ private theorem messagesAt_of_mem_support_recv {s : MLKEMBraid.GameState P.toBra
 
 /-! ### Preservation and drift -/
 
-/-- With correct erasure codes, every query of the SPQR correctness game preserves the Braid
+/-- With sound stream decoders, every query of the SPQR correctness game preserves the Braid
 invariant on the translated state together with `Ct1AckInv`. -/
 -- ANCHOR: SPQR_correctnessImpl_preserves_correctnessInv
 theorem correctnessImpl_preserves_correctnessInv
-    (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct) (ik : InitKey) :
+    (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1) (hCt2Sound : P.decCt2.Sound P.ecpCt2) (ik : InitKey) :
     QueryImpl.PreservesInv (SCKAScheme.sckaCorrectnessImpl (scheme P auth sampleInitKey))
       (fun s : GameState P AuthState =>
         MLKEMBraid.CorrectnessInv auth ik s.toMLKEMBraid ∧ Ct1AckInv s)
@@ -361,7 +366,7 @@ theorem correctnessImpl_preserves_correctnessInv
   intro t s ⟨hs, hack⟩ z hz
   refine ⟨?_, sckaCorrectnessImpl_preserves_ct1AckInv auth sampleInitKey t s hack z hz⟩
   have hbraid := MLKEMBraid.correctnessImpl_preserves_correctnessInv (P := P.toBraid) auth
-    P.det.toRandLeak sampleInitKey hHdrCorrect hEkCorrect hCt1Correct hCt2Correct ik
+    P.det.toRandLeak sampleInitKey hHdrSound hEkSound hCt1Sound hCt2Sound ik
   rcases hs with hsf | ⟨T, hT⟩
   · exact Or.inl (SCKAScheme.sckaCorrectnessImpl_preserves_correct_eq_false _ t s hsf z hz)
   by_cases hdiv : DeliveryDivergence s t
@@ -390,13 +395,13 @@ theorem correctnessImpl_preserves_correctnessInv
     rw [← hzz]
     exact hbraid _ _ (Or.inr ⟨T, hT⟩) z' hz'
 
-/-- With correct erasure codes, one query of the SPQR correctness game raises the expected failure
+/-- With sound stream decoders, one query of the SPQR correctness game raises the expected failure
 potential of the translated state by at most the KEM correctness error for a send query, and not
 at all for other queries. -/
 -- ANCHOR: SPQR_wp_failurePotential_query_le
 theorem wp_failurePotential_query_le [DecidableEq P.K]
-    (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct) (ik : InitKey)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1) (hCt2Sound : P.decCt2.Sound P.ecpCt2) (ik : InitKey)
     (t : (SCKAScheme.sckaCorrectnessSpec (Chunked.Message P.Sym)).Domain)
     (s : GameState P AuthState)
     (hs : MLKEMBraid.CorrectnessInv auth ik s.toMLKEMBraid) (hack : Ct1AckInv s) :
@@ -408,7 +413,7 @@ theorem wp_failurePotential_query_le [DecidableEq P.K]
 -- ANCHOR_END: SPQR_wp_failurePotential_query_le
     := by
   have hbraid := MLKEMBraid.wp_failurePotential_query_le (P := P.toBraid) auth P.det.toRandLeak
-    sampleInitKey hHdrCorrect hEkCorrect hCt1Correct hCt2Correct ik
+    sampleInitKey hHdrSound hEkSound hCt1Sound hCt2Sound ik
   rcases hs with hsf | ⟨T, hT⟩
   · -- A false flag stays false, and the potential stays `1`.
     have hsf' : s.correct = false := hsf
@@ -473,20 +478,20 @@ namespace SPQR
 
 open Chunked
 
-/-- With correct erasure codes, every adversary making at most `q` sends across both parties causes
+/-- With sound stream decoders, every adversary making at most `q` sends across both parties causes
 a false correctness flag with probability at most `q` times the KEM correctness error. -/
 -- ANCHOR: SPQR_correctness_error_le
 theorem correctness_error_le
     (P : SPQR.Parameters ProbComp) [DecidableEq P.K]
-    [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [DecidableEq P.EpochKey]
     {InitKey AuthState : Type}
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (sampleInitKey : ProbComp InitKey)
-    (hHdrCorrect : P.ecpHdr.ec.Correct)
-    (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct)
-    (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr)
+    (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1)
+    (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Chunked.Message P.Sym))
     (q : ℕ) (hq : SCKAScheme.SendQueryBound adv q) :
     1 - Pr{let x ← SCKAScheme.correctnessExp (scheme P auth sampleInitKey) adv}[x = true] ≤
@@ -497,9 +502,9 @@ theorem correctness_error_le
     (fun ik s => MLKEMBraid.CorrectnessInv auth ik (GameState.toMLKEMBraid s) ∧ Ct1AckInv s)
     (fun s => MLKEMBraid.failurePotential (GameState.toMLKEMBraid s)) _ ?_ ?_
     (correctnessImpl_preserves_correctnessInv auth sampleInitKey
-      hHdrCorrect hEkCorrect hCt1Correct hCt2Correct)
+      hHdrSound hEkSound hCt1Sound hCt2Sound)
     (fun ik t s hs => wp_failurePotential_query_le auth sampleInitKey
-      hHdrCorrect hEkCorrect hCt1Correct hCt2Correct ik t s hs.1 hs.2) adv q hq
+      hHdrSound hEkSound hCt1Sound hCt2Sound ik t s hs.1 hs.2) adv q hq
   · intro s hs
     simp [MLKEMBraid.failurePotential, GameState.toMLKEMBraid, hs]
   · intro ik _ stA hA stB hB
@@ -564,9 +569,13 @@ theorem v1Scheme_correctness_error_le {InitKey AuthState EpochKey Mac : Type}
     MLKEM.mlkemIncrementalDet_correctnessError _ _ _
   rw [← hε]
   exact correctness_error_le P₀ auth sampleInitKey
-    (erasureCode_correct 3 (by norm_num) (by norm_num))
-    (erasureCode_correct 36 (by norm_num) (by norm_num))
-    (erasureCode_correct 30 (by norm_num) (by norm_num))
-    (erasureCode_correct 5 (by norm_num) (by norm_num)) adv q hq
+    (ErasureCodePayload.Streaming.setDecoder_sound _
+      (erasureCode_correct 3 (by norm_num) (by norm_num)))
+    (ErasureCodePayload.Streaming.setDecoder_sound _
+      (erasureCode_correct 36 (by norm_num) (by norm_num)))
+    (ErasureCodePayload.Streaming.setDecoder_sound _
+      (erasureCode_correct 30 (by norm_num) (by norm_num)))
+    (ErasureCodePayload.Streaming.setDecoder_sound _
+      (erasureCode_correct 5 (by norm_num) (by norm_num))) adv q hq
 
 end SPQR

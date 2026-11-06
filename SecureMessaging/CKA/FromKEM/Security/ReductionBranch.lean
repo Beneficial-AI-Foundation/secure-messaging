@@ -4,9 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
+module
 
-import SecureMessaging.CKA.FromKEM.Security.PostChallenge
-import VCVio.OracleComp.SimSemantics.StateT.StateProjection
+public import SecureMessaging.CKA.FromKEM.Security.PostChallenge
+public import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 
 /-!
 # CKA from KEM — Concrete Reduction Branch
@@ -25,6 +26,8 @@ later relational `simulateQ` proofs. This file packages the concrete adversary
 `ckaToINDCPAReduction` with its local run lemmas; it does not prove the advantage
 bound or the hidden-state simulation.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal KEMScheme
 

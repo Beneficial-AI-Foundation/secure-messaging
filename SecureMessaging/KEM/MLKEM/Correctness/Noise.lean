@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import LatticeCrypto.MLKEM.KEM
-import LatticeCrypto.Ring.Norms
+module
+
+public import LatticeCrypto.Ring.Norms
+public import LatticeCrypto.MLKEM.Internal
 
 /-!
 # ML-KEM K-PKE decryption noise
@@ -133,6 +135,8 @@ byte-decoding identities in `encoding.Laws`,
 The quantitative proof applies the union bound directly to these exact events:
 `Pr[∃ i,F_i] ≤ ∑_i Pr[F_i]`.
 -/
+
+@[expose] public section
 
 open LatticeCrypto
 

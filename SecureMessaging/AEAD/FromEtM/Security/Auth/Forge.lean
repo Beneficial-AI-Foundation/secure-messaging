@@ -4,11 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.FromEtM.Security.Auth.Defs
-import VCVio.OracleComp.QueryTracking.CachingOracle
-import VCVio.OracleComp.QueryTracking.QueryBound
-import ToVCVio.ProgramLogic.Relational.Basic
-import ToVCVio.ProgramLogic.Relational.IdenticalUntilBad
+module
+
+public import SecureMessaging.AEAD.FromEtM.Security.Auth.Defs
+public import ToVCVio.ProgramLogic.Relational.IdenticalUntilBad
+public import VCVio.ProgramLogic.Relational.SimulateQ.Coupling
 
 /-!
 # Encrypt-then-MAC — auth hop: forge-probability bound
@@ -17,6 +17,8 @@ The `game2' = game2` discard step and the chain bounding the instrumented bad-fl
 by the forge reduction (`measureTVDist_authInst_le_probForge`,
 `probForge_authInst_le_forgeReduction`, `forgeReduction_isQueryBoundP`).
 -/
+
+@[expose] public section
 
 namespace EtM
 

@@ -4,11 +4,13 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
-import SecureMessaging.SCKA.OppUniKEM.Security.IdealHybrids
-import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Deferral
-import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.HybridGame
-import SecureMessaging.SCKA.Security
+module
+
+public import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
+public import SecureMessaging.SCKA.OppUniKEM.Security.IdealHybrids
+public import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Deferral
+public import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.HybridGame
+public import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
 
 /-!
 # Opp-UniKEM SCKA security
@@ -139,6 +141,8 @@ Pr[S_e^real = true] - Pr[S_e^random = true] = p_{e-1} - p_e      (step 4)
 Supporting modules: `Basic` (interface, send budget), `Invariant` (transcript and epoch
 invariants), `SCKA.Security` (generic guards), ToVCVio (sampling and stopping).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme
 

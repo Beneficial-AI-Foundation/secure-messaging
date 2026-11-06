@@ -3,9 +3,12 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import VCVio.CryptoFoundations.SecExp
-import VCVio.OracleComp.ProbCompLift
-import VCVio.OracleComp.Constructions.SampleableType
+
+module
+
+public import VCVio.OracleComp.ProbCompLift
+public import ToMathlib.MeasureTheory.Measure.TotalVariation
+public import VCVio.OracleComp.Constructions.SampleableType.Basic
 
 /-!
 # Ratcheting Key Encapsulation Mechanism (RKEM)
@@ -68,6 +71,8 @@ generation, but correctness of the update-key distribution (Def. 5.3) then force
 The security notion for this special case is plain IND-CPA (`RKEMScheme.INDCPASecure`), the
 FS-IND-CPA game without `dk̂P`.
 -/
+
+@[expose] public section
 
 open ENNReal
 

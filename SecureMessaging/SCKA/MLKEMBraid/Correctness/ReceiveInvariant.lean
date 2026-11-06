@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.RecordedPayload
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.RecordedPayload
 
 /-!
 # Receives preserve the correctness invariant
@@ -15,23 +17,25 @@ or a key disagreement clears the correctness flag. Thus the receive oracles pres
 `CorrectnessInv`.
 -/
 
+@[expose] public section
+
 open OracleSpec OracleComp
 open ErasureCodePayload.Streaming
 open SCKAScheme.sckaCorrectnessSpec
 
 namespace MLKEMBraid
 
-variable {P : Parameters ProbComp} [DecidableEq P.Sym] {InitKey AuthState : Type}
+variable {P : Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
     P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
 
 /-- A successful receive of a recorded message preserves transcript consistency when output keys
 agree with the peer's and the successor satisfies the control and pair invariants. -/
 theorem receive_preserves_transcriptConsistent
-    (hHdrCorrect : P.ecpHdr.ec.Correct)
-    (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct)
-    (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr)
+    (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1)
+    (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
     (party : Bool) (n : ℕ) (msg : Message P.Sym) (tsnd : ℕ)
@@ -46,7 +50,7 @@ theorem receive_preserves_transcriptConsistent
   -- The receiver keeps its local payload invariant, never lowers its epoch or completed
   -- epoch, and outputs only the transcript key of its next completed epoch.
   have hLocalNew : LocalPayloadInv auth ik T r.state :=
-    (receive_recorded_payload auth hHdrCorrect hEkCorrect hCt1Correct hCt2Correct hT
+    (receive_recorded_payload auth hHdrSound hEkSound hCt1Sound hCt2Sound hT
       party n msg tsnd hmsg).1 r hr hOutputs
   have hedge := ReceiveEdge.of_eq_ok auth hr
   have hmono : (s.stateAt party).epoch ≤ r.state.epoch := hedge.epoch_le.1
@@ -73,7 +77,7 @@ theorem receive_preserves_transcriptConsistent
         key = P.kdfOK k t := by
     intro t key hout
     obtain ⟨-, -, pk, sk, encapsState, ct1, k, hkp, hc, hdec, hpeer⟩ :=
-      receive_recorded_output auth hCt2Correct hT party n msg tsnd hmsg r hr t key hout
+      receive_recorded_output auth hCt2Sound hT party n msg tsnd hmsg r hr t key hout
     have hkey : key = P.kdfOK k t := Option.some.inj ((hOutputs t key hout).symm.trans hpeer)
     subst hkey
     exact ⟨pk, sk, encapsState, ct1, k, hkp, hc, hdec, rfl⟩
@@ -156,10 +160,10 @@ variable [DecidableEq P.EpochKey]
 /-- A receive whose successor has a true correctness flag keeps the game state consistent with the
 same transcript. -/
 theorem oracleRecv_preserves_transcriptConsistent
-    (hHdrCorrect : P.ecpHdr.ec.Correct)
-    (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct)
-    (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr)
+    (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1)
+    (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     {ik : InitKey} {T : ℕ → EpochTranscript P} {s : GameState P AuthState}
     (hT : TranscriptConsistent auth ik T s) (party : Bool) (n : ℕ)
     (z : Option (ℕ × Option ℕ) × GameState P AuthState)
@@ -180,7 +184,7 @@ theorem oracleRecv_preserves_transcriptConsistent
   have hagree : ∀ e key, r.outputKey = some (e, key) → s.keysAt (!party) e = some key := by
     intro e key hkey
     obtain ⟨-, -, _, _, _, _, _, -, -, -, hpeer⟩ :=
-      receive_recorded_output auth hCt2Correct hT party n msg tsnd hentry r hraw e key hkey
+      receive_recorded_output auth hCt2Sound hT party n msg tsnd hentry r hraw e key hkey
     rw [recvUpdate_correct, hkey] at hzc
     simp only [Bool.and_eq_true, Bool.or_eq_true] at hzc
     obtain ⟨⟨-, hcons⟩, -⟩ := hzc
@@ -188,15 +192,15 @@ theorem oracleRecv_preserves_transcriptConsistent
     · simp [hpeer] at hnone
     · exact beq_iff_eq.mp hbeq
   rw [recvUpdate_eq_successor_of_correct s party tsnd r (msg.epoch - 1) hT.correct hzc] at hCPz ⊢
-  exact receive_preserves_transcriptConsistent auth hHdrCorrect hEkCorrect hCt1Correct
-    hCt2Correct hT party n msg tsnd hentry r hraw hagree hCPz
+  exact receive_preserves_transcriptConsistent auth hHdrSound hEkSound hCt1Sound
+    hCt2Sound hT party n msg tsnd hentry r hraw hagree hCPz
 
-/-- With correct erasure codes, either party's receive preserves `CorrectnessInv`. -/
+/-- With sound stream decoders, either party's receive preserves `CorrectnessInv`. -/
 theorem oracleRecv_preserves_correctnessInv
-    (hHdrCorrect : P.ecpHdr.ec.Correct)
-    (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct)
-    (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr)
+    (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1)
+    (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     (ik : InitKey) (party : Bool) :
     QueryImpl.PreservesInv
       (oracleRecv auth irl sampleInitKey party)
@@ -212,6 +216,6 @@ theorem oracleRecv_preserves_correctnessInv
     · rw [recvUpdate_correct] at hzc
       rcases hkey : r.outputKey with _ | ⟨e, key⟩ <;> simp [hkey, hsf] at hzc
   · exact Or.inr ⟨T, oracleRecv_preserves_transcriptConsistent auth irl sampleInitKey
-      hHdrCorrect hEkCorrect hCt1Correct hCt2Correct hT party n z hz hzc⟩
+      hHdrSound hEkSound hCt1Sound hCt2Sound hT party n z hz hzc⟩
 
 end MLKEMBraid

@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.SPQR.Construction
+module
+
+public import SecureMessaging.SCKA.SPQR.Construction
 
 /-! # SPQR chunked protocol and the ML-KEM Braid transition system
 
@@ -39,6 +41,8 @@ occur, and the third is handled by this relabelling.
 There is no translation in the other direction: rebuilding an encapsulation key from its vector
 needs a `validPK` witness.
 -/
+
+@[expose] public section
 
 open ErasureCodePayload.Streaming
 
@@ -157,7 +161,7 @@ def RecvDivergence (st : PartyState P AuthState) (msg : Message P.Sym) : Prop :=
 -- ANCHOR_END: Correspondence_RecvDivergence
 
 /-- `MLKEMBraid.receive` ignores a translated message whose epoch is below the receiver's. -/
-private theorem receive_toMLKEMBraid_of_lt [DecidableEq P.Sym]
+private theorem receive_toMLKEMBraid_of_lt
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : PartyState P AuthState) (msg : Message P.Sym) (hlt : msg.epoch < st.epoch) :
@@ -175,7 +179,7 @@ set_option maxHeartbeats 300000 in
 -- requires significant computation time.
 /-- At equal epochs and outside `RecvDivergence`, the SCKA receive outputs agree after
 translation. -/
-private theorem recvSCKA_toMLKEMBraid_of_epoch_eq [DecidableEq P.Sym]
+private theorem recvSCKA_toMLKEMBraid_of_epoch_eq
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : PartyState P AuthState) (msg : Message P.Sym) (heq : msg.epoch = st.epoch)
@@ -201,7 +205,7 @@ private theorem recvSCKA_toMLKEMBraid_of_epoch_eq [DecidableEq P.Sym]
       or_true, reduceCtorEq, ↓existsAndEq, ↓reduceIte] at h ⊢ <;>
     try simp_all only
   all_goals
-    generalize hdec : (‹DecoderState _ _›.addChunk ‹ℕ × P.Sym›).decodedPayload = decoded
+    generalize hdec : StreamDecoder.decodedPayload _ (StreamDecoder.addChunk _ _ _) = decoded
     cases decoded <;> simp_all only [Option.map_some]
   all_goals try (split_ifs <;> simp_all)
   all_goals
@@ -212,7 +216,7 @@ private theorem recvSCKA_toMLKEMBraid_of_epoch_eq [DecidableEq P.Sym]
 /-- Outside `RecvDivergence`, the SCKA receive outputs agree after translation. This includes the
 deliveries that both receives ignore: both adapters report `msg.epoch - 1` and keep the state. -/
 -- ANCHOR: Correspondence_recvSCKA_toMLKEMBraid
-theorem recvSCKA_toMLKEMBraid (P : SPQR.Parameters m) [DecidableEq P.Sym]
+theorem recvSCKA_toMLKEMBraid (P : SPQR.Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : PartyState P AuthState) (msg : Message P.Sym) (h : ¬ RecvDivergence st msg) :
@@ -245,10 +249,9 @@ theorem recvSCKA_toMLKEMBraid (P : SPQR.Parameters m) [DecidableEq P.Sym]
 chunk sent as an acknowledging vector chunk (`states.rs:487`). -/
 -- ANCHOR: Correspondence_recvSCKA_ct1Acknowledged_ek_toMLKEMBraid
 theorem recvSCKA_ct1Acknowledged_ek_toMLKEMBraid (P : SPQR.Parameters m)
-    [DecidableEq P.Sym]
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
-    (core : CtSender.Ct1Sent P AuthState) (dec : DecoderState P.det.PKvector P.Sym)
+    (core : CtSender.Ct1Sent P AuthState) (dec : P.decEk.D)
     (chunk : ℕ × P.Sym) :
     (recvSCKA P auth (.ct1Acknowledged core dec) ⟨core.ep, .ek chunk⟩).map
         (fun r => (r.1, r.2.1, r.2.2.toMLKEMBraid)) =
@@ -261,7 +264,7 @@ theorem recvSCKA_ct1Acknowledged_ek_toMLKEMBraid (P : SPQR.Parameters m)
     Chunked.completeCt2, CtSender.recvEk, Parameters.encaps2, Parameters.ekMatchesHeader,
     Parameters.toBraid, KEMScheme.IncrementalKEMDet.toDetEncaps2,
     KEMScheme.IncrementalKEMDet.toIncremental, lt_irrefl]
-  cases (dec.addChunk chunk).decodedPayload with
+  cases P.decEk.decodedPayload (P.decEk.addChunk dec chunk) with
   | none => simp
   | some ek => by_cases hv : P.det.validPK core.hdr ek = true <;> simp [hv]
 

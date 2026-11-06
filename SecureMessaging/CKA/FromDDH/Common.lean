@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromDDH.Construction
+module
+
+public import SecureMessaging.CKA.FromDDH.Construction
 
 /-!
 # CKA from DDH — Common Results for Correctness and Security
@@ -13,6 +15,8 @@ Common definitions used by the correctness and security proofs of the
 Continuous Key Agreement (CKA) construction from the Decisional
 Diffie-Hellman (DDH) assumption.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 open CKAScheme

@@ -6,13 +6,8 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import VCVio.CryptoFoundations.SecExp
-public import VCVio.OracleComp.Constructions.SampleableType
-public import VCVio.OracleComp.QueryTracking.QueryBound
-public import VCVio.OracleComp.SimSemantics.Append
-public import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
-public import Mathlib.Data.Finset.Basic
 public import ToVCVio.EvalDist.Monad.Basic
+public import VCVio.OracleComp.QueryTracking.QueryBound.Basic
 
 /-!
 # Sparse Continuous Key Agreement (SCKA)

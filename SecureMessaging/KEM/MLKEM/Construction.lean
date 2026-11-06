@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import Extern.MLKEM.Instance
-import LatticeCrypto.MLKEM.KEM
-import ToVCVio.CryptoFoundations.KeyEncapMech
+module
+
+public import Extern.MLKEM.Instance
+public import LatticeCrypto.MLKEM.KEM
+public import ToVCVio.CryptoFoundations.KeyEncapMech
 
 /-!
 # ML-KEM as a key-encapsulation mechanism
@@ -36,6 +38,8 @@ coefficient-distribution comparison, `CoefficientFailureBound`, relating the
 honest sampler to the auxiliary finite coefficient model used by the
 arithmetic certificate.
 -/
+
+@[expose] public section
 
 open OracleComp KEMScheme ENNReal
 

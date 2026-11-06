@@ -3,11 +3,12 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import VCVio.EvalDist.MeasureTVDist.Bind
-import VCVio.EvalDist.MeasureTVDist.Event
-import VCVio.EvalDist.Monad.Map
-import VCVio.EvalDist.EvalDistEq
-import ToVCVio.EvalDist.Monad.Basic
+
+module
+
+public import VCVio.EvalDist.MeasureTVDist.Bind
+public import VCVio.EvalDist.EvalDistEq
+public import ToVCVio.EvalDist.Monad.Basic
 
 /-!
 # Total Variation Distance — Extra Lemmas
@@ -25,6 +26,8 @@ evaluation distribution.
   lossless `Bool`-valued computations, sharpening `abs_prEvent_toReal_sub_le_measureTVDist`
   (which only gives one inequality direction) to an equality.
 -/
+
+@[expose] public section
 
 open MeasureTheory
 open scoped ENNReal

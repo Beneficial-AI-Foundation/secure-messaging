@@ -5,9 +5,9 @@ Authors: Beneficial AI Foundation
 -/
 module
 
-public import Mathlib.Data.Nat.Notation
-public import Mathlib.Data.ZMod.Basic
-public import Mathlib.Data.Matrix.Basic
+public import Mathlib.Data.ZMod.Defs
+public import Mathlib.LinearAlgebra.Matrix.Defs
+public import Mathlib.Tactic.Bound.Init
 
 /-!
 # FrodoKEM Parameters

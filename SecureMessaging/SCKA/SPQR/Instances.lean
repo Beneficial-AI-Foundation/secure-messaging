@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.ErasureCode.SPQRReedSolomon.Construction
-import SecureMessaging.KEM.IncrementalKEM.FromMLKEM
-import SecureMessaging.SCKA.SPQR.Construction
+module
+
+public import SecureMessaging.ErasureCode.SPQRReedSolomon.Construction
+public import SecureMessaging.KEM.IncrementalKEM.FromMLKEM
+public import SecureMessaging.SCKA.SPQR.Construction
 
 /-! # SPQR v1 instance
 
@@ -18,6 +20,8 @@ header and MAC payload requires 3 chunks, the 1152-byte encapsulation-key vector
 `EpochKey`, `Mac`, `InitKey`, `AuthState`, `kdfOK`, the four serializer triples, `auth`, and
 `sampleInitKey` remain parameters.
 -/
+
+@[expose] public section
 
 open ErasureCode.SPQRReedSolomon (Chunk GF16 erasureCode)
 open MLKEMBraid (SendRand)
@@ -43,7 +47,7 @@ noncomputable def v1ErasureCodePayload {M : Type} (k : ℕ) (hk : k ≤ 2 ^ 16) 
   { ec := erasureCode k hk hk_pos, serialize, parse, parse_serialize }
 -- ANCHOR_END: SPQR_v1ErasureCodePayload
 
-/-- SPQR v1 parameters at ML-KEM-768 with thresholds 3, 36, 30, and 5. -/
+/-- SPQR v1 parameters at ML-KEM-768 with thresholds 3, 36, 30, and 5, and set-based decoders. -/
 -- ANCHOR: SPQR_v1Parameters
 noncomputable def v1Parameters {EpochKey Mac : Type}
     (kdfOK : MLKEM.SharedSecret → ℕ → EpochKey)
@@ -59,24 +63,29 @@ noncomputable def v1Parameters {EpochKey Mac : Type}
     (serializeCt2 : v1Incremental.C₂ × Mac → Fin 5 → Chunk GF16)
     (parseCt2 : (Fin 5 → Chunk GF16) → Option (v1Incremental.C₂ × Mac))
     (parseCt2_serializeCt2 : ∀ payload, parseCt2 (serializeCt2 payload) = some payload) :
-    Parameters ProbComp where
-  K := MLKEM.SharedSecret
-  PK := MLKEM.EncapsulationKey MLKEM.mlkem768 MLKEM.Concrete.mlkem768Encoding
-  SK := MLKEM.DecapsulationKey MLKEM.mlkem768 MLKEM.Concrete.mlkem768Encoding
-  C := MLKEM.Ciphertext MLKEM.mlkem768 MLKEM.Concrete.mlkem768Encoding
-  det := v1Det
-  EpochKey := EpochKey
-  Mac := Mac
-  Sym := Chunk GF16
-  kdfOK := kdfOK
-  ecpHdr := v1ErasureCodePayload 3 (by norm_num) (by norm_num) serializeHdr parseHdr
+    Parameters ProbComp :=
+  let ecpHdr := v1ErasureCodePayload 3 (by norm_num) (by norm_num) serializeHdr parseHdr
     parseHdr_serializeHdr
-  ecpEk := v1ErasureCodePayload 36 (by norm_num) (by norm_num) serializeEk parseEk
+  let ecpEk := v1ErasureCodePayload 36 (by norm_num) (by norm_num) serializeEk parseEk
     parseEk_serializeEk
-  ecpCt1 := v1ErasureCodePayload 30 (by norm_num) (by norm_num) serializeCt1 parseCt1
+  let ecpCt1 := v1ErasureCodePayload 30 (by norm_num) (by norm_num) serializeCt1 parseCt1
     parseCt1_serializeCt1
-  ecpCt2 := v1ErasureCodePayload 5 (by norm_num) (by norm_num) serializeCt2 parseCt2
+  let ecpCt2 := v1ErasureCodePayload 5 (by norm_num) (by norm_num) serializeCt2 parseCt2
     parseCt2_serializeCt2
+  { K := MLKEM.SharedSecret
+    PK := MLKEM.EncapsulationKey MLKEM.mlkem768 MLKEM.Concrete.mlkem768Encoding
+    SK := MLKEM.DecapsulationKey MLKEM.mlkem768 MLKEM.Concrete.mlkem768Encoding
+    C := MLKEM.Ciphertext MLKEM.mlkem768 MLKEM.Concrete.mlkem768Encoding
+    det := v1Det
+    EpochKey := EpochKey
+    Mac := Mac
+    Sym := Chunk GF16
+    kdfOK := kdfOK
+    ecpHdr, ecpEk, ecpCt1, ecpCt2
+    decHdr := ErasureCodePayload.Streaming.setDecoder ecpHdr
+    decEk := ErasureCodePayload.Streaming.setDecoder ecpEk
+    decCt1 := ErasureCodePayload.Streaming.setDecoder ecpCt1
+    decCt2 := ErasureCodePayload.Streaming.setDecoder ecpCt2 }
 -- ANCHOR_END: SPQR_v1Parameters
 
 /-- The SPQR v1 SCKA scheme; the authenticator and initial-key sampler remain parameters. -/
@@ -106,13 +115,8 @@ noncomputable def v1Scheme {InitKey AuthState EpochKey Mac : Type}
         serializeEk parseEk parseEk_serializeEk serializeCt1 parseCt1 parseCt1_serializeCt1
         serializeCt2 parseCt2 parseCt2_serializeCt2) AuthState)
       EpochKey (Chunked.Message (Chunk GF16))
-      (SendRand (MLKEM.Bytes 64) MLKEM.Message) := by
-  letI : DecidableEq (v1Parameters kdfOK serializeHdr parseHdr parseHdr_serializeHdr
-      serializeEk parseEk parseEk_serializeEk serializeCt1 parseCt1 parseCt1_serializeCt1
-      serializeCt2 parseCt2 parseCt2_serializeCt2).Sym := by
-    change DecidableEq (Chunk GF16)
-    infer_instance
-  exact scheme
+      (SendRand (MLKEM.Bytes 64) MLKEM.Message) :=
+  scheme
     (v1Parameters kdfOK serializeHdr parseHdr parseHdr_serializeHdr serializeEk parseEk
       parseEk_serializeEk serializeCt1 parseCt1 parseCt1_serializeCt1 serializeCt2 parseCt2
       parseCt2_serializeCt2)

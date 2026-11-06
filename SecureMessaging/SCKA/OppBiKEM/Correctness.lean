@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.Main
-import SecureMessaging.SCKA.OppBiKEM.Correctness.PerfectKEM
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.Main
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.PerfectKEM
 
 /-!
 # Opp-BiKEM-CKA — Correctness
@@ -69,6 +71,8 @@ how they ensure this:
 For more details on the proof and gentler exposition, check
 [the tutorial](https://github.com/Beneficial-AI-Foundation/secure-messaging/blob/main/docs/tutorials/oppbikem-correctness-tutorial.md).
 -/
+
+@[expose] public section
 
 open OracleComp KEMScheme ENNReal
 

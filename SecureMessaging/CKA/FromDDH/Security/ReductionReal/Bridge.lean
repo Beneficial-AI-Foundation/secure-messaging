@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromDDH.Security.ReductionReal.RelStep
+module
+
+public import SecureMessaging.CKA.FromDDH.Security.ReductionReal.RelStep
 
 /-!
 # CKA from DDH — Reduction (real) — Endpoint Bridge
@@ -24,6 +26,8 @@ from `(.sendReady (x₀ • gen), .recvReady x₀)`. In the initial-challenge ca
 
 The final lemma is `prEvent_securityReductionRealGame_eq_honestFalse`.
 -/
+
+@[expose] public section
 
 open ToVCVio OracleSpec OracleComp ENNReal
 open OracleComp.ProgramLogic.Relational

@@ -5,7 +5,9 @@ Authors: Beneficial AI Foundation
 -/
 module
 
-public import Mathlib.Tactic.Attr.Register
+public meta import Lean.Meta.Tactic.Simp.Attr
+public import Lean.Meta.Tactic.Simp.RegisterCommand
+public import Mathlib.Tactic.Linter.Style
 
 /-!
 # `stateTrun` simp attribute

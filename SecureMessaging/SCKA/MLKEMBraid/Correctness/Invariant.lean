@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.EpochSafety.StatePair
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.EpochSafety.StatePair
 
 /-!
 # The transcript invariant of the Braid correctness game
@@ -15,6 +17,8 @@ party states and recorded messages carry the recorded samples, decapsulation in 
 gives the recorded key, and the output keys are the transcript keys. `CorrectnessInv s` states
 that the correctness flag is false or that `s` is consistent with some transcript.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 open ErasureCodePayload.Streaming
@@ -57,15 +61,14 @@ theorem transcriptAuth_congr {ik : InitKey} {T T' : ℕ → EpochTranscript P} (
 
 /-- A party's state agrees with the transcript. Its authenticator is the transcript authenticator,
 its keys and ciphertexts are the samples recorded for its epoch, its encoders encode the payloads
-of that epoch, and its decoders hold chunks of them. -/
+of that epoch, and its decoders received only chunks of them (`StreamDecoder.Received`). -/
 def LocalPayloadInv (ik : InitKey) (T : ℕ → EpochTranscript P) (st : State P AuthState) : Prop :=
   let encOK := fun {M : Type} (ecp : ErasureCodePayload M P.Sym)
       (payload : M) (enc : EncoderState M P.Sym) =>
       enc.ecp = ecp ∧ enc.payload = payload
-  let decOK := fun {M : Type} (ecp : ErasureCodePayload M P.Sym)
-      (payload : M) (dec : DecoderState M P.Sym) =>
-      dec.ecp = ecp ∧ ∃ I : Finset (Fin ecp.ec.N),
-        dec.chunks = ErasureCodePayload.payloadChunks ecp payload I
+  let decOK := fun {M : Type} (sd : StreamDecoder M P.Sym) (ecp : ErasureCodePayload M P.Sym)
+      (payload : M) (dec : sd.D) =>
+      sd.Received ecp payload dec
   match st with
   | .keysUnsampled e a =>
       a = transcriptAuth auth ik T (e - 1) ∧
@@ -81,7 +84,7 @@ def LocalPayloadInv (ik : InitKey) (T : ℕ → EpochTranscript P) (st : State P
       a = transcriptAuth auth ik T (e - 1) ∧
         ∃ pk encapsState ct1 key, (T e).keypair = some (pk, sk) ∧
           (T e).encaps1 = some (encapsState, ct1, key) ∧
-          decOK P.ecpCt1 ct1 dec ∧ encOK P.ecpEk (P.inc.toVector pk) enc
+          decOK P.decCt1 P.ecpCt1 ct1 dec ∧ encOK P.ecpEk (P.inc.toVector pk) enc
   | .ct1Received e a sk ct1 enc =>
       a = transcriptAuth auth ik T (e - 1) ∧
         ∃ pk encapsState key, (T e).keypair = some (pk, sk) ∧
@@ -92,25 +95,26 @@ def LocalPayloadInv (ik : InitKey) (T : ℕ → EpochTranscript P) (st : State P
         ∃ pk encapsState key, (T e).keypair = some (pk, sk) ∧
           (T e).encaps1 = some (encapsState, ct1, key) ∧
           let ct2 := P.hEnc2.encaps2Det encapsState (P.inc.toHeader pk) (P.inc.toVector pk)
-          decOK P.ecpCt2 (ct2, auth.macCiphertext (transcriptAuth auth ik T e) e (ct1, ct2)) dec
+          decOK P.decCt2 P.ecpCt2
+            (ct2, auth.macCiphertext (transcriptAuth auth ik T e) e (ct1, ct2)) dec
   | .noHeaderReceived e a dec =>
       a = transcriptAuth auth ik T (e - 1) ∧
         match (T e).keypair with
-        | none => dec = DecoderState.empty P.ecpHdr
-        | some (pk, _) => decOK P.ecpHdr
+        | none => dec = P.decHdr.empty
+        | some (pk, _) => decOK P.decHdr P.ecpHdr
             (P.inc.toHeader pk,
               auth.macHeader (transcriptAuth auth ik T (e - 1)) e (P.inc.toHeader pk)) dec
   | .headerReceived e a hdr dec =>
       a = transcriptAuth auth ik T (e - 1) ∧
         (T e).encaps1 = none ∧
         ∃ pk sk, (T e).keypair = some (pk, sk) ∧
-          hdr = P.inc.toHeader pk ∧ dec = DecoderState.empty P.ecpEk
+          hdr = P.inc.toHeader pk ∧ dec = P.decEk.empty
   | .ct1Sampled e a hdr encapsState ct1 enc dec =>
       a = transcriptAuth auth ik T e ∧
         ∃ pk sk key, (T e).keypair = some (pk, sk) ∧
           (T e).encaps1 = some (encapsState, ct1, key) ∧
           hdr = P.inc.toHeader pk ∧
-          encOK P.ecpCt1 ct1 enc ∧ decOK P.ecpEk (P.inc.toVector pk) dec
+          encOK P.ecpCt1 ct1 enc ∧ decOK P.decEk P.ecpEk (P.inc.toVector pk) dec
   | .ekReceivedCt1Sampled e a encapsState ct1 hdr vec enc =>
       a = transcriptAuth auth ik T e ∧
         ∃ pk sk key, (T e).keypair = some (pk, sk) ∧
@@ -121,7 +125,7 @@ def LocalPayloadInv (ik : InitKey) (T : ℕ → EpochTranscript P) (st : State P
       a = transcriptAuth auth ik T e ∧
         ∃ pk sk key, (T e).keypair = some (pk, sk) ∧
           (T e).encaps1 = some (encapsState, ct1, key) ∧
-          hdr = P.inc.toHeader pk ∧ decOK P.ecpEk (P.inc.toVector pk) dec
+          hdr = P.inc.toHeader pk ∧ decOK P.decEk P.ecpEk (P.inc.toVector pk) dec
   | .ct2Sampled e a enc =>
       a = transcriptAuth auth ik T e ∧
         ∃ pk sk encapsState ct1 key, (T e).keypair = some (pk, sk) ∧
@@ -296,7 +300,7 @@ theorem PairInv.peer_of_headerReceived {st peer : State P AuthState}
     (hcross : st.epoch ≤ peer.completedEpoch + 1) (hcrossP : peer.epoch ≤ st.completedEpoch + 1)
     (hroles : st.epoch = peer.epoch →
       st.controlPosition.isGenerator = (!peer.controlPosition.isGenerator))
-    {e : ℕ} {a : AuthState} {hdr : P.inc.PKheader} {dec : DecoderState P.inc.PKvector P.Sym}
+    {e : ℕ} {a : AuthState} {hdr : P.inc.PKheader} {dec : P.decEk.D}
     (hst : st = .headerReceived e a hdr dec) :
     ∃ b sk vec enc, peer = .keysSampled e b sk vec enc := by
   subst hst
@@ -341,7 +345,7 @@ pair, the header is that key pair's header, and the peer holds its secret key an
 theorem peer_keysSampled_of_headerReceived {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
     (party : Bool) {e : ℕ} {a : AuthState} {hdr : P.inc.PKheader}
-    {dec : DecoderState P.inc.PKvector P.Sym}
+    {dec : P.decEk.D}
     (hst : s.stateAt party = .headerReceived e a hdr dec) :
     ∃ pk sk b enc,
       (T e).keypair = some (pk, sk) ∧

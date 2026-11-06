@@ -4,7 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromKEM.Construction
+module
+
+public import SecureMessaging.CKA.FromKEM.Construction
+public import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 
 /-!
 # CKA from KEM — Correctness Statements
@@ -23,6 +26,8 @@ return k' = some k
 
 Perfect correctness means this experiment succeeds with probability exactly 1.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal KEMScheme
 

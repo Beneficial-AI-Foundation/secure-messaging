@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.EpochSafety.Control
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.EpochSafety.Control
 
 /-!
 # Preservation of the role and state-pair invariants
@@ -13,6 +15,8 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.EpochSafety.Control
 correctness game preserves `ControlInv s ∧ StatePairInv s`
 (`correctnessImpl_preserves_controlInv_statePairInv`).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 open SCKAScheme.sckaCorrectnessSpec
@@ -66,7 +70,7 @@ theorem PairInv.send {st peer : State P AuthState} {r : SendResult P AuthState}
 
 /-- A receive by `st` of a message recorded by `peer` preserves `PairInv` between `st` and `peer`
 in both directions. -/
-theorem PairInv.receive [DecidableEq P.Sym] {st peer : State P AuthState} {msg : Message P.Sym}
+theorem PairInv.receive {st peer : State P AuthState} {msg : Message P.Sym}
     {r : RecvResult P AuthState} (hedge : ReceiveEdge auth st msg r)
     (hpos : 0 < st.epoch) (hposP : 0 < peer.epoch)
     (hcross : st.epoch ≤ peer.completedEpoch + 1) (hcrossP : peer.epoch ≤ st.completedEpoch + 1)
@@ -87,10 +91,10 @@ theorem PairInv.receive [DecidableEq P.Sym] {st peer : State P AuthState} {msg :
       imp_false, and_self, implies_true, not_true_eq_false, not_false_eq_true] at * <;>
     omega
 
-variable [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+variable [DecidableEq P.EpochKey]
   (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey)
 
-omit [DecidableEq P.EpochKey] [DecidableEq P.Sym] in
+omit [DecidableEq P.EpochKey] in
 /-- At equal epochs the two parties have opposite roles. -/
 theorem roles_opposite {s : GameState P AuthState} (hs : ControlInv s)
     (heq : s.stA.epoch = s.stB.epoch) :

@@ -4,8 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.KeyPrefixes
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.MessageReports
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.KeyPrefixes
 
 /-!
 # Epoch bounds in the Braid correctness game
@@ -15,6 +16,8 @@ current epochs `tcurA`, `tcurB` (the largest epoch reported by the party's sends
 the party's completed epoch, and the epoch of every recorded message by both completed epochs plus
 one. Every oracle of the correctness game preserves it.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 open SCKAScheme.sckaCorrectnessSpec
@@ -79,7 +82,7 @@ theorem epochKnowledgeInv_initGameState (ik : InitKey) :
   refine ⟨keyPrefixInv_initGameState auth ik, ?_, ?_, ?_, ?_, ?_, ?_⟩ <;>
     simp [SCKAScheme.initGameState, initA, initB, State.epoch, State.completedEpoch]
 
-variable [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+variable [DecidableEq P.EpochKey]
   (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey)
 
 /-- The send oracle of either party preserves `EpochKnowledgeInv`. -/

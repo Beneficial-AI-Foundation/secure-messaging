@@ -4,8 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.Correctness
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.Edges
+module
+
+public import SecureMessaging.SCKA.Correctness
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.Edges
+public import SecureMessaging.SCKA.MLKEMBraid.Construction
 
 /-!
 # The oracles of the Braid correctness game
@@ -20,6 +23,8 @@ both flags are true. `recvUpdate` and `recvSuccessor` are the receive analogues.
 `oracleSend_run_eq` and `oracleRecv_run_cases` state the responses and successor states of the
 queries in these terms.
 -/
+
+@[expose] public section
 
 open OracleComp
 
@@ -280,8 +285,6 @@ theorem recvUpdate_eq_successor_of_correct (s : GameState P AuthState) (party : 
     simp only [recvUpdate, recvSuccessor, SCKAScheme.recvAUpdate, SCKAScheme.recvBUpdate,
       hkey, Bool.false_eq_true, ↓reduceIte] at hc' ⊢ <;>
     rw [hc', hc]
-
-variable [DecidableEq P.Sym]
 
 /-- The correctness game's send query for `party`; `true` denotes A and `false` denotes B. -/
 abbrev oracleSend (party : Bool) :=

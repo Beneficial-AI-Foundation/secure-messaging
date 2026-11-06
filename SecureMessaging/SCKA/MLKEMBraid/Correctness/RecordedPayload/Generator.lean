@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
+module
+
+public import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
 
 /-!
 # Recorded messages received by a key generator
@@ -13,6 +15,8 @@ A successful receive of a recorded message by a key generator keeps `LocalPayloa
 output key agrees with the peer's recorded key for that epoch. Only `ekSentCt1Received` outputs a
 key: the epoch key decapsulated from the recorded ciphertext.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp
 open ErasureCodePayload.Streaming
@@ -26,7 +30,7 @@ variable {P : Parameters ProbComp} {InitKey AuthState : Type}
 
 /-- Receiving a recorded message in `keysSampled` succeeds without key output and preserves
 `LocalPayloadInv`. -/
-theorem receive_keysSampled_payload [DecidableEq P.Sym]
+theorem receive_keysSampled_payload
     (ik : InitKey) (T : ℕ → EpochTranscript P)
     (e : ℕ) (a : AuthState) (sk : P.SK) (vec : P.inc.PKvector)
     (enc : EncoderState (P.inc.PKheader × P.Mac) P.Sym)
@@ -47,27 +51,25 @@ theorem receive_keysSampled_payload [DecidableEq P.Sym]
           by_cases he : me = e
           · subst me
             refine ⟨⟨e - 1, none, .headerSent e a sk
-              ((DecoderState.empty P.ecpCt1).addChunk chunk)
+              (P.decCt1.addChunk P.decCt1.empty chunk)
               (EncoderState.init P.ecpEk vec)⟩, ?_, rfl, ?_⟩
             · simp [receive, Message.wellFormed]
             · have hch : chunk = P.ecpCt1.encode ct1 i := Option.some.inj hchunk
               subst hch
-              have hadd := DecoderState.addChunk_payloadChunks P.ecpCt1 ct1 ∅ i
-              rw [ErasureCodePayload.payloadChunks_empty] at hadd
               obtain ⟨ha, pk, hkp, hvec, -⟩ := hLocal
-              exact ⟨ha, pk, encapsState, ct1, key, hkp, hc, ⟨congrArg DecoderState.ecp hadd, _,
-                congrArg DecoderState.chunks hadd⟩, rfl, hvec⟩
+              exact ⟨ha, pk, encapsState, ct1, key, hkp, hc,
+                (P.decCt1.received_empty P.ecpCt1 ct1).addChunk i, rfl, hvec⟩
           · exact ⟨⟨e - 1, none, .keysSampled e a sk vec enc⟩,
               by simp [receive, Message.wellFormed, State.epoch, he], rfl, hLocal⟩
   | _ => cases md <;> exact ⟨_, rfl, rfl, hLocal⟩
 
 /-- Receiving a recorded message in `headerSent` succeeds without key output and preserves
 `LocalPayloadInv`. -/
-theorem receive_headerSent_payload [DecidableEq P.Sym]
-    (hCt1Correct : P.ecpCt1.ec.Correct)
+theorem receive_headerSent_payload
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1)
     (ik : InitKey) (T : ℕ → EpochTranscript P)
     (e : ℕ) (a : AuthState) (sk : P.SK)
-    (dec : DecoderState P.inc.C₁ P.Sym)
+    (dec : P.decCt1.D)
     (enc : EncoderState P.inc.PKvector P.Sym)
     (msg : Message P.Sym)
     (hLocal : LocalPayloadInv auth ik T (.headerSent e a sk dec enc))
@@ -75,8 +77,8 @@ theorem receive_headerSent_payload [DecidableEq P.Sym]
     ∃ r, receive P auth (.headerSent e a sk dec enc) msg = .ok r ∧
       r.outputKey = none ∧ LocalPayloadInv auth ik T r.state := by
   -- Only an epoch-`e` `ct₁` chunk changes the state;
-  -- `DecoderState.addChunk_encode_of_payloadChunks` splits into the cases where `ct₁` is still
-  -- incomplete and where it is complete.
+  -- `Sound.received_addChunk` splits into the cases where the decoder returns no payload
+  -- and where it returns `ct₁`.
   rcases msg with ⟨me, mt, md⟩
   cases mt with
   | ct1 =>
@@ -91,13 +93,12 @@ theorem receive_headerSent_payload [DecidableEq P.Sym]
             obtain ⟨rfl, rfl, rfl⟩ : encapsState = es' ∧ ct1 = ct1' ∧ key = key' := by
               simpa using hc.symm.trans hc'
             have hch := Option.some.inj hchunk
-            have hC :=
-              DecoderState.addChunk_encode_of_payloadChunks P.ecpCt1 hCt1Correct _ dec hdec i
+            have hC := hCt1Sound.received_addChunk hdec i
             rw [← hch] at hC
-            obtain ⟨hecp, ⟨I, hchunks⟩, hnone | hsome⟩ := hC
-            · exact ⟨⟨e - 1, none, .headerSent e a sk (dec.addChunk chunk) enc⟩,
+            obtain ⟨hhon, hnone | hsome⟩ := hC
+            · exact ⟨⟨e - 1, none, .headerSent e a sk (P.decCt1.addChunk dec chunk) enc⟩,
                 by simp [receive, Message.wellFormed, hnone], rfl,
-                ha, pk, encapsState, ct1, key, hkp, hc, ⟨hecp, I, hchunks⟩, henc⟩
+                ha, pk, encapsState, ct1, key, hkp, hc, hhon, henc⟩
             · exact ⟨⟨e - 1, none, .ct1Received e a sk ct1 enc⟩,
                 by simp [receive, Message.wellFormed, hsome], rfl,
                 ha, pk, encapsState, key, hkp, hc, henc⟩
@@ -107,7 +108,7 @@ theorem receive_headerSent_payload [DecidableEq P.Sym]
 
 /-- Receiving a recorded message in `ct1Received` succeeds without key output and preserves
 `LocalPayloadInv`. -/
-theorem receive_ct1Received_payload [DecidableEq P.Sym]
+theorem receive_ct1Received_payload
     (ik : InitKey) (T : ℕ → EpochTranscript P)
     (e : ℕ) (a : AuthState) (sk : P.SK) (ct1 : P.inc.C₁)
     (enc : EncoderState P.inc.PKvector P.Sym)
@@ -132,31 +133,22 @@ theorem receive_ct1Received_payload [DecidableEq P.Sym]
             obtain ⟨rfl, rfl, rfl⟩ : encapsState = es' ∧ ct1 = ct1' ∧ key = key' := by
               simpa using hc.symm.trans hc'
             have hch := Option.some.inj hchunk
-            have hfirst : ∀ {M : Type} (ecp : ErasureCodePayload M P.Sym) (p : M) (j : ℕ),
-                ((DecoderState.empty ecp).addChunk (ecp.encode p j)).ecp = ecp ∧
-                  ∃ I : Finset (Fin ecp.ec.N),
-                    ((DecoderState.empty ecp).addChunk (ecp.encode p j)).chunks =
-                      ErasureCodePayload.payloadChunks ecp p I := by
-              intro M ecp p j
-              have hadd := DecoderState.addChunk_payloadChunks ecp p ∅ j
-              rw [ErasureCodePayload.payloadChunks_empty] at hadd
-              exact ⟨congrArg DecoderState.ecp hadd, _, congrArg DecoderState.chunks hadd⟩
             refine ⟨⟨e - 1, none, .ekSentCt1Received e a sk ct1
-                ((DecoderState.empty P.ecpCt2).addChunk chunk)⟩,
+                (P.decCt2.addChunk P.decCt2.empty chunk)⟩,
               by simp [receive, Message.wellFormed], rfl, ha, pk, encapsState, key, hkp, hc, ?_⟩
             rw [hch]
-            exact hfirst P.ecpCt2 _ i
+            exact (P.decCt2.received_empty P.ecpCt2 _).addChunk i
           · exact ⟨⟨e - 1, none, .ct1Received e a sk ct1 enc⟩,
               by simp [receive, Message.wellFormed, State.epoch, he], rfl, hLocal⟩
   | _ => cases md <;> exact ⟨_, rfl, rfl, hLocal⟩
 
 /-- A successful receive preserves `LocalPayloadInv` when output keys agree with the peer's.
 Correct decapsulation ensures acceptance; any output key is the decapsulated epoch key. -/
-theorem receive_ekSentCt1Received_payload [DecidableEq P.Sym]
-    (hCt2Correct : P.ecpCt2.ec.Correct)
+theorem receive_ekSentCt1Received_payload
+    (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     (ik : InitKey) (T : ℕ → EpochTranscript P)
     (e : ℕ) (a : AuthState) (sk : P.SK) (ct1 : P.inc.C₁)
-    (dec : DecoderState (P.inc.C₂ × P.Mac) P.Sym)
+    (dec : P.decCt2.D)
     (peerKeys : ℕ → Option P.EpochKey)
     (msg : Message P.Sym)
     (hLocal : LocalPayloadInv auth ik T (.ekSentCt1Received e a sk ct1 dec))
@@ -195,7 +187,7 @@ theorem receive_ekSentCt1Received_payload [DecidableEq P.Sym]
       (∃ st', receive P auth (.ekSentCt1Received e a sk ct1 dec) msg =
           .ok ⟨e - 1, none, st'⟩ ∧ LocalPayloadInv auth ik T st') ∨
         ∃ chunk, msg = ⟨e, .ct2, some chunk⟩ ∧
-          (dec.addChunk chunk).decodedPayload =
+          P.decCt2.decodedPayload (P.decCt2.addChunk dec chunk) =
             some (P.hEnc2.encaps2Det encapsState (P.inc.toHeader pk) (P.inc.toVector pk),
               auth.macCiphertext (transcriptAuth auth ik T e) e
                 (ct1, P.hEnc2.encaps2Det encapsState (P.inc.toHeader pk) (P.inc.toVector pk))) := by
@@ -213,13 +205,12 @@ theorem receive_ekSentCt1Received_payload [DecidableEq P.Sym]
               obtain ⟨rfl, rfl, rfl⟩ : encapsState = es' ∧ ct1 = ct1' ∧ key = key' := by
                 simpa using hc.symm.trans hc'
               have hch := Option.some.inj hchunk
-              have hC :=
-                DecoderState.addChunk_encode_of_payloadChunks P.ecpCt2 hCt2Correct _ dec hdec i
+              have hC := hCt2Sound.received_addChunk hdec i
               rw [← hch] at hC
-              obtain ⟨hecp, ⟨I, hchunks⟩, hnone | hsome⟩ := hC
-              · exact Or.inl ⟨.ekSentCt1Received e a sk ct1 (dec.addChunk chunk),
+              obtain ⟨hhon, hnone | hsome⟩ := hC
+              · exact Or.inl ⟨.ekSentCt1Received e a sk ct1 (P.decCt2.addChunk dec chunk),
                   by simp [receive, Message.wellFormed, hnone],
-                  ha, pk, encapsState, key, hkp, hc, hecp, I, hchunks⟩
+                  ha, pk, encapsState, key, hkp, hc, hhon⟩
               · exact Or.inr ⟨chunk, rfl, hsome⟩
             · exact Or.inl ⟨.ekSentCt1Received e a sk ct1 dec,
                 by simp [receive, Message.wellFormed, State.epoch, he], hold⟩
@@ -239,7 +230,7 @@ theorem receive_ekSentCt1Received_payload [DecidableEq P.Sym]
         ∃ k, P.hDet.decapsDet sk (P.inc.splitC.symm (ct1,
             P.hEnc2.encaps2Det encapsState (P.inc.toHeader pk) (P.inc.toVector pk))) = some k ∧
           r = ⟨e - 1, some (e, P.kdfOK k e), .noHeaderReceived (e + 1)
-            (auth.update a e (P.kdfOK k e)) (DecoderState.empty P.ecpHdr)⟩ := by
+            (auth.update a e (P.kdfOK k e)) P.decHdr.empty⟩ := by
       intro r hr
       cases hdk : P.hDet.decapsDet sk (P.inc.splitC.symm (ct1,
           P.hEnc2.encaps2Det encapsState (P.inc.toHeader pk) (P.inc.toVector pk))) with
@@ -254,7 +245,7 @@ theorem receive_ekSentCt1Received_payload [DecidableEq P.Sym]
               have hrecv : receive P auth (.ekSentCt1Received e a sk ct1 dec)
                   ⟨e, .ct2, some chunk⟩ = .ok ⟨e - 1, some (e, P.kdfOK k e),
                     .noHeaderReceived (e + 1) (auth.update a e (P.kdfOK k e))
-                      (DecoderState.empty P.ecpHdr)⟩ := by
+                      P.decHdr.empty⟩ := by
                 simp [receive, Message.wellFormed, hsome, hdk, hv]
               rw [hrecv] at hr
               cases hr
@@ -267,7 +258,7 @@ theorem receive_ekSentCt1Received_payload [DecidableEq P.Sym]
       · rw [Nat.add_sub_cancel, hk, hauth]
       · cases (T (e + 1)).keypair with
         | none => exact rfl
-        | some kp => exact ⟨rfl, ∅, (ErasureCodePayload.payloadChunks_empty P.ecpHdr _).symm⟩
+        | some kp => exact P.decHdr.received_empty P.ecpHdr _
     · obtain ⟨k, hdk, hk⟩ : ∃ k, P.hDet.decapsDet sk (P.inc.splitC.symm (ct1,
           P.hEnc2.encaps2Det encapsState (P.inc.toHeader pk) (P.inc.toVector pk))) = some k ∧
           P.kdfOK k e = P.kdfOK key e := by
@@ -282,7 +273,7 @@ theorem receive_ekSentCt1Received_payload [DecidableEq P.Sym]
             rw [hdk] at htr
             exact ⟨k, rfl, Option.some.inj htr⟩
       refine ⟨⟨e - 1, some (e, P.kdfOK k e), .noHeaderReceived (e + 1)
-          (auth.update a e (P.kdfOK k e)) (DecoderState.empty P.ecpHdr)⟩, ?_, ?_⟩
+          (auth.update a e (P.kdfOK k e)) P.decHdr.empty⟩, ?_, ?_⟩
       · simp [receive, Message.wellFormed, hsome, hdk, hk, ← hauth,
           auth.verifyCiphertext_correct]
       · intro t outKey hout
@@ -322,8 +313,8 @@ theorem generator_peer_key {ik : InitKey} {T : ℕ → EpochTranscript P}
 
 /-- Any output key comes from recorded decapsulation at the generator's epoch; the peer holds the
 derived epoch key of the encapsulation. -/
-theorem receive_recorded_output [DecidableEq P.Sym]
-    (hCt2Correct : P.ecpCt2.ec.Correct)
+theorem receive_recorded_output
+    (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
     (party : Bool) (n : ℕ) (msg : Message P.Sym) (tsnd : ℕ)
@@ -352,7 +343,7 @@ theorem receive_recorded_output [DecidableEq P.Sym]
     have hpeer := generator_peer_key auth hT party hgen
     dsimp only at hpeer
     rw [hst] at hpeer
-    obtain ⟨-, -, hout4⟩ := receive_ekSentCt1Received_payload auth hCt2Correct ik T e a sk
+    obtain ⟨-, -, hout4⟩ := receive_ekSentCt1Received_payload auth hCt2Sound ik T e a sk
       ct1 dec (s.keysAt (!party)) msg hLocal hPayload hpos
       (fun encapsState key hc => hpeer encapsState ct1 key hc)
     obtain ⟨rfl, pk, encapsState, key, hkp, hc, hkey⟩ := hout4 r t outKey hr hout

@@ -9,7 +9,7 @@ module
 public import Mathlib.Algebra.MonoidAlgebra.Defs
 public import Mathlib.Algebra.MonoidAlgebra.Support
 import Mathlib.Algebra.Order.Ring.Abs
-import Mathlib.Tactic.Ring
+import Mathlib.Tactic.Ring.RingNF
 
 /-!
 # Finite integer counting measures

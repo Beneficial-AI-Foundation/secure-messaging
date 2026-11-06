@@ -4,9 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppUniKEM.Construction
-import SecureMessaging.ErasureCode.Payload
-import VCVio.OracleComp.QueryTracking.QueryBound
+module
+
+public import SecureMessaging.SCKA.OppUniKEM.Construction
 
 /-!
 # Opp-UniKEM security interface
@@ -20,6 +20,8 @@ on every response path (`SecuritySendQueryBound adv q`).
   `{s.t}` if the send samples, else `∅` (`leakEpochsA`, `leakEpochsB`, `sendArleak_exposure`,
   `sendBrleak_exposure`).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme
 

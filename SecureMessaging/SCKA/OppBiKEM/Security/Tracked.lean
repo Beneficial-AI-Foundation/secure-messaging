@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.Main
-import SecureMessaging.SCKA.OppBiKEM.Security.Invariant
+module
+
+public import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.Main
+public import SecureMessaging.SCKA.OppBiKEM.Security.Invariant
 
 /-!
 # Opp-BiKEM — Security runs with a sticky failure flag
@@ -19,6 +21,8 @@ preserve `trackedInv`: the flag is set, or `GameInv` holds without current KEM f
 initial state whose flag is clear has a final state satisfying `GameInv`
 (`security_gameInv_of_noFailure`).
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp KEMScheme
 
