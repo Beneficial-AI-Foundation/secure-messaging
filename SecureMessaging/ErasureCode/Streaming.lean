@@ -10,21 +10,29 @@ import SecureMessaging.ErasureCode.Payload
 # Stateful Erasure-Code Streaming
 
 Protocol-independent stateful wrappers over `ErasureCodePayload`. The encoder emits
-successive natural-number-indexed chunks. The decoder stores at most one symbol per
-index, retaining the first symbol received at a repeated index.
+successive natural-number-indexed chunks. An `EncoderState` stores its `ErasureCodePayload`
+scheme, so a stream cannot be encoded under a different scheme.
 
-Each endpoint state stores its `ErasureCodePayload` scheme, ensuring that a stream
-cannot be encoded or decoded under a different scheme.
+A `StreamDecoder` is a decoder given by its operations: a state type, an initial state, an
+operation that adds one indexed chunk, and a partial decoding function. `StreamDecoder.Sound` is
+the law that the ML-KEM Braid correctness proofs use: a decoder that received only chunks of `p`,
+at least one, decodes to `none` or `some p`. SPQR uses the same decoder interface.
+`StreamDecoder.Received` is the matching invariant, and `StreamDecoder.Sound.of_inv` proves
+soundness from an instance's own invariant.
 
-This models the observable streaming behavior used by ML-KEM Braid. It deliberately
-abstracts away the concrete byte representation, polynomial caches, bounded storage,
-and serialization of Signal's implementation.
+`setDecoder ecp` is the set-based instance. Its state is a finite set of indexed chunks that stores
+at most one symbol per index and keeps the first symbol received at a repeated index. It is sound
+when the erasure code is correct (`setDecoder_sound`).
+
+The encoder and `setDecoder` model the observable streaming behavior of ML-KEM Braid and SPQR.
+They abstract away the byte representation, polynomial caches, bounded storage, and
+serialization of Signal's implementation. Other `StreamDecoder` instances can model these.
 
 ## References
 
 - [Signal ML-KEM Braid, §2.2: Encode/Decode](https://signal.org/docs/specifications/mlkembraid/)
 - [SparsePostQuantumRatchet encoder and decoder interfaces](https://github.com/signalapp/SparsePostQuantumRatchet/blob/fd320484dcec89004021e6fdc7481825f5f261fa/src/encoding.rs#L24-L47)
-- [SparsePostQuantumRatchet polynomial streaming implementation](https://github.com/signalapp/SparsePostQuantumRatchet/blob/fd320484dcec89004021e6fdc7481825f5f261fa/src/encoding/polynomial.rs#L751-L929)
+- [SparsePostQuantumRatchet polynomial streaming implementation](https://github.com/signalapp/SparsePostQuantumRatchet/blob/fd320484dcec89004021e6fdc7481825f5f261fa/src/encoding/polynomial.rs#L751-L976)
 -/
 
 namespace ErasureCodePayload.Streaming
@@ -400,5 +408,228 @@ theorem decodedPayload_honestPrefix [DecidableEq Sym]
     (honestPrefixPositions ecp delivered t) hcard
 
 end DecoderState
+
+-- ANCHOR: StreamDecoder
+/-- A streaming decoder for payloads in `M` from indexed symbols in `Sym`. -/
+structure StreamDecoder (M Sym : Type) where
+  /-- Decoder state. -/
+  D : Type
+  /-- Initial state. -/
+  empty : D
+  /-- Adds one indexed chunk. -/
+  addChunk : D → ℕ × Sym → D
+  /-- The decoded payload, if any. -/
+  decodedPayload : D → Option M
+
+namespace StreamDecoder
+
+/-- The state of `dec` after it receives the chunks `ecp.encode p i` for `i` in `is`, in order. -/
+def run (dec : StreamDecoder M Sym) (ecp : ErasureCodePayload M Sym) (p : M) (is : List ℕ) :
+    dec.D :=
+  is.foldl (fun d i => dec.addChunk d (ecp.encode p i)) dec.empty
+
+/-- `dec` is sound for `ecp` if a decoder that received only chunks of `p`, at least one, decodes
+to `none` or `some p`. Soundness does not imply that `dec` ever decodes, and it does not constrain
+`decodedPayload` of the initial state. -/
+def Sound (dec : StreamDecoder M Sym) (ecp : ErasureCodePayload M Sym) : Prop :=
+  ∀ (p : M) (is : List ℕ), is ≠ [] →
+    dec.decodedPayload (dec.run ecp p is) = none ∨
+      dec.decodedPayload (dec.run ecp p is) = some p
+-- ANCHOR_END: StreamDecoder
+
+-- ANCHOR: StreamDecoder_Received
+/-- The state `d` of `dec` received only chunks of `p`, possibly none. -/
+def Received (dec : StreamDecoder M Sym) (ecp : ErasureCodePayload M Sym) (p : M) (d : dec.D) :
+    Prop :=
+  ∃ is : List ℕ, d = dec.run ecp p is
+-- ANCHOR_END: StreamDecoder_Received
+
+variable {dec : StreamDecoder M Sym} {ecp : ErasureCodePayload M Sym} {p : M}
+
+/-- Running one more chunk adds it to the previous state. -/
+theorem run_append_singleton (dec : StreamDecoder M Sym) (ecp : ErasureCodePayload M Sym)
+    (p : M) (is : List ℕ) (i : ℕ) :
+    dec.run ecp p (is ++ [i]) = dec.addChunk (dec.run ecp p is) (ecp.encode p i) := by
+  simp only [run, List.foldl_append, List.foldl_cons, List.foldl_nil]
+
+/-- The initial state received only chunks of every payload. -/
+theorem received_empty (dec : StreamDecoder M Sym) (ecp : ErasureCodePayload M Sym) (p : M) :
+    dec.Received ecp p dec.empty :=
+  ⟨[], rfl⟩
+
+/-- Adding a chunk of `p` to a state that received only chunks of `p` keeps that property. -/
+theorem Received.addChunk {d : dec.D} (hd : dec.Received ecp p d) (i : ℕ) :
+    dec.Received ecp p (dec.addChunk d (ecp.encode p i)) := by
+  obtain ⟨is, rfl⟩ := hd
+  exact ⟨is ++ [i], (run_append_singleton dec ecp p is i).symm⟩
+
+/-- Let `I` hold for the initial state and be preserved by adding a chunk of `p`. Then `I` holds
+for every state that received only chunks of `p`. -/
+theorem Received.induction {I : dec.D → Prop} (h0 : I dec.empty)
+    (hstep : ∀ d i, I d → I (dec.addChunk d (ecp.encode p i)))
+    {d : dec.D} (hd : dec.Received ecp p d) : I d := by
+  obtain ⟨is, rfl⟩ := hd
+  induction is using List.reverseRecOn with
+  | nil => exact h0
+  | append_singleton is i ih =>
+      rw [run_append_singleton]
+      exact hstep _ i ih
+
+/-- Let `dec` be sound for `ecp`, and let `d` have received only chunks of `p`. Then adding a chunk
+of `p` gives a state that received only chunks of `p` and decodes to `none` or `some p`. -/
+theorem Sound.received_addChunk (hsound : dec.Sound ecp) {d : dec.D}
+    (hd : dec.Received ecp p d) (i : ℕ) :
+    dec.Received ecp p (dec.addChunk d (ecp.encode p i)) ∧
+      (dec.decodedPayload (dec.addChunk d (ecp.encode p i)) = none ∨
+        dec.decodedPayload (dec.addChunk d (ecp.encode p i)) = some p) := by
+  refine ⟨hd.addChunk i, ?_⟩
+  obtain ⟨is, rfl⟩ := hd
+  rw [← run_append_singleton]
+  exact hsound p (is ++ [i]) (by simp)
+
+/-- Let `I p` hold for the initial state for every `p`. Let adding a chunk of `p` to a state that
+satisfies `I p` give a state that satisfies `I p` and decodes to `none` or `some p`. Then `dec` is
+sound for `ecp`. -/
+theorem Sound.of_inv (I : M → dec.D → Prop) (h0 : ∀ p, I p dec.empty)
+    (hstep : ∀ d p i, I p d →
+      I p (dec.addChunk d (ecp.encode p i)) ∧
+        (dec.decodedPayload (dec.addChunk d (ecp.encode p i)) = none ∨
+          dec.decodedPayload (dec.addChunk d (ecp.encode p i)) = some p)) :
+    dec.Sound ecp := by
+  intro p is hne
+  obtain ⟨is, i, rfl⟩ := (List.eq_nil_or_concat is).resolve_left hne
+  rw [List.concat_eq_append, run_append_singleton]
+  exact (hstep _ p i
+    (Received.induction (I := I p) (h0 p) (fun d i h => (hstep d p i h).1) ⟨is, rfl⟩)).2
+
+end StreamDecoder
+
+namespace SetDecoder
+
+/-- The chunk set already contains a chunk at `index`. -/
+def HasIndex (chunks : Finset (ℕ × Sym)) (index : ℕ) : Prop :=
+  ∃ chunk ∈ chunks, chunk.1 = index
+
+/-- Whether a chunk set contains a chunk at a given index is decidable. -/
+instance (chunks : Finset (ℕ × Sym)) (index : ℕ) : Decidable (HasIndex chunks index) := by
+  unfold HasIndex
+  infer_instance
+
+/-- Stored chunks have pairwise distinct indices. -/
+def IndexUnique (chunks : Finset (ℕ × Sym)) : Prop :=
+  Set.InjOn Prod.fst (chunks : Set (ℕ × Sym))
+
+/-- Add a chunk unless its index is already present. The first symbol received at an
+index is retained, so exact duplicates are harmless and later conflicts are ignored.
+The soundness and recovery results below cover only chunks encoded from one payload. Their
+indices are in range by construction. -/
+def addChunk [DecidableEq Sym] (chunks : Finset (ℕ × Sym)) (chunk : ℕ × Sym) :
+    Finset (ℕ × Sym) :=
+  if HasIndex chunks chunk.1 then chunks else insert chunk chunks
+
+end SetDecoder
+
+-- ANCHOR: setDecoder
+/-- The set-based decoder of `ecp`. It keeps the first symbol received at each index and decodes
+the stored chunk set with `ecp.decode`. -/
+def setDecoder [DecidableEq Sym] (ecp : ErasureCodePayload M Sym) : StreamDecoder M Sym where
+  D := Finset (ℕ × Sym)
+  empty := ∅
+  addChunk := SetDecoder.addChunk
+  decodedPayload := ecp.decode
+-- ANCHOR_END: setDecoder
+
+namespace SetDecoder
+
+/-- A chunk whose index is already present leaves the chunk set unchanged. -/
+theorem addChunk_eq_self_of_hasIndex [DecidableEq Sym]
+    (chunks : Finset (ℕ × Sym)) (chunk : ℕ × Sym) (h : HasIndex chunks chunk.1) :
+    addChunk chunks chunk = chunks := by
+  simp [addChunk, h]
+
+/-- In a chunk set built from correctly encoded chunks, an emitted chunk's index is
+present exactly when its codeword position has already been received. -/
+private theorem hasIndex_payloadChunks_iff
+    (ecp : ErasureCodePayload M Sym) (payload : M)
+    (I : Finset (Fin ecp.ec.N)) (i : ℕ) :
+    HasIndex (ErasureCodePayload.payloadChunks ecp payload I) (ecp.encode payload i).1 ↔
+      ErasureCodePayload.counterIndex ecp i ∈ I := by
+  classical
+  constructor
+  · rintro ⟨natChunk, hnatChunk, hindex⟩
+    rw [ErasureCodePayload.payloadChunks, Finset.mem_map] at hnatChunk
+    obtain ⟨bounded, hbounded, hboundedEq⟩ := hnatChunk
+    have hboundedMem :=
+      (ecp.ec.mem_encodeChunks (ecp.serialize payload) I bounded).mp hbounded
+    have hvalue : bounded.1.val = (ecp.encode payload i).1 := by
+      calc
+        bounded.1.val = (ErasureCode.chunkToNat bounded).1 := rfl
+        _ = natChunk.1 := congrArg Prod.fst hboundedEq
+        _ = (ecp.encode payload i).1 := hindex
+    have hboundedIndex : bounded.1 = ErasureCodePayload.counterIndex ecp i := by
+      apply Fin.ext
+      exact hvalue
+    simpa [hboundedIndex] using hboundedMem.1
+  · intro hmem
+    refine ⟨ecp.encode payload i, ?_, rfl⟩
+    rw [ErasureCodePayload.payloadChunks, Finset.mem_map]
+    let bounded : Fin ecp.ec.N × Sym :=
+      (ErasureCodePayload.counterIndex ecp i,
+        ecp.ec.encode (ecp.serialize payload) (ErasureCodePayload.counterIndex ecp i))
+    refine ⟨bounded, ?_, ?_⟩
+    · exact (ecp.ec.mem_encodeChunks (ecp.serialize payload) I bounded).2 ⟨hmem, rfl⟩
+    · exact (ErasureCodePayload.encode_eq_chunkToNat ecp payload i).symm
+
+/-- Adding a correctly encoded chunk to a chunk set built from chunks of the same payload
+preserves that representation and records the chunk's codeword position. -/
+theorem addChunk_payloadChunks [DecidableEq Sym]
+    (ecp : ErasureCodePayload M Sym) (payload : M)
+    (I : Finset (Fin ecp.ec.N)) (i : ℕ) :
+    addChunk (ErasureCodePayload.payloadChunks ecp payload I) (ecp.encode payload i) =
+      ErasureCodePayload.payloadChunks ecp payload
+        (insert (ErasureCodePayload.counterIndex ecp i) I) := by
+  by_cases hmem : ErasureCodePayload.counterIndex ecp i ∈ I
+  · have hhas := (hasIndex_payloadChunks_iff ecp payload I i).2 hmem
+    rw [addChunk_eq_self_of_hasIndex _ _ hhas]
+    simp [Finset.insert_eq_of_mem hmem]
+  · have hhas :
+        ¬HasIndex (ErasureCodePayload.payloadChunks ecp payload I) (ecp.encode payload i).1 := by
+      simpa [hasIndex_payloadChunks_iff ecp payload I i] using hmem
+    simp only [addChunk, hhas, ↓reduceIte]
+    exact ErasureCodePayload.insert_payloadChunks ecp payload I i
+
+/-- Adding a correctly encoded chunk to a chunk set that holds chunks of the same payload gives a
+chunk set that again holds chunks of that payload, and that decodes to nothing or the payload. -/
+theorem addChunk_encode_of_payloadChunks [DecidableEq Sym]
+    (ecp : ErasureCodePayload M Sym) (hcorrect : ecp.ec.Correct)
+    (payload : M) (chunks : Finset (ℕ × Sym))
+    (hchunks : ∃ I : Finset (Fin ecp.ec.N),
+      chunks = ErasureCodePayload.payloadChunks ecp payload I)
+    (i : ℕ) :
+    (∃ I' : Finset (Fin ecp.ec.N),
+        addChunk chunks (ecp.encode payload i) =
+          ErasureCodePayload.payloadChunks ecp payload I') ∧
+      (ecp.decode (addChunk chunks (ecp.encode payload i)) = none ∨
+        ecp.decode (addChunk chunks (ecp.encode payload i)) = some payload) := by
+  obtain ⟨I, rfl⟩ := hchunks
+  let I' := insert (ErasureCodePayload.counterIndex ecp i) I
+  rw [addChunk_payloadChunks]
+  refine ⟨⟨I', rfl⟩, ?_⟩
+  by_cases hcard : ecp.ec.nchunk ≤ I'.card
+  · exact Or.inr (ErasureCodePayload.decode_payloadChunks ecp hcorrect payload I' hcard)
+  · exact Or.inl (ErasureCodePayload.decode_payloadChunks_none
+      ecp hcorrect payload I' (Nat.lt_of_not_ge hcard))
+
+end SetDecoder
+
+/-- Let the erasure code of `ecp` be correct. Then `setDecoder ecp` is sound for `ecp`. -/
+theorem setDecoder_sound [DecidableEq Sym] (ecp : ErasureCodePayload M Sym)
+    (hcorrect : ecp.ec.Correct) : (setDecoder ecp).Sound ecp :=
+  StreamDecoder.Sound.of_inv
+    (fun p (chunks : Finset (ℕ × Sym)) =>
+      ∃ I : Finset (Fin ecp.ec.N), chunks = ErasureCodePayload.payloadChunks ecp p I)
+    (fun p => ⟨∅, (ErasureCodePayload.payloadChunks_empty ecp p).symm⟩)
+    (fun chunks p i hchunks =>
+      SetDecoder.addChunk_encode_of_payloadChunks ecp hcorrect p chunks hchunks i)
 
 end ErasureCodePayload.Streaming

@@ -231,3 +231,59 @@ def Correct (ec : ErasureCode Sym) : Prop :=
     (I.card < ec.nchunk → ec.decode (ec.encodeChunks M I) = none)
 ```
 ::::
+
+:::defTitle "stream_decoder" "Sound stream decoder"
+:::
+
+::::definition "stream_decoder" (parent := "erasure_codes") (lean := "ErasureCodePayload.Streaming.StreamDecoder, ErasureCodePayload.Streaming.StreamDecoder.run, ErasureCodePayload.Streaming.StreamDecoder.Sound, ErasureCodePayload.Streaming.StreamDecoder.Received") (tags := "gh-401") (uses := "erasure_code_payload")
+A stream decoder has a state type, an initial state, an operation that adds an indexed chunk,
+and a partial decoding function. For a payload $`p` and a list of counters $`i_1,\dots,i_n`, the
+state $`\mathsf{run}(p, [i_1,\dots,i_n])` adds the chunks $`\mathsf{Encode}(p, i_1)`, ...,
+$`\mathsf{Encode}(p, i_n)` to the initial state, in order.
+
+The decoder is sound for an erasure-code payload scheme if, for every payload $`p` and every
+nonempty list of counters, $`\mathsf{run}(p, \cdot)` decodes to nothing or to $`p`. Soundness
+does not require that the decoder ever decodes. A state received only chunks of $`p` if it is
+$`\mathsf{run}(p, \cdot)` for some list, possibly empty.
+
+:::leanPillCaption "stream decoder and soundness"
+:::
+
+```anchor StreamDecoder (project := ".") (module := SecureMessaging.ErasureCode.Streaming)
+/-- A streaming decoder for payloads in `M` from indexed symbols in `Sym`. -/
+structure StreamDecoder (M Sym : Type) where
+  /-- Decoder state. -/
+  D : Type
+  /-- Initial state. -/
+  empty : D
+  /-- Adds one indexed chunk. -/
+  addChunk : D → ℕ × Sym → D
+  /-- The decoded payload, if any. -/
+  decodedPayload : D → Option M
+
+namespace StreamDecoder
+
+/-- The state of `dec` after it receives the chunks `ecp.encode p i` for `i` in `is`, in order. -/
+def run (dec : StreamDecoder M Sym) (ecp : ErasureCodePayload M Sym) (p : M) (is : List ℕ) :
+    dec.D :=
+  is.foldl (fun d i => dec.addChunk d (ecp.encode p i)) dec.empty
+
+/-- `dec` is sound for `ecp` if a decoder that received only chunks of `p`, at least one, decodes
+to `none` or `some p`. Soundness does not imply that `dec` ever decodes, and it does not constrain
+`decodedPayload` of the initial state. -/
+def Sound (dec : StreamDecoder M Sym) (ecp : ErasureCodePayload M Sym) : Prop :=
+  ∀ (p : M) (is : List ℕ), is ≠ [] →
+    dec.decodedPayload (dec.run ecp p is) = none ∨
+      dec.decodedPayload (dec.run ecp p is) = some p
+```
+
+:::leanPillCaption "received only chunks of a payload"
+:::
+
+```anchor StreamDecoder_Received (project := ".") (module := SecureMessaging.ErasureCode.Streaming)
+/-- The state `d` of `dec` received only chunks of `p`, possibly none. -/
+def Received (dec : StreamDecoder M Sym) (ecp : ErasureCodePayload M Sym) (p : M) (d : dec.D) :
+    Prop :=
+  ∃ is : List ℕ, d = dec.run ecp p is
+```
+::::
