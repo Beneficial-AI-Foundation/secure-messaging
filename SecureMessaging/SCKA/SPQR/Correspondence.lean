@@ -140,7 +140,7 @@ theorem send_ekSentCt1Received_toMLKEMBraid [LawfulMonad m]
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (core : EkSender.EkSentCt1Received P AuthState)
-    (dec : DecoderState (P.det.C₂ × P.Mac) P.Sym) :
+    (dec : P.decCt2.D) :
     SendResult.toMLKEMBraid <$> SPQR.send P auth (.ekSentCt1Received core dec) =
       (fun r => { r with msg := ⟨r.msg.epoch, .ct1Ack, r.msg.data⟩ }) <$>
         MLKEMBraid.send P.toBraid auth (PartyState.toMLKEMBraid (.ekSentCt1Received core dec))
@@ -166,7 +166,7 @@ set_option linter.flexible false in
 /-- On a delivery that `MLKEMBraid.receive` does not ignore, the SCKA receive outputs agree after
 translation. Every divergence between the two receives is on an ignored delivery. -/
 -- ANCHOR: Correspondence_recvSCKA_toMLKEMBraid
-theorem recvSCKA_toMLKEMBraid (P : SPQR.Parameters m) [DecidableEq P.Sym]
+theorem recvSCKA_toMLKEMBraid (P : SPQR.Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : PartyState P AuthState) (msg : Message P.Sym)
@@ -191,7 +191,7 @@ theorem recvSCKA_toMLKEMBraid (P : SPQR.Parameters m) [DecidableEq P.Sym]
     split_ifs at h ⊢ <;> simp_all
   all_goals
     generalize hdec :
-      (‹DecoderState _ _›.addChunk ‹ℕ × P.Sym›).decodedPayload = decoded at h ⊢
+      StreamDecoder.decodedPayload _ (StreamDecoder.addChunk _ _ _) = decoded at h ⊢
     cases decoded <;> simp_all
   all_goals try (split_ifs at h ⊢ <;> simp_all)
   all_goals

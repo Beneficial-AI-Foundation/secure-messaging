@@ -11,7 +11,8 @@ import SecureMessaging.SCKA.MLKEMBraid.Basic
 # SPQR parameters
 
 An SPQR parameter set `P : Parameters m` consists of an incremental KEM with explicit coins
-`P.det`, an epoch-key derivation `kdfOK`, a tag space, and four erasure-coded payloads.
+`P.det`, an epoch-key derivation `kdfOK`, a tag space, four erasure-coded payloads, and a
+stream decoder for each payload.
 `Parameters.toBraid` gives the ML-KEM Braid parameters with the same algorithms, for comparison
 with the ML-KEM Braid transition system.
 
@@ -25,7 +26,7 @@ universe u
 namespace SPQR
 
 /-- Parameters of SPQR: an incremental KEM with explicit coins, epoch-key derivation, and
-four erasure-coded payload streams. -/
+four erasure-coded payload streams with their decoders. -/
 -- ANCHOR: SPQR_Parameters
 structure Parameters (m : Type → Type u) [Monad m] where
   /-- KEM shared secret. -/
@@ -54,6 +55,14 @@ structure Parameters (m : Type → Type u) [Monad m] where
   ecpCt1 : ErasureCodePayload det.C₁ Sym
   /-- `ct₂` stream, recovering `ct₂ ‖ mac`. -/
   ecpCt2 : ErasureCodePayload (det.C₂ × Mac) Sym
+  /-- Header-stream decoder. -/
+  decHdr : ErasureCodePayload.Streaming.StreamDecoder (det.PKheader × Mac) Sym
+  /-- Encapsulation-key-vector-stream decoder. -/
+  decEk : ErasureCodePayload.Streaming.StreamDecoder det.PKvector Sym
+  /-- `ct₁`-stream decoder. -/
+  decCt1 : ErasureCodePayload.Streaming.StreamDecoder det.C₁ Sym
+  /-- `ct₂`-stream decoder. -/
+  decCt2 : ErasureCodePayload.Streaming.StreamDecoder (det.C₂ × Mac) Sym
 -- ANCHOR_END: SPQR_Parameters
 
 /-- The Braid parameters induced by the SPQR algorithms and payload streams. -/
@@ -75,6 +84,10 @@ abbrev Parameters.toBraid {m : Type → Type u} [Monad m] (P : Parameters m) :
   ecpEk := P.ecpEk
   ecpCt1 := P.ecpCt1
   ecpCt2 := P.ecpCt2
+  decHdr := P.decHdr
+  decEk := P.decEk
+  decCt1 := P.decCt1
+  decCt2 := P.decCt2
 
 namespace Parameters
 

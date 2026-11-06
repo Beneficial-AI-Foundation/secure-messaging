@@ -137,8 +137,7 @@ private theorem send_keysUnsampled_transcript {ik : InitKey} {T : ℕ → EpochT
     · simp only [stateAt_sendSuccessor, Bool.not_eq_self, ↓reduceIte]
       rw [hpeer]
       simp only [LocalPayloadInv, hTke]
-      refine ⟨hbT, rfl, ∅, ?_⟩
-      simp [DecoderState.empty]
+      exact ⟨hbT, P.decHdr.received_empty P.ecpHdr _⟩
   rintro ⟨hC', hP'⟩
   refine ⟨pk, sk, by simpa only [correct_sendSuccessor] using hcorr, hC', hP',
     ?_, ?_, ?_, ?_, hLocal true, hLocal false, ?_, ?_⟩
@@ -198,7 +197,7 @@ private theorem send_headerReceived_transcript {ik : InitKey} {T : ℕ → Epoch
     {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
     (party : Bool) {r : SendResult P AuthState}
     (hr : r ∈ support (send P auth (s.stateAt party)))
-    {e : ℕ} {a : AuthState} {hdr : P.inc.PKheader} {dec : DecoderState P.inc.PKvector P.Sym}
+    {e : ℕ} {a : AuthState} {hdr : P.inc.PKheader} {dec : P.decEk.D}
     (hst : (s.stateAt party) = .headerReceived e a hdr dec) :
     let s' := sendSuccessor s party r
     (ControlInv s' ∧ StatePairInv s') →
@@ -236,7 +235,7 @@ private theorem send_headerReceived_transcript {ik : InitKey} {T : ℕ → Epoch
     ⟨⟨e, .ct1, some (EncoderState.init P.ecpCt1 ct1).nextChunk.1⟩,
       e - 1, some (e, P.kdfOK k e),
       .ct1Sampled e (auth.update a e (P.kdfOK k e)) (P.inc.toHeader pk) es ct1
-        (EncoderState.init P.ecpCt1 ct1).nextChunk.2 (DecoderState.empty P.ecpEk)⟩
+        (EncoderState.init P.ecpCt1 ct1).nextChunk.2 P.decEk.empty⟩
   have hTk : ∀ n,
       (Function.update T e { (T e) with encaps1 := some (es, ct1, k) } n).keypair =
         (T n).keypair := by
@@ -300,9 +299,6 @@ private theorem send_headerReceived_transcript {ik : InitKey} {T : ℕ → Epoch
     intro who n msg tsnd h
     have h2 := ((hControl.roles who).2.2 n msg tsnd h).2.1
     exact h2.trans_eq (hep who)
-  have hempty : (DecoderState.empty P.ecpEk).chunks =
-      ErasureCodePayload.payloadChunks P.ecpEk (P.inc.toVector pk) ∅ := by
-    simp [DecoderState.empty]
   have hLocal : ∀ who, LocalPayloadInv auth ik
       (Function.update T e { (T e) with encaps1 := some (es, ct1, k) })
         ((sendSuccessor s party r').stateAt who) := by
@@ -310,7 +306,7 @@ private theorem send_headerReceived_transcript {ik : InitKey} {T : ℕ → Epoch
     rcases Bool.eq_or_eq_not who party with rfl | rfl
     · simp only [stateAt_sendSuccessor, ↓reduceIte]
       exact ⟨hAuthE.symm, pk, sk, k, by rw [hTk]; exact hkpT, hTce, rfl, ⟨rfl, rfl⟩,
-        rfl, ∅, hempty⟩
+        P.decEk.received_empty P.ecpEk _⟩
     · simp only [stateAt_sendSuccessor, Bool.not_eq_self, ↓reduceIte]
       rw [hpeer]
       refine ⟨hb.trans (hAuthLt (e - 1) (by omega)).symm, pk',
@@ -518,7 +514,7 @@ private theorem send_preserves_transcript {ik : InitKey} {T : ℕ → EpochTrans
       exact ⟨T, send_existing_transcript auth hT party hr
         (by simp only [hst, State.SendsNoSample]) hCP⟩
 
-variable [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+variable [DecidableEq P.EpochKey]
   (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey)
 
 /-- The send oracle of either party preserves `ControlInv ∧ StatePairInv`. -/

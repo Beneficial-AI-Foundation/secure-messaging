@@ -113,7 +113,7 @@ inductive SendEdge : State P AuthState → SendResult P AuthState → Prop
       SendEdge (.keysSampled e a sk vec enc)
         ⟨⟨e, .hdr, some enc.nextChunk.1⟩, e - 1, none, .keysSampled e a sk vec enc.nextChunk.2⟩
   /-- Emit the next vector chunk. -/
-  | ekChunk (e : ℕ) (a : AuthState) (sk : P.SK) (dec : DecoderState P.inc.C₁ P.Sym)
+  | ekChunk (e : ℕ) (a : AuthState) (sk : P.SK) (dec : P.decCt1.D)
       (enc : EncoderState P.inc.PKvector P.Sym) :
       SendEdge (.headerSent e a sk dec enc)
         ⟨⟨e, .ek, some enc.nextChunk.1⟩, e - 1, none, .headerSent e a sk dec enc.nextChunk.2⟩
@@ -125,16 +125,16 @@ inductive SendEdge : State P AuthState → SendResult P AuthState → Prop
           .ct1Received e a sk ct1 enc.nextChunk.2⟩
   /-- Nothing to send while waiting for `ct₂`. -/
   | idleEkSent (e : ℕ) (a : AuthState) (sk : P.SK) (ct1 : P.inc.C₁)
-      (dec : DecoderState (P.inc.C₂ × P.Mac) P.Sym) :
+      (dec : P.decCt2.D) :
       SendEdge (.ekSentCt1Received e a sk ct1 dec)
         ⟨⟨e, .none, none⟩, e - 1, none, .ekSentCt1Received e a sk ct1 dec⟩
   /-- Nothing to send while waiting for the header. -/
-  | idleNoHeader (e : ℕ) (a : AuthState) (dec : DecoderState (P.inc.PKheader × P.Mac) P.Sym) :
+  | idleNoHeader (e : ℕ) (a : AuthState) (dec : P.decHdr.D) :
       SendEdge (.noHeaderReceived e a dec)
         ⟨⟨e, .none, none⟩, e - 1, none, .noHeaderReceived e a dec⟩
   /-- Edge 7: encapsulate against the received header, output the epoch key, update the
   authenticator, and emit the first `ct₁` chunk. -/
-  | encaps1 (e : ℕ) (a : AuthState) (hdr : P.inc.PKheader) (dec : DecoderState P.inc.PKvector P.Sym)
+  | encaps1 (e : ℕ) (a : AuthState) (hdr : P.inc.PKheader) (dec : P.decEk.D)
       (es : P.inc.St) (ct1 : P.inc.C₁) (k : P.K)
       (h : (es, ct1, k) ∈ support (P.inc.encaps1 hdr)) :
       SendEdge (.headerReceived e a hdr dec)
@@ -144,7 +144,7 @@ inductive SendEdge : State P AuthState → SendResult P AuthState → Prop
             (EncoderState.init P.ecpCt1 ct1).nextChunk.2 dec⟩
   /-- Emit the next `ct₁` chunk while decoding the vector. -/
   | ct1Chunk (e : ℕ) (a : AuthState) (hdr : P.inc.PKheader) (es : P.inc.St) (ct1 : P.inc.C₁)
-      (enc : EncoderState P.inc.C₁ P.Sym) (dec : DecoderState P.inc.PKvector P.Sym) :
+      (enc : EncoderState P.inc.C₁ P.Sym) (dec : P.decEk.D) :
       SendEdge (.ct1Sampled e a hdr es ct1 enc dec)
         ⟨⟨e, .ct1, some enc.nextChunk.1⟩, e - 1, none,
           .ct1Sampled e a hdr es ct1 enc.nextChunk.2 dec⟩
@@ -156,7 +156,7 @@ inductive SendEdge : State P AuthState → SendResult P AuthState → Prop
           .ekReceivedCt1Sampled e a es ct1 hdr vec enc.nextChunk.2⟩
   /-- Nothing to send while waiting for the vector after the acknowledgement. -/
   | idleAcknowledged (e : ℕ) (a : AuthState) (hdr : P.inc.PKheader) (es : P.inc.St)
-      (ct1 : P.inc.C₁) (dec : DecoderState P.inc.PKvector P.Sym) :
+      (ct1 : P.inc.C₁) (dec : P.decEk.D) :
       SendEdge (.ct1Acknowledged e a hdr es ct1 dec)
         ⟨⟨e, .none, none⟩, e - 1, none, .ct1Acknowledged e a hdr es ct1 dec⟩
   /-- Emit the next `ct₂` chunk. -/
@@ -179,7 +179,7 @@ theorem send_keysUnsampled_eq (e : ℕ) (a : AuthState) :
 
 /-- From `headerReceived`, `send` runs `encaps1` and returns the result of edge 7 for its output. -/
 theorem send_headerReceived_eq (e : ℕ) (a : AuthState) (hdr : P.inc.PKheader)
-    (dec : DecoderState P.inc.PKvector P.Sym) :
+    (dec : P.decEk.D) :
     send P auth (.headerReceived e a hdr dec) =
       (fun c : P.inc.St × P.inc.C₁ × P.K =>
         (⟨⟨e, .ct1, some (EncoderState.init P.ecpCt1 c.2.1).nextChunk.1⟩, e - 1,
@@ -270,8 +270,6 @@ end SendEdge
 
 /-! ### Receive edges -/
 
-variable [DecidableEq P.Sym]
-
 /-- `ReceiveEdge auth st msg r` holds whenever `receive P auth st msg` accepts with result `r`
 (`ReceiveEdge.of_eq_ok`). The converse fails: `ignore` and `nextEpoch` omit the guards of `receive`.
 -/
@@ -283,80 +281,80 @@ inductive ReceiveEdge : State P AuthState → Message P.Sym → RecvResult P Aut
   | ct1First (e : ℕ) (a : AuthState) (sk : P.SK) (vec : P.inc.PKvector)
       (enc : EncoderState (P.inc.PKheader × P.Mac) P.Sym) (chunk : ℕ × P.Sym) :
       ReceiveEdge (.keysSampled e a sk vec enc) ⟨e, .ct1, some chunk⟩
-        ⟨e - 1, none, .headerSent e a sk ((DecoderState.empty P.ecpCt1).addChunk chunk)
+        ⟨e - 1, none, .headerSent e a sk (P.decCt1.addChunk P.decCt1.empty chunk)
           (EncoderState.init P.ecpEk vec)⟩
   /-- A `ct₁` chunk that does not complete `ct₁`. -/
-  | ct1Chunk (e : ℕ) (a : AuthState) (sk : P.SK) (dec : DecoderState P.inc.C₁ P.Sym)
+  | ct1Chunk (e : ℕ) (a : AuthState) (sk : P.SK) (dec : P.decCt1.D)
       (enc : EncoderState P.inc.PKvector P.Sym) (chunk : ℕ × P.Sym)
-      (h : (dec.addChunk chunk).decodedPayload = none) :
+      (h : P.decCt1.decodedPayload (P.decCt1.addChunk dec chunk) = none) :
       ReceiveEdge (.headerSent e a sk dec enc) ⟨e, .ct1, some chunk⟩
-        ⟨e - 1, none, .headerSent e a sk (dec.addChunk chunk) enc⟩
+        ⟨e - 1, none, .headerSent e a sk (P.decCt1.addChunk dec chunk) enc⟩
   /-- Edge 3: the `ct₁` chunk that completes `ct₁`. -/
-  | ct1Done (e : ℕ) (a : AuthState) (sk : P.SK) (dec : DecoderState P.inc.C₁ P.Sym)
+  | ct1Done (e : ℕ) (a : AuthState) (sk : P.SK) (dec : P.decCt1.D)
       (enc : EncoderState P.inc.PKvector P.Sym) (chunk : ℕ × P.Sym) (ct1 : P.inc.C₁)
-      (h : (dec.addChunk chunk).decodedPayload = some ct1) :
+      (h : P.decCt1.decodedPayload (P.decCt1.addChunk dec chunk) = some ct1) :
       ReceiveEdge (.headerSent e a sk dec enc) ⟨e, .ct1, some chunk⟩
         ⟨e - 1, none, .ct1Received e a sk ct1 enc⟩
   /-- Edge 4: the first `ct₂` chunk reaches the key generator. -/
   | ct2First (e : ℕ) (a : AuthState) (sk : P.SK) (ct1 : P.inc.C₁)
       (enc : EncoderState P.inc.PKvector P.Sym) (chunk : ℕ × P.Sym) :
       ReceiveEdge (.ct1Received e a sk ct1 enc) ⟨e, .ct2, some chunk⟩
-        ⟨e - 1, none, .ekSentCt1Received e a sk ct1 ((DecoderState.empty P.ecpCt2).addChunk chunk)⟩
+        ⟨e - 1, none, .ekSentCt1Received e a sk ct1 (P.decCt2.addChunk P.decCt2.empty chunk)⟩
   /-- A `ct₂` chunk that does not complete `ct₂`. -/
   | ct2Chunk (e : ℕ) (a : AuthState) (sk : P.SK) (ct1 : P.inc.C₁)
-      (dec : DecoderState (P.inc.C₂ × P.Mac) P.Sym) (chunk : ℕ × P.Sym)
-      (h : (dec.addChunk chunk).decodedPayload = none) :
+      (dec : P.decCt2.D) (chunk : ℕ × P.Sym)
+      (h : P.decCt2.decodedPayload (P.decCt2.addChunk dec chunk) = none) :
       ReceiveEdge (.ekSentCt1Received e a sk ct1 dec) ⟨e, .ct2, some chunk⟩
-        ⟨e - 1, none, .ekSentCt1Received e a sk ct1 (dec.addChunk chunk)⟩
+        ⟨e - 1, none, .ekSentCt1Received e a sk ct1 (P.decCt2.addChunk dec chunk)⟩
   /-- Edge 5: `ct₂` completes, decapsulation and tag verification succeed, and the generator outputs
   the epoch key and advances to epoch `e + 1`. -/
   | ct2Done (e : ℕ) (a : AuthState) (sk : P.SK) (ct1 : P.inc.C₁)
-      (dec : DecoderState (P.inc.C₂ × P.Mac) P.Sym) (chunk : ℕ × P.Sym) (ct2 : P.inc.C₂)
+      (dec : P.decCt2.D) (chunk : ℕ × P.Sym) (ct2 : P.inc.C₂)
       (tag : P.Mac) (k : P.K)
-      (hdec : (dec.addChunk chunk).decodedPayload = some (ct2, tag))
+      (hdec : P.decCt2.decodedPayload (P.decCt2.addChunk dec chunk) = some (ct2, tag))
       (hk : P.hDet.decapsDet sk (P.inc.splitC.symm (ct1, ct2)) = some k)
       (htag : auth.verifyCiphertext (auth.update a e (P.kdfOK k e)) e (ct1, ct2) tag = true) :
       ReceiveEdge (.ekSentCt1Received e a sk ct1 dec) ⟨e, .ct2, some chunk⟩
         ⟨e - 1, some (e, P.kdfOK k e),
-          .noHeaderReceived (e + 1) (auth.update a e (P.kdfOK k e)) (DecoderState.empty P.ecpHdr)⟩
+          .noHeaderReceived (e + 1) (auth.update a e (P.kdfOK k e)) P.decHdr.empty⟩
   /-- A header chunk that does not complete the header. -/
-  | hdrChunk (e : ℕ) (a : AuthState) (dec : DecoderState (P.inc.PKheader × P.Mac) P.Sym)
-      (chunk : ℕ × P.Sym) (h : (dec.addChunk chunk).decodedPayload = none) :
+  | hdrChunk (e : ℕ) (a : AuthState) (dec : P.decHdr.D)
+      (chunk : ℕ × P.Sym) (h : P.decHdr.decodedPayload (P.decHdr.addChunk dec chunk) = none) :
       ReceiveEdge (.noHeaderReceived e a dec) ⟨e, .hdr, some chunk⟩
-        ⟨e - 1, none, .noHeaderReceived e a (dec.addChunk chunk)⟩
+        ⟨e - 1, none, .noHeaderReceived e a (P.decHdr.addChunk dec chunk)⟩
   /-- Edge 6: the header completes and its tag verifies. -/
-  | hdrDone (e : ℕ) (a : AuthState) (dec : DecoderState (P.inc.PKheader × P.Mac) P.Sym)
+  | hdrDone (e : ℕ) (a : AuthState) (dec : P.decHdr.D)
       (chunk : ℕ × P.Sym) (hdr : P.inc.PKheader) (tag : P.Mac)
-      (hdec : (dec.addChunk chunk).decodedPayload = some (hdr, tag))
+      (hdec : P.decHdr.decodedPayload (P.decHdr.addChunk dec chunk) = some (hdr, tag))
       (htag : auth.verifyHeader a e hdr tag = true) :
       ReceiveEdge (.noHeaderReceived e a dec) ⟨e, .hdr, some chunk⟩
-        ⟨e - 1, none, .headerReceived e a hdr (DecoderState.empty P.ecpEk)⟩
+        ⟨e - 1, none, .headerReceived e a hdr P.decEk.empty⟩
   /-- A vector chunk that does not complete the vector. -/
   | ekChunk (e : ℕ) (a : AuthState) (hdr : P.inc.PKheader) (es : P.inc.St) (ct1 : P.inc.C₁)
-      (enc : EncoderState P.inc.C₁ P.Sym) (dec : DecoderState P.inc.PKvector P.Sym)
-      (chunk : ℕ × P.Sym) (h : (dec.addChunk chunk).decodedPayload = none) :
+      (enc : EncoderState P.inc.C₁ P.Sym) (dec : P.decEk.D)
+      (chunk : ℕ × P.Sym) (h : P.decEk.decodedPayload (P.decEk.addChunk dec chunk) = none) :
       ReceiveEdge (.ct1Sampled e a hdr es ct1 enc dec) ⟨e, .ek, some chunk⟩
-        ⟨e - 1, none, .ct1Sampled e a hdr es ct1 enc (dec.addChunk chunk)⟩
+        ⟨e - 1, none, .ct1Sampled e a hdr es ct1 enc (P.decEk.addChunk dec chunk)⟩
   /-- Edge 10: the vector completes before any acknowledgement and passes `validPK`. -/
   | ekDone (e : ℕ) (a : AuthState) (hdr : P.inc.PKheader) (es : P.inc.St) (ct1 : P.inc.C₁)
-      (enc : EncoderState P.inc.C₁ P.Sym) (dec : DecoderState P.inc.PKvector P.Sym)
+      (enc : EncoderState P.inc.C₁ P.Sym) (dec : P.decEk.D)
       (chunk : ℕ × P.Sym) (vec : P.inc.PKvector)
-      (hdec : (dec.addChunk chunk).decodedPayload = some vec)
+      (hdec : P.decEk.decodedPayload (P.decEk.addChunk dec chunk) = some vec)
       (hvalid : P.inc.validPK hdr vec = true) :
       ReceiveEdge (.ct1Sampled e a hdr es ct1 enc dec) ⟨e, .ek, some chunk⟩
         ⟨e - 1, none, .ekReceivedCt1Sampled e a es ct1 hdr vec enc⟩
   /-- Edge 8: an acknowledgement chunk arrives before the vector is complete. -/
   | ackEarly (e : ℕ) (a : AuthState) (hdr : P.inc.PKheader) (es : P.inc.St) (ct1 : P.inc.C₁)
-      (enc : EncoderState P.inc.C₁ P.Sym) (dec : DecoderState P.inc.PKvector P.Sym)
-      (chunk : ℕ × P.Sym) (h : (dec.addChunk chunk).decodedPayload = none) :
+      (enc : EncoderState P.inc.C₁ P.Sym) (dec : P.decEk.D)
+      (chunk : ℕ × P.Sym) (h : P.decEk.decodedPayload (P.decEk.addChunk dec chunk) = none) :
       ReceiveEdge (.ct1Sampled e a hdr es ct1 enc dec) ⟨e, .ekCt1Ack, some chunk⟩
-        ⟨e - 1, none, .ct1Acknowledged e a hdr es ct1 (dec.addChunk chunk)⟩
+        ⟨e - 1, none, .ct1Acknowledged e a hdr es ct1 (P.decEk.addChunk dec chunk)⟩
   /-- Edge 9: an acknowledgement chunk completes the vector; `encaps2` runs and the tagged `ct₂`
   stream starts. -/
   | ackDone (e : ℕ) (a : AuthState) (hdr : P.inc.PKheader) (es : P.inc.St) (ct1 : P.inc.C₁)
-      (enc : EncoderState P.inc.C₁ P.Sym) (dec : DecoderState P.inc.PKvector P.Sym)
+      (enc : EncoderState P.inc.C₁ P.Sym) (dec : P.decEk.D)
       (chunk : ℕ × P.Sym) (vec : P.inc.PKvector)
-      (hdec : (dec.addChunk chunk).decodedPayload = some vec)
+      (hdec : P.decEk.decodedPayload (P.decEk.addChunk dec chunk) = some vec)
       (hvalid : P.inc.validPK hdr vec = true) :
       ReceiveEdge (.ct1Sampled e a hdr es ct1 enc dec) ⟨e, .ekCt1Ack, some chunk⟩
         ⟨e - 1, none, .ct2Sampled e a (EncoderState.init P.ecpCt2
@@ -371,14 +369,14 @@ inductive ReceiveEdge : State P AuthState → Message P.Sym → RecvResult P Aut
             auth.macCiphertext a e (ct1, P.hEnc2.encaps2Det es hdr vec)))⟩
   /-- A further acknowledgement chunk that does not complete the vector. -/
   | ackChunk (e : ℕ) (a : AuthState) (hdr : P.inc.PKheader) (es : P.inc.St) (ct1 : P.inc.C₁)
-      (dec : DecoderState P.inc.PKvector P.Sym) (chunk : ℕ × P.Sym)
-      (h : (dec.addChunk chunk).decodedPayload = none) :
+      (dec : P.decEk.D) (chunk : ℕ × P.Sym)
+      (h : P.decEk.decodedPayload (P.decEk.addChunk dec chunk) = none) :
       ReceiveEdge (.ct1Acknowledged e a hdr es ct1 dec) ⟨e, .ekCt1Ack, some chunk⟩
-        ⟨e - 1, none, .ct1Acknowledged e a hdr es ct1 (dec.addChunk chunk)⟩
+        ⟨e - 1, none, .ct1Acknowledged e a hdr es ct1 (P.decEk.addChunk dec chunk)⟩
   /-- Edge 11: the vector completes after the acknowledgement. -/
   | ackVecDone (e : ℕ) (a : AuthState) (hdr : P.inc.PKheader) (es : P.inc.St) (ct1 : P.inc.C₁)
-      (dec : DecoderState P.inc.PKvector P.Sym) (chunk : ℕ × P.Sym) (vec : P.inc.PKvector)
-      (hdec : (dec.addChunk chunk).decodedPayload = some vec)
+      (dec : P.decEk.D) (chunk : ℕ × P.Sym) (vec : P.inc.PKvector)
+      (hdec : P.decEk.decodedPayload (P.decEk.addChunk dec chunk) = some vec)
       (hvalid : P.inc.validPK hdr vec = true) :
       ReceiveEdge (.ct1Acknowledged e a hdr es ct1 dec) ⟨e, .ekCt1Ack, some chunk⟩
         ⟨e - 1, none, .ct2Sampled e a (EncoderState.init P.ecpCt2
@@ -409,9 +407,7 @@ theorem receive_ct2Sampled_of_epoch_succ {e : ℕ} {a : AuthState}
 theorem ReceiveEdge.of_eq_ok {st : State P AuthState} {msg : Message P.Sym}
     {r : RecvResult P AuthState} (hr : receive P auth st msg = .ok r) :
     ReceiveEdge auth st msg r := by
-  -- In each state, name the edge taken. `ignore` is tried last: unifying it against another
-  -- edge compares a decoder with its extension by a chunk, which unfolds `addChunk` and its
-  -- decidability instance.
+  -- In each state, name the edge taken.
   obtain ⟨me, mt, md⟩ := msg
   cases st
   case keysUnsampled => receive_cases hr; all_goals exact .ignore _ _

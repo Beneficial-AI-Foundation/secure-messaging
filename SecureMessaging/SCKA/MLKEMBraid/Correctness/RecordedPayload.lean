@@ -21,17 +21,17 @@ open SCKAScheme.sckaCorrectnessSpec
 
 namespace MLKEMBraid
 
-variable {P : Parameters ProbComp} [DecidableEq P.Sym] {InitKey AuthState : Type}
+variable {P : Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
     P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
 
 /-- A successful receive of a recorded message preserves `LocalPayloadInv` when its output key
 agrees with the peer's. Correct decapsulation ensures acceptance with this agreement. -/
 theorem receive_recorded_payload
-    (hHdrCorrect : P.ecpHdr.ec.Correct)
-    (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct)
-    (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr)
+    (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1)
+    (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
     (party : Bool) (n : ℕ) (msg : Message P.Sym) (tsnd : ℕ)
@@ -108,14 +108,14 @@ theorem receive_recorded_payload
     exact hnoKey r hr hnone hinv
   case headerSent e a sk dec enc =>
     obtain ⟨r, hr, hnone, hinv⟩ :=
-      receive_headerSent_payload auth hCt1Correct ik T e a sk dec enc msg hLocal hPayload
+      receive_headerSent_payload auth hCt1Sound ik T e a sk dec enc msg hLocal hPayload
     exact hnoKey r hr hnone hinv
   case ct1Received e a sk ct1 enc =>
     obtain ⟨r, hr, hnone, hinv⟩ :=
       receive_ct1Received_payload auth ik T e a sk ct1 enc msg hLocal hPayload
     exact hnoKey r hr hnone hinv
   case ekSentCt1Received e a sk ct1 dec =>
-    obtain ⟨h1, h2, -⟩ := receive_ekSentCt1Received_payload auth hCt2Correct ik T e a sk
+    obtain ⟨h1, h2, -⟩ := receive_ekSentCt1Received_payload auth hCt2Sound ik T e a sk
       ct1 dec peerKeys msg hLocal hPayload hpos
       (fun encapsState key hc => hpeer rfl encapsState ct1 key hc)
     exact ⟨h1, fun h6 => h2 fun pk encapsState key hkp hc => h6 pk sk encapsState ct1 key hkp hc⟩
@@ -131,13 +131,13 @@ theorem receive_recorded_payload
               e - 1 := rfl
           omega
     obtain ⟨r, hr, hnone, hinv⟩ :=
-      receive_noHeaderReceived_payload auth ik T hHdrCorrect e a dec msg hLocal hPayload hNoEncaps
+      receive_noHeaderReceived_payload auth ik T hHdrSound e a dec msg hLocal hPayload hNoEncaps
     exact hnoKey r hr hnone hinv
   case headerReceived e a hdr dec =>
     exact hnoKey ⟨e - 1, none, .headerReceived e a hdr dec⟩ (by simp [receive, State.epoch])
       rfl hLocal
   case ct1Sampled e a hdr encapsState ct1 enc dec =>
-    obtain ⟨r, hr, hnone, hinv⟩ := receive_ct1Sampled_payload auth ik T hEkCorrect e a hdr
+    obtain ⟨r, hr, hnone, hinv⟩ := receive_ct1Sampled_payload auth ik T hEkSound e a hdr
       encapsState ct1 enc dec msg hLocal hPayload
     exact hnoKey r hr hnone hinv
   case ekReceivedCt1Sampled e a encapsState ct1 hdr vec enc =>
@@ -145,7 +145,7 @@ theorem receive_recorded_payload
       encapsState ct1 hdr vec enc msg hLocal
     exact hnoKey r hr hnone hinv
   case ct1Acknowledged e a hdr encapsState ct1 dec =>
-    obtain ⟨r, hr, hnone, hinv⟩ := receive_ct1Acknowledged_payload auth ik T hEkCorrect e a
+    obtain ⟨r, hr, hnone, hinv⟩ := receive_ct1Acknowledged_payload auth ik T hEkSound e a
       hdr encapsState ct1 dec msg hLocal hPayload
     exact hnoKey r hr hnone hinv
   case ct2Sampled e a enc =>

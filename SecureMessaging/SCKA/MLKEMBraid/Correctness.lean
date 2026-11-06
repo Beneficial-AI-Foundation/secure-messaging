@@ -36,12 +36,16 @@ Braid sends never refuse.
 
 ## Main results
 
-If the four erasure codes of `P` are correct and `Adv` makes at most `q` send queries
-(`SCKAScheme.SendQueryBound Adv q`), then
+If the four stream decoders of `P` are sound for their erasure codes (`StreamDecoder.Sound`)
+and `Adv` makes at most `q` send queries (`SCKAScheme.SendQueryBound Adv q`), then
 
 * `correctness_error_le`: `1 - Pr[G(Adv) = true] ≤ q · ε`;
-* `mlkemBraidScheme_correctness_error_le`: the same bound for `mlkemBraidScheme`, where `ε` is
-  the correctness error of ML-KEM.
+* `mlkemBraidScheme_correctness_error_le`: the same bound for `mlkemBraidScheme` when its four
+  erasure codes are correct, where `ε` is the correctness error of ML-KEM.
+
+The bound limits violations of the correctness-game invariants. It does not guarantee that
+decoding or key production ever happens: `StreamDecoder.Sound` holds for a decoder that never
+decodes.
 
 Deterministic decapsulation and deterministic second-stage encapsulation are part of `P`.
 The scheme also takes an incremental-KEM randomness-leakage package `irl`.
@@ -62,19 +66,19 @@ universe u
 
 namespace MLKEMBraid
 
-/-- With correct erasure codes, every query preserves `CorrectnessInv auth ik` on supported outcomes
-for every initial key `ik`. -/
+/-- With sound stream decoders, every query preserves `CorrectnessInv auth ik` on supported
+outcomes for every initial key `ik`. -/
 theorem correctnessImpl_preserves_correctnessInv
-    {P : Parameters ProbComp} [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    {P : Parameters ProbComp} [DecidableEq P.EpochKey]
     {InitKey AuthState : Type}
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
     (irl : P.kem.IncrementalRandLeak P.inc)
     (sampleInitKey : ProbComp InitKey)
-    (hHdrCorrect : P.ecpHdr.ec.Correct)
-    (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct)
-    (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr)
+    (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1)
+    (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     (ik : InitKey) :
     QueryImpl.PreservesInv
       (SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey))
@@ -83,25 +87,25 @@ theorem correctnessImpl_preserves_correctnessInv
     (oracleSend_preserves_correctnessInv auth irl sampleInitKey ik true)
     (oracleSend_preserves_correctnessInv auth irl sampleInitKey ik false)
     (oracleRecv_preserves_correctnessInv auth irl sampleInitKey
-      hHdrCorrect hEkCorrect hCt1Correct hCt2Correct ik true)
+      hHdrSound hEkSound hCt1Sound hCt2Sound ik true)
     (oracleRecv_preserves_correctnessInv auth irl sampleInitKey
-      hHdrCorrect hEkCorrect hCt1Correct hCt2Correct ik false)
+      hHdrSound hEkSound hCt1Sound hCt2Sound ik false)
 
-/-- With correct erasure codes, every adversary making at most `q` sends across both parties causes
+/-- With sound stream decoders, every adversary making at most `q` sends across both parties causes
 a false correctness flag with probability at most `q` times the KEM correctness error. -/
 -- ANCHOR: Braid_correctness_error_le
 theorem correctness_error_le
     (P : Parameters ProbComp) [DecidableEq P.K]
-    [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [DecidableEq P.EpochKey]
     {InitKey AuthState : Type}
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
     (irl : P.kem.IncrementalRandLeak P.inc)
     (sampleInitKey : ProbComp InitKey)
-    (hHdrCorrect : P.ecpHdr.ec.Correct)
-    (hEkCorrect : P.ecpEk.ec.Correct)
-    (hCt1Correct : P.ecpCt1.ec.Correct)
-    (hCt2Correct : P.ecpCt2.ec.Correct)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr)
+    (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1)
+    (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message P.Sym))
     (q : ℕ) (hq : SCKAScheme.SendQueryBound adv q) :
     1 - Pr{let x ← SCKAScheme.correctnessExp (scheme P auth irl sampleInitKey) adv}[x = true] ≤
@@ -119,9 +123,9 @@ theorem correctness_error_le
     simp [failurePotential, currentEpochFailure, pairFailure, SCKAScheme.initGameState,
       initA, initB, State.controlPosition, State.epoch]
   · exact correctnessImpl_preserves_correctnessInv auth irl sampleInitKey
-      hHdrCorrect hEkCorrect hCt1Correct hCt2Correct
+      hHdrSound hEkSound hCt1Sound hCt2Sound
   · exact wp_failurePotential_query_le auth irl sampleInitKey
-      hHdrCorrect hEkCorrect hCt1Correct hCt2Correct
+      hHdrSound hEkSound hCt1Sound hCt2Sound
 
 /-- The bound of `correctness_error_le` for `mlkemBraidScheme`, using the correctness error of
 `MLKEM.mlkemScheme p ring prims`. -/
@@ -168,6 +172,9 @@ theorem mlkemBraidScheme_correctness_error_le
       infer_instance
     exact correctness_error_le P₀ auth
       (MLKEM.mlkemIncrementalRandLeak p ring prims) sampleInitKey
-      hHdrCorrect hEkCorrect hCt1Correct hCt2Correct adv q hq
+      (ErasureCodePayload.Streaming.setDecoder_sound _ hHdrCorrect)
+      (ErasureCodePayload.Streaming.setDecoder_sound _ hEkCorrect)
+      (ErasureCodePayload.Streaming.setDecoder_sound _ hCt1Correct)
+      (ErasureCodePayload.Streaming.setDecoder_sound _ hCt2Correct) adv q hq
 
 end MLKEMBraid

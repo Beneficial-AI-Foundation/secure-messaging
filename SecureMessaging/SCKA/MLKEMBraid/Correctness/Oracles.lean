@@ -281,8 +281,6 @@ theorem recvUpdate_eq_successor_of_correct (s : GameState P AuthState) (party : 
       hkey, Bool.false_eq_true, ↓reduceIte] at hc' ⊢ <;>
     rw [hc', hc]
 
-variable [DecidableEq P.Sym]
-
 /-- The correctness game's send query for `party`; `true` denotes A and `false` denotes B. -/
 abbrev oracleSend (party : Bool) :=
   if party then SCKAScheme.oracleSendA (scheme P auth irl sampleInitKey)
