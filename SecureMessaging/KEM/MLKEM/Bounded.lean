@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.KEM.MLKEM.Encoding
+public import LatticeCrypto.MLKEM.Concrete.Encoding
 public import SecureMessaging.KEM.MLKEM.Construction
 public import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
 import all Extern.MLKEM.Instance
@@ -33,13 +33,13 @@ def encoding (params : Params) : Encoding params where
   EncodedV := Bytes (32 * params.dv)
   byteEncode12Vec v :=
     ⟨((Concrete.concreteEncoding params).byteEncode12Vec v).data,
-      ByteArray.size_data.trans (Concrete.concreteEncoding_tHat_size params v)⟩
+      ByteArray.size_data.trans (Concrete.concreteEncoding_byteEncode12Vec_size params v)⟩
   byteEncodeDUVec v :=
     ⟨((Concrete.concreteEncoding params).byteEncodeDUVec v).data,
-      ByteArray.size_data.trans (Concrete.concreteEncoding_u_size params v)⟩
+      ByteArray.size_data.trans (Concrete.concreteEncoding_byteEncodeDUVec_size params v)⟩
   byteEncodeDV v :=
     ⟨((Concrete.concreteEncoding params).byteEncodeDV v).data,
-      ByteArray.size_data.trans (Concrete.concreteEncoding_v_size params v)⟩
+      ByteArray.size_data.trans (Concrete.concreteEncoding_byteEncodeDV_size params v)⟩
   byteDecode12Vec v := (Concrete.concreteEncoding params).byteDecode12Vec
     (Concrete.vectorToByteArray v)
   byteDecodeDUVec v := (Concrete.concreteEncoding params).byteDecodeDUVec

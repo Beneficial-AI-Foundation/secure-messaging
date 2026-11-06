@@ -24,7 +24,7 @@ open OracleSpec OracleComp
 
 namespace MLKEMBraid.NoAuth
 
-/-- **`kdfReduction`**: the key-derivation distinguisher for epoch `e`. For `e = 0` it returns
+/-- The key-derivation distinguisher for epoch `e`. For `e = 0` it returns
 `false`. Otherwise it samples all KEM material itself and runs the repaired game of `A` once. It
 answers an eligible challenge of `e` with the test value `x`, challenges of earlier epochs with
 uniform keys and challenges of later epochs with their real keys. It returns `A`'s bit, or
@@ -39,11 +39,11 @@ def kdfReduction (P : Parameters ProbComp) [SampleableType P.K] [SampleableType 
         (fun t => if t < e + 1 then .uniform else .real)) (targetStop (e + 1)) A
         (initTrace P hMac)
 
-/-- **`kdf_signed_gap_eq`**: for every `n`, the probability that `kdfReduction` at epoch `n + 1`
-outputs `true` on a derived key `kdfOK u (n + 1)` with `u` uniform, minus the same probability on
-a uniform epoch key, is the acceptance probability of the hybrid with a derived uniform key at
-epoch `n + 1` minus that of the hybrid with uniform keys through epoch `n + 1`. No
-code-correctness assumption is used. -/
+/-- For every `n`, the probability that `kdfReduction` at epoch `n + 1` outputs `true` on a derived
+key `kdfOK u (n + 1)` with `u` uniform, minus the same probability on a uniform epoch key, equals
+the probability that the hybrid with a derived uniform key at epoch `n + 1` outputs `true` minus
+the same probability for the hybrid with uniform keys through epoch `n + 1`. The stream decoders
+need not be sound. -/
 theorem kdf_signed_gap_eq (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
     [DecidableEq P.EpochKey]

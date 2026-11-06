@@ -74,8 +74,9 @@ Reed–Solomon codes (`Bounded.parameters`). There `ℬ` attacks raw ML-KEM thro
 - `kdfOK : SharedSecret → ℕ → EpochKey` is an arbitrary function. The Braid specification
   instantiates it with HKDF: the shared secret as input key material, a zero salt of hash length,
   `info = PROTOCOL_INFO ‖ ":SCKA Key" ‖ ToBytes(epoch)`, and 32 bytes of output. Nothing is proved
-  about HKDF. `AdvKDF(𝒞)` is a quantity in the bound, not a hypothesis; in its game the label `e`
-  is fixed before `u` is sampled.
+  about HKDF. The bound depends on `kdfOK` only through `AdvKDF(𝒞)`, a one-sample PRG-style
+  advantage of `kdfOK(·, e)` at a label `e` chosen before `u` is sampled. If `AdvKDF(𝒞)` is large,
+  for example when `kdfOK` ignores `u`, the bound says nothing.
 - `IND_CPA_Advantage` takes values in `ℝ≥0∞`, and the bound uses its real value.
 - The shared-secret and epoch-key types are abstract types with uniform sampling and decidable
   equality; nothing else is assumed about them.
@@ -86,7 +87,9 @@ Reed–Solomon codes (`Bounded.parameters`). There `ℬ` attacks raw ML-KEM thro
   not establish SHA-3 or SHAKE semantics, and a numerical value of `ε` still needs
   `NTTRingLaws` and `CoefficientFailureBound`.
 - The bound holds for every adversary `A`, with no hardness assumption and no bound on the running
-  time of `A`. It is a statement about the Lean model of Braid with the authenticator off. C or
+  time of `A`. It is a statement about the Lean model of Braid with the authenticator off. With the
+  authenticator on, the epoch key also keys the authenticator (`auth.update`). The MAC tags of the
+  authenticator are public. This theorem does not cover that case. C or
   FFI code, implemented NTT loops, entropy or sampler failure, constant time, physical erasure,
   authenticated security and composition with messaging are separate questions.
 
@@ -165,10 +168,13 @@ Supporting modules: `NoAuth` (authenticator and exposure policy), `Games` (games
 
 open OracleSpec OracleComp ENNReal
 
-/-- Assume sound stream decoders for the four streams and an adversary `A` making at most `q`
-send requests in total (`SendQueryBound A q`). For `ℬ := kemMixReduction … A q` and
-`𝒞 := kdfMixReduction … A q`, `AdvGuess(A) ≤ (q / 2) · (AdvINDCPA(ℬ) + AdvKDF(𝒞)) + q · ε`,
-where `ε` is the KEM correctness error. -/
+/-- Let `P` be Braid parameters with tag space `Unit`, whose KEM is incremental with randomness
+leakage `irl` and whose header, encapsulation-key, `ct₁` and `ct₂` decoders are sound for their
+erasure codes. Let `A` be an adversary against Braid without authentication that makes at most `q`
+sends, leaking or not (`SendQueryBound A q`). Let `ℬ := kemMixReduction A q`,
+`𝒞 := kdfMixReduction A q`, and let `ε` be the correctness error of the KEM. Then, with the
+exposure functions `nativeExposure` for both parties,
+`AdvGuess(A) ≤ (q / 2) · (AdvINDCPA(ℬ) + AdvKDF(𝒞)) + q · ε`. -/
 -- ANCHOR: genericSecurity
 theorem MLKEMBraid.NoAuth.security (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
@@ -240,9 +246,13 @@ theorem MLKEMBraid.NoAuth.security (P : Parameters ProbComp)
 
 noncomputable section
 
-/-- The bound of `NoAuth.security` for Braid over ML-KEM with finite-payload Reed–Solomon codecs
-(`Bounded.parameters`). The IND-CPA adversary `ℬ` runs `kemMixReduction` against raw ML-KEM
-through `MLKEM.Bounded.liftAdversary`, and `ε` is the correctness error of raw ML-KEM. -/
+/-- Let `P` be the Braid parameters over ML-KEM with finite-payload Reed–Solomon codes and the
+set-based decoders (`Bounded.parameters`). Let `A` be an adversary against Braid without
+authentication that makes at most `q` sends, leaking or not. Let `ℬ` be `kemMixReduction A q`, run
+on raw ML-KEM inputs through `MLKEM.Bounded.liftAdversary`, let `𝒞 := kdfMixReduction A q`, and
+let `ε` be the correctness error of ML-KEM. Then, with the exposure functions `nativeExposure` for
+both parties, `AdvGuess(A) ≤ (q / 2) · (AdvINDCPA(ℬ) + AdvKDF(𝒞)) + q · ε`, where the IND-CPA
+game is the one of ML-KEM. -/
 -- ANCHOR: security
 theorem MLKEMBraid.security
     (p : MLKEM.ParameterSet) (ring : MLKEM.NTTRingOps)

@@ -126,11 +126,11 @@ theorem kdfMixReduction_signed_gap (A : Adversary P irl) (q : ℕ) (hq : q ≠ 0
 
 /-! ## Telescoping over the hybrids -/
 
-/-- Let `p_i` be the probability that the hybrid with uniform keys through epoch `i` outputs
-`true`. Let `Δ_KEM` be the acceptance probability of `kemMixReduction A q` on the real key minus
-that on a random key, and `Δ_KDF` the acceptance probability of `kdfMixReduction A q` in
-`kdfContextExp` on a derived key minus that on a uniform key. For every `q`,
-`p_0 - p_q = q · (Δ_KEM + Δ_KDF)`. -/
+/-- Let the four stream decoders be sound, and let `p_i` be the probability that the hybrid with
+uniform keys through epoch `i` outputs `true`. Let `Δ_KEM` be the acceptance probability of
+`kemMixReduction A q` on the real key minus that on a random key, and `Δ_KDF` the acceptance
+probability of `kdfMixReduction A q` in `kdfContextExp` on a derived key minus that on a uniform
+key. For every `q`, `p_0 - p_q = q · (Δ_KEM + Δ_KDF)`. -/
 theorem hybrid_gap_eq_query_factor (hHdrSound : P.decHdr.Sound P.ecpHdr)
     (hEkSound : P.decEk.Sound P.ecpEk) (hCt1Sound : P.decCt1.Sound P.ecpCt1)
     (hCt2Sound : P.decCt2.Sound P.ecpCt2) (A : Adversary P irl) (q : ℕ) :

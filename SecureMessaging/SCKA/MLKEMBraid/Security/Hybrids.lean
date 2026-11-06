@@ -43,11 +43,7 @@ private def SendBound (s : TraceState P) : Prop :=
 
 /-- The initial trace state satisfies the produced-epoch bound. -/
 private theorem sendBound_init :
-    SendBound (P := P)
-      { game := SCKAScheme.initGameState (MLKEMBraid.initA P (auth P hMac) ())
-          (MLKEMBraid.initB P (auth P hMac) ())
-        transcript := fun _ => { keypair := none, encaps1 := none }
-        bad := false } :=
+    SendBound (initTrace P hMac) :=
   fun _ he => absurd rfl he
 
 /-- A key held by a party is for a positive epoch with a recorded first-stage encapsulation. -/
@@ -336,7 +332,7 @@ private theorem run_mode_evalDist_eq
       (fun t ht s z hz => by simpa [ht] using (traceImpl_count hMac irl true m t s z hz).2)
       hqS _ z hz
     have h0 : z.2.game.nA + z.2.game.nB ≤ qS := by
-      simpa [sendCount, SCKAScheme.initGameState] using hle
+      simpa [sendCount, initTrace, SCKAScheme.initGameState] using hle
     exact not_lt.mpr h0
   refine evalDistEq_of_forall_prEvent_eq_output fun x => ?_
   simp only [Functor.map_map]
@@ -361,9 +357,10 @@ private theorem run_mode_evalDist_eq
 
 end Endpoints
 
-/-- **`hybrid_endpoints`**: the repaired hybrid with no uniform epochs has the distribution of the
-repaired real-key game, and the hybrid with uniform keys through epoch `qS` has the distribution of
-the repaired uniform-key game. -/
+/-- Let the four stream decoders be sound, and let `A` make at most `qS` sends. Then the hybrid
+with no uniform epoch has the output distribution of the repaired game with real keys, and the
+hybrid with uniform keys through epoch `qS` has the output distribution of the repaired game with
+uniform keys. -/
 theorem hybrid_endpoints (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
     [DecidableEq P.EpochKey]

@@ -362,8 +362,9 @@ theorem traceImpl_payoff (mode : ℕ → Mode) :
 
 end BadEventBound
 
-/-- **`badEvent_le`**: in the real trace game of either bit, the bad event has probability at most
-`qS` times the KEM correctness error. -/
+/-- Let the four stream decoders be sound, and let `A` make at most `qS` sends. Then, in the real
+trace game of either bit, the bad event has probability at most `qS` times the KEM correctness
+error. -/
 theorem badEvent_le (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
     [DecidableEq P.K] [DecidableEq P.EpochKey]
@@ -381,12 +382,8 @@ theorem badEvent_le (P : Parameters ProbComp)
     (P.kem.correctnessError ProbCompRuntime.probComp)
     (traceImpl_preservesInv hMac irl hHdrSound hEkSound hCt1Sound hCt2Sound false _)
     (traceImpl_payoff hMac irl _) A qS hqS _ (traceInv_init hMac false)
-  have h0 : badScore (P := P)
-      { game := SCKAScheme.initGameState (MLKEMBraid.initA P (auth P hMac) ())
-          (MLKEMBraid.initB P (auth P hMac) ())
-        transcript := fun _ => { keypair := none, encaps1 := none }
-        bad := false } = 0 := by
-    simp [badScore, pendingPotential, pendingRisk]
+  have h0 : badScore (initTrace P hMac) = 0 := by
+    simp [initTrace, badScore, pendingPotential, pendingRisk]
   calc Pr{let z ← run P hMac irl false (fun _ => if b then .uniform else .real) A}[z.2.bad = true]
       ≤ wp (run P hMac irl false (fun _ => if b then .uniform else .real) A)
           (fun z => badScore z.2) :=

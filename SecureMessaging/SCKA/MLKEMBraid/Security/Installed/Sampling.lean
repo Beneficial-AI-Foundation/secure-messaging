@@ -443,8 +443,9 @@ theorem encaps1_on (e : ℕ) (x : P.PK × P.SK) (ec' : Option (P.inc.St × P.inc
   | .inl (.inr _), _, _, h => by simp [sendHit] at h
   | .inr _, _, _, h => by simp [sendHit] at h
 
-/-- **Installing the key pair of `e`.** Sampling the key pair of `e` once before the stopped run
-and installing it is the same as sampling it at the key generation of `e`. -/
+/-- Let the four stream decoders be sound, and let `s` satisfy `TraceInv`. Then, for the run
+stopped at the first exposure of `e`, sampling the key pair of `e` once before the run and
+installing it gives the same probability of `true` as sampling it at the key generation of `e`. -/
 theorem stoppedRun_installKeygen (hHdrSound : P.decHdr.Sound P.ecpHdr)
     (hEkSound : P.decEk.Sound P.ecpEk) (hCt1Sound : P.decCt1.Sound P.ecpCt1)
     (hCt2Sound : P.decCt2.Sound P.ecpCt2) (e : ℕ) (xo : Option P.EpochKey) (m : ℕ → Mode)
@@ -474,8 +475,9 @@ theorem stoppedRun_installKeygen (hHdrSound : P.decHdr.Sound P.ecpHdr)
     (fun q s _ hh => keygen_on hMac irl e xo m q s hh)
     A s hs
 
-/-- **Installing the first-stage sample of `e`.** With the key pair of `e` installed, sampling the
-first-stage encapsulation of `e` once before the stopped run and installing it is the same as
+/-- Let the four stream decoders be sound, let `x` be in the support of key generation, and let
+`s` satisfy `InstInv` with `x` installed at `e`. Then sampling the first-stage encapsulation of
+`e` once before the stopped run and installing it gives the same probability of `true` as
 sampling it at the first-stage encapsulation of `e`. -/
 theorem stoppedRun_installEncaps1 (hHdrSound : P.decHdr.Sound P.ecpHdr)
     (hEkSound : P.decEk.Sound P.ecpEk) (hCt1Sound : P.decCt1.Sound P.ecpCt1)
@@ -507,8 +509,9 @@ theorem stoppedRun_installEncaps1 (hHdrSound : P.decHdr.Sound P.ecpHdr)
     (fun q s hs hh => encaps1_on hMac irl e x none xo m q s hs hh)
     A s hs
 
-/-- **Installing both samples of `e`.** Sampling the key pair and the first-stage sample of `e`
-once before the stopped run from the initial state is the same as sampling them at their sends. -/
+/-- Let the four stream decoders be sound. Then, for the run from the initial state stopped at the
+first exposure of `e`, sampling the key pair and the first-stage sample of `e` once before the run
+and installing them gives the same probability of `true` as sampling them at their sends. -/
 theorem stoppedRun_installBoth (hHdrSound : P.decHdr.Sound P.ecpHdr)
     (hEkSound : P.decEk.Sound P.ecpEk) (hCt1Sound : P.decCt1.Sound P.ecpCt1)
     (hCt2Sound : P.decCt2.Sound P.ecpCt2) (e : ℕ) (xo : Option P.EpochKey) (m : ℕ → Mode)

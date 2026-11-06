@@ -416,7 +416,7 @@ def scheme (P : Parameters ProbComp)
 :::defTitle "mlkem_braid_noauth_vulnerable_epochs" "Vulnerable epochs of ML-KEM Braid without authentication"
 :::
 
-::::definition "mlkem_braid_noauth_vulnerable_epochs" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.NoAuth.vuln, MLKEMBraid.NoAuth.sendExposure, MLKEMBraid.NoAuth.nativeExposure, MLKEMBraid.NoAuth.deltaExposure, MLKEMBraid.NoAuth.sendExposure_eq_delta, MLKEMBraid.NoAuth.securityGame_equiv_delta") (uses := "mlkem_braid_noauth_spec, mlkem_braid_protocol_states, scka_oracles")
+::::definition "mlkem_braid_noauth_vulnerable_epochs" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.NoAuth.vuln, MLKEMBraid.NoAuth.sendExposure, MLKEMBraid.NoAuth.nativeExposure, MLKEMBraid.NoAuth.deltaExposure, MLKEMBraid.NoAuth.sendExposure_eq_delta, MLKEMBraid.NoAuth.securityGame_equiv_delta, MLKEMBraid.NoAuth.securityGame_equiv_native") (uses := "mlkem_braid_noauth_spec, mlkem_braid_protocol_states, scka_oracles")
 The security game of {bpref "scka_oracles"}[] for $`\mathsf{Braid}_{\mathsf{NoAuth}}(P)` uses the
 following exposure functions for both parties. Let $`\mathsf{st}` be a local state
 ({bpref "mlkem_braid_protocol_states"}[]) with epoch $`\mathsf{ep}(\mathsf{st})`, and let $`r` be
@@ -478,7 +478,7 @@ def nativeExposure (P : Parameters ProbComp)
 :::defTitle "mlkem_braid_noauth_security" "Security of ML-KEM Braid without authentication"
 :::
 
-::::theorem "mlkem_braid_noauth_security" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.NoAuth.security, MLKEMBraid.security, MLKEMBraid.Bounded.parameters, MLKEMBraid.NoAuth.SendQueryBound, MLKEMBraid.NoAuth.kemMixReduction, MLKEMBraid.NoAuth.kdfMixReduction, MLKEMBraid.NoAuth.KDFContextAdversary, MLKEMBraid.NoAuth.kdfContextExp, MLKEMBraid.NoAuth.kdfAdvantage") (tags := "gh-244") (uses := "mlkem_braid_noauth_spec, mlkem_braid_noauth_vulnerable_epochs, scka_security, scka_oracles, incremental_kem_scheme, incremental_kem_rand_leak, erasure_code_correctness, stream_decoder")
+::::theorem "mlkem_braid_noauth_security" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.NoAuth.security, MLKEMBraid.security, MLKEMBraid.Bounded.parameters, MLKEMBraid.NoAuth.SendQueryBound, MLKEMBraid.NoAuth.kemMixReduction, MLKEMBraid.NoAuth.kdfMixReduction, MLKEMBraid.NoAuth.kdfExp, MLKEMBraid.NoAuth.KDFContextAdversary, MLKEMBraid.NoAuth.kdfContextExp, MLKEMBraid.NoAuth.kdfAdvantage") (tags := "gh-244") (uses := "mlkem_braid_noauth_spec, mlkem_braid_noauth_vulnerable_epochs, scka_security, scka_oracles, incremental_kem_scheme, incremental_kem_rand_leak, erasure_code_correctness, stream_decoder")
 Let $`\Pi=\mathsf{Braid}_{\mathsf{NoAuth}}(P)` ({bpref "mlkem_braid_noauth_spec"}[]), and assume
 that:
 
@@ -520,9 +520,11 @@ where:
   epoch $`e` becomes exposed.
 
 The same bound holds for ML-KEM with byte encodings of the prescribed lengths, with Reed–Solomon
-codes and the set-based decoder on the four streams. Here $`\mathcal B` attacks ML-KEM and $`\varepsilon` is the
-correctness error of ML-KEM. The bound assumes nothing about $`\mathsf{kdfOK}`. The Braid
-specification instantiates it with HKDF.
+codes and the set-based decoder on the four streams. Here $`\mathcal B` is the adversary of the
+general case, run on raw ML-KEM inputs through `MLKEM.Bounded.liftAdversary`, and $`\varepsilon`
+is the correctness error of ML-KEM. The bound depends on $`\mathsf{kdfOK}` only through
+$`\Adv{\mathsf{KDF}}{\mathsf{kdfOK}}(\mathcal C)`. The Braid specification instantiates
+$`\mathsf{kdfOK}` with HKDF.
 
 :::leanPillCaption "security for ML-KEM"
 :::

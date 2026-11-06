@@ -131,8 +131,8 @@ private theorem securityImpl_eq_delta
   rw [oracleSendArleak_eq_delta P hMac irl, oracleSendBrleak_eq_delta P hMac irl]
   rfl
 
-/-- The games with the policies `exposure` and `deltaExposure` give the same experiment and the
-same guessing advantage. -/
+/-- The games with the policies `exposure` and `deltaExposure` have equal output distributions and
+equal guessing advantages. -/
 theorem securityGame_equiv_delta
     (P : Parameters ProbComp)
     [SampleableType P.EpochKey] [DecidableEq P.EpochKey]
@@ -337,6 +337,13 @@ def traceImpl (P : Parameters ProbComp)
     traceLeak P hMac irl true + traceLeak P hMac irl false + traceChallenge P mode +
     traceCorruptA P + traceCorruptB P
 
+/-- The literal initial state of the trace games. -/
+def initTrace (P : Parameters ProbComp) (hMac : P.Mac = Unit) : TraceState P :=
+  { game := SCKAScheme.initGameState (MLKEMBraid.initA P (auth P hMac) ())
+      (MLKEMBraid.initB P (auth P hMac) ())
+    transcript := fun _ => { keypair := none, encaps1 := none }
+    bad := false }
+
 /-- Run the adversary in the trace game from the initial game state, with empty records and the
 bad flag false. -/
 def run (P : Parameters ProbComp)
@@ -346,10 +353,7 @@ def run (P : Parameters ProbComp)
     (repair : Bool) (mode : ℕ → Mode) (A : Adversary P irl) :
     ProbComp (Bool × TraceState P) :=
   (simulateQ (traceImpl P hMac irl repair mode) A).run
-    { game := SCKAScheme.initGameState (MLKEMBraid.initA P (auth P hMac) ())
-        (MLKEMBraid.initB P (auth P hMac) ())
-      transcript := fun _ => { keypair := none, encaps1 := none }
-      bad := false }
+    (initTrace P hMac)
 
 /-- The security game with the exposure policy `exposure` and the challenge bit fixed to `b`. -/
 def fixed (P : Parameters ProbComp)

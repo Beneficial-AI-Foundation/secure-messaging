@@ -30,6 +30,21 @@ variable {P : Parameters ProbComp} {InitKey AuthState : Type}
     P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
   {D : ℕ → P.PK → P.SK → P.inc.St → P.inc.C₁ → P.K → Prop}
 
+/-- If every message of a table and `msg` satisfy `MessagePayloadInv`, then so does every message of
+the table after recording `msg` at index `k`. -/
+private theorem messagePayloads_update {ik : InitKey} {T : ℕ → EpochTranscript P}
+    {messages : ℕ → Option (Message P.Sym × ℕ)} {msg : Message P.Sym} {tsnd k : ℕ}
+    (hOld : ∀ n m t, messages n = some (m, t) → MessagePayloadInv auth ik T m)
+    (hNew : MessagePayloadInv auth ik T msg) :
+    ∀ n m t, Function.update messages k (some (msg, tsnd)) n = some (m, t) →
+      MessagePayloadInv auth ik T m := by
+  apply (Function.forall_update_iff messages
+    (fun _ record => ∀ m t, record = some (m, t) → MessagePayloadInv auth ik T m)).2
+  refine ⟨?_, fun n _ => hOld n⟩
+  intro m t h
+  cases h
+  exact hNew
+
 /-- A send from `keysUnsampled` records its sampled key pair and leaves the successor consistent
 with the extended transcript. -/
 theorem send_keysUnsampled_transcript {ik : InitKey} {T : ℕ → EpochTranscript P}
@@ -168,16 +183,10 @@ theorem send_keysUnsampled_transcript {ik : InitKey} {T : ℕ → EpochTranscrip
     rw [messagesAt_sendSuccessor]
     split_ifs with hwho
     · subst who
-      apply (Function.forall_update_iff _
-        (fun _ record => ∀ msg tsnd, record = some (msg, tsnd) →
-          MessagePayloadInv auth ik
-            (Function.update T e { (T e) with keypair := some (pk, sk) }) msg)).2
-      refine ⟨?_, fun n _ msg tsnd hmsg =>
-        hMsgOld msg (hMessages party n msg tsnd hmsg)⟩
-      intro msg tsnd hmsg
-      cases hmsg
-      exact ⟨pk, sk, 0, hTke, congrArg (fun x => some (P.ecpHdr.encode
-        (P.inc.toHeader pk, auth.macHeader x e (P.inc.toHeader pk)) 0)) haT⟩
+      exact messagePayloads_update auth
+        (fun n msg tsnd hmsg => hMsgOld msg (hMessages party n msg tsnd hmsg))
+        ⟨pk, sk, 0, hTke, congrArg (fun x => some (P.ecpHdr.encode
+          (P.inc.toHeader pk, auth.macHeader x e (P.inc.toHeader pk)) 0)) haT⟩
     · intro n msg tsnd hmsg
       exact hMsgOld msg (hMessages who n msg tsnd hmsg)
   · intro who e'
@@ -356,15 +365,9 @@ theorem send_headerReceived_transcript {ik : InitKey} {T : ℕ → EpochTranscri
     rw [messagesAt_sendSuccessor]
     split_ifs with hwho
     · subst who
-      apply (Function.forall_update_iff _
-        (fun _ record => ∀ msg tsnd, record = some (msg, tsnd) →
-          MessagePayloadInv auth ik
-            (Function.update T e { (T e) with encaps1 := some (es, ct1, k) }) msg)).2
-      refine ⟨?_, fun n _ msg tsnd hmsg =>
-        hMsgOld msg (hBnd party n msg tsnd hmsg) (hMessages party n msg tsnd hmsg)⟩
-      intro msg tsnd hmsg
-      cases hmsg
-      exact ⟨es, ct1, k, 0, hTce, rfl⟩
+      exact messagePayloads_update auth
+        (fun n msg tsnd hmsg => hMsgOld msg (hBnd party n msg tsnd hmsg)
+          (hMessages party n msg tsnd hmsg)) ⟨es, ct1, k, 0, hTce, rfl⟩
     · intro n msg tsnd hmsg
       exact hMsgOld msg (hBnd who n msg tsnd hmsg) (hMessages who n msg tsnd hmsg)
   · intro who e'
@@ -420,13 +423,7 @@ theorem send_existing_transcript {ik : InitKey} {T : ℕ → EpochTranscript P}
     rw [messagesAt_sendSuccessor]
     split_ifs with hwho
     · subst who
-      apply (Function.forall_update_iff _
-        (fun _ record => ∀ msg tsnd, record = some (msg, tsnd) →
-          MessagePayloadInv auth ik T msg)).2
-      refine ⟨?_, fun n _ => hT.messages party n⟩
-      intro msg tsnd hmsg
-      cases hmsg
-      exact hMsgNew
+      exact messagePayloads_update auth (hT.messages party) hMsgNew
     · exact hT.messages who
   · intro who
     simp [keysAt_sendSuccessor, hnone]

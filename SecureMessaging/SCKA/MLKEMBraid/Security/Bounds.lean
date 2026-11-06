@@ -82,8 +82,8 @@ theorem fixed_eq_native
   simp only [fixed, StateT.run'_eq, map_eq_bind_pure_comp]
   rfl
 
-/-- The games with `exposure` and with `nativeExposure` give the same experiment and the same
-guessing advantage. -/
+/-- The games with `exposure` and with `nativeExposure` have equal output distributions and equal
+guessing advantages. -/
 theorem securityGame_equiv_native
     (P : Parameters ProbComp)
     [SampleableType P.EpochKey] [DecidableEq P.EpochKey]

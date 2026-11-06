@@ -348,8 +348,9 @@ theorem probOutput_run_eq_of_exposed (m m' : ℕ → Mode) (e : ℕ)
       Prod.map id id <$> (simulateQ (traceImpl P hMac irl true m) oa).run s from h.symm,
     Prod.map_id, id_map]
 
-/-- **Signed-gap stop.** Two repaired trace games whose modes agree off `e` have the same signed
-gap of acceptance probabilities as their runs stopped with `false` when `e` becomes exposed. -/
+/-- Let the modes `m` and `m'` agree at every epoch other than `e`. Then the probability that the
+repaired trace game with `m` outputs `true`, minus the same probability with `m'`, equals the same
+difference for the two runs stopped with output `false` at the first exposure of `e`. -/
 theorem signedGap_stop (m m' : ℕ → Mode) (e : ℕ) (hm : ∀ t, t ≠ e → m t = m' t)
     (A : Adversary P irl) :
     (Pr{let x ← Prod.fst <$> run P hMac irl true m A}[x = true]).toReal -
@@ -468,8 +469,9 @@ private theorem chalSample_step (e : ℕ) (kp : Option (P.PK × P.SK))
     simp only [heq]
     exact (EvalDistEq.bind_const _ _).symm
 
-/-- **Installing the challenge value.** Sampling the challenge value of `e` once before the run
-and installing it is the same as sampling it at the eligible challenge of `e`. -/
+/-- Let `sample` give the challenge value of `e` for every key. Then sampling the challenge value of
+`e` once before the stopped run and installing it gives the same probability of `true` as
+sampling it at the eligible challenge of `e`. -/
 theorem stoppedRun_chalSample (e : ℕ) (kp : Option (P.PK × P.SK))
     (ec : Option (P.inc.St × P.inc.C₁ × P.K)) (mode : ℕ → Mode) (sample : ProbComp P.EpochKey)
     (hsample : ∀ k, challengeValue P (mode e) e k = sample) (A : Adversary P irl)

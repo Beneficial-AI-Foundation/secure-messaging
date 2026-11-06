@@ -134,8 +134,12 @@ theorem simImpl_step (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.S
       (fun t s _ => by cases t; exact corruptA_step s))
       (fun t s _ => by cases t; exact corruptB_step s)
 
-/-- **Simulation.** With the challenge key pair and first-stage sample installed at `e`, the
-masked simulator and the installed trace game accept with the same probability. -/
+/-- Let the four stream decoders be sound. Let `(ch.pk, sk)` and `(es, ch.ct1, k)` be in the
+supports of key generation and of the first-stage encapsulation, let `ch.ct2` be the second stage of
+`es`, and let `v = kdfOK ch.key e`. Suppose that the installed challenge value `xo` is `v` when it
+is set, and that `v = kdfOK k e` when it is not. Then the masked simulator and the trace game with
+this key pair and sample installed at `e`, both stopped at the first exposure of `e`, output `true`
+with the same probability. -/
 theorem simStep_eq (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound P.ecpEk)
     (hCt1Sound : P.decCt1.Sound P.ecpCt1) (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     (e : ℕ) (v : P.EpochKey) (ch : Challenge P) (hv : P.kdfOK ch.key e = v) (sk : P.SK)

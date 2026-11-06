@@ -70,14 +70,10 @@ private theorem TraceInv.step {hMac : P.Mac = Unit} {repair : Bool} {s z : Trace
 
 /-- The initial trace state satisfies `TraceInv` for either game. -/
 theorem traceInv_init (hMac : P.Mac = Unit) (repair : Bool) :
-    TraceInv hMac repair
-      { game := SCKAScheme.initGameState (MLKEMBraid.initA P (auth P hMac) ())
-          (MLKEMBraid.initB P (auth P hMac) ())
-        transcript := fun _ => { keypair := none, encaps1 := none }
-        bad := false } :=
+    TraceInv hMac repair (initTrace P hMac) :=
   ⟨fun _ => ⟨RepairInv.of_transcriptConsistent
       (transcriptConsistent_initGameState (auth P hMac) ()),
-    fun _ _ _ _ _ _ _ hk _ => by cases hk⟩, by simp [SCKAScheme.initGameState]⟩
+    fun _ _ _ _ _ _ _ hk _ => by cases hk⟩, by simp [initTrace, SCKAScheme.initGameState]⟩
 
 section Preservation
 
@@ -427,8 +423,9 @@ private theorem traceImpl_real_map [SampleableType P.K] [SampleableType P.EpochK
 
 end Erasure
 
-/-- **`run_erase`**: projecting the real trace run to its game state gives the explicit-policy
-security game of either fixed bit, as a term equality and without code-correctness assumptions. -/
+/-- Projecting the real trace run to its game state gives the security game of either fixed bit
+with the exposure policy `exposure`. The two computations are equal. The stream decoders need not
+be sound. -/
 theorem run_erase (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
     [DecidableEq P.EpochKey]
@@ -443,8 +440,9 @@ theorem run_erase (P : Parameters ProbComp)
   OracleComp.map_run_simulateQ_eq_of_query_map_eq _ _ TraceState.game
     (traceImpl_real_map hMac irl b) A _
 
-/-- **`fixed_repaired_gap_le`**: the security game `fixed A b` and the repaired trace game of the
-same bit differ by at most the probability of the bad event. -/
+/-- Let the four stream decoders be sound. Then the distance `boolDist` between the output
+distributions of the security game `fixed A b` and of the repaired trace game of the same bit is at
+most the probability of the bad event. -/
 theorem fixed_repaired_gap_le (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
     [DecidableEq P.EpochKey]

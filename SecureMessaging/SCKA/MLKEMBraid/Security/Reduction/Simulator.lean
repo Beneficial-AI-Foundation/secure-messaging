@@ -424,7 +424,7 @@ def simInit (P : Parameters ProbComp) (hMac : P.Mac = Unit) : SimState P :=
 def simStop (e : ℕ) (s : SimState P) : Bool :=
   decide (e ∈ s.game.exposed)
 
-/-- **`kemReduction`**: the IND-CPA adversary for epoch `e`. For `e = 0` it returns `false`.
+/-- The IND-CPA adversary for epoch `e`. For `e = 0` it returns `false`.
 Otherwise its first phase keeps the challenge public key, and its second phase runs `A` once
 against the masked simulation `simImpl` of the stopped repaired game, with the challenge public
 key, ciphertext parts and test key installed at epoch `e`. It returns `A`'s bit, or `false` when

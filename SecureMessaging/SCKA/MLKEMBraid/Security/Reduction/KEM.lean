@@ -59,8 +59,9 @@ theorem indCPAExpProb_kemReduction (A : Adversary P irl) (n : ℕ) (b : Bool) :
   rw [encaps_eq_map x.1, bind_map_left]
   simp only [Equiv.apply_symm_apply]
 
-/-- **The real-key experiment** of `kemReduction` is the stopped repaired game with real keys
-from `e` on. -/
+/-- Let the four stream decoders be sound and `e = n + 1`. Then the real-key IND-CPA experiment of
+`kemReduction A e` outputs `true` with the same probability as the repaired game with uniform keys
+before `e` and real keys from `e` on, stopped with output `false` at the first exposure of `e`. -/
 theorem kem_real_side (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound P.ecpEk)
     (hCt1Sound : P.decCt1.Sound P.ecpCt1) (hCt2Sound : P.decCt2.Sound P.ecpCt2) (n : ℕ)
     (A : Adversary P irl) :
@@ -81,8 +82,10 @@ theorem kem_real_side (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.
     (P.kdfOK k (n + 1)) ⟨pk, c1, _, k⟩ rfl sk es k rfl none (fun _ h => by cases h)
     (fun _ => rfl) hx hc A
 
-/-- **The random-key experiment** of `kemReduction` is the stopped repaired game with a derived
-uniform key installed at `e`. -/
+/-- Let the four stream decoders be sound and `e = n + 1`. Then the random-key IND-CPA experiment of
+`kemReduction A e` outputs `true` with the same probability as the same stopped repaired game with
+the derived key `kdfOK u e` installed as the challenge value of `e`, for a uniform shared
+secret `u`. -/
 theorem kem_rand_side (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound P.ecpEk)
     (hCt1Sound : P.decCt1.Sound P.ecpCt1) (hCt2Sound : P.decCt2.Sound P.ecpCt2) (n : ℕ)
     (A : Adversary P irl) :
@@ -124,10 +127,10 @@ theorem kem_rand_side (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.
 
 end KEMGap
 
-/-- **`kem_signed_gap_eq`**: for every `n`, the probability that `kemReduction` at epoch `n + 1`
-outputs `true` on the real key, minus the same probability on a uniform key, is the acceptance
-probability of the hybrid with uniform keys through epoch `n` minus that of the hybrid with a
-derived uniform key at epoch `n + 1`. -/
+/-- Let the four stream decoders be sound. Then, for every `n`, the probability that `kemReduction`
+at epoch `n + 1` outputs `true` on the real key, minus the same probability on a uniform key,
+equals the probability that the hybrid with uniform keys through epoch `n` outputs `true` minus
+the same probability for the hybrid with a derived uniform key at epoch `n + 1`. -/
 theorem kem_signed_gap_eq (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
     [DecidableEq P.EpochKey]

@@ -30,13 +30,6 @@ namespace MLKEMBraid.NoAuth
 
 variable {P : Parameters ProbComp}
 
-/-- The literal initial state of the trace games. -/
-def initTrace (P : Parameters ProbComp) (hMac : P.Mac = Unit) : TraceState P :=
-  { game := SCKAScheme.initGameState (MLKEMBraid.initA P (auth P hMac) ())
-      (MLKEMBraid.initB P (auth P hMac) ())
-    transcript := fun _ => { keypair := none, encaps1 := none }
-    bad := false }
-
 /-- Stop when the selected epoch `e` is exposed. -/
 def targetStop (e : ℕ) (s : TraceState P) : Bool :=
   decide (e ∈ s.game.exposed)
