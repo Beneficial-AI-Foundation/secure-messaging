@@ -175,10 +175,10 @@ def gctr {K : Type} (ciph : K → BitVec 128 → BitVec 128) (k : K) (icb : BitV
 :::::::definition "aead_gcm_spec" (parent := "aead_gcm") (lean := "GCM.gcmEncrypt, GCM.gcmDecrypt, GCM.gcmOneTimeAEAD") (tags := "gh-21") (uses := "aead, prp, aead_gcm_components")
 Adapted from {Informal.citet NIST_GCM}[], Section 7, Algorithms 4 and 5.
 
-Let $`P` be a {bpref "prp"}[PRP scheme] on 128-bit blocks with key space $`\mathcal K`, let
+Let $`P` be a {bpref "prp"}[PRP scheme] on 128-bit blocks with key space $`\K`, let
 $`\mathit{IV}` be a 96-bit IV, and let $`L` be a supported message length. Then
 $`\mathsf{GCM}[P, \mathit{IV}, L]` is the one-time {bpref "aead"}[AEAD scheme] with key
-space $`\mathcal K`, message space $`\bit^L`, associated data space the bit strings of
+space $`\K`, message space $`\bit^L`, associated data space the bit strings of
 supported length, ciphertext space $`\bit^L \times \bit^{128}`, and the notation and
 algorithms below.
 
@@ -350,12 +350,12 @@ theorem gcmOneTimeAEAD_correct {K : Type} (prp : PRPScheme K (BitVec 128))
 :::
 
 ::::definition "aead_gcm_axu" (parent := "aead_gcm") (lean := "UniversalHash.IsAlmostXorUniversal")
-Let $`\mathcal K` be a finite nonempty key space, $`\mathcal D` an input domain and
+Let $`\K` be a finite nonempty key space, $`\mathcal D` an input domain and
 $`t` an output length in bits. A keyed hash
-$`h : \mathcal K \times \mathcal D \to \bit^t` is $`\varepsilon`-almost-XOR-universal
+$`h : \K \times \mathcal D \to \bit^t` is $`\varepsilon`-almost-XOR-universal
 ($`\varepsilon`-AXU) if for all distinct inputs $`x \neq y` and every $`\Delta \in \bit^t`,
 
-$$`\Pr_{k \sample \mathcal K}\bigl[\, h(k, x) \oplus h(k, y) = \Delta \,\bigr] \le \varepsilon`
+$$`\Pr_{k \sample \K}\bigl[\, h(k, x) \oplus h(k, y) = \Delta \,\bigr] \le \varepsilon`
 
 where $`\oplus` is bitwise XOR.
 
@@ -469,7 +469,7 @@ There is no separate tag-guessing term, because $`\varepsilon \ge 2^{-128}` for 
 
 The bound holds for every choice of the functions $`|\cdot|` and $`\mathit{clen}` of the
 game, because all ciphertexts in $`\bit^L \times \bit^{128}` have
-the same length, so $`\mathcal C(\ell) = \mathcal C.`
+the same length, so $`\C(\ell) = \C.`
 
 :::leanPillCaption "security theorem for any AXU bound"
 :::
@@ -524,7 +524,7 @@ because $`L` is supported. The third term is $`q_d` times the AXU bound of $`h_L
 
 The bound holds for every choice of the functions $`|\cdot|` and $`\mathit{clen}` of the
 game, because all ciphertexts in $`\bit^L \times \bit^{128}` have
-the same length, so $`\mathcal C(\ell) = \mathcal C.`
+the same length, so $`\C(\ell) = \C.`
 
 :::leanPillCaption "security theorem"
 :::

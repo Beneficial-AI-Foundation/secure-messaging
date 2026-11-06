@@ -98,7 +98,7 @@ $`\Decode_X:\mathcal P_{\mathrm{fin}}(\mathbb N\times\Sigma)\to Y_X\cup\{\bot\}`
 indexed chunks. Its *stateful streaming* consists of the encoder and the decoder below.
 
 :::::gameGrid
-::::gameCell "\\textsf{Encoder}" (kind := "compact") (open := true)
+::::gameCell "\\textsf{Encoder}" (kind := "compact")
 $`\begin{array}{l}
 \mathcal E_X=Y_X\times\mathbb N\pcomment{\text{states }\eta=(y,i)}\\[0.3em]
 \mathsf{Enc}_X:Y_X\to\mathcal E_X,\quad\mathsf{Enc}_X(y)=(y,0)\\[0.3em]
@@ -106,7 +106,7 @@ $`\begin{array}{l}
 \quad\mathsf{Next}(y,i)=(\Encode_X(y,i),(y,i+1))
 \end{array}`
 ::::
-::::gameCell "\\textsf{Decoder}" (kind := "compact") (open := true)
+::::gameCell "\\textsf{Decoder}" (kind := "compact")
 $`\begin{array}{l}
 \mathcal D_X=\mathcal P_{\mathrm{fin}}(\mathbb N\times\Sigma)\pcomment{\text{states }\delta}\\[0.3em]
 \mathsf{Empty}_X\in\mathcal D_X,\quad\mathsf{Empty}_X=\emptyset\\[0.3em]

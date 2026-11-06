@@ -186,7 +186,7 @@ def scheme (P : Parameters m) [DecidableEq P.Sym]
 ```
 
 ::::::gameGrid
-:::::gameCell "\\textsf{States, messages, and transitions}" (kind := "game") (open := true) (tag := "spqr-states")
+:::::gameCell "\\textsf{States, messages, and transitions}" (kind := "game") (tag := "spqr-states")
 $$`\begin{array}{rcl}
 \textsf{encapsulation-key sender} & & \textsf{ciphertext sender}\\[0.5em]
 (\mathsf{pk},\mathsf{sk})\gets\mathsf{KeyGen}() & & \\
@@ -346,7 +346,7 @@ structure Message (Sym : Type) where
 ::::::
 
 ::::::gameGrid
-:::::gameCell "\\InitA(I_{\\mathsf{CKA}})" (kind := "compact") (open := true) (tag := "spqr-init-a") (state := "\\textsf{A, encapsulation-key sender in epoch 1}")
+:::::gameCell "\\InitA(I_{\\mathsf{CKA}})" (kind := "compact") (tag := "spqr-init-a") (state := "\\textsf{A, encapsulation-key sender in epoch 1}")
 $`\Return\mathsf{keysUnsampled}(1,\mathsf{Init}(I_{\mathsf{CKA}},1))`
 
 :::leanPillCaption "initA"
@@ -361,7 +361,7 @@ def initA (P : Parameters m)
 
 :::::
 
-:::::gameCell "\\InitB(I_{\\mathsf{CKA}})" (kind := "compact") (open := true) (tag := "spqr-init-b") (state := "\\textsf{B, ciphertext sender in epoch 1}")
+:::::gameCell "\\InitB(I_{\\mathsf{CKA}})" (kind := "compact") (tag := "spqr-init-b") (state := "\\textsf{B, ciphertext sender in epoch 1}")
 $`\Return\mathsf{noHeaderReceived}(1,\mathsf{Init}(I_{\mathsf{CKA}},1),\mathsf{Empty}_H)`
 
 :::leanPillCaption "initB"
@@ -378,7 +378,7 @@ def initB (P : Parameters m)
 ::::::
 
 ::::::gameGrid
-:::::gameCell "\\textsf{Send}" (kind := "game") (open := true) (tag := "spqr-send")
+:::::gameCell "\\textsf{Send}" (kind := "game") (tag := "spqr-send")
 $`\begin{array}{l}
 \mathsf{Send}(\mathsf{st}):\pcomment{\mathsf{ep}\text{: the epoch of }\mathsf{st}}\\
 \quad \mathsf{out}\gets(\bot,\bot);\quad\mathsf{st}'\gets\mathsf{st}\\[0.6em]
@@ -524,7 +524,7 @@ def sendRleak (P : Parameters m)
 $$`\SendA=\SendB=\mathsf{Send},\quad\SendARLeak=\SendBRLeak=\mathsf{Send}\text{-}\mathsf{rleak}`
 :::::
 
-:::::gameCell "\\textsf{Send helpers}" (kind := "compact") (open := true)
+:::::gameCell "\\textsf{Send helpers}" (kind := "compact")
 $`\begin{array}{l}
 \mathsf{SendHeader}(\mathsf{ep},\mathsf{auth})\\
 \hline
@@ -609,7 +609,7 @@ def sendCt1Rleak (P : Parameters m)
 ::::::
 
 ::::::gameGrid
-:::::gameCell "\\textsf{Receive}" (kind := "game") (open := true) (tag := "spqr-receive")
+:::::gameCell "\\textsf{Receive}" (kind := "game") (tag := "spqr-receive")
 $`\begin{array}{l}
 \mathsf{Rec}(\mathsf{st},(t,p)):\pcomment{\mathsf{ep}\text{: the epoch of }\mathsf{st}}\\
 \quad\pif\ t<\mathsf{ep}\ \pthen\ \Return((\bot,\bot),t-1,\mathsf{st})\pcomment{\text{earlier epoch: ignored}}\\[0.6em]
@@ -868,7 +868,7 @@ def recvSCKA (P : Parameters m) [DecidableEq P.Sym]
 $$`\RecA=\RecB=\mathsf{Rec}`
 :::::
 
-:::::gameCell "\\textsf{Receive helpers}" (kind := "compact") (open := true)
+:::::gameCell "\\textsf{Receive helpers}" (kind := "compact")
 $`\begin{array}{l}
 \mathsf{RecvNextEpoch}((\mathsf{ep},\mathsf{auth}),t)\\
 \hline
@@ -1031,7 +1031,7 @@ $`\mathsf{KDF}_{\mathsf{OK}}`, $`T`, the serializations, $`\mathsf{Auth}`, and
 $`\Init\text{-}\KeyGen` remain parameters.
 
 ::::::gameGrid
-:::::gameCell "\\textsf{Coin samplers}" (kind := "game") (open := true)
+:::::gameCell "\\textsf{Coin samplers}" (kind := "game")
 $`\begin{array}{l}
 \mathcal D_K=U(B_{64});\quad r_K=d\mathbin\Vert z\pcomment{d,z\in B_{32}}\\
 \mathcal D_1=U(B_{32})\pcomment{U(B_n)\text{: uniform on the byte strings }B_n\text{ of length }n}
