@@ -194,6 +194,19 @@ $`\begin{array}{l}
 \quad\pif\ M=\bot\ \pthen\ \Return\bot\\
 \quad\Return\mathsf{Parse}(M)
 \end{array}`
+
+:::leanPillCaption "decode"
+:::
+
+```anchor ErasureCodePayload_decode (project := ".") (module := SecureMessaging.ErasureCode.Defs)
+def decode (ecp : ErasureCodePayload M Sym) (chunks : Finset (ℕ × Sym)) : Option M :=
+  if hvalid : ∀ chunk ∈ chunks, chunk.1 < ecp.ec.N then
+    match ecp.ec.decode (ecp.boundedChunks chunks hvalid) with
+    | none => none
+    | some block => ecp.parse block
+  else
+    none
+```
 :::::
 ::::::
 :::::::
