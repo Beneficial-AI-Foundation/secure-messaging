@@ -66,17 +66,18 @@ namespace SPQR
 
 open Chunked
 
-variable {P : MLKEMBraid.Parameters ProbComp} {InitKey AuthState : Type}
+variable {P : SPQR.Parameters ProbComp} {InitKey AuthState : Type}
 
 /-- The state of the correctness game played by two SPQR parties. -/
-abbrev GameState (P : MLKEMBraid.Parameters ProbComp) (AuthState : Type) : Type :=
+abbrev GameState (P : SPQR.Parameters ProbComp) (AuthState : Type) : Type :=
   SCKAScheme.GameState (Chunked.PartyState P AuthState) (Chunked.PartyState P AuthState)
     P.EpochKey (Chunked.Message P.Sym)
 
 /-- The Braid game state with translated party states and recorded messages. The key tables,
 counters, epochs and flags are unchanged. -/
 -- ANCHOR: Relation_GameState_toMLKEMBraid
-def GameState.toMLKEMBraid (s : GameState P AuthState) : MLKEMBraid.GameState P AuthState where
+def GameState.toMLKEMBraid (s : GameState P AuthState) :
+    MLKEMBraid.GameState P.toBraid AuthState where
   stA := s.stA.toMLKEMBraid
   stB := s.stB.toMLKEMBraid
   keyA := s.keyA
@@ -118,7 +119,7 @@ def DeliveryDivergence (s : GameState P AuthState) :
 vector chunk. -/
 -- ANCHOR: Relation_GameState_toMLKEMBraidAck
 def GameState.toMLKEMBraidAck (s : GameState P AuthState) (party : Bool) (n : ℕ) :
-    MLKEMBraid.GameState P AuthState :=
+    MLKEMBraid.GameState P.toBraid AuthState :=
   let relabel : Option (MLKEMBraid.Message P.Sym × ℕ) → Option (MLKEMBraid.Message P.Sym × ℕ) :=
     Option.map fun e => ({ e.1 with type := .ekCt1Ack }, e.2)
   if party then
@@ -167,8 +168,8 @@ private theorem toMLKEMBraid_sendBUpdate [DecidableEq P.EpochKey] (s : GameState
 
 variable [DecidableEq P.EpochKey] [DecidableEq P.Sym]
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-    P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
-  (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey)
+    P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
+  (sampleInitKey : ProbComp InitKey)
 
 /-! ### The relation of the two games -/
 
@@ -179,42 +180,48 @@ theorem sckaCorrectnessImpl_run_toMLKEMBraid (s : GameState P AuthState)
     (t : (SCKAScheme.sckaCorrectnessSpec (Chunked.Message P.Sym)).Domain)
     (ht : ¬ DeliveryDivergence s t) :
     (fun z => GameState.toMLKEMBraid z.2) <$>
-        (SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey) t).run s =
+        (SCKAScheme.sckaCorrectnessImpl (scheme P auth sampleInitKey) t).run s =
       (fun z => z.2) <$>
-        (SCKAScheme.sckaCorrectnessImpl (MLKEMBraid.scheme P auth irl sampleInitKey) t).run
+        (SCKAScheme.sckaCorrectnessImpl
+          (MLKEMBraid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey) t).run
           s.toMLKEMBraid
 -- ANCHOR_END: Relation_sckaCorrectnessImpl_run_toMLKEMBraid
     := by
   rcases t with ((((n | u) | u) | n) | n)
   · simp [SCKAScheme.sckaCorrectnessImpl, SCKAScheme.oracleUnif, StateT.run_monadLift]
   · change (fun z => GameState.toMLKEMBraid z.2) <$>
-        (SCKAScheme.oracleSendA (scheme P auth irl sampleInitKey) ()).run s =
+        (SCKAScheme.oracleSendA (scheme P auth sampleInitKey) ()).run s =
       (fun z => z.2) <$>
-        (SCKAScheme.oracleSendA (MLKEMBraid.scheme P auth irl sampleInitKey) ()).run
+        (SCKAScheme.oracleSendA
+          (MLKEMBraid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey) ()).run
           s.toMLKEMBraid
     have hst : s.toMLKEMBraid.stA = s.stA.toMLKEMBraid := rfl
-    rw [SCKAScheme.oracleSendA_run_eq, MLKEMBraid.oracleSendA_run_eq, hst,
+    rw [SCKAScheme.oracleSendA_run_eq,
+      MLKEMBraid.oracleSendA_run_eq (P := P.toBraid) auth P.det.toRandLeak sampleInitKey, hst,
       ← Chunked.send_toMLKEMBraid]
     simp only [scheme, bind_pure_comp, Functor.map_map]
     congr 1
     funext r
     exact toMLKEMBraid_sendAUpdate s r.outputKey r.msg r.sendingEpoch r.state
   · change (fun z => GameState.toMLKEMBraid z.2) <$>
-        (SCKAScheme.oracleSendB (scheme P auth irl sampleInitKey) ()).run s =
+        (SCKAScheme.oracleSendB (scheme P auth sampleInitKey) ()).run s =
       (fun z => z.2) <$>
-        (SCKAScheme.oracleSendB (MLKEMBraid.scheme P auth irl sampleInitKey) ()).run
+        (SCKAScheme.oracleSendB
+          (MLKEMBraid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey) ()).run
           s.toMLKEMBraid
     have hst : s.toMLKEMBraid.stB = s.stB.toMLKEMBraid := rfl
-    rw [SCKAScheme.oracleSendB_run_eq, MLKEMBraid.oracleSendB_run_eq, hst,
+    rw [SCKAScheme.oracleSendB_run_eq,
+      MLKEMBraid.oracleSendB_run_eq (P := P.toBraid) auth P.det.toRandLeak sampleInitKey, hst,
       ← Chunked.send_toMLKEMBraid]
     simp only [scheme, bind_pure_comp, Functor.map_map]
     congr 1
     funext r
     exact toMLKEMBraid_sendBUpdate s r.outputKey r.msg r.sendingEpoch r.state
   · change (fun z => GameState.toMLKEMBraid z.2) <$>
-        (SCKAScheme.oracleRecvA (scheme P auth irl sampleInitKey) n).run s =
+        (SCKAScheme.oracleRecvA (scheme P auth sampleInitKey) n).run s =
       (fun z => z.2) <$>
-        (SCKAScheme.oracleRecvA (MLKEMBraid.scheme P auth irl sampleInitKey) n).run
+        (SCKAScheme.oracleRecvA
+          (MLKEMBraid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey) n).run
           s.toMLKEMBraid
     rcases hmsg : s.msgB n with _ | ⟨ρ, tsnd⟩
     · have hmsg' : s.toMLKEMBraid.msgB n = none := by simp [GameState.toMLKEMBraid, hmsg]
@@ -236,9 +243,10 @@ theorem sckaCorrectnessImpl_run_toMLKEMBraid (s : GameState P AuthState)
         rcases keyOpt with _ | ⟨tI, key⟩ <;>
           simp [SCKAScheme.recvAUpdate, GameState.toMLKEMBraid]
   · change (fun z => GameState.toMLKEMBraid z.2) <$>
-        (SCKAScheme.oracleRecvB (scheme P auth irl sampleInitKey) n).run s =
+        (SCKAScheme.oracleRecvB (scheme P auth sampleInitKey) n).run s =
       (fun z => z.2) <$>
-        (SCKAScheme.oracleRecvB (MLKEMBraid.scheme P auth irl sampleInitKey) n).run
+        (SCKAScheme.oracleRecvB
+          (MLKEMBraid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey) n).run
           s.toMLKEMBraid
     rcases hmsg : s.msgA n with _ | ⟨ρ, tsnd⟩
     · have hmsg' : s.toMLKEMBraid.msgA n = none := by simp [GameState.toMLKEMBraid, hmsg]
@@ -283,25 +291,25 @@ private theorem send_ct1Ack {st : PartyState P AuthState} {r : SendResult P Auth
       ∀ core dec, st = .ekSentCt1Received core dec → r.state = st := by
   cases st
   case keysUnsampled core =>
-    simp only [send, EkSender.sendHeader, bind_assoc, pure_bind, mem_support_bind_iff,
-      mem_support_pure_iff] at hr
-    obtain ⟨⟨pk, sk⟩, -, rfl⟩ := hr
+    simp only [send, Chunked.send, EkSender.sendHeader, Parameters.generate, bind_assoc,
+      pure_bind, mem_support_bind_iff, mem_support_pure_iff] at hr
+    obtain ⟨r, -, rfl⟩ := hr
     simp [PartyState.epoch]
   case headerReceived core dec =>
-    simp only [send, CtSender.sendCt1, bind_assoc, pure_bind, mem_support_bind_iff,
-      mem_support_pure_iff] at hr
-    obtain ⟨⟨es, c1, k⟩, -, rfl⟩ := hr
+    simp only [send, Chunked.send, CtSender.sendCt1, Parameters.encaps1, bind_assoc, pure_bind,
+      mem_support_bind_iff, mem_support_pure_iff] at hr
+    obtain ⟨r, -, rfl⟩ := hr
     simp [PartyState.epoch]
   all_goals
-    simp only [send, mem_support_pure_iff] at hr
+    simp only [send, Chunked.send, mem_support_pure_iff] at hr
     subst hr
     simp [PartyState.epoch]
 
 omit [DecidableEq P.EpochKey] [DecidableEq P.Sym] in
 /-- A successful second-ciphertext receive moves to the next epoch. -/
-private theorem recvCt2_ep {core : EkSender.EkSentCt1Received P.inc AuthState} {c2 : P.inc.C₂}
+private theorem recvCt2_ep {core : EkSender.EkSentCt1Received P AuthState} {c2 : P.det.C₂}
     {tag : P.Mac} {next : CtSender.NoHeaderReceived AuthState} {key : ℕ × P.EpochKey}
-    (h : EkSender.recvCt2 P.inc auth P.kdfOK P.hDet core c2 tag = some (next, key)) :
+    (h : EkSender.recvCt2 P auth core c2 tag = some (next, key)) :
     next.ep = core.ep + 1 := by
   unfold EkSender.recvCt2 at h
   split at h
@@ -336,8 +344,8 @@ private theorem recv_ct1Ack {st : PartyState P AuthState} {msg : Chunked.Message
   · have heq : e = st.epoch := by omega
     subst heq
     cases st <;> cases payload <;>
-      simp only [completeCt2, EkSender.sendVector, EkSender.recvCt1, CtSender.recvHeader,
-        CtSender.recvVector] at hr <;>
+      simp only [completeCt2, EkSender.sendEk, EkSender.recvCt1, CtSender.recvHeader,
+        CtSender.recvEk] at hr <;>
       repeat' split at hr
     all_goals cases hr
     all_goals refine ⟨?_, fun core dec h => ?_⟩
@@ -399,7 +407,7 @@ private theorem partyCt1Ack_recvSCKA [DecidableEq P.Sym] {st : PartyState P Auth
 /-- Every query of the SPQR correctness game preserves `Ct1AckInv`. -/
 -- ANCHOR: Relation_sckaCorrectnessImpl_preserves_ct1AckInv
 theorem sckaCorrectnessImpl_preserves_ct1AckInv :
-    QueryImpl.PreservesInv (SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey))
+    QueryImpl.PreservesInv (SCKAScheme.sckaCorrectnessImpl (scheme P auth sampleInitKey))
       (Ct1AckInv (P := P) (AuthState := AuthState))
 -- ANCHOR_END: Relation_sckaCorrectnessImpl_preserves_ct1AckInv
     := by
@@ -500,8 +508,8 @@ theorem DeliveryDivergence.ct1Acknowledged_ek {s : GameState P AuthState}
     {t : (SCKAScheme.sckaCorrectnessSpec (Chunked.Message P.Sym)).Domain}
     (hC : MLKEMBraid.ControlInv s.toMLKEMBraid) (hP : MLKEMBraid.StatePairInv s.toMLKEMBraid)
     (hack : Ct1AckInv s) (h : DeliveryDivergence s t) :
-    ∃ (party : Bool) (n : ℕ) (core : CtSender.Ct1Sent P.inc AuthState)
-      (dec : DecoderState P.inc.PKvector P.Sym) (chunk : ℕ × P.Sym) (tsnd : ℕ),
+    ∃ (party : Bool) (n : ℕ) (core : CtSender.Ct1Sent P AuthState)
+      (dec : DecoderState P.det.PKvector P.Sym) (chunk : ℕ × P.Sym) (tsnd : ℕ),
       t = (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
         else SCKAScheme.sckaCorrectnessSpec.ORecvB n) ∧
       (if party then s.stA else s.stB) = .ct1Acknowledged core dec ∧
@@ -542,17 +550,18 @@ successor state has the distribution of the Braid successor state of the transla
 record is an acknowledging vector chunk, once the record is restored. -/
 -- ANCHOR: Relation_sckaCorrectnessImpl_run_toMLKEMBraidAck
 theorem sckaCorrectnessImpl_run_toMLKEMBraidAck (s : GameState P AuthState) (party : Bool)
-    (n : ℕ) (core : CtSender.Ct1Sent P.inc AuthState) (dec : DecoderState P.inc.PKvector P.Sym)
+    (n : ℕ) (core : CtSender.Ct1Sent P AuthState) (dec : DecoderState P.det.PKvector P.Sym)
     (chunk : ℕ × P.Sym) (tsnd : ℕ)
     (hst : (if party then s.stA else s.stB) = .ct1Acknowledged core dec)
     (hmsg : (if party then s.msgB else s.msgA) n = some (⟨core.ep, .ek chunk⟩, tsnd)) :
     (fun z => GameState.toMLKEMBraid z.2) <$>
-        (SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey)
+        (SCKAScheme.sckaCorrectnessImpl (scheme P auth sampleInitKey)
           (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
             else SCKAScheme.sckaCorrectnessSpec.ORecvB n)).run s =
       (fun z => if party then { z.2 with msgB := s.toMLKEMBraid.msgB }
           else { z.2 with msgA := s.toMLKEMBraid.msgA }) <$>
-        (SCKAScheme.sckaCorrectnessImpl (MLKEMBraid.scheme P auth irl sampleInitKey)
+        (SCKAScheme.sckaCorrectnessImpl
+          (MLKEMBraid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey)
           (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
             else SCKAScheme.sckaCorrectnessSpec.ORecvB n)).run (s.toMLKEMBraidAck party n)
 -- ANCHOR_END: Relation_sckaCorrectnessImpl_run_toMLKEMBraidAck
@@ -561,9 +570,10 @@ theorem sckaCorrectnessImpl_run_toMLKEMBraidAck (s : GameState P AuthState) (par
   cases party
   · simp only [Bool.false_eq_true, ↓reduceIte] at hst hmsg ⊢
     change (fun z => GameState.toMLKEMBraid z.2) <$>
-        (SCKAScheme.oracleRecvB (scheme P auth irl sampleInitKey) n).run s =
+        (SCKAScheme.oracleRecvB (scheme P auth sampleInitKey) n).run s =
       (fun z => { z.2 with msgA := s.toMLKEMBraid.msgA }) <$>
-        (SCKAScheme.oracleRecvB (MLKEMBraid.scheme P auth irl sampleInitKey) n).run
+        (SCKAScheme.oracleRecvB
+          (MLKEMBraid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey) n).run
           (s.toMLKEMBraidAck false n)
     have hmsg' : (s.toMLKEMBraidAck false n).msgA n =
         some (⟨core.ep, .ekCt1Ack, some chunk⟩, tsnd) := by
@@ -587,9 +597,10 @@ theorem sckaCorrectnessImpl_run_toMLKEMBraidAck (s : GameState P AuthState) (par
         simp [SCKAScheme.recvBUpdate, GameState.toMLKEMBraid, GameState.toMLKEMBraidAck]
   · simp only [↓reduceIte] at hst hmsg ⊢
     change (fun z => GameState.toMLKEMBraid z.2) <$>
-        (SCKAScheme.oracleRecvA (scheme P auth irl sampleInitKey) n).run s =
+        (SCKAScheme.oracleRecvA (scheme P auth sampleInitKey) n).run s =
       (fun z => { z.2 with msgB := s.toMLKEMBraid.msgB }) <$>
-        (SCKAScheme.oracleRecvA (MLKEMBraid.scheme P auth irl sampleInitKey) n).run
+        (SCKAScheme.oracleRecvA
+          (MLKEMBraid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey) n).run
           (s.toMLKEMBraidAck true n)
     have hmsg' : (s.toMLKEMBraidAck true n).msgB n =
         some (⟨core.ep, .ekCt1Ack, some chunk⟩, tsnd) := by

@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.OracleComp.QueryTracking.RandomOracle.Basic
+module
+
+public import VCVio.OracleComp.QueryTracking.RandomOracle.Basic
 
 /-!
 # Fresh distinct queries to the lazy random oracle are independent uniforms
@@ -15,6 +17,8 @@ continuation that does not touch the oracle is the same computation as drawing t
 independent uniform values. Candidate for upstream VCVio, next to
 `VCVio/OracleComp/QueryTracking/RandomOracle/Basic.lean`.
 -/
+
+@[expose] public section
 
 open OracleComp OracleSpec
 

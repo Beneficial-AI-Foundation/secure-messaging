@@ -29,12 +29,14 @@ open Lean
 (`game`/`oracle`/`challenge`/`corrupt`/`security`) selecting the box colour, an
 optional `state` (LaTeX) shown right-aligned in the header — the slice of game
 state the oracle reads/writes — and an optional `tag` that makes the cell a link
-target for `{cellref "tag"}[…]`. -/
+target for `{cellref "tag"}[…]`. The `open` option expands the body on page load. -/
 structure GameCellConfig where
   title : String
   kind : Option String
   state : Option String
   tag : Option String
+  /-- Whether the body is expanded when the page loads. -/
+  initiallyOpen : Bool := false
 deriving Inhabited
 
 /-- Argument of `cellref`: the `tag` of the game cell to link to. -/
@@ -60,13 +62,16 @@ deriving Inhabited
 section
 variable [Monad m] [MonadError m]
 
-/-- Parse `gameCell "Title" (kind := "...") (state := "...")` into a `GameCellConfig`. -/
-def GameCellConfig.parse : ArgParse m GameCellConfig :=
+/-- Parse a game cell's title, display options, tag, and initial expansion state. -/
+def GameCellConfig.parse [Lean.Elab.MonadInfoTree m] [MonadResolveName m] [MonadEnv m]
+    [MonadLiftT CoreM m] : ArgParse m GameCellConfig :=
   GameCellConfig.mk <$> .positional `title .string <*> .named `kind .string true
     <*> .named `state .string true <*> .named `tag .string true
+    <*> .namedD `open .bool false
 
 /-- Lets the `gameCell` directive consume its arguments as a `GameCellConfig`. -/
-instance : FromArgs GameCellConfig m where
+instance [Lean.Elab.MonadInfoTree m] [MonadResolveName m] [MonadEnv m] [MonadLiftT CoreM m] :
+    FromArgs GameCellConfig m where
   fromArgs := GameCellConfig.parse
 
 /-- Parse `defTitle "label" "Human title"`. -/
@@ -159,25 +164,29 @@ block_extension Block.gameGrid where
 -- with a `tag` registers itself as a link target (see `cellref`); the first
 -- traversal pass records the assigned tag and pins the block's internal id.
 block_extension Block.gameCell (title : String) (kind? : Option String) (state? : Option String)
-    (tag? : Option String := none) (assignedTag : Option Tag := none) where
-  data := toJson (title, kind?, state?, tag?, assignedTag)
+    (tag? : Option String := none) (assignedTag : Option Tag := none)
+    (initiallyOpen : Bool := false) where
+  data := toJson (title, kind?, state?, tag?, assignedTag, initiallyOpen)
   traverse id data contents := do
-    match fromJson? (α := String × Option String × Option String × Option String × Option Tag) data with
+    match fromJson?
+        (α := String × Option String × Option String × Option String × Option Tag × Bool) data with
     | .error e => reportError s!"Error deserializing game cell data: {e}"; pure none
-    | .ok (title, kind?, state?, some tag, none) =>
+    | .ok (title, kind?, state?, some tag, none, initiallyOpen) =>
       let path ← (·.path) <$> read
       let assigned ← Verso.Genre.Manual.externalTag id path tag
       modify fun st => st.saveDomainObject gameCellDomain tag id
       pure <| some <| Block.other
-        {Block.gameCell title kind? state? (some tag) (some assigned) with id := some id} contents
+        {Block.gameCell title kind? state? (some tag) (some assigned) initiallyOpen with
+          id := some id} contents
     | .ok _ => pure none
   toTeX := some <| fun _goI goB _id _data contents => contents.mapM goB
   toHtml :=
     some <| fun _goI goB id data contents => do
-      let (title, kind?, state?, _, _) :=
-        match fromJson? (α := String × Option String × Option String × Option String × Option Tag) data with
+      let (title, kind?, state?, _, _, initiallyOpen) :=
+        match fromJson?
+            (α := String × Option String × Option String × Option String × Option Tag × Bool) data with
         | .ok cell => cell
-        | .error _ => ("Oracle", none, none, none, none)
+        | .error _ => ("Oracle", none, none, none, none, false)
       let xref ← Verso.Doc.Html.HtmlT.state
       let body ← contents.mapM goB
       let titleHtml := Verso.Output.Html.tag "span"
@@ -187,7 +196,9 @@ block_extension Block.gameCell (title : String) (kind? : Option String) (state? 
         | some s => .seq #[titleHtml, bpMathInline s]
         | none => titleHtml
       pure <| Verso.Output.Html.tag "section"
-        (attrsWithClassAndKind "game-cell" kind? ++ xref.htmlId id) <| .seq #[
+        (attrsWithClassAndKind "game-cell" kind? ++
+          #[("data-open", if initiallyOpen then "true" else "false")] ++
+          xref.htmlId id) <| .seq #[
           Verso.Output.Html.tag "div" #[
             ("class", "game-cell-header")
           ] header,
@@ -258,12 +269,14 @@ def gameGrid : DirectiveExpanderOf Unit
     let contents ← contents.mapM Elab.elabBlock
     ``(Block.other Block.gameGrid #[$contents,*])
 
-/-- `:::gameCell "Title" (kind := "...")` — a single titled box inside a grid. -/
+/-- A titled box inside a grid, initially folded unless `(open := true)` is supplied. -/
 @[directive]
 def gameCell : DirectiveExpanderOf GameCellConfig
   | cfg, contents => do
     let contents ← contents.mapM Elab.elabBlock
-    ``(Block.other (Block.gameCell $(quote cfg.title) $(quote cfg.kind) $(quote cfg.state) $(quote cfg.tag)) #[$contents,*])
+    ``(Block.other
+      (Block.gameCell $(quote cfg.title) $(quote cfg.kind) $(quote cfg.state) $(quote cfg.tag)
+        (initiallyOpen := $(quote cfg.initiallyOpen))) #[$contents,*])
 
 /-- `{cellref "tag"}[text]` — link to the game cell tagged `tag` (possibly on
 another page). The site script unfolds the cell when the link is followed. -/

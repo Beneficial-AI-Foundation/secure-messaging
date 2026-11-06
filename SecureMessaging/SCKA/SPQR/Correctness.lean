@@ -13,11 +13,11 @@ import SecureMessaging.SCKA.SPQR.Instances
 
 Let:
 
-* `Π := scheme P auth irl sampleInitKey` be the SPQR SCKA scheme, where `P` holds the incremental
-  KEM, the epoch-key derivation and the four erasure-coded streams, `auth` is the authenticator,
-  `irl` describes the coins that a send may disclose, and `sampleInitKey` samples the initial key;
+* `Π := scheme P auth sampleInitKey` be the SPQR SCKA scheme, where `P` holds the incremental
+  KEM with explicit coins, the epoch-key derivation and the four erasure-coded streams, `auth` is
+  the authenticator, and `sampleInitKey` samples the initial key;
 * `G(Adv) := SCKAScheme.correctnessExp Π Adv` be its correctness game for an adversary `Adv`;
-* `ε := P.kem.correctnessError ProbCompRuntime.probComp` be the correctness error of the
+* `ε := P.det.toKEM.correctnessError ProbCompRuntime.probComp` be the correctness error of the
   underlying KEM.
 
 The game is the one of `MLKEMBraid.Correctness`. The adversary chooses which party sends and which
@@ -31,7 +31,8 @@ If the four erasure codes of `P` are correct and `Adv` makes at most `q` send qu
 
 * `correctness_error_le`: `1 - Pr[G(Adv) = true] ≤ q · ε`;
 * `v1Scheme_correctness_error_le`: the same bound for `v1Scheme`, whose four SPQR Reed-Solomon
-  codes are correct, with `ε` the correctness error of ML-KEM-768.
+  codes are correct, with `ε` the correctness error of `v1Det.toKEM`. This is ML-KEM-768 with its
+  coins drawn as byte strings: 64 bytes for key generation and 32 bytes for encapsulation.
 
 This is the bound of `MLKEMBraid.correctness_error_le`, for the SPQR scheme.
 
@@ -75,9 +76,9 @@ namespace SPQR
 
 open Chunked
 
-variable {P : MLKEMBraid.Parameters ProbComp} {InitKey AuthState : Type}
+variable {P : SPQR.Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-    P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
+    P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
 
 /-! ### Relabelling a recorded vector chunk -/
 
@@ -95,7 +96,7 @@ private theorem update_eq_some {f : ℕ → Option (MLKEMBraid.Message P.Sym × 
 /-- Changing the type of a recorded vector chunk to `ek` or `ekCt1Ack` keeps transcript
 consistency, provided the sender's state allows the new type. -/
 private theorem transcriptConsistent_retype {ik : InitKey}
-    {T : ℕ → MLKEMBraid.EpochTranscript P} {s : MLKEMBraid.GameState P AuthState}
+    {T : ℕ → MLKEMBraid.EpochTranscript P.toBraid} {s : MLKEMBraid.GameState P.toBraid AuthState}
     (hT : MLKEMBraid.TranscriptConsistent auth ik T s) (party : Bool) (n : ℕ)
     {msg : MLKEMBraid.Message P.Sym} {tsnd : ℕ} (hmsg : s.messagesAt party n = some (msg, tsnd))
     (hty : msg.type = .ek ∨ msg.type = .ekCt1Ack) (ty : MLKEMBraid.MessageType)
@@ -212,15 +213,18 @@ private theorem transcriptConsistent_retype {ik : InitKey}
 /-- In a consistent state, the sender of a plain vector chunk recorded at the epoch of a receiver in
 `ct1Acknowledged` is in `ct1Received` at that epoch, so it allows the chunk to be an acknowledging
 vector chunk. -/
-private theorem messageControl_ekCt1Ack {ik : InitKey} {T : ℕ → MLKEMBraid.EpochTranscript P}
-    {s : MLKEMBraid.GameState P AuthState} (hT : MLKEMBraid.TranscriptConsistent auth ik T s)
-    (party : Bool) {n e : ℕ} {a : AuthState} {hdr : P.inc.PKheader} {es : P.inc.St}
-    {ct1 : P.inc.C₁} {dec : DecoderState P.inc.PKvector P.Sym} {chunk : ℕ × P.Sym} {tsnd : ℕ}
+private theorem messageControl_ekCt1Ack {ik : InitKey}
+    {T : ℕ → MLKEMBraid.EpochTranscript P.toBraid}
+    {s : MLKEMBraid.GameState P.toBraid AuthState}
+    (hT : MLKEMBraid.TranscriptConsistent auth ik T s)
+    (party : Bool) {n e : ℕ} {a : AuthState} {hdr : P.det.PKheader} {es : P.det.St}
+    {ct1 : P.det.C₁} {dec : DecoderState P.det.PKvector P.Sym} {chunk : ℕ × P.Sym} {tsnd : ℕ}
     (hst : s.stateAt party = .ct1Acknowledged e a hdr es ct1 dec)
     (hmsg : s.messagesAt (!party) n = some (⟨e, .ek, some chunk⟩, tsnd)) :
     MLKEMBraid.MessageControl (!party) (s.stateAt (!party)) ⟨e, .ekCt1Ack, some chunk⟩ := by
   obtain ⟨-, hle, -, hown⟩ := (hT.control.roles (!party)).2.2 n _ tsnd hmsg
-  obtain ⟨h, h', -, -, -, hcrossP, hroles⟩ := hT.pairBounds auth party
+  obtain ⟨h, h', -, -, -, hcrossP, hroles⟩ :=
+    MLKEMBraid.TranscriptConsistent.pairBounds (P := P.toBraid) auth hT party
   rw [hst] at h h' hcrossP hroles
   refine ⟨rfl, hle, fun hep => ?_, by simpa [MLKEMBraid.MessageOwner] using hown⟩
   simp only at hle hep
@@ -230,15 +234,15 @@ private theorem messageControl_ekCt1Ack {ik : InitKey} {T : ℕ → MLKEMBraid.E
       MLKEMBraid.State.epoch, MLKEMBraid.State.completedEpoch, MLKEMBraid.MessageType.sendStep]
 
 variable [DecidableEq P.EpochKey] [DecidableEq P.Sym]
-  (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey)
+  (sampleInitKey : ProbComp InitKey)
 
 omit [DecidableEq P.EpochKey] [DecidableEq P.Sym] in
 /-- If the translation of a state is consistent with a transcript, so is its relabelling at a plain
 vector chunk delivered to a party in `ct1Acknowledged`. -/
 private theorem transcriptConsistent_toMLKEMBraidAck {ik : InitKey}
-    {T : ℕ → MLKEMBraid.EpochTranscript P} {s : GameState P AuthState}
+    {T : ℕ → MLKEMBraid.EpochTranscript P.toBraid} {s : GameState P AuthState}
     (hT : MLKEMBraid.TranscriptConsistent auth ik T s.toMLKEMBraid) (party : Bool) (n : ℕ)
-    {core : CtSender.Ct1Sent P.inc AuthState} {dec : DecoderState P.inc.PKvector P.Sym}
+    {core : CtSender.Ct1Sent P AuthState} {dec : DecoderState P.det.PKvector P.Sym}
     {chunk : ℕ × P.Sym} {tsnd : ℕ}
     (hst : (if party then s.stA else s.stB) = .ct1Acknowledged core dec)
     (hmsg : (if party then s.msgB else s.msgA) n = some (⟨core.ep, .ek chunk⟩, tsnd)) :
@@ -266,9 +270,9 @@ omit [DecidableEq P.EpochKey] [DecidableEq P.Sym] in
 /-- After a query of the relabelled translation, restoring the plain vector chunk keeps the Braid
 invariant. -/
 private theorem correctnessInv_restore {ik : InitKey} (party : Bool) (n : ℕ)
-    {s : GameState P AuthState} {core : CtSender.Ct1Sent P.inc AuthState} {chunk : ℕ × P.Sym}
+    {s : GameState P AuthState} {core : CtSender.Ct1Sent P AuthState} {chunk : ℕ × P.Sym}
     {tsnd : ℕ} (hmsg : (if party then s.msgB else s.msgA) n = some (⟨core.ep, .ek chunk⟩, tsnd))
-    {z : MLKEMBraid.GameState P AuthState}
+    {z : MLKEMBraid.GameState P.toBraid AuthState}
     (hmsgs : z.messagesAt (!party) = (s.toMLKEMBraidAck party n).messagesAt (!party))
     (hz : MLKEMBraid.CorrectnessInv auth ik z) :
     MLKEMBraid.CorrectnessInv auth ik
@@ -319,12 +323,13 @@ private theorem correctnessInv_restore {ik : InitKey} (party : Bool) (n : ℕ)
     exact h
 
 /-- A receive query of the Braid game keeps both message tables. -/
-private theorem messagesAt_of_mem_support_recv {s : MLKEMBraid.GameState P AuthState}
+private theorem messagesAt_of_mem_support_recv {s : MLKEMBraid.GameState P.toBraid AuthState}
     (party : Bool) (n : ℕ)
     {z : (SCKAScheme.sckaCorrectnessSpec (MLKEMBraid.Message P.Sym)).Range
         (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
-          else SCKAScheme.sckaCorrectnessSpec.ORecvB n) × MLKEMBraid.GameState P AuthState}
-    (hz : z ∈ support ((SCKAScheme.sckaCorrectnessImpl (MLKEMBraid.scheme P auth irl sampleInitKey)
+          else SCKAScheme.sckaCorrectnessSpec.ORecvB n) × MLKEMBraid.GameState P.toBraid AuthState}
+    (hz : z ∈ support ((SCKAScheme.sckaCorrectnessImpl
+      (MLKEMBraid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey)
       (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
         else SCKAScheme.sckaCorrectnessSpec.ORecvB n)).run s))
     (who : Bool) : z.2.messagesAt who = s.messagesAt who := by
@@ -348,39 +353,39 @@ invariant on the translated state together with `Ct1AckInv`. -/
 theorem correctnessImpl_preserves_correctnessInv
     (hHdrCorrect : P.ecpHdr.ec.Correct) (hEkCorrect : P.ecpEk.ec.Correct)
     (hCt1Correct : P.ecpCt1.ec.Correct) (hCt2Correct : P.ecpCt2.ec.Correct) (ik : InitKey) :
-    QueryImpl.PreservesInv (SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey))
+    QueryImpl.PreservesInv (SCKAScheme.sckaCorrectnessImpl (scheme P auth sampleInitKey))
       (fun s : GameState P AuthState =>
         MLKEMBraid.CorrectnessInv auth ik s.toMLKEMBraid ∧ Ct1AckInv s)
 -- ANCHOR_END: SPQR_correctnessImpl_preserves_correctnessInv
     := by
   intro t s ⟨hs, hack⟩ z hz
-  refine ⟨?_, sckaCorrectnessImpl_preserves_ct1AckInv auth irl sampleInitKey t s hack z hz⟩
-  have hbraid := MLKEMBraid.correctnessImpl_preserves_correctnessInv auth irl sampleInitKey
-    hHdrCorrect hEkCorrect hCt1Correct hCt2Correct ik
+  refine ⟨?_, sckaCorrectnessImpl_preserves_ct1AckInv auth sampleInitKey t s hack z hz⟩
+  have hbraid := MLKEMBraid.correctnessImpl_preserves_correctnessInv (P := P.toBraid) auth
+    P.det.toRandLeak sampleInitKey hHdrCorrect hEkCorrect hCt1Correct hCt2Correct ik
   rcases hs with hsf | ⟨T, hT⟩
   · exact Or.inl (SCKAScheme.sckaCorrectnessImpl_preserves_correct_eq_false _ t s hsf z hz)
   by_cases hdiv : DeliveryDivergence s t
   · obtain ⟨party, n, core, dec, chunk, tsnd, rfl, hst, hmsg⟩ :=
       DeliveryDivergence.ct1Acknowledged_ek hT.control hT.statePair hack hdiv
     have hmem : GameState.toMLKEMBraid z.2 ∈ support ((fun z => GameState.toMLKEMBraid z.2) <$>
-        (SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey)
+        (SCKAScheme.sckaCorrectnessImpl (scheme P auth sampleInitKey)
           (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
             else SCKAScheme.sckaCorrectnessSpec.ORecvB n)).run s) := by
       rw [support_map]
       exact Set.mem_image_of_mem _ hz
-    rw [sckaCorrectnessImpl_run_toMLKEMBraidAck auth irl sampleInitKey s party n core dec chunk
+    rw [sckaCorrectnessImpl_run_toMLKEMBraidAck auth sampleInitKey s party n core dec chunk
       tsnd hst hmsg, support_map] at hmem
     obtain ⟨z', hz', hzz⟩ := hmem
     have hAck := hbraid _ _
       (Or.inr ⟨T, transcriptConsistent_toMLKEMBraidAck auth hT party n hst hmsg⟩) z' hz'
     rw [← hzz]
     exact correctnessInv_restore auth party n hmsg
-      (messagesAt_of_mem_support_recv auth irl sampleInitKey party n hz' (!party)) hAck
+      (messagesAt_of_mem_support_recv auth sampleInitKey party n hz' (!party)) hAck
   · have hmem : GameState.toMLKEMBraid z.2 ∈ support ((fun z => GameState.toMLKEMBraid z.2) <$>
-        (SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey) t).run s) := by
+        (SCKAScheme.sckaCorrectnessImpl (scheme P auth sampleInitKey) t).run s) := by
       rw [support_map]
       exact Set.mem_image_of_mem _ hz
-    rw [sckaCorrectnessImpl_run_toMLKEMBraid auth irl sampleInitKey s t hdiv, support_map] at hmem
+    rw [sckaCorrectnessImpl_run_toMLKEMBraid auth sampleInitKey s t hdiv, support_map] at hmem
     obtain ⟨z', hz', hzz⟩ := hmem
     rw [← hzz]
     exact hbraid _ _ (Or.inr ⟨T, hT⟩) z' hz'
@@ -395,15 +400,15 @@ theorem wp_failurePotential_query_le [DecidableEq P.K]
     (t : (SCKAScheme.sckaCorrectnessSpec (Chunked.Message P.Sym)).Domain)
     (s : GameState P AuthState)
     (hs : MLKEMBraid.CorrectnessInv auth ik s.toMLKEMBraid) (hack : Ct1AckInv s) :
-    wp ((SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey) t).run s)
+    wp ((SCKAScheme.sckaCorrectnessImpl (scheme P auth sampleInitKey) t).run s)
         (fun z => MLKEMBraid.failurePotential (GameState.toMLKEMBraid z.2)) ≤
       MLKEMBraid.failurePotential s.toMLKEMBraid +
         if SCKAScheme.isSendQuery (Rho := Chunked.Message P.Sym) t
-        then P.kem.correctnessError ProbCompRuntime.probComp else 0
+        then P.det.toKEM.correctnessError ProbCompRuntime.probComp else 0
 -- ANCHOR_END: SPQR_wp_failurePotential_query_le
     := by
-  have hbraid := MLKEMBraid.wp_failurePotential_query_le auth irl sampleInitKey
-    hHdrCorrect hEkCorrect hCt1Correct hCt2Correct ik
+  have hbraid := MLKEMBraid.wp_failurePotential_query_le (P := P.toBraid) auth P.det.toRandLeak
+    sampleInitKey hHdrCorrect hEkCorrect hCt1Correct hCt2Correct ik
   rcases hs with hsf | ⟨T, hT⟩
   · -- A false flag stays false, and the potential stays `1`.
     have hsf' : s.correct = false := hsf
@@ -418,20 +423,21 @@ theorem wp_failurePotential_query_le [DecidableEq P.K]
       DeliveryDivergence.ct1Acknowledged_ek hT.control hT.statePair hack hdiv
     have hAck : MLKEMBraid.CorrectnessInv auth ik (s.toMLKEMBraidAck party n) :=
       Or.inr ⟨T, transcriptConsistent_toMLKEMBraidAck auth hT party n hst hmsg⟩
-    calc wp ((SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey)
+    calc wp ((SCKAScheme.sckaCorrectnessImpl (scheme P auth sampleInitKey)
             (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
               else SCKAScheme.sckaCorrectnessSpec.ORecvB n)).run s)
           (fun z => MLKEMBraid.failurePotential (GameState.toMLKEMBraid z.2))
         = wp ((fun z => GameState.toMLKEMBraid z.2) <$>
-            (SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey)
+            (SCKAScheme.sckaCorrectnessImpl (scheme P auth sampleInitKey)
               (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
                 else SCKAScheme.sckaCorrectnessSpec.ORecvB n)).run s)
             MLKEMBraid.failurePotential := by rw [wp_map]; rfl
-      _ = wp ((SCKAScheme.sckaCorrectnessImpl (MLKEMBraid.scheme P auth irl sampleInitKey)
+      _ = wp ((SCKAScheme.sckaCorrectnessImpl
+            (MLKEMBraid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey)
             (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
               else SCKAScheme.sckaCorrectnessSpec.ORecvB n)).run (s.toMLKEMBraidAck party n))
             (fun z => MLKEMBraid.failurePotential z.2) := by
-          rw [sckaCorrectnessImpl_run_toMLKEMBraidAck auth irl sampleInitKey s party n core dec
+          rw [sckaCorrectnessImpl_run_toMLKEMBraidAck auth sampleInitKey s party n core dec
             chunk tsnd hst hmsg, wp_map]
           congr 1
           funext z
@@ -440,21 +446,22 @@ theorem wp_failurePotential_query_le [DecidableEq P.K]
             if SCKAScheme.isSendQuery (Rho := MLKEMBraid.Message P.Sym)
               (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
                 else SCKAScheme.sckaCorrectnessSpec.ORecvB n)
-            then P.kem.correctnessError ProbCompRuntime.probComp else 0 :=
+            then P.det.toKEM.correctnessError ProbCompRuntime.probComp else 0 :=
           hbraid _ _ hAck
       _ = _ := by cases party <;> rfl
-  · calc wp ((SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey) t).run s)
+  · calc wp ((SCKAScheme.sckaCorrectnessImpl (scheme P auth sampleInitKey) t).run s)
           (fun z => MLKEMBraid.failurePotential (GameState.toMLKEMBraid z.2))
         = wp ((fun z => GameState.toMLKEMBraid z.2) <$>
-            (SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey) t).run s)
+            (SCKAScheme.sckaCorrectnessImpl (scheme P auth sampleInitKey) t).run s)
             MLKEMBraid.failurePotential := by rw [wp_map]; rfl
-      _ = wp ((SCKAScheme.sckaCorrectnessImpl (MLKEMBraid.scheme P auth irl sampleInitKey) t).run
+      _ = wp ((SCKAScheme.sckaCorrectnessImpl
+            (MLKEMBraid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey) t).run
             s.toMLKEMBraid) (fun z => MLKEMBraid.failurePotential z.2) := by
-          rw [sckaCorrectnessImpl_run_toMLKEMBraid auth irl sampleInitKey s t hdiv, wp_map]
+          rw [sckaCorrectnessImpl_run_toMLKEMBraid auth sampleInitKey s t hdiv, wp_map]
           rfl
       _ ≤ MLKEMBraid.failurePotential s.toMLKEMBraid +
             if SCKAScheme.isSendQuery (Rho := MLKEMBraid.Message P.Sym) t
-            then P.kem.correctnessError ProbCompRuntime.probComp else 0 :=
+            then P.det.toKEM.correctnessError ProbCompRuntime.probComp else 0 :=
           hbraid t _ (Or.inr ⟨T, hT⟩)
       _ = _ := by rcases t with ((((n | u) | u) | n) | n) <;> rfl
 
@@ -470,12 +477,11 @@ open Chunked
 a false correctness flag with probability at most `q` times the KEM correctness error. -/
 -- ANCHOR: SPQR_correctness_error_le
 theorem correctness_error_le
-    (P : MLKEMBraid.Parameters ProbComp) [DecidableEq P.K]
+    (P : SPQR.Parameters ProbComp) [DecidableEq P.K]
     [DecidableEq P.EpochKey] [DecidableEq P.Sym]
     {InitKey AuthState : Type}
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
-    (irl : P.kem.IncrementalRandLeak P.inc)
+      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (sampleInitKey : ProbComp InitKey)
     (hHdrCorrect : P.ecpHdr.ec.Correct)
     (hEkCorrect : P.ecpEk.ec.Correct)
@@ -483,34 +489,36 @@ theorem correctness_error_le
     (hCt2Correct : P.ecpCt2.ec.Correct)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Chunked.Message P.Sym))
     (q : ℕ) (hq : SCKAScheme.SendQueryBound adv q) :
-    1 - Pr{let x ← SCKAScheme.correctnessExp (scheme P auth irl sampleInitKey) adv}[x = true] ≤
-      (q : ℝ≥0∞) * P.kem.correctnessError ProbCompRuntime.probComp
+    1 - Pr{let x ← SCKAScheme.correctnessExp (scheme P auth sampleInitKey) adv}[x = true] ≤
+      (q : ℝ≥0∞) * P.det.toKEM.correctnessError ProbCompRuntime.probComp
 -- ANCHOR_END: SPQR_correctness_error_le
     := by
-  refine SCKAScheme.correctness_error_le_of_potential (scheme P auth irl sampleInitKey)
+  refine SCKAScheme.correctness_error_le_of_potential (scheme P auth sampleInitKey)
     (fun ik s => MLKEMBraid.CorrectnessInv auth ik (GameState.toMLKEMBraid s) ∧ Ct1AckInv s)
     (fun s => MLKEMBraid.failurePotential (GameState.toMLKEMBraid s)) _ ?_ ?_
-    (correctnessImpl_preserves_correctnessInv auth irl sampleInitKey
+    (correctnessImpl_preserves_correctnessInv auth sampleInitKey
       hHdrCorrect hEkCorrect hCt1Correct hCt2Correct)
-    (fun ik t s hs => wp_failurePotential_query_le auth irl sampleInitKey
+    (fun ik t s hs => wp_failurePotential_query_le auth sampleInitKey
       hHdrCorrect hEkCorrect hCt1Correct hCt2Correct ik t s hs.1 hs.2) adv q hq
   · intro s hs
     simp [MLKEMBraid.failurePotential, GameState.toMLKEMBraid, hs]
   · intro ik _ stA hA stB hB
     simp only [scheme, mem_support_pure_iff] at hA hB
     subst hA hB
-    refine ⟨⟨Or.inr ⟨_, MLKEMBraid.transcriptConsistent_initGameState auth ik⟩, ?_⟩, ?_⟩
+    refine ⟨⟨Or.inr ⟨_, MLKEMBraid.transcriptConsistent_initGameState (P := P.toBraid) auth ik⟩,
+      ?_⟩, ?_⟩
     · intro party n msg tsnd h
       cases party <;> simp [SCKAScheme.initGameState] at h
     · change MLKEMBraid.failurePotential
-        (SCKAScheme.initGameState (MLKEMBraid.initA P auth ik) (MLKEMBraid.initB P auth ik)) = 0
+        (SCKAScheme.initGameState (MLKEMBraid.initA P.toBraid auth ik)
+          (MLKEMBraid.initB P.toBraid auth ik)) = 0
       simp [MLKEMBraid.failurePotential, MLKEMBraid.currentEpochFailure,
         MLKEMBraid.pairFailure, SCKAScheme.initGameState, MLKEMBraid.initA, MLKEMBraid.initB,
         MLKEMBraid.State.controlPosition, MLKEMBraid.State.epoch]
 
 open ErasureCode.SPQRReedSolomon (Chunk GF16 erasureCode_correct) in
 /-- The bound of `correctness_error_le` for `v1Scheme`. The four SPQR Reed-Solomon codes are
-correct, and `ε` is the correctness error of ML-KEM-768. -/
+correct, and `ε` is the correctness error of `v1Det.toKEM`, ML-KEM-768 with byte-string coins. -/
 -- ANCHOR: SPQR_v1Scheme_correctness_error_le
 theorem v1Scheme_correctness_error_le {InitKey AuthState EpochKey Mac : Type}
     [DecidableEq EpochKey]
@@ -536,7 +544,7 @@ theorem v1Scheme_correctness_error_le {InitKey AuthState EpochKey Mac : Type}
         (v1Scheme kdfOK serializeHdr parseHdr parseHdr_serializeHdr serializeEk parseEk
           parseEk_serializeEk serializeCt1 parseCt1 parseCt1_serializeCt1 serializeCt2 parseCt2
           parseCt2_serializeCt2 auth sampleInitKey) adv)}[x = true] ≤
-      (q : ℝ≥0∞) * MLKEM.mlkem768Scheme.correctnessError ProbCompRuntime.probComp
+      (q : ℝ≥0∞) * v1Det.toKEM.correctnessError ProbCompRuntime.probComp
 -- ANCHOR_END: SPQR_v1Scheme_correctness_error_le
     := by
   let P₀ := v1Parameters kdfOK serializeHdr parseHdr parseHdr_serializeHdr serializeEk parseEk
@@ -551,9 +559,7 @@ theorem v1Scheme_correctness_error_le {InitKey AuthState EpochKey Mac : Type}
   let : DecidableEq P₀.Sym := by
     change DecidableEq (Chunk GF16)
     infer_instance
-  exact correctness_error_le P₀ auth
-    (MLKEM.mlkemIncrementalRandLeak .MLKEM768 MLKEM.Concrete.concreteNTTRingOps
-      MLKEM.Concrete.mlkem768Primitives) sampleInitKey
+  exact correctness_error_le P₀ auth sampleInitKey
     (erasureCode_correct 3 (by norm_num) (by norm_num))
     (erasureCode_correct 36 (by norm_num) (by norm_num))
     (erasureCode_correct 30 (by norm_num) (by norm_num))

@@ -86,7 +86,7 @@ $`\begin{array}{ll}
 
 :::::gameCell "\\KeyGen(d\\in\\{0,1\\}^{256})" (kind := "compact")
 $`\begin{array}{l}
-(\rho, \sigma) \gets G(d) \pcomment{\text{seed expansion}} \\
+(\rho, \sigma) \gets G(d\concat k) \pcomment{\text{seed expansion with the rank }k} \\
 s \gets \SampleVec_1(\sigma,0) \pcomment{\text{small secret vector}} \\
 e \gets \SampleVec_1(\sigma,k) \pcomment{\text{small error vector}} \\
 \hat{A} \gets \XOF(\rho) \pcomment{\text{public matrix from seed }\rho} \\

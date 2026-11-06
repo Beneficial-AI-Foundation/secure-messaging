@@ -30,8 +30,8 @@ The proof is straightforward: the tag comparison
 `decrypt` always reaches the `se.decrypt` branch, which recovers the
 plaintext by `hse`. -/
 -- ANCHOR: etmAEAD_correct
-theorem etmAEAD_correct (se : DetSEAlg K_e M C_e)
-    (prf : PRFScheme K_m (AD × C_e) T) (hse : se.Correct) :
+theorem etmAEAD_correct (se : DetSymmEncAlg M K_e C_e)
+    (prf : PRFScheme K_m (AD × C_e) T) (hse : se.PerfectlyCorrect) :
     (etmAEAD se prf).Correct
 -- ANCHOR_END: etmAEAD_correct
   := by

@@ -57,6 +57,7 @@ def gcmReductionConst : BitVec 128 := (0xE1 : BitVec 128) <<< 120
 `Z₀ = 0`, `V₀ = Y`; for `i = 0 … 127`: `Zᵢ₊₁ = Zᵢ ⊕ Vᵢ` if `Xᵢ` else `Zᵢ`,
 `Vᵢ₊₁ = (Vᵢ ≫ 1) ⊕ R` if `LSB₁(Vᵢ)` else `Vᵢ ≫ 1`; returns `Z₁₂₈`. The `⊕ R`
 reduces mod `x^128 + x^7 + x^2 + x + 1`. -/
+-- ANCHOR: gfmul
 def gfmul (x y : BitVec 128) : BitVec 128 :=
   (List.range 128 |>.foldl
     (fun (p : BitVec 128 × BitVec 128) (i : ℕ) =>
@@ -64,14 +65,17 @@ def gfmul (x y : BitVec 128) : BitVec 128 :=
       let v := if p.2.getLsbD 0 then (p.2 >>> 1) ^^^ gcmReductionConst else p.2 >>> 1
       (z, v))
     ((0 : BitVec 128), y)).1
+-- ANCHOR_END: gfmul
 
 /-! ### GHASH (NIST SP 800-38D §6.4) -/
 
 /-- `GHASH_H(X₁ ‖ … ‖ Xₘ)` (NIST SP 800-38D §6.4, Algorithm 2): fold
 `Y ↦ (Y ⊕ Xᵢ) • H` from `Y = 0` over whole blocks (the caller zero-pads any final
 partial block via `padBlocks`). -/
+-- ANCHOR: ghash
 def ghash (h : BitVec 128) (blocks : List (BitVec 128)) : BitVec 128 :=
   blocks.foldl (fun y x => gfmul (y ^^^ x) h) 0
+-- ANCHOR_END: ghash
 
 /-! ### Bit-string blocking for GHASH (NIST SP 800-38D §5.2, §7.1)
 
@@ -94,8 +98,10 @@ def padBlocks {n : ℕ} (x : BitVec n) : List (BitVec 128) :=
 
 /-- `inc₃₂` (NIST SP 800-38D §6.2): low 32-bit counter field `+1 mod 2^32`, high 96
 bits fixed. -/
+-- ANCHOR: inc32
 def inc32 (x : BitVec 128) : BitVec 128 :=
   x.extractLsb' 32 96 ++ (x.extractLsb' 0 32 + 1)
+-- ANCHOR_END: inc32
 
 /-- The GCTR keystream truncated to `p` bits: `MSB_p(blocks[0] ‖ blocks[1] ‖ …)`,
 bit `j` is bit `j % 128` of `blocks[j / 128]` (NIST SP 800-38D §6.5). -/
@@ -114,9 +120,11 @@ def counterChain (icb : BitVec 128) : ℕ → List (BitVec 128)
 `CBᵢ = inc₃₂ⁱ⁻¹(ICB)` (`counterChain`, one cipher call per block). GCM supplies
 `ICB = inc₃₂(J₀)`. The keystream is independent of `X`, so `gctr` is an involution
 (`gctr_involution`). -/
+-- ANCHOR: gctr
 def gctr {K : Type} (ciph : K → BitVec 128 → BitVec 128) (k : K) (icb : BitVec 128)
     {p : ℕ} (x : BitVec p) : BitVec p :=
   x ^^^ keystream ((counterChain icb ((p + 127) / 128)).map (ciph k)) p
+-- ANCHOR_END: gctr
 
 /-- `gctr ciph k icb` is an involution (`(x ⊕ ks) ⊕ ks = x`). -/
 theorem gctr_involution {K : Type} (ciph : K → BitVec 128 → BitVec 128) (k : K)
@@ -155,7 +163,9 @@ abbrev CIPH (K : Type) := BlockCipher K (BitVec 128)
 /-- The pre-counter block `J₀ = IV ‖ 0³¹ ‖ 1` at a 96-bit IV (NIST SP 800-38D §7.1
 step 2). GCM uses it twice: `CIPH_K(J₀)` is the tag mask, and `inc₃₂(J₀)` is the initial
 counter block of the GCTR keystream. -/
+-- ANCHOR: j0
 def j0 (iv : BitVec 96) : BitVec 128 := iv ++ (0 : BitVec 31) ++ (1 : BitVec 1)
+-- ANCHOR_END: j0
 
 /-- GCM authenticated encryption `GCM-AE_K(IV, P, A)` (NIST SP 800-38D §7.1,
 Algorithm 4): AAD `ad : BitVec lenA`, plaintext `m : BitVec lenP`, ciphertext
@@ -165,6 +175,7 @@ block wraps mod 2⁶⁴ outside `ValidMsgLength`/`ValidAADLength`).
 - (1) `H = E_K(0)`; (2) `J₀ = IV ‖ 0³¹ ‖ 1`; (3) `C = GCTR_K(inc₃₂(J₀), P)`;
 - (4–5) `S = GHASH_H(A ‖ 0^v ‖ C ‖ 0^u ‖ [len(A)]₆₄ ‖ [len(C)]₆₄)` (padding via `padBlocks`);
 - (6) `T = GCTR_K(J₀, S)` (one block, so `MSB₁₂₈` is the identity); (7) output `(C, T)`. -/
+-- ANCHOR: gcmEncrypt
 def gcmEncrypt {K : Type} (ciph : CIPH K) (k : K)
     (iv : BitVec 96) {lenA lenP : ℕ} (ad : BitVec lenA) (m : BitVec lenP) :
     BitVec lenP × BitVec 128 :=
@@ -176,6 +187,7 @@ def gcmEncrypt {K : Type} (ciph : CIPH K) (k : K)
   -- (6) `T = GCTR_K(J₀, S)` (NIST SP 800-38D §7.1 step 6); one block, so no truncation
   let t := gctr ciph.perm k j₀ s
   (c, t)
+-- ANCHOR_END: gcmEncrypt
 
 /-- GCM authenticated decryption `GCM-AD_K(IV, C, A, T)` (NIST SP 800-38D §7.2,
 Algorithm 5); `none` is NIST's `FAIL`, `some P` the recovered plaintext.
@@ -184,6 +196,7 @@ Algorithm 5); `none` is NIST's `FAIL`, `some P` the recovered plaintext.
 - (2) `H = E_K(0)`; (3) `J₀ = IV ‖ 0³¹ ‖ 1`; (4) `P = GCTR_K(inc₃₂(J₀), C)`;
 - (5–6) `S` as in `gcmEncrypt`; (7) `T' = GCTR_K(J₀, S)`;
 - (8) return `P` if `T = T'`, else FAIL. -/
+-- ANCHOR: gcmDecrypt
 def gcmDecrypt {K : Type} (ciph : CIPH K) (k : K)
     (iv : BitVec 96) {lenA lenP : ℕ} (ad : BitVec lenA) (ct : BitVec lenP × BitVec 128) :
     Option (BitVec lenP) :=
@@ -198,5 +211,6 @@ def gcmDecrypt {K : Type} (ciph : CIPH K) (k : K)
     -- (7–8) recompute `T'` and return `P` on a match, else FAIL
     if t = gctr ciph.perm k j₀ s then some p else none
   else none
+-- ANCHOR_END: gcmDecrypt
 
 end GCM

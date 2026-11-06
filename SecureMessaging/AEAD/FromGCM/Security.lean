@@ -151,7 +151,8 @@ bound.
 - **Iwata–Ohashi–Minematsu**, *Breaking and Repairing GCM Security Proofs*: the original proof
   is flawed in bounding counter collisions between GHASHed nonces. Their attack needs a
   non-96-bit IV and does not apply to a fixed 96-bit IV, whose counter blocks are distinct by
-  construction; their repaired bounds are tighter in that case.
+  construction. For 96-bit nonces, their Corollary 3 (privacy) and Corollary 4 (authenticity)
+  give the bounds that `gcmOneTimeAEAD_security` adapts to one encryption query.
 - **Bellare–Rogaway**, *Code-Based Game-Playing Proofs and the Security of Triple Encryption*:
   the PRP/PRF switching lemma.
 
@@ -196,16 +197,19 @@ decryption query forges a valid tag. `gcmOneTimeAEAD_security` uses it at
 
 The hypothesis `ε ≠ ⊤` is necessary: `GhashIsAXU L ⊤` holds trivially and `(⊤).toReal = 0`, so
 without it the bound would reduce to `Adv^{ot-cca-ror}(adv) ≤ Adv^{prf}(B)`, which is false in
-general. -/
+general.
+
+Adapted from IOM12, Corollaries 3 and 4, with one encryption query and an abstract AXU bound
+`ε` in place of the GHASH bound. -/
 -- ANCHOR: gcmOneTimeAEAD_security_of_axu
 theorem gcmOneTimeAEAD_security_of_axu (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
-    (hL : ValidMsgLength L)
+    (hL : ValidMsgLength L) (lenM : BitVec L → ℕ) (clen : ℕ → ℕ)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
     (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d)
     {ε : ℝ≥0∞} (hε : ε ≠ ⊤) (haxu : GhashIsAXU L ε) :
     let reduction := prfReduction iv L adv
     let forgeryBound : ℝ := (q_d : ℝ) * ε.toReal
-    AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) adv ≤
+    AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) lenM clen adv ≤
       (PRFScheme.prfAdvantage prp.toPRFScheme reduction).toReal + forgeryBound
 -- ANCHOR_END: gcmOneTimeAEAD_security_of_axu
   := by
@@ -214,7 +218,7 @@ theorem gcmOneTimeAEAD_security_of_axu (prp : PRPScheme K (BitVec 128)) (iv : Bi
       Pr{let x ← game1 prp L hL adv}[x = true] = Pr{let x ← game2 prp L hL adv}[x = true] :=
     (game1_eq_game2 prp L hL adv).prEvent_eq _
   unfold AEADScheme.distAdvantage
-  rw [← game4_eq_rand prp iv L hL adv, ← game0_eq_real prp iv L hL adv,
+  rw [← game4_eq_rand prp iv L hL lenM clen adv, ← game0_eq_real prp iv L hL lenM clen adv,
     ← prEvent_game3_eq_game4 prp L hL adv]
   calc |(Pr{let x ← game3 prp L hL adv}[x = true]).toReal -
         (Pr{let x ← game0 prp iv L hL adv}[x = true]).toReal|
@@ -250,17 +254,21 @@ where `B` (`reduction`) is the adversary `prfReduction iv L adv` against `prp`, 
 `n = ⌈L/128⌉` (`blocks`) is the number of message blocks. The first term is the PRP advantage
 of `B`. The second, `switchingBound`, is the cost of replacing the random permutation by a
 random function. The third, `forgeryBound`, bounds the probability that a decryption query
-forges a valid tag; its `2⁵⁷ + n + 1` is `maxBlocks L`. -/
+forges a valid tag; its `2⁵⁷ + n + 1` is `maxBlocks L`.
+
+Adapted from IOM12, Corollary 3 (privacy) and Corollary 4 (authenticity) for 96-bit nonces,
+with one encryption query (`q = 1`) and `q' = q_d` decryption queries. IOM12 bounds privacy
+and authenticity separately; here one bound covers the one-time IND-CCA game. -/
 -- ANCHOR: gcmOneTimeAEAD_security
 theorem gcmOneTimeAEAD_security (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
-    (hL : ValidMsgLength L)
+    (hL : ValidMsgLength L) (lenM : BitVec L → ℕ) (clen : ℕ → ℕ)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
     (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d) :
     let blocks : ℕ := (L + 127) / 128
     let reduction := prfReduction iv L adv
     let switchingBound : ℝ := ((blocks : ℝ) + 2) * ((blocks : ℝ) + 1) / 2 ^ 129
     let forgeryBound : ℝ := (q_d : ℝ) * ((2 ^ 57 + (blocks : ℝ) + 1) / 2 ^ 128)
-    AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) adv ≤
+    AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) lenM clen adv ≤
       (PRPScheme.prpAdvantage prp reduction).toReal + switchingBound + forgeryBound
 -- ANCHOR_END: gcmOneTimeAEAD_security
   := by
@@ -269,7 +277,7 @@ theorem gcmOneTimeAEAD_security (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96
     simp only [maxBlocks, lenAMax_blocks]
     push_cast
     ring
-  have hprf := gcmOneTimeAEAD_security_of_axu prp iv L hL adv q_d hq
+  have hprf := gcmOneTimeAEAD_security_of_axu prp iv L hL lenM clen adv q_d hq
     (ENNReal.div_ne_top (ENNReal.natCast_ne_top _) (by positivity))
     (ghash_isAXU_unconditional L)
   dsimp only at hprf

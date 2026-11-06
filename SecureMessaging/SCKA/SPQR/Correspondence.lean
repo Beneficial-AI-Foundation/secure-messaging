@@ -46,7 +46,7 @@ universe u
 
 namespace SPQR.Chunked
 
-variable {m : Type → Type u} [Monad m] {P : MLKEMBraid.Parameters m} {InitKey AuthState : Type}
+variable {m : Type → Type u} [Monad m] {P : SPQR.Parameters m} {InitKey AuthState : Type}
 
 /-- Translate a message into `MLKEMBraid`; `ct1Ack` becomes an empty message. -/
 -- ANCHOR: Correspondence_Message_toMLKEMBraid
@@ -64,10 +64,10 @@ def Message.toMLKEMBraid {Sym : Type} (msg : Message Sym) : MLKEMBraid.Message S
 /-- The `MLKEMBraid` state with the same fields; the stored encapsulation key is replaced by its
 vector. -/
 -- ANCHOR: Correspondence_PartyState_toMLKEMBraid
-def PartyState.toMLKEMBraid : PartyState P AuthState → MLKEMBraid.State P AuthState
+def PartyState.toMLKEMBraid : PartyState P AuthState → MLKEMBraid.State P.toBraid AuthState
   | .keysUnsampled core => .keysUnsampled core.ep core.authSt
   | .keysSampled core enc =>
-      .keysSampled core.ep core.authSt core.sk (P.inc.toVector core.pk) enc
+      .keysSampled core.ep core.authSt core.sk (P.det.toVector core.pk) enc
   | .headerSent core enc dec => .headerSent core.ep core.authSt core.sk dec enc
   | .ct1Received core enc => .ct1Received core.ep core.authSt core.sk core.c1 enc
   | .ekSentCt1Received core dec => .ekSentCt1Received core.ep core.authSt core.sk core.c1 dec
@@ -76,7 +76,7 @@ def PartyState.toMLKEMBraid : PartyState P AuthState → MLKEMBraid.State P Auth
   | .ct1Sampled core enc dec =>
       .ct1Sampled core.ep core.authSt core.hdr core.encapsSt core.c1 enc dec
   | .ekReceivedCt1Sampled core enc =>
-      .ekReceivedCt1Sampled core.ep core.authSt core.encapsSt core.c1 core.hdr core.vec enc
+      .ekReceivedCt1Sampled core.ep core.authSt core.encapsSt core.c1 core.hdr core.ek enc
   | .ct1Acknowledged core dec =>
       .ct1Acknowledged core.ep core.authSt core.hdr core.encapsSt core.c1 dec
   | .ct2Sampled core enc => .ct2Sampled core.ep core.authSt enc
@@ -84,47 +84,59 @@ def PartyState.toMLKEMBraid : PartyState P AuthState → MLKEMBraid.State P Auth
 
 /-- Translate the message and the state of a send result. -/
 -- ANCHOR: Correspondence_SendResult_toMLKEMBraid
-def SendResult.toMLKEMBraid (r : SendResult P AuthState) : MLKEMBraid.SendResult P AuthState :=
+def SendResult.toMLKEMBraid (r : SendResult P AuthState) :
+    MLKEMBraid.SendResult P.toBraid AuthState :=
   ⟨r.msg.toMLKEMBraid, r.sendingEpoch, r.outputKey, r.state.toMLKEMBraid⟩
 -- ANCHOR_END: Correspondence_SendResult_toMLKEMBraid
 
 /-- Both models start direction A2B in the same state. -/
 -- ANCHOR: Correspondence_toMLKEMBraid_initA
-theorem toMLKEMBraid_initA (P : MLKEMBraid.Parameters m)
+theorem toMLKEMBraid_initA (P : SPQR.Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac) (ik : InitKey) :
-    (initA P auth ik).toMLKEMBraid = MLKEMBraid.initA P auth ik
+      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac) (ik : InitKey) :
+    (initA P auth ik).toMLKEMBraid = MLKEMBraid.initA P.toBraid auth ik
 -- ANCHOR_END: Correspondence_toMLKEMBraid_initA
     := rfl
 
 /-- Both models start direction B2A in the same state. -/
 -- ANCHOR: Correspondence_toMLKEMBraid_initB
-theorem toMLKEMBraid_initB (P : MLKEMBraid.Parameters m)
+theorem toMLKEMBraid_initB (P : SPQR.Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac) (ik : InitKey) :
-    (initB P auth ik).toMLKEMBraid = MLKEMBraid.initB P auth ik
+      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac) (ik : InitKey) :
+    (initB P auth ik).toMLKEMBraid = MLKEMBraid.initB P.toBraid auth ik
 -- ANCHOR_END: Correspondence_toMLKEMBraid_initB
     := rfl
 
 /-- A send agrees with `MLKEMBraid.send` after translation. -/
 -- ANCHOR: Correspondence_send_toMLKEMBraid
-theorem send_toMLKEMBraid [LawfulMonad m] (P : MLKEMBraid.Parameters m)
+theorem send_toMLKEMBraid [LawfulMonad m] (P : SPQR.Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
+      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : PartyState P AuthState) :
-    SendResult.toMLKEMBraid <$> send P auth st = MLKEMBraid.send P auth st.toMLKEMBraid
+    SendResult.toMLKEMBraid <$> SPQR.send P auth st =
+      MLKEMBraid.send P.toBraid auth st.toMLKEMBraid
 -- ANCHOR_END: Correspondence_send_toMLKEMBraid
     := by
+  rw [map_eq_pure_bind]
   cases st
   case keysUnsampled core =>
-    simp only [send, MLKEMBraid.send, EkSender.sendHeader, map_eq_pure_bind, bind_assoc,
-      pure_bind, SendResult.toMLKEMBraid, PartyState.toMLKEMBraid, Message.toMLKEMBraid]
+    simp only [SPQR.send, Chunked.send, MLKEMBraid.send, EkSender.sendHeader,
+      Parameters.generate, Parameters.toBraid, KEMScheme.IncrementalKEMDet.toKEM,
+      map_eq_pure_bind, bind_assoc,
+      pure_bind, SendResult.toMLKEMBraid, PartyState.toMLKEMBraid, Message.toMLKEMBraid,
+      KEMScheme.IncrementalKEMDet.toIncremental,
+      KEMScheme.IncrementalStructure.toHeader, KEMScheme.IncrementalStructure.toVector,
+      KEMScheme.IncrementalKEMDet.toHeader, KEMScheme.IncrementalKEMDet.toVector]
+    rfl
   case headerReceived core dec =>
-    simp only [send, MLKEMBraid.send, CtSender.sendCt1, map_eq_pure_bind, bind_assoc,
-      pure_bind, SendResult.toMLKEMBraid, PartyState.toMLKEMBraid, Message.toMLKEMBraid]
+    simp only [SPQR.send, Chunked.send, MLKEMBraid.send, CtSender.sendCt1,
+      Parameters.encaps1, Parameters.toBraid, KEMScheme.IncrementalKEMDet.toIncremental,
+      map_eq_pure_bind, bind_assoc, pure_bind, SendResult.toMLKEMBraid,
+      PartyState.toMLKEMBraid, Message.toMLKEMBraid, KEMScheme.IncrementalKEMDet.toVector]
   all_goals
-    simp [send, MLKEMBraid.send, SendResult.toMLKEMBraid, PartyState.toMLKEMBraid,
-      Message.toMLKEMBraid]
+    simp [SPQR.send, Chunked.send, MLKEMBraid.send, SendResult.toMLKEMBraid,
+      PartyState.toMLKEMBraid, Message.toMLKEMBraid, Parameters.toBraid,
+      KEMScheme.IncrementalKEMDet.toIncremental, KEMScheme.IncrementalKEMDet.toVector]
 
 end SPQR.Chunked
 
@@ -132,7 +144,7 @@ namespace SPQR
 
 open Chunked
 
-variable {m : Type → Type u} [Monad m] {P : MLKEMBraid.Parameters m} {InitKey AuthState : Type}
+variable {m : Type → Type u} [Monad m] {P : SPQR.Parameters m} {InitKey AuthState : Type}
 
 /-- The deliveries on which `recvSCKA` and `MLKEMBraid.recvSCKA` can disagree after translation. -/
 -- ANCHOR: Correspondence_RecvDivergence
@@ -147,9 +159,9 @@ def RecvDivergence (st : PartyState P AuthState) (msg : Message P.Sym) : Prop :=
 /-- `MLKEMBraid.receive` ignores a translated message whose epoch is below the receiver's. -/
 private theorem receive_toMLKEMBraid_of_lt [DecidableEq P.Sym]
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
+      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : PartyState P AuthState) (msg : Message P.Sym) (hlt : msg.epoch < st.epoch) :
-    MLKEMBraid.receive P auth st.toMLKEMBraid msg.toMLKEMBraid =
+    MLKEMBraid.receive P.toBraid auth st.toMLKEMBraid msg.toMLKEMBraid =
       .ok ⟨st.toMLKEMBraid.epoch - 1, none, st.toMLKEMBraid⟩ := by
   have hne : msg.epoch ≠ st.epoch := hlt.ne
   have hne' : msg.epoch ≠ st.epoch + 1 := by omega
@@ -165,11 +177,11 @@ set_option maxHeartbeats 300000 in
 translation. -/
 private theorem recvSCKA_toMLKEMBraid_of_epoch_eq [DecidableEq P.Sym]
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
+      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : PartyState P AuthState) (msg : Message P.Sym) (heq : msg.epoch = st.epoch)
     (h : ¬ RecvDivergence st msg) :
     (recvSCKA P auth st msg).map (fun r => (r.1, r.2.1, r.2.2.toMLKEMBraid)) =
-      MLKEMBraid.recvSCKA P auth st.toMLKEMBraid msg.toMLKEMBraid := by
+      MLKEMBraid.recvSCKA P.toBraid auth st.toMLKEMBraid msg.toMLKEMBraid := by
   obtain ⟨e, payload⟩ := msg
   dsimp only at heq
   subst heq
@@ -177,32 +189,35 @@ private theorem recvSCKA_toMLKEMBraid_of_epoch_eq [DecidableEq P.Sym]
     simp only [RecvDivergence, Chunked.Message.toMLKEMBraid] at h ⊢ <;>
     simp only [recvSCKA, recv, MLKEMBraid.recvSCKA, MLKEMBraid.receive, PartyState.toMLKEMBraid,
       PartyState.epoch, MLKEMBraid.State.epoch, MLKEMBraid.Message.wellFormed, completeCt2,
-      EkSender.sendVector, EkSender.recvCt1, EkSender.recvCt2, CtSender.recvHeader,
-      CtSender.recvVector, PartyState.ct1Acknowledged.injEq, PartyState.ct2Sampled.injEq,
-      PartyState.ekReceivedCt1Sampled.injEq, Payload.ek.injEq, Bool.false_eq_true, Bool.not_true,
-      Nat.left_eq_add, Option.isNone_none, Option.isSome_some, Option.map_some, and_false,
-      and_self, and_true, exists_and_left, exists_eq', exists_false, lt_self_iff_false,
-      not_false_eq_true, not_true_eq_false, one_ne_zero, or_false, or_self, or_true,
-      reduceCtorEq, ↓existsAndEq, ↓reduceIte] at h ⊢ <;>
+      EkSender.sendEk, EkSender.recvCt1, EkSender.recvCt2, CtSender.recvHeader,
+      CtSender.recvEk, Parameters.encaps2, Parameters.decaps, Parameters.ekMatchesHeader,
+      Parameters.toBraid, KEMScheme.IncrementalKEMDet.toDetDecaps,
+      KEMScheme.IncrementalKEMDet.toDetEncaps2, KEMScheme.IncrementalKEMDet.toIncremental,
+      KEMScheme.IncrementalKEMDet.toVector, PartyState.ct1Acknowledged.injEq,
+      PartyState.ct2Sampled.injEq, PartyState.ekReceivedCt1Sampled.injEq, Payload.ek.injEq,
+      Bool.false_eq_true, Bool.not_true, Nat.left_eq_add, Option.isNone_none, Option.isSome_some,
+      Option.map_some, and_false, and_self, and_true, exists_and_left, exists_eq', exists_false,
+      lt_self_iff_false, not_false_eq_true, not_true_eq_false, one_ne_zero, or_false, or_self,
+      or_true, reduceCtorEq, ↓existsAndEq, ↓reduceIte] at h ⊢ <;>
     try simp_all only
   all_goals
     generalize hdec : (‹DecoderState _ _›.addChunk ‹ℕ × P.Sym›).decodedPayload = decoded
     cases decoded <;> simp_all only [Option.map_some]
   all_goals try (split_ifs <;> simp_all)
   all_goals
-    generalize hdecaps : P.hDet.decapsDet _ _ = decaps
+    generalize hdecaps : P.det.decapsDet _ _ = decaps
     cases decaps <;> simp_all only [Option.map_none]
   all_goals try (split_ifs <;> simp_all)
 
 /-- Outside `RecvDivergence`, the SCKA receive outputs agree after translation. This includes the
 deliveries that both receives ignore: both adapters report `msg.epoch - 1` and keep the state. -/
 -- ANCHOR: Correspondence_recvSCKA_toMLKEMBraid
-theorem recvSCKA_toMLKEMBraid (P : MLKEMBraid.Parameters m) [DecidableEq P.Sym]
+theorem recvSCKA_toMLKEMBraid (P : SPQR.Parameters m) [DecidableEq P.Sym]
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
+      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : PartyState P AuthState) (msg : Message P.Sym) (h : ¬ RecvDivergence st msg) :
     (recvSCKA P auth st msg).map (fun r => (r.1, r.2.1, r.2.2.toMLKEMBraid)) =
-      MLKEMBraid.recvSCKA P auth st.toMLKEMBraid msg.toMLKEMBraid
+      MLKEMBraid.recvSCKA P.toBraid auth st.toMLKEMBraid msg.toMLKEMBraid
 -- ANCHOR_END: Correspondence_recvSCKA_toMLKEMBraid
     := by
   have hepoch : msg.toMLKEMBraid.epoch = msg.epoch := by
@@ -229,22 +244,25 @@ theorem recvSCKA_toMLKEMBraid (P : MLKEMBraid.Parameters m) [DecidableEq P.Sym]
 /-- In `ct1Acknowledged`, SPQR receives a plain vector chunk as `MLKEMBraid` receives the same
 chunk sent as an acknowledging vector chunk (`states.rs:487`). -/
 -- ANCHOR: Correspondence_recvSCKA_ct1Acknowledged_ek_toMLKEMBraid
-theorem recvSCKA_ct1Acknowledged_ek_toMLKEMBraid (P : MLKEMBraid.Parameters m)
+theorem recvSCKA_ct1Acknowledged_ek_toMLKEMBraid (P : SPQR.Parameters m)
     [DecidableEq P.Sym]
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
-    (core : CtSender.Ct1Sent P.inc AuthState) (dec : DecoderState P.inc.PKvector P.Sym)
+      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
+    (core : CtSender.Ct1Sent P AuthState) (dec : DecoderState P.det.PKvector P.Sym)
     (chunk : ℕ × P.Sym) :
     (recvSCKA P auth (.ct1Acknowledged core dec) ⟨core.ep, .ek chunk⟩).map
         (fun r => (r.1, r.2.1, r.2.2.toMLKEMBraid)) =
-      MLKEMBraid.recvSCKA P auth (PartyState.toMLKEMBraid (.ct1Acknowledged core dec))
+      MLKEMBraid.recvSCKA P.toBraid auth (PartyState.toMLKEMBraid (.ct1Acknowledged core dec))
         ⟨core.ep, .ekCt1Ack, some chunk⟩
 -- ANCHOR_END: Correspondence_recvSCKA_ct1Acknowledged_ek_toMLKEMBraid
     := by
   simp only [recvSCKA, Chunked.recv, MLKEMBraid.recvSCKA, MLKEMBraid.receive,
     Chunked.PartyState.toMLKEMBraid, Chunked.PartyState.epoch, MLKEMBraid.Message.wellFormed,
-    Chunked.completeCt2, CtSender.recvVector, lt_irrefl]
-  cases (dec.addChunk chunk).decodedPayload <;> simp
-  split_ifs <;> simp
+    Chunked.completeCt2, CtSender.recvEk, Parameters.encaps2, Parameters.ekMatchesHeader,
+    Parameters.toBraid, KEMScheme.IncrementalKEMDet.toDetEncaps2,
+    KEMScheme.IncrementalKEMDet.toIncremental, lt_irrefl]
+  cases (dec.addChunk chunk).decodedPayload with
+  | none => simp
+  | some ek => by_cases hv : P.det.validPK core.hdr ek = true <;> simp [hv]
 
 end SPQR
