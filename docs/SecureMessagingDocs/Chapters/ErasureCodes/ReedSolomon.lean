@@ -58,10 +58,25 @@ structure Parameters (F : Type) [Field F] where
   point_injective : Function.Injective point
 ```
 
+The algorithms below use the following notation:
+
+- for a finite set $`S\subseteq F\times F` of points with pairwise distinct first coordinates,
+  $`\mathsf{Interpolate}(S)` is the unique polynomial in $`F[X]` of degree less than $`|S|`
+  through the points of $`S`;
+- $`\mathsf{Decodable}_k` is the {bpref "erasure_code_scheme"}[decodability predicate] of chunk
+  sets.
+
 The *Reed–Solomon erasure code* with these parameters is the
-{bpref "erasure_code_scheme"}[erasure code] over $`F`, with block length $`N` and message
-length $`k`, defined below. The message indices $`i<k` are the first $`k` codeword indices, with
-evaluation points $`x_0,\ldots,x_{k-1}`.
+{bpref "erasure_code_scheme"}[erasure code] $`(\Encode,\Decode)` over $`F`, with block length
+$`N` and message length $`k`, whose algorithms are
+
+::::::gameGrid
+:::::gameCell "\\textsf{Encoding}" (kind := "compact")
+$`\begin{array}{l}
+\Encode(m,j):\\
+\quad P_m\gets\mathsf{Interpolate}(\{(x_i,m_i)\mid i<k\})\\
+\quad\Return P_m(x_j)
+\end{array}`
 
 :::leanPillCaption "sourceIndex"
 :::
@@ -79,9 +94,6 @@ def sourcePoint (params : Parameters F) (i : Fin params.k) : F :=
   params.point (params.sourceIndex i)
 ```
 
-For a message $`m\in F^k`, the *encoding polynomial* $`P_m\in F[X]` is the unique polynomial of
-degree less than $`k` with $`P_m(x_i)=m_i` for all $`i<k`.
-
 :::leanPillCaption "encodingPolynomial"
 :::
 
@@ -90,8 +102,6 @@ def encodingPolynomial (params : Parameters F) (message : Fin params.k → F) : 
   Lagrange.interpolate Finset.univ params.sourcePoint message
 ```
 
-The encoding evaluates the encoding polynomial: $`\Encode(m,j)=P_m(x_j)` for $`j\in[N]`.
-
 :::leanPillCaption "encode"
 :::
 
@@ -99,9 +109,14 @@ The encoding evaluates the encoding polynomial: $`\Encode(m,j)=P_m(x_j)` for $`j
 def encode (params : Parameters F) (message : Fin params.k → F) (i : Fin params.N) : F :=
   (params.encodingPolynomial message).eval (params.point i)
 ```
-
-For a decodable chunk set $`L`, the *decoding polynomial* $`Q_L\in F[X]` is the unique polynomial
-of degree less than $`|L|` with $`Q_L(x_j)=c` for all $`(j,c)\in L`.
+:::::
+:::::gameCell "\\textsf{Decoding}" (kind := "compact")
+$`\begin{array}{l}
+\Decode(L):\\
+\quad\pif\ \neg\mathsf{Decodable}_k(L)\ \pthen\ \Return\bot\\
+\quad Q_L\gets\mathsf{Interpolate}(\{(x_j,c)\mid(j,c)\in L\})\\
+\quad\Return(Q_L(x_0),\ldots,Q_L(x_{k-1}))
+\end{array}`
 
 :::leanPillCaption "decodingPolynomial"
 :::
@@ -112,10 +127,6 @@ noncomputable def decodingPolynomial (params : Parameters F)
   letI : DecidableEq F := Classical.decEq F
   Lagrange.interpolate chunks (fun (j, _) => params.point j) (fun (_, y) => y)
 ```
-
-The decoding evaluates the decoding polynomial at the message points:
-$`\Decode(L)=(Q_L(x_0),\ldots,Q_L(x_{k-1}))` if $`L` is decodable, and $`\Decode(L)=\bot`
-otherwise.
 
 :::leanPillCaption "decode"
 :::
@@ -129,8 +140,8 @@ noncomputable def decode (params : Parameters F)
   else
     none
 ```
-
-These algorithms form the Reed–Solomon erasure code.
+:::::
+::::::
 
 :::leanPillCaption "erasureCode"
 :::

@@ -66,8 +66,9 @@ structure ErasureCode (Sym : Type) where
   decode : Finset (Fin N × Sym) → Option (Fin nchunk → Sym)
 ```
 
-A chunk set $`L` is *decodable* if it contains at least $`k` chunks at pairwise distinct
-indices: $`|L|\ge k`, and $`(i,c),(i,c')\in L` implies $`c=c'`.
+A chunk set $`L` is *decodable* if it contains at least $`k` chunks at pairwise distinct indices:
+
+$$`\mathsf{Decodable}_k(L)\iff|L|\ge k\ \text{and}\ c=c'\ \text{for all}\ (i,c),(i,c')\in L.`
 
 :::leanPillCaption "Decodable"
 :::
