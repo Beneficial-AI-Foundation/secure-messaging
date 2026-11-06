@@ -144,7 +144,7 @@ theorem partyControl_send (party : Bool) {st peer : State P AuthState}
 /-- Accepting a message recorded by the peer preserves the `ct2Sampled` conditions of both parties
 and the receiver's role and `MessageControl` conditions, and the receiver's new current game epoch
 `max tcur (msg.epoch - 1)` is at most its new epoch minus one. -/
-theorem partyControl_receive [DecidableEq P.Sym] (party : Bool) {st peer : State P AuthState}
+theorem partyControl_receive (party : Bool) {st peer : State P AuthState}
     {messages : ℕ → Option (Message P.Sym × ℕ)} {msg : Message P.Sym}
     {r : RecvResult P AuthState} {tcur : ℕ}
     (hraw : receive P auth st msg = .ok r)
@@ -230,7 +230,7 @@ theorem partyControl_receive [DecidableEq P.Sym] (party : Bool) {st peer : State
         exact ControlPosition.ext hgenP (le_antisymm peer.controlPosition_step_le hstep4)
     · omega
 
-variable [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+variable [DecidableEq P.EpochKey]
   (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey)
 
 /-- The send oracle of either party preserves `ControlInv`. -/

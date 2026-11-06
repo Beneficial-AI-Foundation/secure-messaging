@@ -68,7 +68,8 @@ The transition cases follow `src/v1/chunked/states.rs`.
 - `ct1Ack` represents `Ct1Ack(true)`, the value emitted by send and accepted by byte decoding
   (`states.rs:182`, `states/serialize.rs:268`).
 - The key-derivation function (KDF), authenticator, and payload serializers are parameters.
-  `ErasureCodePayload` represents the encoder and decoder; its correctness is a separate property.
+  Payload schemes are `ErasureCodePayload`s, encoder states are `EncoderState`s, and decoders are
+  `StreamDecoder`s. Decoder soundness (`StreamDecoder.Sound`) is a separate property.
 - Receive is a pure function into `Except`. On error, the caller retains the old state, modeling
   Rust's transactional state handling.
 - The first `ct₁` chunk in `keysSampled` and the first `ct₂` chunk in `ct1Received` are stored
@@ -138,32 +139,32 @@ inductive PartyState (P : Parameters m) (AuthState : Type) where
   /-- Sending the vector and receiving the first ciphertext component (`states.rs:19-20`). -/
   | headerSent (core : EkSender.EkSent P AuthState)
       (sendingEk : EncoderState P.det.PKvector P.Sym)
-      (receivingCt1 : DecoderState P.det.C₁ P.Sym)
+      (receivingCt1 : P.decCt1.D)
   /-- Sending vector chunks that acknowledge complete first-ciphertext receipt
   (`states.rs:21`). -/
   | ct1Received (core : EkSender.EkSentCt1Received P AuthState)
       (sendingEk : EncoderState P.det.PKvector P.Sym)
   /-- Receiving the second ciphertext component (`states.rs:22`). -/
   | ekSentCt1Received (core : EkSender.EkSentCt1Received P AuthState)
-      (receivingCt2 : DecoderState (P.det.C₂ × P.Mac) P.Sym)
+      (receivingCt2 : P.decCt2.D)
   /-- Receiving the authenticated header stream (`states.rs:23`). -/
   | noHeaderReceived (core : CtSender.NoHeaderReceived AuthState)
-      (receivingHdr : DecoderState (P.det.PKheader × P.Mac) P.Sym)
+      (receivingHdr : P.decHdr.D)
   /-- Receiving the encapsulation-key vector after authenticating the header
   (`states.rs:24`). -/
   | headerReceived (core : CtSender.HeaderReceived P AuthState)
-      (receivingEk : DecoderState P.det.PKvector P.Sym)
+      (receivingEk : P.decEk.D)
   /-- Sending the first ciphertext component while receiving the vector
   (`states.rs:25`). -/
   | ct1Sampled (core : CtSender.Ct1Sent P AuthState)
       (sendingCt1 : EncoderState P.det.C₁ P.Sym)
-      (receivingEk : DecoderState P.det.PKvector P.Sym)
+      (receivingEk : P.decEk.D)
   /-- Sending the first ciphertext after validating the vector (`states.rs:26`). -/
   | ekReceivedCt1Sampled (core : CtSender.Ct1SentEkReceived P AuthState)
       (sendingCt1 : EncoderState P.det.C₁ P.Sym)
   /-- Receiving the vector after the first ciphertext is acknowledged (`states.rs:27`). -/
   | ct1Acknowledged (core : CtSender.Ct1Sent P AuthState)
-      (receivingEk : DecoderState P.det.PKvector P.Sym)
+      (receivingEk : P.decEk.D)
   /-- Sending the second ciphertext component (`states.rs:28`). -/
   | ct2Sampled (core : CtSender.Ct2Sent AuthState)
       (sendingCt2 : EncoderState (P.det.C₂ × P.Mac) P.Sym)
@@ -234,7 +235,7 @@ def initB (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (ik : InitKey) : PartyState P AuthState :=
-  .noHeaderReceived ⟨1, auth.init ik 1⟩ (DecoderState.empty P.ecpHdr)
+  .noHeaderReceived ⟨1, auth.init ik 1⟩ P.decHdr.empty
 -- ANCHOR_END: Chunked_initB
 
 /-- Rust `States::send` (`states.rs:115-273`), one arm per state. The `ekSentCt1Received` arm sends
@@ -306,7 +307,7 @@ def completeCt2 (P : Parameters m)
 errors except for the `ct2Sampled` successor transition. At an equal epoch, a standalone `ct1Ack`
 can complete stage two, and `ct1Acknowledged` accepts plain `ek` chunks. -/
 -- ANCHOR: Chunked_recv
-def recv (P : Parameters m) [DecidableEq P.Sym]
+def recv (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : PartyState P AuthState) (msg : Message P.Sym) :
@@ -336,37 +337,37 @@ def recv (P : Parameters m) [DecidableEq P.Sym]
         let (core', ek) := EkSender.sendEk P core
         .ok ⟨msg.epoch - 1, none,
           .headerSent core' (EncoderState.init P.ecpEk ek)
-            ((DecoderState.empty P.ecpCt1).addChunk chunk)⟩
+            (P.decCt1.addChunk P.decCt1.empty chunk)⟩
     | .headerSent core enc dec, .ct1 chunk =>
         -- states.rs:307-330, cell 3
-        let dec' := dec.addChunk chunk
-        match dec'.decodedPayload with
+        let dec' := P.decCt1.addChunk dec chunk
+        match P.decCt1.decodedPayload dec' with
         | some c1 => .ok ⟨msg.epoch - 1, none, .ct1Received (EkSender.recvCt1 P core c1) enc⟩
         | none => .ok ⟨msg.epoch - 1, none, .headerSent core enc dec'⟩
     | .ct1Received core _, .ct2 chunk =>
         -- states.rs:332-348, cell 4
         .ok ⟨msg.epoch - 1, none,
-          .ekSentCt1Received core ((DecoderState.empty P.ecpCt2).addChunk chunk)⟩
+          .ekSentCt1Received core (P.decCt2.addChunk P.decCt2.empty chunk)⟩
     | .ekSentCt1Received core dec, .ct2 chunk =>
         -- states.rs:350-380, cell 5
-        let dec' := dec.addChunk chunk
-        match dec'.decodedPayload with
+        let dec' := P.decCt2.addChunk dec chunk
+        match P.decCt2.decodedPayload dec' with
         | some (c2, tag) =>
             match EkSender.recvCt2 P auth core c2 tag with
             | some (next, key) =>
                 .ok ⟨msg.epoch - 1, some key,
-                  .noHeaderReceived next (DecoderState.empty P.ecpHdr)⟩
+                  .noHeaderReceived next P.decHdr.empty⟩
             | none => .error .macVerifyFailed
         | none => .ok ⟨msg.epoch - 1, none, .ekSentCt1Received core dec'⟩
     | .noHeaderReceived core dec, .hdr chunk =>
         -- states.rs:380-405, cell 6
-        let dec' := dec.addChunk chunk
-        match dec'.decodedPayload with
+        let dec' := P.decHdr.addChunk dec chunk
+        match P.decHdr.decodedPayload dec' with
         | some (hdr, tag) =>
             match CtSender.recvHeader P auth core hdr tag with
             | some core' =>
                 .ok ⟨msg.epoch - 1, none,
-                  .headerReceived core' (DecoderState.empty P.ecpEk)⟩
+                  .headerReceived core' P.decEk.empty⟩
             | none => .error .macVerifyFailed
         | none => .ok ⟨msg.epoch - 1, none, .noHeaderReceived core dec'⟩
     | .headerReceived _ _, _ =>
@@ -374,8 +375,8 @@ def recv (P : Parameters m) [DecidableEq P.Sym]
         ignore
     | .ct1Sampled core enc dec, .ek chunk =>
         -- states.rs:412-458, cell 8
-        let dec' := dec.addChunk chunk
-        match dec'.decodedPayload with
+        let dec' := P.decEk.addChunk dec chunk
+        match P.decEk.decodedPayload dec' with
         | some ek =>
             match CtSender.recvEk P core ek with
             | some core' => .ok ⟨msg.epoch - 1, none, .ekReceivedCt1Sampled core' enc⟩
@@ -383,8 +384,8 @@ def recv (P : Parameters m) [DecidableEq P.Sym]
         | none => .ok ⟨msg.epoch - 1, none, .ct1Sampled core enc dec'⟩
     | .ct1Sampled core _ dec, .ekCt1Ack chunk =>
         -- states.rs:412-458, cell 9
-        let dec' := dec.addChunk chunk
-        match dec'.decodedPayload with
+        let dec' := P.decEk.addChunk dec chunk
+        match P.decEk.decodedPayload dec' with
         | some ek =>
             match CtSender.recvEk P core ek with
             | some core' => .ok ⟨msg.epoch - 1, none, completeCt2 P auth core'⟩
@@ -404,8 +405,8 @@ def recv (P : Parameters m) [DecidableEq P.Sym]
         ignore
     | .ct1Acknowledged core dec, .ek chunk =>
         -- states.rs:479-520 and states.rs:487, cell 14
-        let dec' := dec.addChunk chunk
-        match dec'.decodedPayload with
+        let dec' := P.decEk.addChunk dec chunk
+        match P.decEk.decodedPayload dec' with
         | some ek =>
             match CtSender.recvEk P core ek with
             | some core' => .ok ⟨msg.epoch - 1, none, completeCt2 P auth core'⟩
@@ -413,8 +414,8 @@ def recv (P : Parameters m) [DecidableEq P.Sym]
         | none => .ok ⟨msg.epoch - 1, none, .ct1Acknowledged core dec'⟩
     | .ct1Acknowledged core dec, .ekCt1Ack chunk =>
         -- states.rs:479-520, cell 15
-        let dec' := dec.addChunk chunk
-        match dec'.decodedPayload with
+        let dec' := P.decEk.addChunk dec chunk
+        match P.decEk.decodedPayload dec' with
         | some ek =>
             match CtSender.recvEk P core ek with
             | some core' => .ok ⟨msg.epoch - 1, none, completeCt2 P auth core'⟩

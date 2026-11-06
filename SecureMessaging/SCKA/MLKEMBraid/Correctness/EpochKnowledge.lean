@@ -79,7 +79,7 @@ theorem epochKnowledgeInv_initGameState (ik : InitKey) :
   refine ⟨keyPrefixInv_initGameState auth ik, ?_, ?_, ?_, ?_, ?_, ?_⟩ <;>
     simp [SCKAScheme.initGameState, initA, initB, State.epoch, State.completedEpoch]
 
-variable [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+variable [DecidableEq P.EpochKey]
   (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey)
 
 /-- The send oracle of either party preserves `EpochKnowledgeInv`. -/

@@ -137,6 +137,14 @@ structure Parameters (m : Type → Type u) [Monad m] where
   ecpCt1 : ErasureCodePayload inc.C₁ Sym
   /-- `ct₂` stream, recovering `ct₂ ‖ mac`. -/
   ecpCt2 : ErasureCodePayload (inc.C₂ × Mac) Sym
+  /-- Header-stream decoder. -/
+  decHdr : StreamDecoder (inc.PKheader × Mac) Sym
+  /-- Encapsulation-key-vector-stream decoder. -/
+  decEk : StreamDecoder inc.PKvector Sym
+  /-- `ct₁`-stream decoder. -/
+  decCt1 : StreamDecoder inc.C₁ Sym
+  /-- `ct₂`-stream decoder. -/
+  decCt2 : StreamDecoder (inc.C₂ × Mac) Sym
 -- ANCHOR_END: Braid_Parameters
 
 variable {m : Type → Type u} [Monad m] {Sym : Type} {P : Parameters m}
@@ -204,25 +212,25 @@ inductive State (P : Parameters m) (AuthState : Type) where
       (headerEncoder : EncoderState (P.inc.PKheader × P.Mac) P.Sym)
   /-- "HeaderSent": `sk`, `ct1_decoder`, `ek_encoder`. -/
   | headerSent (epoch : ℕ) (auth : AuthState) (sk : P.SK)
-      (ct1Decoder : DecoderState P.inc.C₁ P.Sym)
+      (ct1Decoder : P.decCt1.D)
       (ekEncoder : EncoderState P.inc.PKvector P.Sym)
   /-- "Ct1Received": `sk`, `ct1`, `ek_encoder`. -/
   | ct1Received (epoch : ℕ) (auth : AuthState) (sk : P.SK) (ct1 : P.inc.C₁)
       (ekEncoder : EncoderState P.inc.PKvector P.Sym)
   /-- "EkSentCt1Received": `sk`, `ct1`, `ct2_decoder`. -/
   | ekSentCt1Received (epoch : ℕ) (auth : AuthState) (sk : P.SK) (ct1 : P.inc.C₁)
-      (ct2Decoder : DecoderState (P.inc.C₂ × P.Mac) P.Sym)
+      (ct2Decoder : P.decCt2.D)
   /-- "NoHeaderReceived": `header_decoder`. -/
   | noHeaderReceived (epoch : ℕ) (auth : AuthState)
-      (headerDecoder : DecoderState (P.inc.PKheader × P.Mac) P.Sym)
+      (headerDecoder : P.decHdr.D)
   /-- "HeaderReceived": `header`, `ek_decoder`. -/
   | headerReceived (epoch : ℕ) (auth : AuthState) (header : P.inc.PKheader)
-      (ekDecoder : DecoderState P.inc.PKvector P.Sym)
+      (ekDecoder : P.decEk.D)
   /-- "Ct1Sampled": `header`, `encaps_state`, `ct1`, `ct1_encoder`, `ek_decoder`. -/
   | ct1Sampled (epoch : ℕ) (auth : AuthState) (header : P.inc.PKheader)
       (encapsState : P.inc.St) (ct1 : P.inc.C₁)
       (ct1Encoder : EncoderState P.inc.C₁ P.Sym)
-      (ekDecoder : DecoderState P.inc.PKvector P.Sym)
+      (ekDecoder : P.decEk.D)
   /-- "EkReceivedCt1Sampled": `encaps_state`, `ct1`, `header`, `ek_vector`,
   `ct1_encoder`. -/
   | ekReceivedCt1Sampled (epoch : ℕ) (auth : AuthState)
@@ -231,7 +239,7 @@ inductive State (P : Parameters m) (AuthState : Type) where
   /-- "Ct1Acknowledged": `header`, `encaps_state`, `ct1`, `ek_decoder`. -/
   | ct1Acknowledged (epoch : ℕ) (auth : AuthState) (header : P.inc.PKheader)
       (encapsState : P.inc.St) (ct1 : P.inc.C₁)
-      (ekDecoder : DecoderState P.inc.PKvector P.Sym)
+      (ekDecoder : P.decEk.D)
   /-- "Ct2Sampled": `ct2_encoder`. -/
   | ct2Sampled (epoch : ℕ) (auth : AuthState)
       (ct2Encoder : EncoderState (P.inc.C₂ × P.Mac) P.Sym)
@@ -348,7 +356,7 @@ def send (P : Parameters m)
 /-- Receive a message. Ill-formed messages and messages that fail the current state's epoch
 or type guards are ignored. -/
 -- ANCHOR: Braid_receive
-def receive (P : Parameters m) [DecidableEq P.Sym]
+def receive (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
     (st : State P AuthState) (msg : Message P.Sym) :
@@ -369,7 +377,7 @@ def receive (P : Parameters m) [DecidableEq P.Sym]
               -- Figure 1, edge 2: store the first `ct₁` chunk without checking
               -- completeness, then start streaming `ek_vector`.
               .ok { receivingEpoch := e - 1, outputKey := none,
-                    state := .headerSent e a sk ((DecoderState.empty P.ecpCt1).addChunk chunk)
+                    state := .headerSent e a sk (P.decCt1.addChunk P.decCt1.empty chunk)
                       (EncoderState.init P.ecpEk ekVector) }
             else ignore
         | _, _ => ignore
@@ -377,8 +385,8 @@ def receive (P : Parameters m) [DecidableEq P.Sym]
         match msg.type, msg.data with
         | .ct1, some chunk =>
             if msg.epoch = e then
-              let dec := ct1Decoder.addChunk chunk
-              match dec.decodedPayload with
+              let dec := P.decCt1.addChunk ct1Decoder chunk
+              match P.decCt1.decodedPayload dec with
               | some ct1 =>
                   -- Figure 1, edge 3: `ct₁` decoding completes.
                   .ok { receivingEpoch := e - 1, outputKey := none,
@@ -395,15 +403,15 @@ def receive (P : Parameters m) [DecidableEq P.Sym]
               -- Figure 1, edge 4: store the first `ct₂` chunk without a completeness check.
               .ok { receivingEpoch := e - 1, outputKey := none,
                     state := .ekSentCt1Received e a sk ct1
-                      ((DecoderState.empty P.ecpCt2).addChunk chunk) }
+                      (P.decCt2.addChunk P.decCt2.empty chunk) }
             else ignore
         | _, _ => ignore
     | .ekSentCt1Received e a sk ct1 ct2Decoder =>
         match msg.type, msg.data with
         | .ct2, some chunk =>
             if msg.epoch = e then
-              let dec := ct2Decoder.addChunk chunk
-              match dec.decodedPayload with
+              let dec := P.decCt2.addChunk ct2Decoder chunk
+              match P.decCt2.decodedPayload dec with
               | some (ct2, tag) =>
                   match P.hDet.decapsDet sk (P.inc.splitC.symm (ct1, ct2)) with
                   | none => .error .decapsReject
@@ -414,7 +422,7 @@ def receive (P : Parameters m) [DecidableEq P.Sym]
                         -- Figure 1, edge 5: output the key for the entry epoch and advance.
                         .ok { receivingEpoch := e - 1, outputKey := some (e, ik),
                               state := .noHeaderReceived (e + 1) auth'
-                                (DecoderState.empty P.ecpHdr) }
+                                P.decHdr.empty }
                       else .error .ciphertextMac
               | none =>
                   .ok { receivingEpoch := e - 1, outputKey := none,
@@ -425,13 +433,13 @@ def receive (P : Parameters m) [DecidableEq P.Sym]
         match msg.type, msg.data with
         | .hdr, some chunk =>
             if msg.epoch = e then
-              let dec := headerDecoder.addChunk chunk
-              match dec.decodedPayload with
+              let dec := P.decHdr.addChunk headerDecoder chunk
+              match P.decHdr.decodedPayload dec with
               | some (hdr, tag) =>
                   if auth.verifyHeader a e hdr tag then
                     -- Figure 1, edge 6: authenticated header decoding completes.
                     .ok { receivingEpoch := e - 1, outputKey := none,
-                          state := .headerReceived e a hdr (DecoderState.empty P.ecpEk) }
+                          state := .headerReceived e a hdr P.decEk.empty }
                   else .error .headerMac
               | none =>
                   .ok { receivingEpoch := e - 1, outputKey := none,
@@ -443,8 +451,8 @@ def receive (P : Parameters m) [DecidableEq P.Sym]
         match msg.type, msg.data with
         | .ek, some chunk =>
             if msg.epoch = e then
-              let dec := ekDecoder.addChunk chunk
-              match dec.decodedPayload with
+              let dec := P.decEk.addChunk ekDecoder chunk
+              match P.decEk.decodedPayload dec with
               | some ekVector =>
                   if P.inc.validPK hdr ekVector then
                     -- Figure 1, edge 10: vector decoding completes without acknowledgement.
@@ -458,8 +466,8 @@ def receive (P : Parameters m) [DecidableEq P.Sym]
             else ignore
         | .ekCt1Ack, some chunk =>
             if msg.epoch = e then
-              let dec := ekDecoder.addChunk chunk
-              match dec.decodedPayload with
+              let dec := P.decEk.addChunk ekDecoder chunk
+              match P.decEk.decodedPayload dec with
               | some ekVector =>
                   if P.inc.validPK hdr ekVector then
                     -- Figure 1, edge 9: run `Encaps2`, then stream the authenticated `ct₂`.
@@ -489,8 +497,8 @@ def receive (P : Parameters m) [DecidableEq P.Sym]
         match msg.type, msg.data with
         | .ekCt1Ack, some chunk =>
             if msg.epoch = e then
-              let dec := ekDecoder.addChunk chunk
-              match dec.decodedPayload with
+              let dec := P.decEk.addChunk ekDecoder chunk
+              match P.decEk.decodedPayload dec with
               | some ekVector =>
                   if P.inc.validPK hdr ekVector then
                     -- Figure 1, edge 11: vector decoding completes after acknowledgement.
@@ -528,6 +536,6 @@ def initB (P : Parameters m)
     (ik : InitKey) : State P AuthState
 -- ANCHOR_END: Braid_initB
     :=
-  .noHeaderReceived 1 (auth.init ik 1) (DecoderState.empty P.ecpHdr)
+  .noHeaderReceived 1 (auth.init ik 1) P.decHdr.empty
 
 end MLKEMBraid

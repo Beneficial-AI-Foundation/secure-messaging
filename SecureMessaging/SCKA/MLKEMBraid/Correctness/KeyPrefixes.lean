@@ -59,7 +59,7 @@ theorem keyPrefixInv_initGameState (ik : InitKey) :
 
 /-- Every oracle of the correctness game preserves `KeyPrefixInv`. -/
 theorem correctnessImpl_preserves_keyPrefixInv
-    [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [DecidableEq P.EpochKey]
     (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey) :
     QueryImpl.PreservesInv
       (SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey)) KeyPrefixInv := by

@@ -107,7 +107,7 @@ theorem map_snd_sendRleak [LawfulMonad m] (P : Parameters m)
 
 /-- Adapt `receive` to SCKA. Failures refuse delivery; successes report the sender's epoch. -/
 -- ANCHOR: Braid_recvSCKA
-def recvSCKA (P : Parameters m) [DecidableEq P.Sym]
+def recvSCKA (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
     (st : State P AuthState) (msg : Message P.Sym) :
@@ -129,7 +129,7 @@ def recvSCKA (P : Parameters m) [DecidableEq P.Sym]
 /-- ML-KEM Braid as an `SCKAScheme`. Both parties run the same algorithms and differ
 only in their initial state. -/
 -- ANCHOR: Braid_scheme
-def scheme (P : Parameters m) [DecidableEq P.Sym]
+def scheme (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
     (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : m InitKey) :

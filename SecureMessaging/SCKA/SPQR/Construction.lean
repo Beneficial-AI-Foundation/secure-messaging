@@ -100,7 +100,7 @@ theorem map_snd_sendRleak [LawfulMonad m] (P : Parameters m)
 
 /-- Adapt `Chunked.recv` to SCKA; an error refuses delivery and a success forwards its report. -/
 -- ANCHOR: SPQR_recvSCKA
-def recvSCKA (P : Parameters m) [DecidableEq P.Sym]
+def recvSCKA (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (st : PartyState P AuthState) (msg : Message P.Sym) :
@@ -111,7 +111,7 @@ def recvSCKA (P : Parameters m) [DecidableEq P.Sym]
 
 /-- SPQR as an `SCKAScheme`; both parties use the same algorithms and distinct initial states. -/
 -- ANCHOR: SPQR_scheme
-def scheme (P : Parameters m) [DecidableEq P.Sym]
+def scheme (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
     (sampleInitKey : m InitKey) :

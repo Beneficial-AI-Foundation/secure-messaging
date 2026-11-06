@@ -46,7 +46,7 @@ theorem recordedReportInv_initGameState {StA StB I Sym : Type} (stA : StA) (stB 
 
 /-- Every oracle of the correctness game preserves `RecordedReportInv`. -/
 theorem correctnessImpl_preserves_recordedReportInv
-    [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    [DecidableEq P.EpochKey]
     (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey) :
     QueryImpl.PreservesInv
       (SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey)) RecordedReportInv := by
