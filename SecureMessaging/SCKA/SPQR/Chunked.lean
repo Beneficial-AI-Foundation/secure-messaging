@@ -11,7 +11,10 @@ public import SecureMessaging.SCKA.SPQR.Unchunked
 /-! # SPQR chunked protocol
 
 SPQR is Signal's implementation of the ML-KEM Braid key exchange. This module models its v1
-send and receive transitions at revision `f2589fe`, using the core operations in `SPQR.Unchunked`.
+send and receive transitions at release v1.6.0 (commit `06959b47`), using the core operations in
+`SPQR.Unchunked`. The model was first written against revision `f2589fe`. Between the two
+revisions, the Rust code that the model follows (the state machine, `send_ek`, `send_ct`, the
+authenticator and the incremental ML-KEM) changes only by rewrites that keep its behaviour.
 
 ## One epoch
 
@@ -87,6 +90,7 @@ error except for the `ct2Sampled` successor case. These cases differ from the pa
 
 `SPQR.Construction` packages this model as an SCKA scheme. `SPQR.Correspondence` translates states
 and messages into `MLKEMBraid` and states the hypotheses under which their transitions agree.
+`SPQR.Correctness` uses this translation to transport the `MLKEMBraid` correctness bound to SPQR.
 -/
 
 @[expose] public section

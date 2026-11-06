@@ -320,6 +320,30 @@ theorem sckaCorrectnessImpl_preservesInv [DecidableEq I]
     QueryImpl.PreservesInv (sckaCorrectnessImpl scka) Inv :=
   ((((oracleUnif_preservesInv Inv).add hSendA).add hSendB).add hRecvA).add hRecvB
 
+/-- No query of the correctness game sets a false correctness flag back to true. -/
+theorem sckaCorrectnessImpl_preserves_correct_eq_false [DecidableEq I] :
+    QueryImpl.PreservesInv (sckaCorrectnessImpl scka)
+      (fun s : GameState StA StB I Rho => s.correct = false) := by
+  refine sckaCorrectnessImpl_preservesInv scka ?_ ?_ ?_ ?_
+  · intro _ s hs z hz
+    obtain ⟨out, -, rfl⟩ := (mem_support_oracleSendA_run_iff scka s z).1 hz
+    rcases out with _ | ⟨_ | ⟨tI, key⟩, ρ, tsnd, stA'⟩ <;> simp [sendAUpdate, hs]
+  · intro _ s hs z hz
+    obtain ⟨out, -, rfl⟩ := (mem_support_oracleSendB_run_iff scka s z).1 hz
+    rcases out with _ | ⟨_ | ⟨tI, key⟩, ρ, tsnd, stB'⟩ <;> simp [sendBUpdate, hs]
+  · intro n s hs z hz
+    rcases (mem_support_oracleRecvA_run_iff scka s n z).1 hz with
+      ⟨-, rfl⟩ | ⟨-, -, -, -, rfl⟩ | ⟨-, -, keyOpt, -, -, -, -, rfl⟩
+    · exact hs
+    · rfl
+    · rcases keyOpt with _ | ⟨tI, key⟩ <;> simp [recvAUpdate, hs]
+  · intro n s hs z hz
+    rcases (mem_support_oracleRecvB_run_iff scka s n z).1 hz with
+      ⟨-, rfl⟩ | ⟨-, -, -, -, rfl⟩ | ⟨-, -, keyOpt, -, -, -, -, rfl⟩
+    · exact hs
+    · rfl
+    · rcases keyOpt with _ | ⟨tI, key⟩ <;> simp [recvBUpdate, hs]
+
 /-- The known-prefix check holds exactly when every positive epoch through `n` has a key. -/
 theorem knownPrefix_eq_true_iff {key : ℕ → Option I} {n : ℕ} :
     knownPrefix key n = true ↔ ∀ t, 0 < t → t ≤ n → key t ≠ none := by
