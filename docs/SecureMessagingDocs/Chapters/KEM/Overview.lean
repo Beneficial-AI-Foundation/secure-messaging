@@ -16,6 +16,7 @@ open Informal
 
 set_option doc.verso true
 set_option linter.hashCommand false
+set_option linter.style.longLine false
 
 #doc (Manual) "Key Encapsulation Mechanism" =>
 
@@ -25,6 +26,23 @@ set_option linter.hashCommand false
 - {Informal.citet FIPS203}[]
 - {Informal.citet FrodoKEM}[]
 - {Informal.citet MLKEM_Braid}[]
+
+:::group "kem"
+Key encapsulation mechanism (KEM).
+:::
+
+:::defTitle "kem_scheme" "KEM scheme"
+:::
+
+:::::::definition "kem_scheme" (parent := "kem") (lean := "KEMScheme")
+A *key encapsulation mechanism* (KEM) with public-key space $`\mathsf{PK}`, secret-key space
+$`\mathsf{SK}`, shared-key space $`K`, and ciphertext space $`C` consists of three algorithms:
+
+- $`\mathsf{KeyGen}()\to(pk,sk)`: randomized key generation;
+- $`\mathsf{Encaps}(pk)\to(c,k)`: randomized encapsulation of a fresh shared key $`k\in K` under
+  $`pk`, with ciphertext $`c\in C`;
+- $`\mathsf{Decaps}(sk,c)\to k`: decapsulation, returning $`k\in K` or $`\bot` on rejection.
+:::::::
 
 {include 1 SecureMessagingDocs.Chapters.KEM.MLKEM}
 
