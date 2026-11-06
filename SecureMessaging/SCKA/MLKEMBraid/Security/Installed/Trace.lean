@@ -209,25 +209,15 @@ theorem traceSendAt_transcriptStep (e : ℕ) (kp : Option (P.PK × P.SK))
     rcases mem_support_traceSend hMac irl hz with hzs | ⟨w, hw, -, hzw⟩
     · exact Or.inl (by rw [hzs])
     · rw [hzw]
-      cases hst : s.game.stateAt party with
-      | keysUnsampled t a =>
-          rw [sampledSend_eq_keygen hMac irl s party hst, support_map] at hw
-          obtain ⟨y, -, rfl⟩ := hw
-          refine Or.inr (Or.inl ⟨t, y.1, rfl, fun ht x0 hx0 => ?_⟩)
-          subst ht hx0
-          simp [installedSample, hst] at hI
-      | headerReceived t a hdr dec =>
-          rw [sampledSend_eq_encaps1 hMac irl s party hst, support_map] at hw
-          obtain ⟨y, -, rfl⟩ := hw
-          refine Or.inr (Or.inr ⟨t, y.1, rfl, fun ht c0 hc0 => ?_⟩)
-          subst ht hc0
-          rcases kp with _ | ⟨pk, sk⟩ <;> simp [installedSample, hst] at hI
-      | _ =>
-          rw [sampledSend_of_noSample hMac irl s party
-            (fun _ _ h => by rw [hst] at h; cases h)
-            (fun _ _ _ _ h => by rw [hst] at h; cases h), support_map] at hw
-          obtain ⟨y, -, rfl⟩ := hw
-          exact Or.inl rfl
+      rcases mem_support_sampledSend hMac irl s party hw with
+        ⟨t, a, y, hst, -, rfl⟩ | ⟨t, a, hdr, dec, y, hst, -, rfl⟩ | ⟨-, -, r, -, rfl⟩
+      · refine Or.inr (Or.inl ⟨t, y.1, rfl, fun ht x0 hx0 => ?_⟩)
+        subst ht hx0
+        simp [installedSample, hst] at hI
+      · refine Or.inr (Or.inr ⟨t, y.1, rfl, fun ht c0 hc0 => ?_⟩)
+        subst ht hc0
+        rcases kp with _ | ⟨pk, sk⟩ <;> simp [installedSample, hst] at hI
+      · exact Or.inl rfl
   · rcases installedSample_some hMac hI with ⟨a, x, rfl, hst⟩ | ⟨a, hdr, dec, c, rfl, hst⟩
     · rw [traceSendAt_keygen_run hMac irl leaking hst x ec] at hz
       by_cases hc : (leaking && decide ({e} ∩ s.game.challenged ≠ ∅)) = true

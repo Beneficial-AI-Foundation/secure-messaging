@@ -71,6 +71,35 @@ def liftGame {P : Parameters ProbComp} {α : Type}
     StateT (TraceState P) ProbComp α :=
   fun s => (fun z => (z.1, { s with game := z.2 })) <$> c.run s.game
 
+/-- The key-generation send of epoch `t` with the key pair `(pk, sk)`: the result of the
+key-generation branch of `sendRleak`. -/
+def keygenStep (P : Parameters ProbComp) (hMac : P.Mac = Unit) (t : ℕ) (a : Unit) (pk : P.PK)
+    (sk : P.SK) : SendResult P Unit :=
+  let hdr := P.inc.toHeader pk
+  let (chunk, enc) :=
+    (EncoderState.init P.ecpHdr (hdr, (auth P hMac).macHeader a t hdr)).nextChunk
+  { msg := { epoch := t, type := .hdr, data := some chunk }
+    sendingEpoch := t - 1, outputKey := none
+    state := .keysSampled t a sk (P.inc.toVector pk) enc }
+
+/-- The first-stage encapsulation send of epoch `t` with the sample `(es, ct1, k)`: the result of
+the first-stage encapsulation branch of `sendRleak`. -/
+def encaps1Step (P : Parameters ProbComp) (hMac : P.Mac = Unit) (t : ℕ) (a : Unit)
+    (hdr : P.inc.PKheader) (dec : P.decEk.D) (es : P.inc.St)
+    (ct1 : P.inc.C₁) (k : P.K) : SendResult P Unit :=
+  let (chunk, enc) := (EncoderState.init P.ecpCt1 ct1).nextChunk
+  { msg := { epoch := t, type := .ct1, data := some chunk }
+    sendingEpoch := t - 1, outputKey := some (t, P.kdfOK k t)
+    state := .ct1Sampled t ((auth P hMac).update a t (P.kdfOK k t)) hdr es ct1 enc dec }
+
+/-- The bad flag after a first-stage encapsulation sample `c` of epoch `t`. -/
+def encaps1Bad {P : Parameters ProbComp} [DecidableEq P.EpochKey] (s : TraceState P) (t : ℕ)
+    (c : P.inc.St × P.inc.C₁ × P.K) : Bool :=
+  match (s.transcript t).keypair with
+  | none => s.bad
+  | some (pk, sk) => s.bad || decide (decapsEpochKey (P := P) t pk sk c.1 c.2.1 ≠
+      some (P.kdfOK c.2.2 t))
+
 /-- The leaking send of `party` with its records. It also records a sampled key pair or
 first-stage encapsulation, and updates the bad flag by testing decapsulation. -/
 def sampledSend (P : Parameters ProbComp) [DecidableEq P.EpochKey]
@@ -79,32 +108,14 @@ def sampledSend (P : Parameters ProbComp) [DecidableEq P.EpochKey]
     ProbComp ((SendResult P Unit × SendRand irl.KeygenRand irl.Encaps1Rand) ×
       (ℕ → EpochTranscript P) × Bool) :=
   match s.game.stateAt party with
-  | .keysUnsampled e a => do
-      let ((pk, sk), rand) ← irl.keygenRleak
-      let hdr := P.inc.toHeader pk
-      let vec := P.inc.toVector pk
-      let tag := (auth P hMac).macHeader a e hdr
-      let (chunk, enc) := (EncoderState.init P.ecpHdr (hdr, tag)).nextChunk
-      let r : SendResult P Unit :=
-        { msg := { epoch := e, type := .hdr, data := some chunk }
-          sendingEpoch := e - 1, outputKey := none
-          state := .keysSampled e a sk vec enc }
-      let T := Function.update s.transcript e { (s.transcript e) with keypair := some (pk, sk) }
-      pure ((r, .keygen rand), T, s.bad)
-  | .headerReceived e a hdr dec => do
-      let ((es, ct1, k), rand) ← irl.encaps1Rleak hdr
-      let ik := P.kdfOK k e
-      let (chunk, enc) := (EncoderState.init P.ecpCt1 ct1).nextChunk
-      let r : SendResult P Unit :=
-        { msg := { epoch := e, type := .ct1, data := some chunk }
-          sendingEpoch := e - 1, outputKey := some (e, ik)
-          state := .ct1Sampled e ((auth P hMac).update a e ik) hdr es ct1 enc dec }
-      let T := Function.update s.transcript e { (s.transcript e) with encaps1 := some (es, ct1, k) }
-      let bad := match (s.transcript e).keypair with
-        | none => s.bad
-        | some (pk, sk) =>
-            s.bad || decide (decapsEpochKey (P := P) e pk sk es ct1 ≠ some (P.kdfOK k e))
-      pure ((r, .encaps1 rand), T, bad)
+  | .keysUnsampled e a => (fun x : (P.PK × P.SK) × irl.KeygenRand =>
+      ((keygenStep P hMac e a x.1.1 x.1.2, .keygen x.2),
+        Function.update s.transcript e { (s.transcript e) with keypair := some x.1 }, s.bad)) <$>
+      irl.keygenRleak
+  | .headerReceived e a hdr dec => (fun x : (P.inc.St × P.inc.C₁ × P.K) × irl.Encaps1Rand =>
+      ((encaps1Step P hMac e a hdr dec x.1.1 x.1.2.1 x.1.2.2, .encaps1 x.2),
+        Function.update s.transcript e { (s.transcript e) with encaps1 := some x.1 },
+        encaps1Bad s e x.1)) <$> irl.encaps1Rleak hdr
   | st => (fun out => (out, s.transcript, s.bad)) <$>
       MLKEMBraid.sendRleak P irl (auth P hMac) st
 
@@ -115,7 +126,7 @@ theorem sampledSend_erase (P : Parameters ProbComp) [DecidableEq P.EpochKey]
     Prod.fst <$> sampledSend P hMac irl s party =
       MLKEMBraid.sendRleak P irl (auth P hMac) (s.game.stateAt party) := by
   cases hst : s.game.stateAt party <;>
-    simp [sampledSend, hst, MLKEMBraid.sendRleak]
+    simp [sampledSend, hst, MLKEMBraid.sendRleak, keygenStep, encaps1Step]
 
 /-- A send of `party` that reveals its coins if `leaking`. If the game refuses a leaking send, it
 keeps neither the new game state nor the new records. Otherwise it updates the game state with

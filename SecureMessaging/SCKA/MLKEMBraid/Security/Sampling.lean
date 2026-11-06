@@ -121,35 +121,6 @@ theorem isSendQuery_eq_sendElim (irl : P.kem.IncrementalRandLeak P.inc) :
   | OCorruptA => rfl
   | OCorruptB => rfl
 
-/-- The key-generation send of epoch `t` with the key pair `(pk, sk)`: the result of the
-key-generation branch of `sendRleak`. -/
-def keygenStep (P : Parameters ProbComp) (hMac : P.Mac = Unit) (t : ℕ) (a : Unit) (pk : P.PK)
-    (sk : P.SK) : SendResult P Unit :=
-  let hdr := P.inc.toHeader pk
-  let (chunk, enc) :=
-    (EncoderState.init P.ecpHdr (hdr, (auth P hMac).macHeader a t hdr)).nextChunk
-  { msg := { epoch := t, type := .hdr, data := some chunk }
-    sendingEpoch := t - 1, outputKey := none
-    state := .keysSampled t a sk (P.inc.toVector pk) enc }
-
-/-- The first-stage encapsulation send of epoch `t` with the sample `(es, ct1, k)`: the result of
-the first-stage encapsulation branch of `sendRleak`. -/
-def encaps1Step (P : Parameters ProbComp) (hMac : P.Mac = Unit) (t : ℕ) (a : Unit)
-    (hdr : P.inc.PKheader) (dec : P.decEk.D) (es : P.inc.St)
-    (ct1 : P.inc.C₁) (k : P.K) : SendResult P Unit :=
-  let (chunk, enc) := (EncoderState.init P.ecpCt1 ct1).nextChunk
-  { msg := { epoch := t, type := .ct1, data := some chunk }
-    sendingEpoch := t - 1, outputKey := some (t, P.kdfOK k t)
-    state := .ct1Sampled t ((auth P hMac).update a t (P.kdfOK k t)) hdr es ct1 enc dec }
-
-/-- The bad flag after a first-stage encapsulation sample `c` of epoch `t`. -/
-def encaps1Bad [DecidableEq P.EpochKey] (s : TraceState P) (t : ℕ)
-    (c : P.inc.St × P.inc.C₁ × P.K) : Bool :=
-  match (s.transcript t).keypair with
-  | none => s.bad
-  | some (pk, sk) => s.bad || decide (decapsEpochKey (P := P) t pk sk c.1 c.2.1 ≠
-      some (P.kdfOK c.2.2 t))
-
 /-- The sample of a key-generation send. -/
 theorem sampledSend_eq_keygen [DecidableEq P.EpochKey] (hMac : P.Mac = Unit)
     (irl : P.kem.IncrementalRandLeak P.inc) (s : TraceState P) (party : Bool) {t : ℕ}
@@ -158,8 +129,7 @@ theorem sampledSend_eq_keygen [DecidableEq P.EpochKey] (hMac : P.Mac = Unit)
       ((keygenStep P hMac t a x.1.1 x.1.2, SendRand.keygen x.2),
         Function.update s.transcript t { (s.transcript t) with keypair := some x.1 }, s.bad)) <$>
       irl.keygenRleak := by
-  simp only [sampledSend, hst, map_eq_bind_pure_comp]
-  exact bind_congr fun x => by obtain ⟨⟨pk, sk⟩, rand⟩ := x; rfl
+  simp only [sampledSend, hst]
 
 /-- The sample of a first-stage encapsulation send. -/
 theorem sampledSend_eq_encaps1 [DecidableEq P.EpochKey] (hMac : P.Mac = Unit)
@@ -170,8 +140,7 @@ theorem sampledSend_eq_encaps1 [DecidableEq P.EpochKey] (hMac : P.Mac = Unit)
       ((encaps1Step P hMac t a hdr dec x.1.1 x.1.2.1 x.1.2.2, SendRand.encaps1 x.2),
         Function.update s.transcript t { (s.transcript t) with encaps1 := some x.1 },
         encaps1Bad s t x.1)) <$> irl.encaps1Rleak hdr := by
-  simp only [sampledSend, hst, map_eq_bind_pure_comp]
-  exact bind_congr fun x => by obtain ⟨⟨es, ct1, k⟩, rand⟩ := x; rfl
+  simp only [sampledSend, hst]
 
 section Projections
 
@@ -257,6 +226,41 @@ theorem sampledSend_of_noSample (s : TraceState P) (party : Bool)
     | headerReceived t a hdr dec => exact absurd hst (h2 t a hdr dec)
     | _ => simp only [sampledSend, hst]
   rw [hS, sendRleak_of_noSample hMac irl h1 h2, Functor.map_map]
+
+/-- An output of `sampledSend` comes from a key generation, from a first-stage encapsulation, or
+from a send that samples nothing and keeps the records. -/
+theorem mem_support_sampledSend (s : TraceState P) (party : Bool)
+    {w : (SendResult P Unit × SendRand irl.KeygenRand irl.Encaps1Rand) ×
+      (ℕ → EpochTranscript P) × Bool}
+    (hw : w ∈ support (sampledSend P hMac irl s party)) :
+    (∃ t a x, s.game.stateAt party = .keysUnsampled t a ∧ x ∈ support irl.keygenRleak ∧
+      w = ((keygenStep P hMac t a x.1.1 x.1.2, .keygen x.2),
+        Function.update s.transcript t { (s.transcript t) with keypair := some x.1 }, s.bad)) ∨
+    (∃ t a hdr dec x, s.game.stateAt party = .headerReceived t a hdr dec ∧
+      x ∈ support (irl.encaps1Rleak hdr) ∧
+      w = ((encaps1Step P hMac t a hdr dec x.1.1 x.1.2.1 x.1.2.2, .encaps1 x.2),
+        Function.update s.transcript t { (s.transcript t) with encaps1 := some x.1 },
+        encaps1Bad s t x.1)) ∨
+    ((∀ t a, s.game.stateAt party ≠ .keysUnsampled t a) ∧
+      (∀ t a hdr dec, s.game.stateAt party ≠ .headerReceived t a hdr dec) ∧
+      ∃ r ∈ support (MLKEMBraid.send P (auth P hMac) (s.game.stateAt party)),
+        w = ((r, SendRand.none), s.transcript, s.bad)) := by
+  cases hst : s.game.stateAt party
+  case keysUnsampled t a =>
+    rw [sampledSend_eq_keygen hMac irl s party hst, support_map] at hw
+    obtain ⟨x, hx, rfl⟩ := hw
+    exact Or.inl ⟨t, a, x, rfl, hx, rfl⟩
+  case headerReceived t a hdr dec =>
+    rw [sampledSend_eq_encaps1 hMac irl s party hst, support_map] at hw
+    obtain ⟨x, hx, rfl⟩ := hw
+    exact Or.inr (Or.inl ⟨t, a, hdr, dec, x, rfl, hx, rfl⟩)
+  all_goals
+    have h1 : ∀ t a, s.game.stateAt party ≠ .keysUnsampled t a := by simp [hst]
+    have h2 : ∀ t a hdr dec, s.game.stateAt party ≠ .headerReceived t a hdr dec := by simp [hst]
+    rw [sampledSend_of_noSample hMac irl s party h1 h2, support_map] at hw
+    obtain ⟨r, hr, rfl⟩ := hw
+    rw [hst] at h1 h2 hr
+    exact Or.inr (Or.inr ⟨h1, h2, r, hr, rfl⟩)
 
 end NoSample
 

@@ -145,25 +145,16 @@ private theorem sampledSend_encaps1 (s : TraceState P) (party : Bool)
     (∀ t, (w.2.1 t).encaps1 = (s.transcript t).encaps1) ∨
       ∃ e a hdr dec x, s.game.stateAt party = .headerReceived e a hdr dec ∧
         w.2.1 = Function.update s.transcript e { (s.transcript e) with encaps1 := some x } := by
-  cases hst : s.game.stateAt party
-  case keysUnsampled e a =>
-    rw [sampledSend_eq_keygen hMac irl s party hst, support_map] at hw
-    obtain ⟨x, -, rfl⟩ := hw
-    left
+  rcases mem_support_sampledSend hMac irl s party hw with
+    ⟨e, a, x, -, -, rfl⟩ | ⟨e, a, hdr, dec, x, hst, -, rfl⟩ | ⟨-, -, r, -, rfl⟩
+  · left
     intro t
     by_cases ht : t = e
     · rw [ht]
       simp
     · simp [Function.update_of_ne ht]
-  case headerReceived e a hdr dec =>
-    rw [sampledSend_eq_encaps1 hMac irl s party hst, support_map] at hw
-    obtain ⟨x, -, rfl⟩ := hw
-    exact Or.inr ⟨e, a, hdr, dec, x.1, rfl, rfl⟩
-  all_goals
-    rw [sampledSend_of_noSample hMac irl s party (by simp [hst]) (by simp [hst]),
-      support_map] at hw
-    obtain ⟨r, -, rfl⟩ := hw
-    exact Or.inl fun _ => rfl
+  · exact Or.inr ⟨e, a, hdr, dec, x.1, hst, rfl⟩
+  · exact Or.inl fun _ => rfl
 
 /-- A trace send preserves the produced-epoch bound: a first-stage encapsulation at epoch `e`
 follows keys for every earlier epoch, hence `e - 1` earlier accepted sends. -/
