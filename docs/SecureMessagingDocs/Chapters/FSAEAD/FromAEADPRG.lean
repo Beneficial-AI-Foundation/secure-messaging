@@ -7,6 +7,7 @@ import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessagingDocs.Visuals.FSAEADKeyChain
 import SecureMessaging.FSAEAD.FromAEADPRG.Construction
+import SecureMessaging.FSAEAD.FromAEADPRG.Correctness
 
 /-! # Blueprint chapter: FS-AEAD from AEAD and PRG -/
 
@@ -239,11 +240,44 @@ first, so B runs $`\mathsf{skip}(3)` and keeps $`K_1` and $`K_2` in $`D` for mes
 :::defTitle "fs_aead_from_aead_prg_correctness" "FS-AEAD from AEAD and PRG correctness"
 :::
 
-::::theorem "fs_aead_from_aead_prg_correctness" (parent := "fs_aead_fs_aead_from_aead_prg") (tags := "gh-29") (uses := "fs_aead_from_aead_prg_spec, fs_aead_scheme, aead_correctness, prg")
-$`\todo`
+::::theorem "fs_aead_from_aead_prg_correctness" (parent := "fs_aead_fs_aead_from_aead_prg") (lean := "FSAEADScheme.fromAEADPRG_noFirstDeliverWin, FSAEADScheme.FromAEADPRG.sendAll_eq, FSAEADScheme.FromAEADPRG.rcvAll_honest_initR") (tags := "gh-29") (uses := "fs_aead_from_aead_prg_spec, fs_aead_scheme, fs_aead_delivery_correctness, aead_correctness, prg")
+Adapted from {Informal.citet ACD19}[], proof of Theorem 5 (step from $`H_1` to $`H_2`).
 
-:::leanPill "missing"
+Let $`\mathsf{AE}` be a correct AEAD scheme and $`G` a PRG. Then:
+1. The FS-AEAD scheme from $`\mathsf{AE}` and $`G` is
+   {bpref "fs_aead_delivery_correctness"}[delivery-correct].
+2. Let B start from $`\mathsf{Init\text{-}B}(k)` and receive ciphertexts
+   $`(j, \Enc(K_j, (j, a), m))` with associated data $`a`, for distinct indices
+   $`j \geq 1`, in any order. Then B outputs $`(j, m)` for each of them. A's $`j`-th
+   ciphertext from $`\mathsf{Init\text{-}A}(k)` has this form.
+
+The proof follows the states of A and B along the chain from $`k`. While
+$`\mathsf{win}` is false, B keeps the key of every ciphertext in transit: its index is
+above $`i_B`, or its key is in $`D`. After $`\OCorrA`, an injection that consumes an index
+before A sends it removes that index from $`\mathsf{comp}`, so $`\mathsf{record}` does not
+add A's later ciphertext at that index.
+
+:::leanPillCaption "delivery correctness"
 :::
+
+```anchor fromAEADPRG_noFirstDeliverWin (project := ".") (module := SecureMessaging.FSAEAD.FromAEADPRG.Correctness)
+theorem fromAEADPRG_noFirstDeliverWin {Cae AD M : Type} [DecidableEq AD] [DecidableEq M]
+    [DecidableEq Cae] (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae)
+    (prg : PRGScheme W (W × Kae)) (hae : ae.Correct) (len : M → ℕ) :
+    (fromAEADPRG ae prg).NoFirstDeliverWin len
+```
+
+:::leanPillCaption "honest delivery in any order"
+:::
+
+```anchor rcvAll_honest_initR (project := ".") (module := SecureMessaging.FSAEAD.FromAEADPRG.Correctness)
+theorem rcvAll_honest_initR (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae)
+    (prg : PRGScheme W (W × Kae)) (hae : ae.Correct) (k : W) (del : List (ℕ × AD × M))
+    (hnd : (del.map (·.1)).Nodup) (hpos : ∀ x ∈ del, 1 ≤ x.1) :
+    (rcvAll ae prg (initR k) (del.map fun x =>
+      (x.2.1, (x.1, ae.encrypt (chainKey prg k x.1) (x.1, x.2.1) x.2.2)))).1 =
+      del.map fun x => some (x.1, x.2.2)
+```
 ::::
 
 :::defTitle "fs_aead_from_aead_prg_security" "FS-AEAD from AEAD and PRG security"

@@ -205,6 +205,16 @@ def findTrans [DecidableEq AD] [DecidableEq C] (st : GameState StS StR AD M C)
     (a : AD) (e : C) : Option (ℕ × AD × M × C) :=
   st.trans.find? fun r => r.2.1 = a ∧ r.2.2.2 = e
 
+/-- The record that `findTrans a e` returns is in `trans`, with associated data `a` and
+ciphertext `e`. -/
+theorem findTrans_spec [DecidableEq AD] [DecidableEq C] {st : GameState StS StR AD M C}
+    {a : AD} {e : C} {r : ℕ × AD × M × C} (h : st.findTrans a e = some r) :
+    r ∈ st.trans ∧ r.2.1 = a ∧ r.2.2.2 = e := by
+  unfold findTrans at h
+  have := List.find?_some h
+  simp only [decide_eq_true_eq] at this
+  exact ⟨List.mem_of_find?_eq_some h, this⟩
+
 end GameState
 
 /-- Oracle spec for the FS-AEAD security game: uniform randomness, then `O-Transmit-A`,
