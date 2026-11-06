@@ -40,9 +40,9 @@ Pseudorandom function (PRF).
 :::
 
 :::::::definition "prf" (parent := "prf") (lean := "PRFScheme, PRFScheme.prfAdvantage")
-A PRF scheme with key space $`\mathcal K`, domain $`\mathcal D` and finite nonempty range
+A PRF scheme with key space $`\K`, domain $`\mathcal D` and finite nonempty range
 $`\mathcal R` is a key generation algorithm $`\mathsf{keygen}` together with a deterministic map
-$`F : \mathcal K \times \mathcal D \to \mathcal R`. Its PRF advantage against an adversary
+$`F : \K \times \mathcal D \to \mathcal R`. Its PRF advantage against an adversary
 $`\adv` is
 
 $$`\mathsf{Adv}^{\textsf{prf}}_{F}(\adv)

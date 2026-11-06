@@ -73,6 +73,8 @@ r#"
 \newcommand{\Rq}{R_q}                                    % ML-KEM polynomial ring
 \newcommand{\Tq}{T_q}                                    % ML-KEM NTT domain
 \newcommand{\C}{\mathcal{C}}                             % ciphertext space
+\newcommand{\K}{\mathcal{K}}                             % key space
+\newcommand{\W}{\mathcal{W}}                             % PRG seed space
 \newcommand{\St}{\mathcal{St}}                           % offline state space
 \newcommand{\NTT}{\mathsf{NTT}}
 \newcommand{\XOF}{\mathsf{XOF}}

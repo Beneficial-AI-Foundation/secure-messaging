@@ -42,16 +42,16 @@ Adapted from {Informal.citet ACD19}[], Definition 1.
 
 An authenticated encryption with associated data (AEAD) scheme is a tuple of algorithms
 $`(\boxed{\mathsf{KeyGen}}, \Enc, \Dec)` with message space $`\mathcal M`, associated data
-space $`\mathcal{AD}`, key space $`\mathcal K` and ciphertext space $`\mathcal C`, where
+space $`\mathcal{AD}`, key space $`\K` and ciphertext space $`\C`, where
 
-- $`\boxed{\mathsf{KeyGen}}` samples a key $`K \in \mathcal K`,
+- $`\boxed{\mathsf{KeyGen}}` samples a key $`K \in \K`,
 - $`\Enc` takes a key $`K`, associated data $`a` and a message $`m`, and produces a
   ciphertext $`e \gets \Enc(K, a, m)`,
 - $`\Dec` takes a key $`K`, associated data $`a` and a ciphertext $`e`, and produces a
   message $`m \gets \Dec(K, a, e)`, $`\boxed{\text{or } \bot \text{ if it rejects } e}.`
 
 $`\Enc` and $`\Dec` are deterministic. The boxed parts are not in Definition 1:
-$`\mathsf{KeyGen}` replaces the uniform key $`K \sample \mathcal K` of Figure 1, and
+$`\mathsf{KeyGen}` replaces the uniform key $`K \sample \K` of Figure 1, and
 $`\Dec` signals a rejection by $`\bot`.
 
 ```anchor AEADScheme (project := ".") (module := SecureMessaging.AEAD.Defs)
@@ -84,9 +84,9 @@ We write $`|x|` for the length of a message or ciphertext $`x`, in a unit fixed 
 scheme: bits, bytes or blocks. The game has a parameter
 $`\mathit{clen} : \mathbb N \to \mathbb N`, which can be any function from message lengths to
 ciphertext lengths. For a message length $`\ell`, let
-$`\mathcal C(\ell) = \{e \in \mathcal C : |e| = \mathit{clen}(\ell)\},` the set of all
+$`\C(\ell) = \{e \in \C : |e| = \mathit{clen}(\ell)\},` the set of all
 ciphertexts of length $`\mathit{clen}(\ell)`. If all ciphertexts have the same length,
-$`\mathcal C(\ell) = \mathcal C.`
+$`\C(\ell) = \C.`
 :::::
 
 :::::gameCell "\\textsf{Deviations}" (kind := "scheme-notation")
@@ -97,9 +97,9 @@ We change {Informal.citet ACD19}[], Figure 1, in two places, marked by boxes in 
    associated data is secure, and the FS-AEAD scheme of their Figure 6 built on it is
    insecure, which contradicts their Theorem 5. {Informal.citet Ros26}[], Definition 9.6.5,
    also keys decryption on the pair of associated data and ciphertext.
-2. With $`b = 1`, $`\Oenc` samples $`e^*` uniformly from $`\mathcal C(|m|)`, not from all
-   of $`\mathcal C`, as in {Informal.citet Ros26}[], Definition 9.6.5. The random branch
-   reads only the message length $`|m|`. In Ros26, $`\mathcal C(\ell)` is the set of possible
+2. With $`b = 1`, $`\Oenc` samples $`e^*` uniformly from $`\C(|m|)`, not from all
+   of $`\C`, as in {Informal.citet Ros26}[], Definition 9.6.5. The random branch
+   reads only the message length $`|m|`. In Ros26, $`\C(\ell)` is the set of possible
    ciphertexts for messages of length $`\ell`. In our formalization, it is the set of all ciphertexts of length
    $`\mathit{clen}(\ell)`.
 :::::
@@ -112,7 +112,7 @@ $`\begin{array}{l}
 \pif\;b = 0\;\pthen \\
 \quad e^* \gets \Enc(K, a, m); \\
 \pelse \\
-\quad \boxed{e^* \sample \mathcal C(|m|)}; \\
+\quad \boxed{e^* \sample \C(|m|)}; \\
 \boxed{a^* \gets a}; \\
 \Return e^*
 \end{array}`
