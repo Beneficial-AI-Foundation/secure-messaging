@@ -86,33 +86,42 @@ namespace ErasureCodePayload
 variable {M Sym : Type}
 
 /-- Map a natural counter index to a bounded chunk position modulo `N`. -/
+-- ANCHOR: ErasureCodePayload_counterIndex
 def counterIndex (ecp : ErasureCodePayload M Sym) (i : ℕ) : Fin ecp.ec.N :=
   ⟨i % ecp.ec.N, Nat.mod_lt i ecp.ec.N_pos⟩
+-- ANCHOR_END: ErasureCodePayload_counterIndex
 
 /-- Encode at counter `i` modulo `N`, returning the wrapped index and symbol.
 This matches the `ℤ_N` indices in [SCKA] and SPQR's fixed-width chunk index. -/
+-- ANCHOR: ErasureCodePayload_encode
 def encode (ecp : ErasureCodePayload M Sym) (payload : M) (i : ℕ) : ℕ × Sym :=
   let j := counterIndex ecp i
   (j.1, ecp.ec.encode (ecp.serialize payload) j)
+-- ANCHOR_END: ErasureCodePayload_encode
+
+/-- A chunk set whose indices are all below `N`, with its indices as bounded positions `Fin N`. -/
+def boundedChunks (ecp : ErasureCodePayload M Sym) (chunks : Finset (ℕ × Sym))
+    (hvalid : ∀ chunk ∈ chunks, chunk.1 < ecp.ec.N) : Finset (Fin ecp.ec.N × Sym) :=
+  chunks.attach.map
+    { toFun := fun chunk => (⟨chunk.1.1, hvalid chunk.1 chunk.2⟩, chunk.1.2)
+      inj' := by
+        intro a b hab
+        apply Subtype.ext
+        exact Prod.ext
+          (congrArg (fun chunk : Fin ecp.ec.N × Sym => chunk.1.val) hab)
+          (congrArg (fun chunk : Fin ecp.ec.N × Sym => chunk.2) hab) }
 
 /-- Decode received chunks to a payload, rejecting a set containing an index
 outside the valid range `0, …, N - 1`. -/
+-- ANCHOR: ErasureCodePayload_decode
 def decode (ecp : ErasureCodePayload M Sym) (chunks : Finset (ℕ × Sym)) : Option M :=
   if hvalid : ∀ chunk ∈ chunks, chunk.1 < ecp.ec.N then
-    let toBounded : {chunk // chunk ∈ chunks} ↪ (Fin ecp.ec.N × Sym) :=
-      { toFun := fun chunk =>
-          (⟨chunk.1.1, hvalid chunk.1 chunk.2⟩, chunk.1.2)
-        inj' := by
-          intro a b hab
-          apply Subtype.ext
-          exact Prod.ext
-            (congrArg (fun chunk : Fin ecp.ec.N × Sym => chunk.1.val) hab)
-            (congrArg (fun chunk : Fin ecp.ec.N × Sym => chunk.2) hab) }
-    match ecp.ec.decode (chunks.attach.map toBounded) with
+    match ecp.ec.decode (ecp.boundedChunks chunks hvalid) with
     | none => none
     | some block => ecp.parse block
   else
     none
+-- ANCHOR_END: ErasureCodePayload_decode
 
 end ErasureCodePayload
 

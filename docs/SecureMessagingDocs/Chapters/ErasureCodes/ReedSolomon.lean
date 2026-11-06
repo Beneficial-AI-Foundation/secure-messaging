@@ -3,6 +3,7 @@ import VersoBlueprint
 import SecureMessagingDocs.Bibliography
 import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
+import SecureMessagingDocs.Visuals.ErasureCodeFigures
 import SecureMessaging.ErasureCode.ReedSolomon.Construction
 import SecureMessaging.ErasureCode.ReedSolomon.Correctness
 
@@ -32,10 +33,11 @@ Reed–Solomon erasure codes over arbitrary fields.
 :::defTitle "reed_solomon_erasure_code" "Reed–Solomon erasure code"
 :::
 
-::::definition "reed_solomon_erasure_code" (parent := "erasure_codes_reed_solomon") (lean := "ErasureCode.ReedSolomon.Parameters, ErasureCode.ReedSolomon.Parameters.sourceIndex, ErasureCode.ReedSolomon.Parameters.sourcePoint, ErasureCode.ReedSolomon.Parameters.encodingPolynomial, ErasureCode.ReedSolomon.Parameters.encode, ErasureCode.ReedSolomon.Parameters.decodingPolynomial, ErasureCode.ReedSolomon.Parameters.decode, ErasureCode.ReedSolomon.Parameters.erasureCode") (tags := "gh-198") (uses := "erasure_code_scheme")
-$`\todo`
+:::::::definition "reed_solomon_erasure_code" (parent := "erasure_codes_reed_solomon") (lean := "ErasureCode.ReedSolomon.Parameters, ErasureCode.ReedSolomon.Parameters.sourceIndex, ErasureCode.ReedSolomon.Parameters.sourcePoint, ErasureCode.ReedSolomon.Parameters.encodingPolynomial, ErasureCode.ReedSolomon.Parameters.encode, ErasureCode.ReedSolomon.Parameters.decodingPolynomial, ErasureCode.ReedSolomon.Parameters.decode, ErasureCode.ReedSolomon.Parameters.erasureCode") (tags := "gh-198") (uses := "erasure_code_scheme")
+Let $`F` be a field, $`0<k\le N`, and $`x_0,\ldots,x_{N-1}\in F` pairwise distinct
+evaluation points.
 
-:::leanPillCaption "Reed–Solomon parameters"
+:::leanPillCaption "Parameters"
 :::
 
 ```anchor reedSolomon_Parameters (project := ".") (module := SecureMessaging.ErasureCode.ReedSolomon.Construction)
@@ -56,28 +58,43 @@ structure Parameters (F : Type) [Field F] where
   point_injective : Function.Injective point
 ```
 
-:::leanPillCaption "source positions and evaluation points"
+The algorithms below use the following notation:
+
+- for a finite set $`S\subseteq F\times F` of points with pairwise distinct first coordinates,
+  $`\mathsf{Interpolate}(S)` is the unique polynomial in $`F[X]` of degree less than $`|S|`
+  through the points of $`S`;
+- $`\mathsf{Decodable}_k` is the {bpref "erasure_code_scheme"}[decodability predicate] of chunk
+  sets.
+
+The *Reed–Solomon erasure code* with these parameters is the
+{bpref "erasure_code_scheme"}[erasure code] $`(\Encode,\Decode)` over $`F`, with block length
+$`N` and message length $`k`, whose algorithms are
+
+::::::gameGrid
+:::::gameCell "\\textsf{Encoding}" (kind := "compact")
+$`\begin{array}{l}
+\Encode(m,j):\\
+\quad P_m\gets\mathsf{Interpolate}(\{(x_i,m_i)\mid i<k\})\\
+\quad\Return P_m(x_j)
+\end{array}`
+
+:::leanPillCaption "sourceIndex"
 :::
 
-```anchor reedSolomon_sourcePoints (project := ".") (module := SecureMessaging.ErasureCode.ReedSolomon.Construction)
-/-- The inclusion `{0, …, k-1} ↪ {0, …, N-1}`, `i ↦ i`: a message index as a
-codeword position. -/
+```anchor reedSolomon_sourceIndex (project := ".") (module := SecureMessaging.ErasureCode.ReedSolomon.Construction)
 def sourceIndex (params : Parameters F) (i : Fin params.k) : Fin params.N :=
   Fin.castLE params.k_le_N i
-
-/-- The evaluation-point mapping `point : j ↦ xⱼ` restricted to the message
-positions `{0, …, k-1}`: `i ↦ xᵢ`. -/
-def sourcePoint (params : Parameters F) (i : Fin params.k) : F :=
-  params.point (params.sourceIndex i)
-
-/-- The points `x₀, …, x_(k-1)` are pairwise distinct: the restriction of an
-injective mapping is itself injective. -/
-theorem sourcePoint_injective (params : Parameters F) :
-    Function.Injective params.sourcePoint :=
-  params.point_injective.comp (Fin.castLE_injective params.k_le_N)
 ```
 
-:::leanPillCaption "encoding polynomial"
+:::leanPillCaption "sourcePoint"
+:::
+
+```anchor reedSolomon_sourcePoint (project := ".") (module := SecureMessaging.ErasureCode.ReedSolomon.Construction)
+def sourcePoint (params : Parameters F) (i : Fin params.k) : F :=
+  params.point (params.sourceIndex i)
+```
+
+:::leanPillCaption "encodingPolynomial"
 :::
 
 ```anchor reedSolomon_encodingPolynomial (project := ".") (module := SecureMessaging.ErasureCode.ReedSolomon.Construction)
@@ -92,8 +109,16 @@ def encodingPolynomial (params : Parameters F) (message : Fin params.k → F) : 
 def encode (params : Parameters F) (message : Fin params.k → F) (i : Fin params.N) : F :=
   (params.encodingPolynomial message).eval (params.point i)
 ```
+:::::
+:::::gameCell "\\textsf{Decoding}" (kind := "compact")
+$`\begin{array}{l}
+\Decode(L):\\
+\quad\pif\ \neg\mathsf{Decodable}_k(L)\ \pthen\ \Return\bot\\
+\quad Q_L\gets\mathsf{Interpolate}(\{(x_j,c)\mid(j,c)\in L\})\\
+\quad\Return(Q_L(x_0),\ldots,Q_L(x_{k-1}))
+\end{array}`
 
-:::leanPillCaption "decoding polynomial"
+:::leanPillCaption "decodingPolynomial"
 :::
 
 ```anchor reedSolomon_decodingPolynomial (project := ".") (module := SecureMessaging.ErasureCode.ReedSolomon.Construction)
@@ -115,8 +140,10 @@ noncomputable def decode (params : Parameters F)
   else
     none
 ```
+:::::
+::::::
 
-:::leanPillCaption "ErasureCode instance"
+:::leanPillCaption "erasureCode"
 :::
 
 ```anchor reedSolomon_erasureCode (project := ".") (module := SecureMessaging.ErasureCode.ReedSolomon.Construction)
@@ -129,13 +156,24 @@ def erasureCode (params : Parameters F) : ErasureCode F where
   encode := params.encode
   decode := params.decode
 ```
-::::
+
+::::::gameGrid
+:::::gameCell "\\textsf{Illustration: Reed–Solomon encoding}" (kind := "scheme")
+:::reedSolomonFigure
+:::
+:::::
+::::::
+:::::::
 
 :::defTitle "reed_solomon_erasure_code_correctness" "Reed–Solomon correctness"
 :::
 
 ::::theorem "reed_solomon_erasure_code_correctness" (parent := "erasure_codes_reed_solomon") (lean := "ErasureCode.ReedSolomon.Parameters.erasureCode_correct") (tags := "gh-199") (uses := "reed_solomon_erasure_code, erasure_code_correctness")
-$`\todo`
+For every field $`F` and all parameters $`0<k\le N` and pairwise distinct
+$`x_0,\ldots,x_{N-1}\in F`, the {bpref "reed_solomon_erasure_code"}[Reed–Solomon erasure code]
+is {bpref "erasure_code_correctness"}[correct]: for every message $`m\in F^k` and every
+index set $`I\subseteq[N]`, $`\Decode(L_I(m))=m` if $`|I|\ge k` and
+$`\Decode(L_I(m))=\bot` if $`|I|<k`.
 
 :::leanPillCaption "erasure-code correctness"
 :::

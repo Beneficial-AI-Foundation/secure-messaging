@@ -1,0 +1,26 @@
+% directive: reedSolomonFigure
+% aria-label: Reed-Solomon encoding: the message m = (m_0, ..., m_{k-1}) in F^k determines by interpolation the polynomial P_m of degree less than k with P_m(x_i) = m_i; the chunks are m_0, ..., m_{k-1} followed by the redundancy P_m(x_k), ..., P_m(x_{N-1}).
+\documentclass[tikz,border=6pt]{standalone}
+\input{preamble}
+\begin{document}
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[keypill, font=\normalsize] at (-5.45,1.45) (msgin) {$m=(m_0,\ldots,m_{k-1})\in F^k$};
+  \node[algbox, minimum width=2.80cm, minimum height=1.05cm, font=\normalsize] at (-5.45,-1.25) (poly)
+    {$P_m(x_i)=m_i$ for $i<k$\\[1pt] $\deg P_m<k$};
+  \draw[flow] (msgin.south) -- node[midway, right, lbl] {interpolate} (poly.north);
+  \node[sourcechunk, minimum width=1.10cm, font=\small] at (-2.65,-1.25) {$m_0$};
+  \node[sourcechunk, minimum width=1.10cm, font=\small] at (-1.45,-1.25) {$m_1$};
+  \node[font=\small] at (-0.55,-1.25) {$\cdots$};
+  \node[sourcechunk, minimum width=1.10cm, font=\small] at (0.35,-1.25) {$m_{k-1}$};
+  \node[chunk, minimum width=1.55cm, font=\small] at (2.05,-1.25) {$P_m(x_k)$};
+  \node[font=\small] at (3.20,-1.25) {$\cdots$};
+  \node[chunk, minimum width=1.75cm, font=\small] at (4.45,-1.25) {$P_m(x_{N-1})$};
+  \node[slbl, font=\small\sffamily] at (-0.55,-0.68) {message};
+  \node[slbl, font=\small\sffamily] at (3.20,-0.68) {redundancy};
+  \draw[gray!55, line width=0.5pt, dashed] (1.10,-0.85) -- (1.10,-1.65);
+  \draw[flow] (poly.east) -- (-3.25,-1.25);
+  \draw[decorate, decoration={brace, mirror, amplitude=5pt}] (-3.25,-1.72) -- (5.35,-1.72);
+  \node[anchor=north, font=\small\sffamily] at (1.05,-1.98)
+    {chunks $\Encode(m,0),\ \ldots,\ \Encode(m,N-1)$};
+\end{tikzpicture}
+\end{document}
