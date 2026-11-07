@@ -246,50 +246,59 @@ theorem traceImplAt_offSend (e : ℕ) (kp kp' : Option (P.PK × P.SK))
   | OSendArleak, _, h => False.elim h
   | OSendBrleak, _, h => False.elim h
 
+omit [SampleableType P.K] [SampleableType P.EpochKey] [DecidableEq P.EpochKey] in
+/-- Suppose that `sendHit test e` selects a leaking send of `party`. Then the state of `party`
+passes `test`, and the send is not refused, because the epoch `e` is not challenged. -/
+private theorem leakHit {test : State P Unit → Bool} {e : ℕ} {party : Bool} {s : TraceState P}
+    (h : (test (s.game.stateAt party) && !decide ({e} ∩ s.game.challenged ≠ ∅)) = true) :
+    test (s.game.stateAt party) = true ∧
+      ¬ (true && decide ({e} ∩ s.game.challenged ≠ ∅)) = true := by
+  rw [Bool.and_eq_true] at h
+  exact ⟨h.1, by simpa using h.2⟩
+
+omit [SampleableType P.K] [SampleableType P.EpochKey] in
+/-- Off a hit, installing a key pair gives the same plain send of `party` up to distribution. -/
+private theorem keygen_off_plain (e : ℕ) (party : Bool) (s : TraceState P)
+    (h : isKeygenAt e (s.game.stateAt party) = false) (x : P.PK × P.SK) :
+    (tracePlainAt P hMac irl e (some x) none party ()).run s =ᵈ
+      (tracePlainAt P hMac irl e none none party ()).run s := by
+  simp only [tracePlainAt, StateT.run_map, traceSendAt_kp_off hMac irl e x party false s h,
+    EvalDistEq.refl]
+
+omit [SampleableType P.K] [SampleableType P.EpochKey] in
+/-- Off a hit, installing a key pair gives the same leaking send of `party` up to distribution. -/
+private theorem keygen_off_leak (e : ℕ) (party : Bool) (s : TraceState P)
+    (h : (isKeygenAt e (s.game.stateAt party) && !decide ({e} ∩ s.game.challenged ≠ ∅)) = false)
+    (x : P.PK × P.SK) :
+    (traceSendAt P hMac irl e (some x) none party true).run s =ᵈ
+      (traceSendAt P hMac irl e none none party true).run s := by
+  by_cases hk : isKeygenAt e (s.game.stateAt party) = true
+  · obtain ⟨a0, hst⟩ := isKeygenAt_eq_true hk
+    have hc : (true && decide ({e} ∩ s.game.challenged ≠ ∅)) = true := by
+      simpa [hk] using h
+    exact leak_keygen_refused hMac irl e party s hst hc x
+  · rw [traceSendAt_kp_off hMac irl e x party true s (by simpa using hk)]
+
 /-- Off a hit, installing a key pair changes no query. -/
 theorem keygen_off (e : ℕ) (xo : Option P.EpochKey) (m : ℕ → Mode) :
     ∀ (q : (Spec P irl).Domain) (s : TraceState P), sendHit (isKeygenAt e) e q s = false →
       ∀ x, ((stopOnState (traceImplAt P hMac irl e (some x) none xo m) (targetStop e) q).run).run
           s =ᵈ ((stopOnState (traceImplAt P hMac irl e none none xo m) (targetStop e) q).run).run s
-  | OCorrectness OSendA, s, h, x => by
-      refine OracleComp.stopped_congr _ _ s ?_
-      change (tracePlainAt P hMac irl e (some x) none true ()).run s =ᵈ
-          (tracePlainAt P hMac irl e none none true ()).run s
-      simp only [tracePlainAt, StateT.run_map,
-          traceSendAt_kp_off hMac irl e x true false s h, EvalDistEq.refl]
-  | OCorrectness OSendB, s, h, x => by
-      refine OracleComp.stopped_congr _ _ s ?_
-      change (tracePlainAt P hMac irl e (some x) none false ()).run s =ᵈ
-          (tracePlainAt P hMac irl e none none false ()).run s
-      simp only [tracePlainAt, StateT.run_map,
-          traceSendAt_kp_off hMac irl e x false false s h, EvalDistEq.refl]
-  | OSendArleak, s, h, x => by
-      refine OracleComp.stopped_congr _ _ s ?_
-      by_cases hk : isKeygenAt e (s.game.stateAt true) = true
-      · obtain ⟨a0, hst⟩ := isKeygenAt_eq_true hk
-        have hc : (true && decide ({e} ∩ s.game.challenged ≠ ∅)) = true := by
-          simpa [sendHit, hk] using h
-        exact leak_keygen_refused hMac irl e true s hst hc x
-      · change (traceSendAt P hMac irl e (some x) none true true).run s =ᵈ
-          (traceSendAt P hMac irl e none none true true).run s
-        rw [traceSendAt_kp_off hMac irl e x true true s (by simpa using hk)]
-  | OSendBrleak, s, h, x => by
-      refine OracleComp.stopped_congr _ _ s ?_
-      by_cases hk : isKeygenAt e (s.game.stateAt false) = true
-      · obtain ⟨a0, hst⟩ := isKeygenAt_eq_true hk
-        have hc : (true && decide ({e} ∩ s.game.challenged ≠ ∅)) = true := by
-          simpa [sendHit, hk] using h
-        exact leak_keygen_refused hMac irl e false s hst hc x
-      · change (traceSendAt P hMac irl e (some x) none false true).run s =ᵈ
-          (traceSendAt P hMac irl e none none false true).run s
-        rw [traceSendAt_kp_off hMac irl e x false true s (by simpa using hk)]
-  | OCorrectness (OUnif t), s, _, _ =>
+  | OCorrectness OSendA, s, h, x =>
+      OracleComp.stopped_congr _ _ s (keygen_off_plain hMac irl e true s h x)
+  | OCorrectness OSendB, s, h, x =>
+      OracleComp.stopped_congr _ _ s (keygen_off_plain hMac irl e false s h x)
+  | OSendArleak, s, h, x =>
+      OracleComp.stopped_congr _ _ s (keygen_off_leak hMac irl e true s h x)
+  | OSendBrleak, s, h, x =>
+      OracleComp.stopped_congr _ _ s (keygen_off_leak hMac irl e false s h x)
+  | OCorrectness (OUnif _), s, _, _ =>
       traceImplAt_offSend hMac irl e _ _ _ _ xo m _ s trivial
-  | OCorrectness (ORecvA n), s, _, _ =>
+  | OCorrectness (ORecvA _), s, _, _ =>
       traceImplAt_offSend hMac irl e _ _ _ _ xo m _ s trivial
-  | OCorrectness (ORecvB n), s, _, _ =>
+  | OCorrectness (ORecvB _), s, _, _ =>
       traceImplAt_offSend hMac irl e _ _ _ _ xo m _ s trivial
-  | OChall t, s, _, _ => traceImplAt_offSend hMac irl e _ _ _ _ xo m _ s trivial
+  | OChall _, s, _, _ => traceImplAt_offSend hMac irl e _ _ _ _ xo m _ s trivial
   | OCorruptA, s, _, _ => traceImplAt_offSend hMac irl e _ _ _ _ xo m _ s trivial
   | OCorruptB, s, _, _ => traceImplAt_offSend hMac irl e _ _ _ _ xo m _ s trivial
 
@@ -309,21 +318,13 @@ theorem keygen_on (e : ℕ) (xo : Option P.EpochKey) (m : ℕ → Mode) :
       obtain ⟨a0, hst⟩ := isKeygenAt_eq_true h'
       exact OracleComp.stopped_bind _ _ _ s (plain_keygen_on hMac irl e false s hst)
   | OSendArleak, s, h => by
-      have h' : (isKeygenAt e (s.game.stateAt true) &&
-          !decide ({e} ∩ s.game.challenged ≠ ∅)) = true := h
-      rw [Bool.and_eq_true] at h'
-      obtain ⟨hk, hn⟩ := h'
+      obtain ⟨hk, hc⟩ := leakHit (test := isKeygenAt e) (party := true) h
       obtain ⟨a0, hst⟩ := isKeygenAt_eq_true hk
-      have hc : ¬ (true && decide ({e} ∩ s.game.challenged ≠ ∅)) = true := by simpa using hn
       simp only [OracleComp.stopOnState_run_eq_map]
       exact leak_keygen_on hMac irl e true s hst hc
   | OSendBrleak, s, h => by
-      have h' : (isKeygenAt e (s.game.stateAt false) &&
-          !decide ({e} ∩ s.game.challenged ≠ ∅)) = true := h
-      rw [Bool.and_eq_true] at h'
-      obtain ⟨hk, hn⟩ := h'
+      obtain ⟨hk, hc⟩ := leakHit (test := isKeygenAt e) (party := false) h
       obtain ⟨a0, hst⟩ := isKeygenAt_eq_true hk
-      have hc : ¬ (true && decide ({e} ∩ s.game.challenged ≠ ∅)) = true := by simpa using hn
       simp only [OracleComp.stopOnState_run_eq_map]
       exact leak_keygen_on hMac irl e false s hst hc
   | OCorrectness (OUnif _), _, h => by
@@ -334,50 +335,53 @@ theorem keygen_on (e : ℕ) (xo : Option P.EpochKey) (m : ℕ → Mode) :
   | OCorruptA, _, h => by simp [sendHit] at h
   | OCorruptB, _, h => by simp [sendHit] at h
 
+omit [SampleableType P.K] [SampleableType P.EpochKey] in
+/-- Off a hit, installing a first-stage sample gives the same plain send of `party` up to
+distribution. -/
+private theorem encaps1_off_plain (e : ℕ) (kp : Option (P.PK × P.SK)) (party : Bool)
+    (s : TraceState P) (h : isEncaps1At e (s.game.stateAt party) = false)
+    (c : P.inc.St × P.inc.C₁ × P.K) :
+    (tracePlainAt P hMac irl e kp (some c) party ()).run s =ᵈ
+      (tracePlainAt P hMac irl e kp none party ()).run s := by
+  simp only [tracePlainAt, StateT.run_map, traceSendAt_ec_off hMac irl e kp c party false s h,
+    EvalDistEq.refl]
+
+omit [SampleableType P.K] [SampleableType P.EpochKey] in
+/-- Off a hit, installing a first-stage sample gives the same leaking send of `party` up to
+distribution. -/
+private theorem encaps1_off_leak (e : ℕ) (kp : Option (P.PK × P.SK)) (party : Bool)
+    (s : TraceState P)
+    (h : (isEncaps1At e (s.game.stateAt party) && !decide ({e} ∩ s.game.challenged ≠ ∅)) = false)
+    (c : P.inc.St × P.inc.C₁ × P.K) :
+    (traceSendAt P hMac irl e kp (some c) party true).run s =ᵈ
+      (traceSendAt P hMac irl e kp none party true).run s := by
+  by_cases hk : isEncaps1At e (s.game.stateAt party) = true
+  · obtain ⟨a0, hdr, dec, hst⟩ := isEncaps1At_eq_true hk
+    have hc : (true && decide ({e} ∩ s.game.challenged ≠ ∅)) = true := by
+      simpa [hk] using h
+    exact leak_encaps1_refused hMac irl e kp party s hst hc c
+  · rw [traceSendAt_ec_off hMac irl e kp c party true s (by simpa using hk)]
+
 /-- Off a hit, installing a first-stage sample changes no query. -/
 theorem encaps1_off (e : ℕ) (kp : Option (P.PK × P.SK)) (xo : Option P.EpochKey) (m : ℕ → Mode) :
     ∀ (q : (Spec P irl).Domain) (s : TraceState P), sendHit (isEncaps1At e) e q s = false →
       ∀ c, ((stopOnState (traceImplAt P hMac irl e kp (some c) xo m) (targetStop e) q).run).run
           s =ᵈ ((stopOnState (traceImplAt P hMac irl e kp none xo m) (targetStop e) q).run).run s
-  | OCorrectness OSendA, s, h, c => by
-      refine OracleComp.stopped_congr _ _ s ?_
-      change (tracePlainAt P hMac irl e kp (some c) true ()).run s =ᵈ
-          (tracePlainAt P hMac irl e kp none true ()).run s
-      simp only [tracePlainAt, StateT.run_map,
-          traceSendAt_ec_off hMac irl e kp c true false s h, EvalDistEq.refl]
-  | OCorrectness OSendB, s, h, c => by
-      refine OracleComp.stopped_congr _ _ s ?_
-      change (tracePlainAt P hMac irl e kp (some c) false ()).run s =ᵈ
-          (tracePlainAt P hMac irl e kp none false ()).run s
-      simp only [tracePlainAt, StateT.run_map,
-          traceSendAt_ec_off hMac irl e kp c false false s h, EvalDistEq.refl]
-  | OSendArleak, s, h, c => by
-      refine OracleComp.stopped_congr _ _ s ?_
-      by_cases hk : isEncaps1At e (s.game.stateAt true) = true
-      · obtain ⟨a0, hdr, dec, hst⟩ := isEncaps1At_eq_true hk
-        have hc : (true && decide ({e} ∩ s.game.challenged ≠ ∅)) = true := by
-          simpa [sendHit, hk] using h
-        exact leak_encaps1_refused hMac irl e kp true s hst hc c
-      · change (traceSendAt P hMac irl e kp (some c) true true).run s =ᵈ
-          (traceSendAt P hMac irl e kp none true true).run s
-        rw [traceSendAt_ec_off hMac irl e kp c true true s (by simpa using hk)]
-  | OSendBrleak, s, h, c => by
-      refine OracleComp.stopped_congr _ _ s ?_
-      by_cases hk : isEncaps1At e (s.game.stateAt false) = true
-      · obtain ⟨a0, hdr, dec, hst⟩ := isEncaps1At_eq_true hk
-        have hc : (true && decide ({e} ∩ s.game.challenged ≠ ∅)) = true := by
-          simpa [sendHit, hk] using h
-        exact leak_encaps1_refused hMac irl e kp false s hst hc c
-      · change (traceSendAt P hMac irl e kp (some c) false true).run s =ᵈ
-          (traceSendAt P hMac irl e kp none false true).run s
-        rw [traceSendAt_ec_off hMac irl e kp c false true s (by simpa using hk)]
-  | OCorrectness (OUnif t), s, _, _ =>
+  | OCorrectness OSendA, s, h, c =>
+      OracleComp.stopped_congr _ _ s (encaps1_off_plain hMac irl e kp true s h c)
+  | OCorrectness OSendB, s, h, c =>
+      OracleComp.stopped_congr _ _ s (encaps1_off_plain hMac irl e kp false s h c)
+  | OSendArleak, s, h, c =>
+      OracleComp.stopped_congr _ _ s (encaps1_off_leak hMac irl e kp true s h c)
+  | OSendBrleak, s, h, c =>
+      OracleComp.stopped_congr _ _ s (encaps1_off_leak hMac irl e kp false s h c)
+  | OCorrectness (OUnif _), s, _, _ =>
       traceImplAt_offSend hMac irl e _ _ _ _ xo m _ s trivial
-  | OCorrectness (ORecvA n), s, _, _ =>
+  | OCorrectness (ORecvA _), s, _, _ =>
       traceImplAt_offSend hMac irl e _ _ _ _ xo m _ s trivial
-  | OCorrectness (ORecvB n), s, _, _ =>
+  | OCorrectness (ORecvB _), s, _, _ =>
       traceImplAt_offSend hMac irl e _ _ _ _ xo m _ s trivial
-  | OChall t, s, _, _ => traceImplAt_offSend hMac irl e _ _ _ _ xo m _ s trivial
+  | OChall _, s, _, _ => traceImplAt_offSend hMac irl e _ _ _ _ xo m _ s trivial
   | OCorruptA, s, _, _ => traceImplAt_offSend hMac irl e _ _ _ _ xo m _ s trivial
   | OCorruptB, s, _, _ => traceImplAt_offSend hMac irl e _ _ _ _ xo m _ s trivial
 
@@ -401,22 +405,14 @@ theorem encaps1_on (e : ℕ) (x : P.PK × P.SK) (ec' : Option (P.inc.St × P.inc
       rw [← hs.header hMac hst]
       exact OracleComp.stopped_bind _ _ _ s (plain_encaps1_on hMac irl e (some x) false s hst)
   | OSendArleak, s, hs, h => by
-      have h' : (isEncaps1At e (s.game.stateAt true) &&
-          !decide ({e} ∩ s.game.challenged ≠ ∅)) = true := h
-      rw [Bool.and_eq_true] at h'
-      obtain ⟨hk, hn⟩ := h'
+      obtain ⟨hk, hc⟩ := leakHit (test := isEncaps1At e) (party := true) h
       obtain ⟨a0, hdr, dec, hst⟩ := isEncaps1At_eq_true hk
-      have hc : ¬ (true && decide ({e} ∩ s.game.challenged ≠ ∅)) = true := by simpa using hn
       rw [← hs.header hMac hst]
       simp only [OracleComp.stopOnState_run_eq_map]
       exact leak_encaps1_on hMac irl e (some x) true s hst hc
   | OSendBrleak, s, hs, h => by
-      have h' : (isEncaps1At e (s.game.stateAt false) &&
-          !decide ({e} ∩ s.game.challenged ≠ ∅)) = true := h
-      rw [Bool.and_eq_true] at h'
-      obtain ⟨hk, hn⟩ := h'
+      obtain ⟨hk, hc⟩ := leakHit (test := isEncaps1At e) (party := false) h
       obtain ⟨a0, hdr, dec, hst⟩ := isEncaps1At_eq_true hk
-      have hc : ¬ (true && decide ({e} ∩ s.game.challenged ≠ ∅)) = true := by simpa using hn
       rw [← hs.header hMac hst]
       simp only [OracleComp.stopOnState_run_eq_map]
       exact leak_encaps1_on hMac irl e (some x) false s hst hc

@@ -100,7 +100,7 @@ theorem repairedRecv_unmasked {e : ℕ} {v : P.EpochKey} {T : ℕ → EpochTrans
       exact hscka _ hr
 
 /-- Unfold `MLKEMBraid.recvSCKA` and `receive` in the hypothesis `h`, with the extra simp lemmas
-`l`, and split the equation of outputs. -/
+`l`. -/
 local syntax "recv_norm" " [" Lean.Parser.Tactic.simpArg,* "]" " at " ident : tactic
 
 macro_rules
