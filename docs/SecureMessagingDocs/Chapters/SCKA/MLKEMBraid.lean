@@ -645,3 +645,13 @@ noncomputable def kdfAdvantage (P : Parameters ProbComp) [SampleableType P.K]
   (𝒟[kdfContextExp P C true].boolDist 𝒟[kdfContextExp P C false]).toReal
 ```
 ::::
+
+:::defTitle "mlkem_braid_security" "ML-KEM Braid security"
+:::
+
+::::theorem "mlkem_braid_security" (parent := "cka_protocols_mlkem_braid") (tags := "gh-244") (uses := "mlkem_braid_spec, scka_security, incremental_kem_scheme")
+$`\todo`
+
+:::leanPill "missing"
+:::
+::::
