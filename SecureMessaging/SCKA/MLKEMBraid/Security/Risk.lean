@@ -41,21 +41,14 @@ section BadEventBound
 /-- Updating one summand of an `ℝ≥0∞`-valued series. -/
 private theorem tsum_update_add (f : ℕ → ℝ≥0∞) (e : ℕ) (v : ℝ≥0∞) :
     (∑' t, Function.update f e v t) + f e = (∑' t, f t) + v := by
-  have h : ∀ t, Function.update f e v t + (Pi.single e (f e) : ℕ → ℝ≥0∞) t =
-      f t + (Pi.single e v : ℕ → ℝ≥0∞) t := by
-    intro t
-    by_cases ht : t = e
-    · subst ht
-      simp [add_comm]
-    · simp [Function.update_of_ne ht, Pi.single_eq_of_ne ht]
-  calc (∑' t, Function.update f e v t) + f e
-      = (∑' t, Function.update f e v t) + ∑' t, (Pi.single e (f e) : ℕ → ℝ≥0∞) t := by
-        rw [tsum_pi_single]
-    _ = ∑' t, (Function.update f e v t + (Pi.single e (f e) : ℕ → ℝ≥0∞) t) :=
-        ENNReal.tsum_add.symm
-    _ = ∑' t, (f t + (Pi.single e v : ℕ → ℝ≥0∞) t) := tsum_congr h
-    _ = (∑' t, f t) + ∑' t, (Pi.single e v : ℕ → ℝ≥0∞) t := ENNReal.tsum_add
-    _ = (∑' t, f t) + v := by rw [tsum_pi_single]
+  rw [ENNReal.tsum_eq_add_tsum_ite (f := Function.update f e v) e,
+    ENNReal.tsum_eq_add_tsum_ite (f := f) e, Function.update_self, add_comm (f e),
+    add_right_comm _ _ v, add_comm _ v]
+  congr 2
+  refine tsum_congr fun x => ?_
+  split_ifs with hx
+  · rfl
+  · exact Function.update_of_ne hx _ _
 
 variable [DecidableEq P.K]
 

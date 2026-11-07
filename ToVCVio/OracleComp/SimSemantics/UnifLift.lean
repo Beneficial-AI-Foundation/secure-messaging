@@ -47,6 +47,8 @@ lemma support_unifLiftStateT_run (σ : Type) (n : unifSpec.Domain) (s : σ) :
 theorem liftTarget_unif_run {σ : Type} (t : ℕ) (s : σ) :
     (((QueryImpl.ofLift unifSpec ProbComp).liftTarget (StateT σ ProbComp)) t).run s =
       (fun a => (a, s)) <$> (QueryImpl.ofLift unifSpec ProbComp) t := by
-  simp [StateT.run_monadLift, map_eq_bind_pure_comp]
+  simp only [QueryImpl.ofLift_eq_id', PFunctor.Handler.liftTarget_apply, ofPFunctor_toPFunctor,
+    QueryImpl.id'_apply, StateT.run_monadLift, monadLift_self, bind_pure_comp,
+    map_eq_bind_pure_comp, QueryImpl.ofLift_apply]
 
 end ToVCVio

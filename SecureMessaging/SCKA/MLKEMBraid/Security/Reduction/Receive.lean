@@ -99,6 +99,17 @@ theorem repairedRecv_unmasked {e : ℕ} {v : P.EpochKey} {T : ℕ → EpochTrans
       rw [repairedRecv_eq_of_not_ekSent true _ msg (fun _ _ _ _ _ h => by cases h)] at hr
       exact hscka _ hr
 
+/-- Unfold `MLKEMBraid.recvSCKA` and `receive` in the hypothesis `h`, with the extra simp lemmas
+`l`, and split the equation of outputs. -/
+local syntax "recv_norm" " [" Lean.Parser.Tactic.simpArg,* "]" " at " ident : tactic
+
+macro_rules
+  | `(tactic| recv_norm [$l,*] at $h:ident) =>
+    `(tactic| simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, Bool.false_eq_true,
+        Bool.not_false, Bool.not_true, Option.isNone_none, Option.isNone_some,
+        Option.isSome_none, Option.isSome_some, Option.some.injEq, Prod.mk.injEq, ↓reduceIte,
+        $l,*] at $h:ident)
+
 /-- The masked receive of `keysSampled`. -/
 private theorem maskedRecv_keysSampled {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C₂} {a : Unit}
     {sk : P.SK} {vec : P.inc.PKvector} {enc : EncoderState (P.inc.PKheader × P.Mac) P.Sym}
@@ -109,9 +120,7 @@ private theorem maskedRecv_keysSampled {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C�
       some (relabelKey e v key?, trcv, maskState e st') := by
   rcases msg with ⟨me, mt, md⟩
   by_cases he : me = e <;> cases mt <;> cases md <;>
-    simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, he, Bool.false_eq_true,
-      Bool.not_false, Bool.not_true, Option.isNone_none, Option.isNone_some, Option.isSome_none,
-      Option.isSome_some, Option.some.injEq, Prod.mk.injEq, ↓reduceIte] at hr <;>
+    recv_norm [he] at hr <;>
     obtain ⟨rfl, rfl, rfl⟩ := hr <;>
     simp [maskedRecv, Message.wellFormed, maskState, relabelKey, he]
 
@@ -126,16 +135,13 @@ private theorem maskedRecv_headerSent {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C�
   rcases msg with ⟨me, mt, md⟩
   by_cases he : me = e <;> cases mt <;> cases md
   all_goals try
-    simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, he, Bool.false_eq_true,
-      Bool.not_false, Bool.not_true, Option.isNone_none, Option.isNone_some, Option.isSome_none,
-      Option.isSome_some, Option.some.injEq, Prod.mk.injEq, ↓reduceIte] at hr
+    recv_norm [he] at hr
     obtain ⟨rfl, rfl, rfl⟩ := hr
     simp [maskedRecv, Message.wellFormed, maskState, relabelKey, he]
   subst he
   rename_i chunk
   cases hd : P.decCt1.decodedPayload (P.decCt1.addChunk dec chunk) <;>
-    simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, hd, Bool.false_eq_true,
-      Bool.not_true, Option.isSome_some, Option.some.injEq, Prod.mk.injEq, ↓reduceIte] at hr <;>
+    recv_norm [hd] at hr <;>
     obtain ⟨rfl, rfl, rfl⟩ := hr <;>
     simp [maskedRecv, Message.wellFormed, maskState, relabelKey, hd]
 
@@ -149,9 +155,7 @@ private theorem maskedRecv_ct1Received {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C�
       some (relabelKey e v key?, trcv, maskState e st') := by
   rcases msg with ⟨me, mt, md⟩
   by_cases he : me = e <;> cases mt <;> cases md <;>
-    simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, he, Bool.false_eq_true,
-      Bool.not_false, Bool.not_true, Option.isNone_none, Option.isNone_some, Option.isSome_none,
-      Option.isSome_some, Option.some.injEq, Prod.mk.injEq, ↓reduceIte] at hr <;>
+    recv_norm [he] at hr <;>
     obtain ⟨rfl, rfl, rfl⟩ := hr <;>
     simp [maskedRecv, Message.wellFormed, maskState, relabelKey, he]
 
@@ -173,31 +177,21 @@ private theorem maskedRecv_ekSent {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C₂}
     case ct2 =>
       cases md with
       | none =>
-          simp only [repairedRecv, MLKEMBraid.recvSCKA, receive, Message.wellFormed,
-            Bool.not_false, Option.isSome_none, Option.some.injEq, Prod.mk.injEq,
-            ↓reduceIte] at hr
+          recv_norm [repairedRecv] at hr
           obtain ⟨rfl, rfl, rfl⟩ := hr
           simp [maskedRecv, Message.wellFormed, maskState, relabelKey]
       | some chunk =>
           cases hd : P.decCt2.decodedPayload (P.decCt2.addChunk dec chunk) <;>
-            simp only [repairedRecv, MLKEMBraid.recvSCKA, receive, Message.wellFormed, hd, hE,
-              Bool.and_self, Bool.false_eq_true, Bool.not_true, decide_true,
-              Option.isSome_some, Option.some.injEq, Prod.mk.injEq, ↓reduceIte] at hr <;>
+            recv_norm [repairedRecv, hd, hE, Bool.and_self, decide_true] at hr <;>
             obtain ⟨rfl, rfl, rfl⟩ := hr <;>
             simp [maskedRecv, Message.wellFormed, maskState, relabelKey, hd]
     all_goals
       cases md <;>
-        simp only [repairedRecv, MLKEMBraid.recvSCKA, receive, Message.wellFormed,
-          Bool.false_eq_true, Bool.not_false, Bool.not_true, Option.isNone_none,
-          Option.isNone_some, Option.isSome_none, Option.isSome_some, Option.some.injEq,
-          Prod.mk.injEq, ↓reduceIte] at hr <;>
+        recv_norm [repairedRecv] at hr <;>
         obtain ⟨rfl, rfl, rfl⟩ := hr <;>
         simp [maskedRecv, Message.wellFormed, maskState, relabelKey]
   · cases mt <;> cases md <;>
-      simp only [repairedRecv, MLKEMBraid.recvSCKA, receive, Message.wellFormed, he,
-        Bool.and_false, Bool.false_eq_true, Bool.not_false, Bool.not_true, decide_false,
-        Option.isNone_none, Option.isNone_some, Option.isSome_none, Option.isSome_some,
-        Option.some.injEq, Prod.mk.injEq, ↓reduceIte] at hr <;>
+      recv_norm [repairedRecv, he, Bool.and_false, decide_false] at hr <;>
       obtain ⟨rfl, rfl, rfl⟩ := hr <;>
       simp [maskedRecv, Message.wellFormed, maskState, relabelKey, he]
 
@@ -222,46 +216,36 @@ private theorem maskedRecv_ct1Sampled {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C�
     case ek =>
       cases md with
       | none =>
-          simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, Bool.not_false,
-            Option.isSome_none, Option.some.injEq, Prod.mk.injEq, ↓reduceIte] at hr
+          recv_norm [] at hr
           obtain ⟨rfl, rfl, rfl⟩ := hr
           simp [maskedRecv, Message.wellFormed, maskState, relabelKey]
       | some chunk =>
           cases hd : P.decEk.decodedPayload (P.decEk.addChunk dec chunk) with
           | none =>
-              simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, hd,
-                Bool.false_eq_true, Bool.not_true, Option.isSome_some, Option.some.injEq,
-                Prod.mk.injEq, ↓reduceIte] at hr
+              recv_norm [hd] at hr
               obtain ⟨rfl, rfl, rfl⟩ := hr
               simp [maskedRecv, Message.wellFormed, maskState, relabelKey, hd]
           | some vec =>
               by_cases hv : P.inc.validPK hdr vec = true
-              · simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, hd, hv,
-                  Bool.false_eq_true, Bool.not_true, Option.isSome_some, Option.some.injEq,
-                  Prod.mk.injEq, ↓reduceIte] at hr
+              · recv_norm [hd, hv] at hr
                 obtain ⟨rfl, rfl, rfl⟩ := hr
                 simp [maskedRecv, Message.wellFormed, maskState, relabelKey, hd, hv]
               · simp [MLKEMBraid.recvSCKA, receive, Message.wellFormed, hd, hv] at hr
     case ekCt1Ack =>
       cases md with
       | none =>
-          simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, Bool.not_false,
-            Option.isSome_none, Option.some.injEq, Prod.mk.injEq, ↓reduceIte] at hr
+          recv_norm [] at hr
           obtain ⟨rfl, rfl, rfl⟩ := hr
           simp [maskedRecv, Message.wellFormed, maskState, relabelKey]
       | some chunk =>
           cases hd : P.decEk.decodedPayload (P.decEk.addChunk dec chunk) with
           | none =>
-              simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, hd,
-                Bool.false_eq_true, Bool.not_true, Option.isSome_some, Option.some.injEq,
-                Prod.mk.injEq, ↓reduceIte] at hr
+              recv_norm [hd] at hr
               obtain ⟨rfl, rfl, rfl⟩ := hr
               simp [maskedRecv, Message.wellFormed, maskState, relabelKey, hd]
           | some vec =>
               by_cases hv : P.inc.validPK hdr vec = true
-              · simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, hd, hv,
-                  Bool.false_eq_true, Bool.not_true, Option.isSome_some, Option.some.injEq,
-                  Prod.mk.injEq, ↓reduceIte] at hr
+              · recv_norm [hd, hv] at hr
                 obtain ⟨rfl, rfl, rfl⟩ := hr
                 have h2 : P.hEnc2.encaps2Det es hdr vec = c2 := by
                   rw [hc2 pk sk es c1 k hkp hec]
@@ -270,17 +254,11 @@ private theorem maskedRecv_ct1Sampled {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C�
               · simp [MLKEMBraid.recvSCKA, receive, Message.wellFormed, hd, hv] at hr
     all_goals
       cases md <;>
-        simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, Bool.false_eq_true,
-          Bool.not_false, Bool.not_true, Option.isNone_none, Option.isNone_some,
-          Option.isSome_none, Option.isSome_some, Option.some.injEq, Prod.mk.injEq,
-          ↓reduceIte] at hr <;>
+        recv_norm [] at hr <;>
         obtain ⟨rfl, rfl, rfl⟩ := hr <;>
         simp [maskedRecv, Message.wellFormed, maskState, relabelKey]
   · cases mt <;> cases md <;>
-      simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, he, Bool.false_eq_true,
-        Bool.not_false, Bool.not_true, Option.isNone_none, Option.isNone_some,
-        Option.isSome_none, Option.isSome_some, Option.some.injEq, Prod.mk.injEq,
-        ↓reduceIte] at hr <;>
+      recv_norm [he] at hr <;>
       obtain ⟨rfl, rfl, rfl⟩ := hr <;>
       simp [maskedRecv, Message.wellFormed, maskState, relabelKey, he]
 
@@ -305,14 +283,11 @@ private theorem maskedRecv_ekReceived {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C�
     case ekCt1Ack =>
       cases md with
       | none =>
-          simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, Bool.not_false,
-            Option.isSome_none, Option.some.injEq, Prod.mk.injEq, ↓reduceIte] at hr
+          recv_norm [] at hr
           obtain ⟨rfl, rfl, rfl⟩ := hr
           simp [maskedRecv, Message.wellFormed, maskState, relabelKey]
       | some chunk =>
-          simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, Bool.false_eq_true,
-            Bool.not_true, Option.isSome_some, Option.some.injEq, Prod.mk.injEq,
-            ↓reduceIte] at hr
+          recv_norm [] at hr
           obtain ⟨rfl, rfl, rfl⟩ := hr
           have h2 : P.hEnc2.encaps2Det es hdr vec = c2 := by
             rw [hc2 pk sk es c1 k hkp hec]
@@ -320,17 +295,11 @@ private theorem maskedRecv_ekReceived {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C�
           simp [maskedRecv, Message.wellFormed, maskState, relabelKey, h2]
     all_goals
       cases md <;>
-        simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, Bool.false_eq_true,
-          Bool.not_false, Bool.not_true, Option.isNone_none, Option.isNone_some,
-          Option.isSome_none, Option.isSome_some, Option.some.injEq, Prod.mk.injEq,
-          ↓reduceIte] at hr <;>
+        recv_norm [] at hr <;>
         obtain ⟨rfl, rfl, rfl⟩ := hr <;>
         simp [maskedRecv, Message.wellFormed, maskState, relabelKey]
   · cases mt <;> cases md <;>
-      simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, he, Bool.false_eq_true,
-        Bool.not_false, Bool.not_true, Option.isNone_none, Option.isNone_some,
-        Option.isSome_none, Option.isSome_some, Option.some.injEq, Prod.mk.injEq,
-        ↓reduceIte] at hr <;>
+      recv_norm [he] at hr <;>
       obtain ⟨rfl, rfl, rfl⟩ := hr <;>
       simp [maskedRecv, Message.wellFormed, maskState, relabelKey, he]
 
@@ -355,23 +324,18 @@ private theorem maskedRecv_ct1Acknowledged {e : ℕ} {v : P.EpochKey} {c2 : P.in
     case ekCt1Ack =>
       cases md with
       | none =>
-          simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, Bool.not_false,
-            Option.isSome_none, Option.some.injEq, Prod.mk.injEq, ↓reduceIte] at hr
+          recv_norm [] at hr
           obtain ⟨rfl, rfl, rfl⟩ := hr
           simp [maskedRecv, Message.wellFormed, maskState, relabelKey]
       | some chunk =>
           cases hd : P.decEk.decodedPayload (P.decEk.addChunk dec chunk) with
           | none =>
-              simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, hd,
-                Bool.false_eq_true, Bool.not_true, Option.isSome_some, Option.some.injEq,
-                Prod.mk.injEq, ↓reduceIte] at hr
+              recv_norm [hd] at hr
               obtain ⟨rfl, rfl, rfl⟩ := hr
               simp [maskedRecv, Message.wellFormed, maskState, relabelKey, hd]
           | some vec =>
               by_cases hv : P.inc.validPK hdr vec = true
-              · simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, hd, hv,
-                  Bool.false_eq_true, Bool.not_true, Option.isSome_some, Option.some.injEq,
-                  Prod.mk.injEq, ↓reduceIte] at hr
+              · recv_norm [hd, hv] at hr
                 obtain ⟨rfl, rfl, rfl⟩ := hr
                 have h2 : P.hEnc2.encaps2Det es hdr vec = c2 := by
                   rw [hc2 pk sk es c1 k hkp hec]
@@ -380,17 +344,11 @@ private theorem maskedRecv_ct1Acknowledged {e : ℕ} {v : P.EpochKey} {c2 : P.in
               · simp [MLKEMBraid.recvSCKA, receive, Message.wellFormed, hd, hv] at hr
     all_goals
       cases md <;>
-        simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, Bool.false_eq_true,
-          Bool.not_false, Bool.not_true, Option.isNone_none, Option.isNone_some,
-          Option.isSome_none, Option.isSome_some, Option.some.injEq, Prod.mk.injEq,
-          ↓reduceIte] at hr <;>
+        recv_norm [] at hr <;>
         obtain ⟨rfl, rfl, rfl⟩ := hr <;>
         simp [maskedRecv, Message.wellFormed, maskState, relabelKey]
   · cases mt <;> cases md <;>
-      simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, he, Bool.false_eq_true,
-        Bool.not_false, Bool.not_true, Option.isNone_none, Option.isNone_some,
-        Option.isSome_none, Option.isSome_some, Option.some.injEq, Prod.mk.injEq,
-        ↓reduceIte] at hr <;>
+      recv_norm [he] at hr <;>
       obtain ⟨rfl, rfl, rfl⟩ := hr <;>
       simp [maskedRecv, Message.wellFormed, maskState, relabelKey, he]
 
