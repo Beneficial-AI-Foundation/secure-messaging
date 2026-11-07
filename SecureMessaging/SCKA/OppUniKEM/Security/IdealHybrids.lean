@@ -327,28 +327,14 @@ theorem security_guess_le_hybrid_gap
       (Pr{let x ← (idealEpochHybridExp
           kem onoff hDet ecEk ecCt0 ecCt1 leak adv q)}[x = true]).toReal| / 2 +
       (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal := by
-  rw [SCKAScheme.sckaGuessAdvantage_eq_sckaDistAdvantage_div_two,
-    SCKAScheme.sckaDistAdvantage,
-    idealEpochHybridExp_zero,
-    idealEpochHybridExp_last kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1 leak adv q hq]
-  let G := fun b => (Pr{let x ← (SCKAScheme.securityExpFixedBit
-    (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv b
-    (exposureA kem onoff leak) (exposureB kem onoff leak))}[x = true]).toReal
-  let I := fun b => (Pr{let x ← (idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1
-    leak (fun _ => b) adv)}[x = true]).toReal
-  have h0 : |G false - I false| ≤
-      (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal :=
-    security_correctness_endpoint_le kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
-      leak false adv q hq
-  have h1 : |G true - I true| ≤
-      (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal :=
-    security_correctness_endpoint_le kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
-      leak true adv q hq
-  have htriangle := abs_sub_le (G true) (I true) (G false)
-  have htriangle' := abs_sub_le (I true) (I false) (G false)
-  rw [abs_sub_comm (I true) (I false), abs_sub_comm (I false) (G false)] at htriangle'
-  change |G true - G false| / 2 ≤ |I false - I true| / 2 + _
-  linarith
+  rw [idealEpochHybridExp_zero,
+    idealEpochHybridExp_last kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1 leak adv q hq,
+    abs_sub_comm]
+  exact SCKAScheme.sckaGuessAdvantage_le_of_abs_sub_le _ adv _ _
+    (fun b => (Pr{let x ← (idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1
+      leak (fun _ => b) adv)}[x = true]).toReal) _
+    fun b => security_correctness_endpoint_le kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
+      leak b adv q hq
 
 end
 

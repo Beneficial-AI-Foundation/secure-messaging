@@ -253,6 +253,35 @@ theorem stopOnState_run_eq_map
   rw [map_eq_bind_pure_comp]
   rfl
 
+/-- Stopping preserves equality of the joint response/state distribution. -/
+theorem stopped_congr {ι σ : Type} {spec : OracleSpec ι}
+    {I L : QueryImpl spec (StateT σ ProbComp)}
+    (stop : σ → Bool) (q : spec.Domain) (s : σ)
+    (h : (I q).run s =ᵈ (L q).run s) :
+    ((stopOnState I stop q).run).run s =ᵈ ((stopOnState L stop q).run).run s := by
+  rw [stopOnState_run_eq_map, stopOnState_run_eq_map]
+  exact h.map _
+
+/-- A stopped oracle step depends only on the oracle's step. -/
+theorem stopOnState_run_congr {ι σ : Type} {spec : OracleSpec ι}
+    {impl impl' : QueryImpl spec (StateT σ ProbComp)} (stop : σ → Bool) {t : spec.Domain} {s : σ}
+    (h : (impl t).run s = (impl' t).run s) :
+    ((stopOnState impl stop t).run).run s = ((stopOnState impl' stop t).run).run s := by
+  rw [stopOnState_run_eq_map, stopOnState_run_eq_map, h]
+
+/-- Stopping commutes with sampling a parameter before a single oracle step. -/
+theorem stopped_bind {ι σ α : Type} {spec : OracleSpec ι}
+    (sample : ProbComp α)
+    {I : α → QueryImpl spec (StateT σ ProbComp)}
+    {L : QueryImpl spec (StateT σ ProbComp)}
+    (stop : σ → Bool) (q : spec.Domain) (s : σ)
+    (h : (L q).run s =ᵈ sample >>= fun a => (I a q).run s) :
+    ((stopOnState L stop q).run).run s =ᵈ
+      sample >>= fun a => ((stopOnState (I a) stop q).run).run s := by
+  simp only [stopOnState_run_eq_map]
+  refine (h.map _).trans ?_
+  rw [map_bind]
+
 /-- For every query `t` and state `s`, if `stop s' = false` for every `(a, s')` in the support
 of `(impl t).run s`, then the response and next state under `stopOnState impl stop t` are
 equal in distribution to `(impl t).run s` with each response wrapped in `some`. -/

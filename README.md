@@ -19,6 +19,20 @@ cryptographic primitives and protocols from:
 
 Blueprint documentation and status: [Secure Messaging](https://beneficial-ai-foundation.github.io/secure-messaging/)
 
+## Preview the documentation locally
+
+From the repository root, build the Verso Blueprint HTML and start a local server:
+
+```sh
+lake exe secureMessagingDocs
+python3 -m http.server 8000 --bind 127.0.0.1 --directory _out/site/html-multi
+```
+
+Open <http://127.0.0.1:8000/>. Use HTTP rather than opening the HTML files directly so
+hovers and Blueprint previews work. Stop the server with Ctrl-C. After changing the
+documentation, rerun the build command and refresh the browser. `lake build` alone
+checks the Lean modules; it does not render the HTML.
+
 ## License
 
 Apache-2.0.
