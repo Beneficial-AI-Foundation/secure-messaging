@@ -11,11 +11,11 @@ public import Mathlib.Data.FinEnum
 public import Mathlib.Logic.Equiv.Fin.Basic
 
 /-!
-# Byte blocks over the abstract SPQR field
+# Byte serialization for SPQR erasure-code payloads
 
-A pair of bytes is the little-endian index of a field element in the enumeration of the field.
-This bijection is a mathematical representation. It does not claim that this enumeration is the
-`u16` representation that SPQR uses at runtime.
+`byteBlocksEquiv` supplies the message representation for the four payload encodings in
+`MLKEMBraid.Bounded`: each 32-byte block becomes a chunk of 16 field elements.
+The field enumeration is abstract, rather than SPQR's runtime field representation.
 -/
 
 public section
@@ -30,8 +30,11 @@ private noncomputable def bytePairEquiv : (UInt8 × UInt8) ≃ GF16 :=
 
 /-- Group bytes `32*i + 2*j` and `32*i + 2*j + 1` into coordinate `j` of chunk `i`.
 The inverse restores those same bytes in the same order. -/
+-- ANCHOR: byteBlocksEquiv
 noncomputable def byteBlocksEquiv (k : ℕ) :
-    Vector UInt8 (32 * k) ≃ (Fin k → Chunk GF16) :=
+    Vector UInt8 (32 * k) ≃ (Fin k → Chunk GF16)
+-- ANCHOR_END: byteBlocksEquiv
+    :=
   let vectorFn : Vector UInt8 (32 * k) ≃ (Fin (32 * k) → UInt8) :=
     { toFun := fun v i => v[i.val]
       invFun := Vector.ofFn

@@ -49,8 +49,9 @@ theorem kdf_signed_gap_eq (P : Parameters ProbComp)
     [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (A : Adversary P irl) (n : ℕ) :
-    (Pr{let x ← kdfExp P (n + 1) (kdfReduction P hMac irl A (n + 1)) true}[x = true]).toReal -
-      (Pr{let x ← kdfExp P (n + 1) (kdfReduction P hMac irl A (n + 1)) false}[x = true]).toReal =
+    (Pr{let x ← kdfExp P.kdfOK (n + 1) (kdfReduction P hMac irl A (n + 1)) true}[x = true]).toReal -
+      (Pr{let x ← kdfExp P.kdfOK (n + 1)
+        (kdfReduction P hMac irl A (n + 1)) false}[x = true]).toReal =
     (Pr{let x ← rawHybrid P hMac irl A (n + 1)}[x = true]).toReal -
       (Pr{let x ← hybrid P hMac irl A (n + 1)}[x = true]).toReal := by
   have hJH : ∀ t, t ≠ n + 1 →
@@ -80,7 +81,7 @@ theorem kdf_signed_gap_eq (P : Parameters ProbComp)
   have hJ : Pr{let x ← (stoppedRun (traceImpl P hMac irl true
         (fun t => if t < n + 1 then .uniform else if t = n + 1 then .derivedUniform else .real))
         (targetStop (n + 1)) A (initTrace P hMac))}[x = true] =
-      Pr{let x ← kdfExp P (n + 1) (kdfReduction P hMac irl A (n + 1)) true}[x = true] := by
+      Pr{let x ← kdfExp P.kdfOK (n + 1) (kdfReduction P hMac irl A (n + 1)) true}[x = true] := by
     rw [← traceImplAt_none hMac irl (n + 1), ← stoppedRun_chalSample hMac irl (n + 1) none none _
       ((fun u => P.kdfOK u (n + 1)) <$> ($ᵗ P.K)) (fun k => by simp [challengeValue])]
     simp only [kdfExp, PRGScheme.prgRealExperiment, kdfReduction, ↓reduceIte, bind_map_left,
@@ -88,7 +89,7 @@ theorem kdf_signed_gap_eq (P : Parameters ProbComp)
   have hH : Pr{let x ← (stoppedRun (traceImpl P hMac irl true
         (fun t => if t ≤ n + 1 then .uniform else .real))
         (targetStop (n + 1)) A (initTrace P hMac))}[x = true] =
-      Pr{let x ← kdfExp P (n + 1) (kdfReduction P hMac irl A (n + 1)) false}[x = true] := by
+      Pr{let x ← kdfExp P.kdfOK (n + 1) (kdfReduction P hMac irl A (n + 1)) false}[x = true] := by
     rw [← traceImplAt_none hMac irl (n + 1), ← stoppedRun_chalSample hMac irl (n + 1) none none _
       ($ᵗ P.EpochKey) (fun k => by simp [challengeValue])]
     simp only [kdfExp, PRGScheme.prgIdealExperiment, kdfReduction, Bool.false_eq_true, ↓reduceIte,

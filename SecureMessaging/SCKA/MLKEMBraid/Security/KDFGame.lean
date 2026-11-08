@@ -6,56 +6,55 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.SCKA.MLKEMBraid.Basic
 public import VCVio.CryptoFoundations.PRG
 
 /-!
-# The key-derivation game
+# Key derivation with an adversarially chosen label
 
-The epoch key of epoch `e` is `kdfOK u e`, where `u` is a KEM shared secret. For a fixed label
-`e`, we regard the map `u ↦ kdfOK u e` as a PRG from shared secrets to epoch keys. `kdfExp` is its
-PRG game. In `kdfContextExp` the distinguisher first chooses the label. The security bound of
-Braid without authentication contains the advantage `kdfAdvantage` of this game as a term and
-assumes no bound on it.
+For each label `e`, the map `u ↦ kdfOK u e` is viewed as a PRG.
+The distinguisher chooses the label before the shared secret is sampled.
 -/
 
 @[expose] public section
 
 open OracleSpec OracleComp
 
-namespace MLKEMBraid.NoAuth
+namespace MLKEMBraid
 
-/-- The key-derivation game at the label `e`: the PRG game of `kdfOK (·, e)`. With
-`derived = true` the distinguisher `D` receives `kdfOK u e` for a uniform shared secret `u`
-(`prgRealExperiment`), and with `derived = false` a uniform epoch key (`prgIdealExperiment`). -/
--- ANCHOR: kdfGame
-def kdfExp (P : Parameters ProbComp)
-    [SampleableType P.K] [SampleableType P.EpochKey]
-    (e : ℕ) (D : P.EpochKey → ProbComp Bool) (derived : Bool) : ProbComp Bool :=
-  if derived then PRGScheme.prgRealExperiment ⟨(P.kdfOK · e)⟩ D
+/-- The PRG experiment for `kdfOK (·, e)`, with a derived key or a uniform epoch key. -/
+-- ANCHOR: kdfExp
+def kdfExp {K EpochKey : Type} (kdfOK : K → ℕ → EpochKey)
+    [SampleableType K] [SampleableType EpochKey]
+    (e : ℕ) (D : EpochKey → ProbComp Bool) (derived : Bool) : ProbComp Bool :=
+  if derived then PRGScheme.prgRealExperiment ⟨(kdfOK · e)⟩ D
   else PRGScheme.prgIdealExperiment D
+-- ANCHOR_END: kdfExp
 
-/-- A key-derivation distinguisher that first chooses the epoch label. -/
-structure KDFContextAdversary (P : Parameters ProbComp) where
+/-- A distinguisher that chooses a label and retains state before receiving an epoch key. -/
+-- ANCHOR: KDFContextAdversary
+structure KDFContextAdversary (EpochKey : Type) where
   /-- The information kept between choosing the label and guessing. -/
   State : Type
-  /-- Choose the epoch label and the kept information. -/
+  /-- Choose the label and the kept information. -/
   context : ProbComp (ℕ × State)
   /-- Guess from the kept information and the epoch key received. -/
-  guess : State → P.EpochKey → ProbComp Bool
+  guess : State → EpochKey → ProbComp Bool
+-- ANCHOR_END: KDFContextAdversary
 
-/-- The key-derivation game with a chosen label. The distinguisher `C` first chooses the label
-`e`, and then `kdfExp` runs the game at `e`. -/
-def kdfContextExp (P : Parameters ProbComp) [SampleableType P.K] [SampleableType P.EpochKey]
-    (C : KDFContextAdversary P) (derived : Bool) : ProbComp Bool := do
+/-- Choose the label and retained state, then run the PRG experiment at that label. -/
+-- ANCHOR: kdfContextExp
+def kdfContextExp {K EpochKey : Type} (kdfOK : K → ℕ → EpochKey)
+    [SampleableType K] [SampleableType EpochKey]
+    (C : KDFContextAdversary EpochKey) (derived : Bool) : ProbComp Bool := do
   let (e, st) ← C.context
-  kdfExp P e (C.guess st) derived
+  kdfExp kdfOK e (C.guess st) derived
+-- ANCHOR_END: kdfContextExp
 
-/-- The advantage of `C` in the key-derivation game: the distance between its output
-distributions for derived and for uniform keys. -/
-noncomputable def kdfAdvantage (P : Parameters ProbComp) [SampleableType P.K]
-    [SampleableType P.EpochKey] (C : KDFContextAdversary P) : ℝ :=
-  (𝒟[kdfContextExp P C true].boolDist 𝒟[kdfContextExp P C false]).toReal
--- ANCHOR_END: kdfGame
+/-- The distance between the output distributions for derived and uniform epoch keys. -/
+-- ANCHOR: kdfAdvantage
+noncomputable def kdfAdvantage {K EpochKey : Type} (kdfOK : K → ℕ → EpochKey)
+    [SampleableType K] [SampleableType EpochKey] (C : KDFContextAdversary EpochKey) : ℝ :=
+  (𝒟[kdfContextExp kdfOK C true].boolDist 𝒟[kdfContextExp kdfOK C false]).toReal
+-- ANCHOR_END: kdfAdvantage
 
-end MLKEMBraid.NoAuth
+end MLKEMBraid

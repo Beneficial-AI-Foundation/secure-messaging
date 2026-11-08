@@ -57,7 +57,7 @@ def kemMixReduction (A : Adversary P irl) (q : ℕ) : P.kem.IND_CPA_Adversary wh
 runs `kdfReduction` at `e`. The epoch `e` is uniform on `{1, …, q}` when `q > 0`, and `e = 1` when
 `q = 0`. -/
 -- ANCHOR: kdfMixReduction
-def kdfMixReduction (A : Adversary P irl) (q : ℕ) : KDFContextAdversary P where
+def kdfMixReduction (A : Adversary P irl) (q : ℕ) : KDFContextAdversary P.EpochKey where
   State := ℕ
   context := do let e ← epochChoice q; pure (e, e)
   guess e x := kdfReduction P hMac irl A e x
@@ -101,12 +101,12 @@ theorem kemMixReduction_signed_gap (A : Adversary P irl) (q : ℕ) (hq : q ≠ 0
 derived key, minus the same probability on a uniform epoch key, is the average over
 `e ∈ {1, …, q}` of the same difference for `kdfReduction A e` in `kdfExp` at `e`. -/
 theorem kdfMixReduction_signed_gap (A : Adversary P irl) (q : ℕ) (hq : q ≠ 0) :
-    (Pr{let x ← kdfContextExp P (kdfMixReduction P hMac irl A q) true}[x = true]).toReal -
-    (Pr{let x ← kdfContextExp P (kdfMixReduction P hMac irl A q) false}[x = true]).toReal =
+    (Pr{let x ← kdfContextExp P.kdfOK (kdfMixReduction P hMac irl A q) true}[x = true]).toReal -
+    (Pr{let x ← kdfContextExp P.kdfOK (kdfMixReduction P hMac irl A q) false}[x = true]).toReal =
     (q : ℝ)⁻¹ * ∑ i : Fin q,
-      ((Pr{let x ← (kdfExp P (i.val + 1)
+      ((Pr{let x ← (kdfExp P.kdfOK (i.val + 1)
         (kdfReduction P hMac irl A (i.val + 1)) true)}[x = true]).toReal -
-       (Pr{let x ← (kdfExp P (i.val + 1)
+       (Pr{let x ← (kdfExp P.kdfOK (i.val + 1)
         (kdfReduction P hMac irl A (i.val + 1)) false)}[x = true]).toReal) := by
   simp only [kdfContextExp, kdfMixReduction, bind_assoc, pure_bind]
   exact toReal_prEvent_epochChoice_bind_sub q hq _ _ _
@@ -128,8 +128,8 @@ theorem hybrid_gap_eq_query_factor (hHdrSound : P.decHdr.Sound P.ecpHdr)
           (kemMixReduction P hMac irl A q) true)}[x = true]).toReal -
         (Pr{let x ← (P.kem.IND_CPA_Experiment ProbCompRuntime.probComp
           (kemMixReduction P hMac irl A q) false)}[x = true]).toReal) +
-       ((Pr{let x ← kdfContextExp P (kdfMixReduction P hMac irl A q) true}[x = true]).toReal -
-        (Pr{let x ← (kdfContextExp P (kdfMixReduction P hMac irl A q)
+       ((Pr{let x ← kdfContextExp P.kdfOK (kdfMixReduction P hMac irl A q) true}[x = true]).toReal -
+        (Pr{let x ← (kdfContextExp P.kdfOK (kdfMixReduction P hMac irl A q)
           false)}[x = true]).toReal)) := by
   rcases Nat.eq_zero_or_pos q with rfl | hpos
   · simp

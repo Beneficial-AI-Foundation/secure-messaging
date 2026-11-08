@@ -14,10 +14,8 @@ public import SecureMessaging.SCKA.MLKEMBraid.BoundedInstances
 /-!
 # Security of ML-KEM Braid without internal authentication
 
-ML-KEM Braid is a sparse continuous key agreement (SCKA): two parties exchange messages and, in
-each epoch, agree on a fresh epoch key. A key-encapsulation mechanism (KEM) consists of key
-generation `KeyGen`, encapsulation `Encaps(pk)`, which returns a ciphertext and a shared secret,
-and decapsulation `Decaps(sk, c)`, which recovers the shared secret from the ciphertext.
+This module bounds the guessing advantage in the passive SCKA game for Braid with the
+trivial internal authenticator.
 
 **Setting.** Throughout this module, we consider:
 
@@ -69,29 +67,23 @@ Let:
 Reed–Solomon codes (`Bounded.parameters`). There `ℬ` attacks raw ML-KEM through
 `MLKEM.Bounded.liftAdversary`, and `ε` is the correctness error of raw ML-KEM.
 
-**Assumptions and scope.**
+**Parameters and scope.**
 
-- `kdfOK : SharedSecret → ℕ → EpochKey` is an arbitrary function. The Braid specification
-  instantiates it with HKDF: the shared secret as input key material, a zero salt of hash length,
-  `info = PROTOCOL_INFO ‖ ":SCKA Key" ‖ ToBytes(epoch)`, and 32 bytes of output. Nothing is proved
-  about HKDF. The bound depends on `kdfOK` only through `AdvKDF(𝒞)`, a one-sample PRG-style
-  advantage of `kdfOK(·, e)` at a label `e` chosen before `u` is sampled. If `AdvKDF(𝒞)` is large,
-  for example when `kdfOK` ignores `u`, the bound says nothing.
-- `IND_CPA_Advantage` takes values in `ℝ≥0∞`, and the bound uses its real value.
-- The shared-secret and epoch-key types are abstract types with uniform sampling and decidable
-  equality; nothing else is assumed about them.
-- In the ML-KEM instance, the hash of the encapsulation key is the abstract primitive
-  `hEncapsulationKey vector seed` of the supplied `Primitives`, while the specification writes
-  `SHA3-256(ek_seed ‖ ek_vector)`. No equality between the two argument orders is asserted, and
-  the reduction needs none. The ring and primitive functions are parameters, so the theorem does
-  not establish SHA-3 or SHAKE semantics, and a numerical value of `ε` still needs
-  `NTTRingLaws` and `CoefficientFailureBound`.
-- The bound holds for every adversary `A`, with no hardness assumption and no bound on the running
-  time of `A`. It is a statement about the Lean model of Braid with the authenticator off. With the
-  authenticator on, the epoch key also keys the authenticator (`auth.update`). The MAC tags of the
-  authenticator are public. This theorem does not cover that case. C or
-  FFI code, implemented NTT loops, entropy or sampler failure, constant time, physical erasure,
-  authenticated security and composition with messaging are separate questions.
+- The shared-secret and epoch-key types have uniform sampling and decidable equality.
+- The bound depends on `kdfOK` through `AdvKDF(𝒞)`, the PRG advantage at a label chosen before
+  sampling the shared secret. A useful security bound requires this advantage to be small.
+  The Braid specification instantiates `kdfOK` with HKDF; an HKDF-specific bound requires a separate
+  analysis.
+- The bound uses the real value of `IND_CPA_Advantage : ℝ≥0∞` and applies to every adversary,
+  independently of its running time.
+- The ML-KEM instance is parameterized by ring operations and hash primitives. Its encapsulation-key
+  hash takes `vector seed`; the specification hashes `ek_seed ‖ ek_vector`. Relating these
+  representations, establishing SHA-3/SHAKE semantics and supplying a numerical correctness error
+  require further results, including `NTTRingLaws` and `CoefficientFailureBound`.
+- With the authenticator on, epoch keys also key the public MAC tags through `auth.update`.
+  Authenticated security and composition with messaging require separate proofs. The theorem
+  concerns the Lean protocol model; C/FFI code, NTT implementations, entropy and sampler failure,
+  constant time and physical erasure are outside its scope.
 
 ## Proof structure
 
@@ -190,7 +182,7 @@ theorem MLKEMBraid.NoAuth.security (P : Parameters ProbComp)
     SCKAScheme.sckaGuessAdvantage (scheme P hMac irl) A
         (nativeExposure P irl) (nativeExposure P irl) ≤
       (q / 2 : ℝ) * ((P.kem.IND_CPA_Advantage ProbCompRuntime.probComp ℬ).toReal +
-        kdfAdvantage P 𝒞) + q * ε
+        kdfAdvantage P.kdfOK 𝒞) + q * ε
 -- ANCHOR_END: genericSecurity
     := by
   dsimp only
@@ -237,7 +229,8 @@ theorem MLKEMBraid.NoAuth.security (P : Parameters ProbComp)
   have hgap : |(Pr{let x ← hybrid P hMac irl A q}[x = true]).toReal -
       (Pr{let x ← hybrid P hMac irl A 0}[x = true]).toReal| ≤
       (q : ℝ) * ((P.kem.IND_CPA_Advantage ProbCompRuntime.probComp
-        (kemMixReduction P hMac irl A q)).toReal + kdfAdvantage P (kdfMixReduction P hMac irl A q))
+        (kemMixReduction P hMac irl A q)).toReal +
+          kdfAdvantage P.kdfOK (kdfMixReduction P hMac irl A q))
       := by
     rw [abs_sub_comm, hybrid_gap_eq_query_factor P hMac irl hHdrSound hEkSound hCt1Sound
       hCt2Sound A q, abs_mul, abs_of_nonneg (Nat.cast_nonneg q), hK, kdfAdvantage,
@@ -278,7 +271,7 @@ theorem MLKEMBraid.security
         (MLKEMBraid.NoAuth.nativeExposure P irl) ≤
         (q / 2 : ℝ) *
           (((MLKEM.mlkemScheme p ring prims).IND_CPA_Advantage ProbCompRuntime.probComp ℬ).toReal +
-            MLKEMBraid.NoAuth.kdfAdvantage P 𝒞) + q * ε
+            MLKEMBraid.kdfAdvantage P.kdfOK 𝒞) + q * ε
 -- ANCHOR_END: security
     := by
   intro P irl A q hq

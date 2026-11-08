@@ -479,7 +479,7 @@ def nativeExposure (P : Parameters ProbComp)
 :::defTitle "mlkem_braid_noauth_security" "Security of ML-KEM Braid without authentication"
 :::
 
-::::theorem "mlkem_braid_noauth_security" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.NoAuth.security, MLKEMBraid.security, MLKEMBraid.Bounded.parameters, MLKEMBraid.NoAuth.SendQueryBound, MLKEMBraid.NoAuth.kemMixReduction, MLKEMBraid.NoAuth.kdfMixReduction, MLKEMBraid.NoAuth.kdfExp, MLKEMBraid.NoAuth.KDFContextAdversary, MLKEMBraid.NoAuth.kdfContextExp, MLKEMBraid.NoAuth.kdfAdvantage") (tags := "gh-244") (uses := "mlkem_braid_noauth_spec, mlkem_braid_noauth_vulnerable_epochs, scka_security, scka_oracles, incremental_kem_scheme, incremental_kem_rand_leak, erasure_code_correctness, erasure_code_streaming")
+::::theorem "mlkem_braid_noauth_security" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.NoAuth.security, MLKEMBraid.security, MLKEMBraid.Bounded.parameters, ErasureCode.SPQRReedSolomon.byteBlocksEquiv, MLKEMBraid.NoAuth.SendQueryBound, MLKEMBraid.NoAuth.kemMixReduction, MLKEMBraid.NoAuth.kdfMixReduction") (tags := "gh-244") (uses := "mlkem_braid_noauth_spec, mlkem_braid_noauth_vulnerable_epochs, scka_security, scka_oracles, incremental_kem_scheme, incremental_kem_rand_leak, erasure_code_correctness, erasure_code_streaming, kdf_context_game")
 Let $`\Pi=\mathsf{Braid}_{\mathsf{NoAuth}}(P)` ({bpref "mlkem_braid_noauth_spec"}[]), and assume
 that:
 
@@ -505,13 +505,8 @@ where:
 * $`\Adv{\mathsf{IND\text{-}CPA}}{\mathsf{KEM},\Gamma}(\mathcal B)` is the advantage of
   $`\mathcal B` against $`\Gamma` in the KEM IND-CPA security game, and $`\varepsilon` is the
   correctness error of $`\Gamma`;
-* $`\Adv{\mathsf{KDF}}{\mathsf{kdfOK}}(\mathcal C)` is the advantage of $`\mathcal C` in the
-  key-derivation game for the function $`\mathsf{kdfOK}` that derives epoch keys from shared
-  secrets. In this game $`\mathcal C` first chooses an epoch and a state,
-  $`(e,\mathsf{st})\leftarrow\mathcal C.\mathsf{context}()`. Then
-  $`\mathcal C.\mathsf{guess}(\mathsf{st},\cdot)` receives either $`\mathsf{kdfOK}(u,e)` for a
-  uniform shared secret $`u`, or a uniform epoch key. The advantage is the absolute difference
-  between the probabilities that $`\mathcal C` outputs $`1` in the two cases;
+* $`\Adv{\mathsf{KDF}}{\mathsf{kdfOK}}(\mathcal C)` is the advantage in the
+  {bpref "kdf_context_game"}[key-derivation game with an adversarially chosen label];
 * $`\mathcal B` and $`\mathcal C` draw an epoch $`e\leftarrow\mathsf{epochChoice}(q)`, which is
   uniform on $`\{1,\dots,q\}` for $`q>0` and is $`1` for $`q=0`. They then run $`\mathcal A`
   against a simulation of the security game. $`\mathcal B` embeds its challenge public key,
@@ -523,9 +518,20 @@ where:
 The same bound holds for ML-KEM with byte encodings of the prescribed lengths, with Reed–Solomon
 codes and the set-based decoder on the four streams. Here $`\mathcal B` is the adversary of the
 general case, run on raw ML-KEM inputs through `MLKEM.Bounded.liftAdversary`, and $`\varepsilon`
-is the correctness error of ML-KEM. The bound depends on $`\mathsf{kdfOK}` only through
+is the correctness error of ML-KEM. The four payload encodings use `byteBlocksEquiv` to turn
+32-byte blocks into chunks of 16 field elements. The field enumeration is abstract;
+correspondence with SPQR's runtime field representation remains unproved. The bound depends on
+$`\mathsf{kdfOK}` only through
 $`\Adv{\mathsf{KDF}}{\mathsf{kdfOK}}(\mathcal C)`. The Braid specification instantiates
 $`\mathsf{kdfOK}` with HKDF.
+
+:::leanPillCaption "bytes as erasure-code messages"
+:::
+
+```anchor byteBlocksEquiv (project := ".") (module := SecureMessaging.ErasureCode.SPQRReedSolomon.Payload)
+noncomputable def byteBlocksEquiv (k : ℕ) :
+    Vector UInt8 (32 * k) ≃ (Fin k → Chunk GF16)
+```
 
 :::leanPillCaption "security for ML-KEM"
 :::
@@ -554,7 +560,7 @@ theorem MLKEMBraid.security
         (MLKEMBraid.NoAuth.nativeExposure P irl) ≤
         (q / 2 : ℝ) *
           (((MLKEM.mlkemScheme p ring prims).IND_CPA_Advantage ProbCompRuntime.probComp ℬ).toReal +
-            MLKEMBraid.NoAuth.kdfAdvantage P 𝒞) + q * ε
+            MLKEMBraid.kdfAdvantage P.kdfOK 𝒞) + q * ε
 ```
 
 :::leanPillCaption "security for an abstract KEM and abstract codes"
@@ -574,7 +580,7 @@ theorem MLKEMBraid.NoAuth.security (P : Parameters ProbComp)
     SCKAScheme.sckaGuessAdvantage (scheme P hMac irl) A
         (nativeExposure P irl) (nativeExposure P irl) ≤
       (q / 2 : ℝ) * ((P.kem.IND_CPA_Advantage ProbCompRuntime.probComp ℬ).toReal +
-        kdfAdvantage P 𝒞) + q * ε
+        kdfAdvantage P.kdfOK 𝒞) + q * ε
 ```
 
 :::leanPillCaption "send budget"
@@ -606,44 +612,12 @@ def kemMixReduction (A : Adversary P irl) (q : ℕ) : P.kem.IND_CPA_Adversary wh
 :::
 
 ```anchor kdfMixReduction (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security.Reduction.Average)
-def kdfMixReduction (A : Adversary P irl) (q : ℕ) : KDFContextAdversary P where
+def kdfMixReduction (A : Adversary P irl) (q : ℕ) : KDFContextAdversary P.EpochKey where
   State := ℕ
   context := do let e ← epochChoice q; pure (e, e)
   guess e x := kdfReduction P hMac irl A e x
 ```
 
-:::leanPillCaption "key-derivation game and advantage"
-:::
-
-```anchor kdfGame (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security.KDFGame)
-def kdfExp (P : Parameters ProbComp)
-    [SampleableType P.K] [SampleableType P.EpochKey]
-    (e : ℕ) (D : P.EpochKey → ProbComp Bool) (derived : Bool) : ProbComp Bool :=
-  if derived then PRGScheme.prgRealExperiment ⟨(P.kdfOK · e)⟩ D
-  else PRGScheme.prgIdealExperiment D
-
-/-- A key-derivation distinguisher that first chooses the epoch label. -/
-structure KDFContextAdversary (P : Parameters ProbComp) where
-  /-- The information kept between choosing the label and guessing. -/
-  State : Type
-  /-- Choose the epoch label and the kept information. -/
-  context : ProbComp (ℕ × State)
-  /-- Guess from the kept information and the epoch key received. -/
-  guess : State → P.EpochKey → ProbComp Bool
-
-/-- The key-derivation game with a chosen label. The distinguisher `C` first chooses the label
-`e`, and then `kdfExp` runs the game at `e`. -/
-def kdfContextExp (P : Parameters ProbComp) [SampleableType P.K] [SampleableType P.EpochKey]
-    (C : KDFContextAdversary P) (derived : Bool) : ProbComp Bool := do
-  let (e, st) ← C.context
-  kdfExp P e (C.guess st) derived
-
-/-- The advantage of `C` in the key-derivation game: the distance between its output
-distributions for derived and for uniform keys. -/
-noncomputable def kdfAdvantage (P : Parameters ProbComp) [SampleableType P.K]
-    [SampleableType P.EpochKey] (C : KDFContextAdversary P) : ℝ :=
-  (𝒟[kdfContextExp P C true].boolDist 𝒟[kdfContextExp P C false]).toReal
-```
 ::::
 
 :::defTitle "mlkem_braid_security" "ML-KEM Braid security"
