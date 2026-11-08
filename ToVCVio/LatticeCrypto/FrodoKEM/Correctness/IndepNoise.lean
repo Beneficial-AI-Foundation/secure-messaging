@@ -77,18 +77,15 @@ def ciphertext {ps : ParameterSet}
       Encode ps.params (message.cast (messageBits_length ps))
   }
 
-/-- Integer half-width of the sufficient decoding interval. -/
-def threshold (ps : ParameterSet) : ℕ :=
-  ps.params.noiseRadius
-
 /-- An entry of the noise matrix, as an integer, lies outside the decoding interval
-`[-threshold, threshold)`. -/
+`[-noiseRadius, noiseRadius)`. -/
 def entryBad (ps : ParameterSet) (z : ℤ) : Prop :=
-  z < -(threshold ps : ℤ) ∨ (threshold ps : ℤ) ≤ z
+  z < -(ps.params.noiseRadius : ℤ) ∨ (ps.params.noiseRadius : ℤ) ≤ z
 
 /-- `entryBad` is decidable, so `badWeight` and the certificates can compute with it. -/
 instance (ps : ParameterSet) : DecidablePred (entryBad ps) :=
-  fun z => inferInstanceAs (Decidable (z < -(threshold ps : ℤ) ∨ (threshold ps : ℤ) ≤ z))
+  fun z => inferInstanceAs
+    (Decidable (z < -(ps.params.noiseRadius : ℤ) ∨ (ps.params.noiseRadius : ℤ) ≤ z))
 
 /-- Sample one entry of the noise matrix, as an integer: two sums of products of independent
 errors, and one more error. -/
@@ -150,14 +147,17 @@ private theorem centered_bound_of_not_entryBad (ps : ParameterSet) (z : ℤ)
     (hz : ¬ entryBad ps z) :
     -(ps.params.q : ℤ) ≤ 2 ^ (ps.params.B + 1) * centeredRepr (z : ZMod ps.params.q) ∧
       2 ^ (ps.params.B + 1) * centeredRepr (z : ZMod ps.params.q) < (ps.params.q : ℤ) := by
-  have hzlo : -(threshold ps : ℤ) ≤ z := by simp only [entryBad, not_or, not_lt] at hz; exact hz.1
-  have hzhi : z < (threshold ps : ℤ) := by simp only [entryBad, not_or, not_le] at hz; exact hz.2
-  have hsmall : 2 * threshold ps < ps.params.q := by cases ps <;> decide
+  have hzlo : -(ps.params.noiseRadius : ℤ) ≤ z := by
+    simp only [entryBad, not_or, not_lt] at hz; exact hz.1
+  have hzhi : z < (ps.params.noiseRadius : ℤ) := by
+    simp only [entryBad, not_or, not_le] at hz; exact hz.2
+  have hsmall : 2 * ps.params.noiseRadius < ps.params.q := by cases ps <;> decide
   have : NeZero ps.params.q := ⟨by rw [ps.params_wellFormed.q_eq]; positivity⟩
   have hcast := centeredRepr_intCast_eq_of_natAbs_le z
-    (show z.natAbs ≤ threshold ps by omega) hsmall
+    (show z.natAbs ≤ ps.params.noiseRadius by omega) hsmall
   rw [hcast]
-  have hscale : (2 : ℤ) ^ (ps.params.B + 1) * (threshold ps : ℤ) = (ps.params.q : ℤ) := by
+  have hscale :
+      (2 : ℤ) ^ (ps.params.B + 1) * (ps.params.noiseRadius : ℤ) = (ps.params.q : ℤ) := by
     cases ps <;> decide
   have hpos : (0 : ℤ) < 2 ^ (ps.params.B + 1) := by positivity
   constructor <;> nlinarith
@@ -238,7 +238,7 @@ theorem finiteLaw_residual_entry (ps : ParameterSet)
 
 /-- The union bound. The noise matrix, reduced mod `q`, fails `NoiseBound` with probability at most
 `64` times the probability that one entry, as an integer, lies outside
-`[-threshold, threshold)`. -/
+`[-noiseRadius, noiseRadius)`. -/
 -- ANCHOR: frodoKEM_union
 theorem noiseBadProb_le (ps : ParameterSet) :
     noiseBadProb ps ≤ 64 * entryFailureProb ps

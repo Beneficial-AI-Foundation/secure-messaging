@@ -52,7 +52,7 @@ def config (ps : ParameterSet) :
     weight := noiseCount ps
   }
 
-/-- `1` outside the decoding interval `[-threshold, threshold)` and `0` inside it. -/
+/-- `1` outside the decoding interval `[-noiseRadius, noiseRadius)` and `0` inside it. -/
 def badWeight (ps : ParameterSet) (z : ℤ) : ℕ :=
   if IndepNoise.entryBad ps z then 1 else 0
 
