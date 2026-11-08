@@ -79,10 +79,10 @@ noise matrix does not change the distribution. -/
 recall Certificate.probOutput_entryNoiseExp (ps : ParameterSet) (z : ℤ) :
     Pr{let x ← IndepNoise.entryNoiseExp ps}[x = z] =
       (((ToVCVio.productMeasure
-          (FailureCertificate.RoundedConvolution.counts (Certificate.config ps))
-          (FailureCertificate.RoundedConvolution.counts (Certificate.config ps))) ^
+          (ToVCVio.RoundedConvolution.counts (Certificate.config ps))
+          (ToVCVio.RoundedConvolution.counts (Certificate.config ps))) ^
           (2 * ps.params.n) *
-        FailureCertificate.RoundedConvolution.counts (Certificate.config ps)) z :
+        ToVCVio.RoundedConvolution.counts (Certificate.config ps)) z :
           ℝ≥0∞) /
         (2 ^ lenChi) ^ (4 * ps.params.n + 1)
 

@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.RoundedConvolution
+public import ToVCVio.Probability.RoundedConvolution
 public import ToVCVio.Probability.FiniteLaw
 
 /-!
@@ -24,9 +24,9 @@ distribution. `probOutput_entryNoiseIntExp_counts` proves this result.
 open OracleComp
 open scoped BigOperators ENNReal
 
-namespace ToVCVio.Probability.ScalarNoise
+namespace ToVCVio.ScalarNoise
 
-open FailureCertificate.RoundedConvolution ToVCVio
+open RoundedConvolution
 
 
 /-- One noise entry: two sums of `n` products of independent samples of `χ`, plus one more
@@ -512,4 +512,4 @@ theorem probOutput_entryNoiseIntExp_counts
         ← pow_add, mul_right_comm, ← pow_add, show 2 * n + 2 = 2 * (n + 1) by ring,
         show 4 * n + 1 + 4 = 4 * (n + 1) + 1 by ring]
 
-end ToVCVio.Probability.ScalarNoise
+end ToVCVio.ScalarNoise

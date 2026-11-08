@@ -20,7 +20,7 @@ namespace FrodoKEM.Certificate
 
 /-- The certificate values `(v₁, v₂)` for FrodoKEM-976, computed by the kernel. -/
 theorem certificate976 :
-    FailureCertificate.RoundedConvolution.certificateValues
+    ToVCVio.RoundedConvolution.certificateValues
       (config .FrodoKEM976) (badWeight .FrodoKEM976) =
         (97175197777440479084, 6213051) := by
   rw [certificateValues_eq_closed .FrodoKEM976 4096 4618 (by decide) (by decide) (by decide)]

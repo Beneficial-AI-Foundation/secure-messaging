@@ -7,13 +7,13 @@ Authors: Beneficial AI Foundation
 module
 
 public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.Parameters
-public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.ScalarNoise
+public import ToVCVio.Probability.ScalarNoise
 
 /-!
 # Exact noise counts for FrodoKEM
 
-This file applies the general result of `Certificate/ScalarNoise.lean` to the error sampler of
-FrodoKEM. The result is the exact distribution of one entry of the decryption noise.
+This file applies the general result of `ToVCVio/Probability/ScalarNoise.lean` to the error
+sampler of FrodoKEM. The result is the exact distribution of one entry of the decryption noise.
 -/
 
 @[expose] public section
@@ -24,22 +24,22 @@ open OracleComp
 open scoped BigOperators ENNReal
 
 private theorem counts_apply (ps : ParameterSet) (z : ℤ) :
-    FailureCertificate.RoundedConvolution.counts (config ps) z = noiseCount ps z := by
+    ToVCVio.RoundedConvolution.counts (config ps) z = noiseCount ps z := by
   classical
   by_cases hz : z ∈ Finset.Icc (-(ps.errorTable.d : ℤ)) (ps.errorTable.d : ℤ)
-  · rw [FailureCertificate.RoundedConvolution.counts_apply_of_mem (config ps) z hz]
+  · rw [ToVCVio.RoundedConvolution.counts_apply_of_mem (config ps) z hz]
     rfl
   · have hzero : noiseCount ps z = 0 := by
       have hn : ¬ z.natAbs ≤ ps.errorTable.d := by
         simp only [Finset.mem_Icc] at hz
         cases z <;> simp_all; omega
       simp [noiseCount, hn]
-    rw [hzero, FailureCertificate.RoundedConvolution.counts_apply_of_not_mem (config ps) z hz]
+    rw [hzero, ToVCVio.RoundedConvolution.counts_apply_of_not_mem (config ps) z hz]
 
 /-- The error-sampler counts add up to `2 ^ 16`, one for each 16-bit input. -/
 theorem counts_totalMass (ps : ParameterSet) :
     ToVCVio.totalMass
-      (FailureCertificate.RoundedConvolution.counts (config ps)) = 2 ^ lenChi := by
+      (ToVCVio.RoundedConvolution.counts (config ps)) = 2 ^ lenChi := by
   change ToVCVio.totalMassHom
       (∑ z ∈ Finset.Icc (-(ps.errorTable.d : ℤ)) (ps.errorTable.d : ℤ),
         AddMonoidAlgebra.single z (noiseCount ps z)) = 2 ^ lenChi
@@ -55,20 +55,20 @@ theorem counts_totalMass (ps : ParameterSet) :
 theorem probOutput_entryNoiseExp (ps : ParameterSet) (z : ℤ) :
     Pr{let x ← IndepNoise.entryNoiseExp ps}[x = z] =
       (((ToVCVio.productMeasure
-          (FailureCertificate.RoundedConvolution.counts (config ps))
-          (FailureCertificate.RoundedConvolution.counts (config ps))) ^
+          (ToVCVio.RoundedConvolution.counts (config ps))
+          (ToVCVio.RoundedConvolution.counts (config ps))) ^
           (2 * ps.params.n) *
-        FailureCertificate.RoundedConvolution.counts (config ps)) z :
+        ToVCVio.RoundedConvolution.counts (config ps)) z :
           ℝ≥0∞) /
         (2 ^ lenChi) ^ (4 * ps.params.n + 1)
 -- ANCHOR_END: frodoKEM_entry_law
     := by
   have hlaw (u : ℤ) :
       Pr{let x ← sampleError ps}[x = u] =
-        (FailureCertificate.RoundedConvolution.counts (config ps) u : ℝ≥0∞) /
+        (ToVCVio.RoundedConvolution.counts (config ps) u : ℝ≥0∞) /
           2 ^ lenChi := by
     rw [counts_apply, probOutput_sampleError]
-  exact ToVCVio.Probability.ScalarNoise.probOutput_entryNoiseIntExp_counts
+  exact ToVCVio.ScalarNoise.probOutput_entryNoiseIntExp_counts
     (config ps) (sampleError ps) hlaw (noiseCount_neg ps) ps.params.n z
 
 end FrodoKEM.Certificate

@@ -19,7 +19,7 @@ Thus the certificate for each size is one `decide +kernel` command with no preco
 
 @[expose] public section
 
-namespace FailureCertificate.RoundedConvolution
+namespace ToVCVio.RoundedConvolution
 
 /-- `productPack` with each `radix ^ k` written as a shift. -/
 def shiftedProductPack (c : Config) : ℕ :=
@@ -170,11 +170,11 @@ theorem certificateValues_eq_closedValues (c : Config) (w : ℤ → ℕ) (lo mid
   simp only [← pow_mul]
   simp only [← Nat.one_shiftLeft]
 
-end FailureCertificate.RoundedConvolution
+end ToVCVio.RoundedConvolution
 
 namespace FrodoKEM.Certificate
 
-open FailureCertificate.RoundedConvolution
+open ToVCVio.RoundedConvolution
 
 /-- For each parameter set, the bad-event weight splits at the decoding radius `t` around the
 extended-window centre `m`, so its certificate reduces to `closedValues`. -/

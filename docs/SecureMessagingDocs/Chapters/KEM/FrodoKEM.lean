@@ -395,10 +395,10 @@ theorem noiseBadProb_le (ps : ParameterSet) :
 theorem probOutput_entryNoiseExp (ps : ParameterSet) (z : ℤ) :
     Pr{let x ← IndepNoise.entryNoiseExp ps}[x = z] =
       (((ToVCVio.productMeasure
-          (FailureCertificate.RoundedConvolution.counts (config ps))
-          (FailureCertificate.RoundedConvolution.counts (config ps))) ^
+          (ToVCVio.RoundedConvolution.counts (config ps))
+          (ToVCVio.RoundedConvolution.counts (config ps))) ^
           (2 * ps.params.n) *
-        FailureCertificate.RoundedConvolution.counts (config ps)) z :
+        ToVCVio.RoundedConvolution.counts (config ps)) z :
           ℝ≥0∞) /
         (2 ^ lenChi) ^ (4 * ps.params.n + 1)
 ```

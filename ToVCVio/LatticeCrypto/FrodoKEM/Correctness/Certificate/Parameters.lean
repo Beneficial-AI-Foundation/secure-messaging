@@ -7,7 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.IndepNoise
-public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.RoundedConvolution
+public import ToVCVio.Probability.RoundedConvolution
 
 /-!
 # Certificate parameters for each FrodoKEM size
@@ -42,7 +42,7 @@ def window : ParameterSet → ℕ
 
 /-- The rounded-convolution settings for one size, weighted by the exact error-sampler counts. -/
 def config (ps : ParameterSet) :
-    FailureCertificate.RoundedConvolution.Config :=
+    ToVCVio.RoundedConvolution.Config :=
   {
     steps := 2 * ps.params.n
     a := ps.errorTable.d

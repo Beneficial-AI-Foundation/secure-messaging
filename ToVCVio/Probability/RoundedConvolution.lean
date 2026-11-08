@@ -23,7 +23,7 @@ so `probEvent_le_certificate` bounds a failure probability by two packed natural
 
 open OracleComp
 open scoped BigOperators ENNReal
-namespace FailureCertificate.RoundedConvolution
+namespace ToVCVio.RoundedConvolution
 /-- Parameters and source weights for a truncated, downward-rounded convolution certificate. -/
 structure Config where
   /-- Number of independent product terms in the accumulated sum. -/
@@ -885,5 +885,5 @@ theorem probEvent_le_certificate
       rw [hmissing]
       rw [pow_add, mul_comm (2 ^ c.precision) (2 ^ c.seedBits)]
 
-end FailureCertificate.RoundedConvolution
+end ToVCVio.RoundedConvolution
 

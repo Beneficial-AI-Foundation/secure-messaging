@@ -20,7 +20,7 @@ namespace FrodoKEM.Certificate
 
 /-- The certificate values `(v₁, v₂)` for FrodoKEM-640, computed by the kernel. -/
 theorem certificate640 :
-    FailureCertificate.RoundedConvolution.certificateValues
+    ToVCVio.RoundedConvolution.certificateValues
       (config .FrodoKEM640) (badWeight .FrodoKEM640) =
         (10891243206164296039, 4220411) := by
   rw [certificateValues_eq_closed .FrodoKEM640 4096 4620 (by decide) (by decide) (by decide)]

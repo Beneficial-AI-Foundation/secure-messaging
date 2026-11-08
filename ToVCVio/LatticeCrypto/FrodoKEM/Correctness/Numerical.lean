@@ -70,16 +70,16 @@ private def salted : ParameterSet → ParameterSet
   | .FrodoKEM1344 | .eFrodoKEM1344 => .FrodoKEM1344
 
 private theorem certificateValues_salted (ps : ParameterSet) :
-    FailureCertificate.RoundedConvolution.certificateValues (config ps) (badWeight ps) =
-      FailureCertificate.RoundedConvolution.certificateValues
+    ToVCVio.RoundedConvolution.certificateValues (config ps) (badWeight ps) =
+      ToVCVio.RoundedConvolution.certificateValues
         (config (salted ps)) (badWeight (salted ps)) := by
   cases ps <;> rfl
 
 private theorem matrixBound_eq (ps : ParameterSet) :
     64 *
-      (((FailureCertificate.RoundedConvolution.certificateValues
+      (((ToVCVio.RoundedConvolution.certificateValues
           (config ps) (badWeight ps)).1 : ℝ≥0∞) / 2 ^ (precision ps + lenChi) +
-        ((FailureCertificate.RoundedConvolution.certificateValues
+        ((ToVCVio.RoundedConvolution.certificateValues
           (config ps) (badWeight ps)).2 : ℝ≥0∞) / 2 ^ precision ps) =
       failureBound ps := by
   rw [certificateValues_salted]
@@ -97,22 +97,22 @@ theorem noiseBadProb_le_failureBound (ps : ParameterSet) :
   have hlaw (z : ℤ) :
       Pr{let x ← IndepNoise.entryNoiseExp ps}[x = z] =
         (((ToVCVio.productMeasure
-            (FailureCertificate.RoundedConvolution.counts (config ps))
-            (FailureCertificate.RoundedConvolution.counts (config ps))) ^
+            (ToVCVio.RoundedConvolution.counts (config ps))
+            (ToVCVio.RoundedConvolution.counts (config ps))) ^
             (config ps).steps *
-          FailureCertificate.RoundedConvolution.counts (config ps)) z : ℝ≥0∞) /
+          ToVCVio.RoundedConvolution.counts (config ps)) z : ℝ≥0∞) /
           (2 ^ (config ps).seedBits) ^ (2 * (config ps).steps + 1) := by
     simpa only [config, ← Nat.mul_assoc] using probOutput_entryNoiseExp ps z
-  have hentry := FailureCertificate.RoundedConvolution.probEvent_le_certificate
+  have hentry := ToVCVio.RoundedConvolution.probEvent_le_certificate
     (config ps) (IndepNoise.entryNoiseExp ps) (IndepNoise.entryBad ps)
     hbits (counts_totalMass ps) hlaw
   calc
     IndepNoise.noiseBadProb ps ≤ 64 * IndepNoise.entryFailureProb ps :=
         IndepNoise.noiseBadProb_le ps
     _ ≤ 64 *
-        (((FailureCertificate.RoundedConvolution.certificateValues
+        (((ToVCVio.RoundedConvolution.certificateValues
             (config ps) (badWeight ps)).1 : ℝ≥0∞) / 2 ^ (precision ps + lenChi) +
-          ((FailureCertificate.RoundedConvolution.certificateValues
+          ((ToVCVio.RoundedConvolution.certificateValues
             (config ps) (badWeight ps)).2 : ℝ≥0∞) / 2 ^ precision ps) :=
       mul_le_mul' le_rfl hentry
     _ = failureBound ps := matrixBound_eq ps
