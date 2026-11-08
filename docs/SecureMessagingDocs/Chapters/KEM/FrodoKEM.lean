@@ -284,6 +284,14 @@ all tables is at most $`\delta`:
 
 $$`\frac{1}{|\mathcal{H}|} \sum_{H \in \mathcal{H}} \mathrm{fail}(H) \;\le\; \delta.`
 
+Two results check that a finite table is a faithful model of SHAKE here:
+
+- `FiniteXOF.answer_prefix_consistent`: if we ask the table for more bits, the shorter answer is
+  a prefix of the longer one, as with SHAKE.
+- `ROM.honestFailureProb_congr_of_bounded_agreement`: if two SHAKE functions agree on the input
+  lengths the KEM uses, up to `outputBits` bits, then the failure probabilities are equal. So
+  SHAKE outputs outside the table do not change the failure probability.
+
 The theorem does not bound $`\mathrm{fail}(H)` for one table. In Lean, `ROM.honestFailureProb` is
 this average. It samples $`H` uniformly, and then runs key generation and encapsulation.
 
