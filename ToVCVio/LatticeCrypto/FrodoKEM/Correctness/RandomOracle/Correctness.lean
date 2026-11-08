@@ -175,6 +175,9 @@ private def fiveQueryProgram {D R α : Type}
   let u₄ ← liftM ((D →ₒ R).query (q₄ u₀ u₁ u₂ u₃))
   return out u₀ u₁ u₂ u₃ u₄
 
+-- This is the non-dependent case of the private lemma `OracleComp.randomOracle_query_bind_run'`
+-- in VCVio's `OracleComp/QueryTracking/RandomOracle/FreshQuery.lean`, with the same proof.
+-- Replace it with the upstream lemma once VCVio makes that lemma public.
 private theorem randomOracle_query_bind_run'
     {D R α : Type} [DecidableEq D] [SampleableType R]
     (t : D) (k : R → OracleComp (D →ₒ R) α)
