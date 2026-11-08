@@ -538,6 +538,18 @@ def smDocsCss : String := r#"
   white-space: nowrap;
   pointer-events: none;
 }
+/* The same feedback for screen readers, which do not read the tooltip. */
+.bp-share-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
 .bp-heading-title-marker {
   display: none;
 }
@@ -1004,16 +1016,27 @@ def smDocsJs : String := r#"
       if (copied) { resolve(); } else { reject(); }
     });
   }
+  // A status region announces the copy feedback; screen readers do not read the tooltip.
+  var shareStatus = null;
   function flashShareLink(link, text) {
     link.setAttribute("data-feedback", text);
     link.classList.add("is-flashing");
+    shareStatus.textContent = text;
     window.clearTimeout(link.bpFlashTimer);
     link.bpFlashTimer = window.setTimeout(function () {
       link.classList.remove("is-flashing");
       link.removeAttribute("data-feedback");
+      shareStatus.textContent = "";
     }, 1600);
   }
   function installShareLinks() {
+    // Created with the links: a region added at the moment of its update is often not announced.
+    if (!shareStatus) {
+      shareStatus = document.createElement("div");
+      shareStatus.className = "bp-share-status";
+      shareStatus.setAttribute("role", "status");
+      document.body.appendChild(shareStatus);
+    }
     document.querySelectorAll('.bp_wrapper[id$="--statement"]').forEach(function (wrapper) {
       var row = wrapper.querySelector(":scope > .bp_heading .bp_heading_title_row_statement");
       if (!row || row.querySelector(".bp-share-link")) return;
