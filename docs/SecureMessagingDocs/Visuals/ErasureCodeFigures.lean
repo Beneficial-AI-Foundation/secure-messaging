@@ -46,7 +46,7 @@ def erasureCodeSchemeFigure : DirectiveExpanderOf Unit
     ``(Block.other
       (Block.diagram $(quote erasureCodeSchemeFigureSvg) "100%" "\\textwidth" false) #[])
 
-/-- SVG of `ec-streaming.tex` (SHA-256 prefix `ef0c1116087c2210`). -/
+/-- SVG of `ec-streaming.tex` (SHA-256 prefix `57756fb3170b1266`). -/
 private def erasureCodeStreamingFigureSvg : String := include_str "figures/ec-streaming.svg"
 
 /-- Embed `ec-streaming.tex` with Verso's SVG renderer. -/
