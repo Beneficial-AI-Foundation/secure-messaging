@@ -1,0 +1,34 @@
+% directive: erasureCodeSchemeFigure
+% aria-label: Erasure code: the sender encodes a message M in Sigma^k into the chunks (j, Encode(M, j)) for j = 0 to N-1; some chunks are lost; the receiver decodes the set L of received chunks, which holds at least k chunks with distinct indices, and recovers M.
+\documentclass[tikz,border=6pt]{standalone}
+\input{preamble}
+\begin{document}
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[panel, minimum width=2.6cm, minimum height=1.55cm] at (-5.45,1.10) (senderbox) {};
+  \node[font=\small\sffamily\bfseries, text=signalgreen] at (-5.45,1.55) {Sender};
+  \node[keypill, font=\normalsize] at (-5.45,0.72) (msgin) {$\mathsf M\in\Sigma^k$};
+  \node[algbox, minimum width=2.20cm, minimum height=0.95cm] at (-5.45,-1.25) (enc) {$\Encode$};
+  \draw[flow] (msgin.south) -- (enc.north);
+  \node[algbox, minimum width=2.10cm, minimum height=0.95cm] at (5.45,-1.25) (dec) {$\Decode(\mathsf L)$};
+  \draw[flow] (enc.east) -- (dec.west);
+  \node[chunk] at (-3.75,-1.25) {};
+  \node[chunklost] at (-2.80,-1.25) {$\times$};
+  \node[chunk] at (-1.85,-1.25) {};
+  \node[font=\normalsize] at (-0.90,-1.05) {$\cdots$};
+  \node[chunk] at (0.05,-1.25) {};
+  \node[chunklost] at (1.00,-1.25) {$\times$};
+  \node[chunk] at (1.95,-1.25) {};
+  \node[font=\normalsize] at (2.85,-1.05) {$\cdots$};
+  \node[chunk] at (3.65,-1.25) {};
+  \draw[decorate, decoration={brace, amplitude=5pt}] (-4.08,-0.78) -- (4.02,-0.78);
+  \node[anchor=south, font=\normalsize\sffamily] at (-0.03,-0.52)
+    {sent chunks $(j,\Encode(\mathsf M,j))$ for $j=0,\ldots,N-1$};
+  \draw[decorate, decoration={brace, mirror, amplitude=5pt}] (-4.08,-1.72) -- (4.02,-1.72);
+  \node[anchor=north, font=\normalsize\sffamily] at (-0.03,-1.98)
+    {$\mathsf L$: received chunks, at least $k$ with distinct indices};
+  \node[panel, minimum width=2.6cm, minimum height=1.55cm] at (5.45,1.10) (receiverbox) {};
+  \node[font=\small\sffamily\bfseries, text=signalgreen] at (5.45,1.55) {Receiver};
+  \node[goodpill, font=\normalsize] at (5.45,0.72) (msgout) {$\mathsf M$};
+  \draw[flow] (dec.north) -- (msgout.south);
+\end{tikzpicture}
+\end{document}

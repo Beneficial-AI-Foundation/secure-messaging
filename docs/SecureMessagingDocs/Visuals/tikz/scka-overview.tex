@@ -1,0 +1,46 @@
+% directive: sckaOverviewFigure
+% aria-label: One epoch of an SCKA built from a KEM and an erasure code: KEM key generation gives party A the pair (pk, sk); A sends pk to B as erasure-coded chunks, some of which the adversary drops; B runs Encaps(pk) to obtain (c, k_B) and returns c the same way; A runs Decaps(sk, c) to obtain k_A. Correctness requires k_A = k_B with probability at least 1 - epsilon for every adversary scheduling the deliveries.
+\documentclass[tikz,border=6pt]{standalone}
+\input{preamble}
+\begin{document}
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[rolepill, minimum height=0.72cm] at (-6.45,3.38) (pa) {Party A};
+  \node[rolepill, minimum height=0.72cm] at ( 6.45,3.38) (pb) {Party B};
+  \draw[timeline] (pa.south) -- (-6.45,-3.48);
+  \draw[timeline] (pb.south) -- ( 6.45,-3.48);
+  \node[ecbox, minimum width=3.25cm, minimum height=0.90cm, font=\normalsize\sffamily\scshape]
+        at (0,2.18) (kem) {Key Encapsulation Mechanism};
+  \node[ecbox, fit=(kem), inner sep=0pt, minimum height=4.55cm, yshift=-3.26cm] (ec) {};
+  \node[anchor=north, font=\normalsize\sffamily\scshape] at ([yshift=-0.10cm] ec.north) {Erasure Code};
+  \coordinate (akeys) at (-6.45,2.18);
+  \draw[flow] (kem.west) -- node[midway, keypill, font=\normalsize]
+        {$(pk,sk)$} (akeys);
+  \coordinate (apk) at (-6.45,-0.05);
+  \coordinate (bpk) at (6.45,-0.05);
+  \draw[flow] (apk) -- (bpk);
+  \node[keypill, font=\normalsize] at (-5.15,-0.05) {$pk$};
+  \node[chunk] at (-2.35,-0.05) {$4$};
+  \node[chunklost] at (-0.78,-0.05) {$\times$};
+  \node[chunk] at (0.78,-0.05) {$2$};
+  \node[chunklost] at (2.35,-0.05) {$\times$};
+  \node[keypill, font=\normalsize] at (5.15,-0.05) {$pk$};
+  \node[advpill] at (0,-1.23) {$\mathcal{A}$};
+  \node[keypill, minimum height=0.72cm, inner sep=4pt, font=\small\sffamily] at (6.45,-1.28)
+        {$(c,k_{\mathsf B})\gets\mathsf{Encaps}(pk)$};
+  \coordinate (act) at (-6.45,-2.42);
+  \coordinate (bct) at (6.45,-2.42);
+  \draw[flow] (bct) -- (act);
+  \node[keypill, font=\normalsize] at (5.15,-2.42) {$c$};
+  \node[chunk] at (-2.35,-2.42) {$1$};
+  \node[chunklost] at (-0.78,-2.42) {$\times$};
+  \node[chunklost] at (0.78,-2.42) {$\times$};
+  \node[chunk] at (2.35,-2.42) {$4$};
+  \node[keypill, font=\normalsize] at (-5.15,-2.42) {$c$};
+  \node[keypill, minimum height=0.72cm, inner sep=4pt, font=\small\sffamily] at (-6.45,-3.47)
+        {$k_{\mathsf A}\gets\mathsf{Decaps}(sk,c)$};
+  \node[anchor=north, font=\normalsize\sffamily] at (0,-4.05)
+        {\textbf{Correctness:}\quad
+         $\Pr\!\left[\textcolor{signalolive}{\,k_{\mathsf A}=k_{\mathsf B}\,}\right]\ge 1-\epsilon$
+         \ for every adversary \textcolor{adversaryred}{$\mathcal{A}$} scheduling the deliveries};
+\end{tikzpicture}
+\end{document}

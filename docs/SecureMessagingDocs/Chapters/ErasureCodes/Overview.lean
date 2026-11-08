@@ -3,9 +3,12 @@ import VersoBlueprint
 import VersoBlueprint.Commands.Graph
 import VersoBlueprint.Commands.Summary
 import SecureMessagingDocs.Bibliography
+import SecureMessagingDocs.Visuals.GameBoxes
+import SecureMessagingDocs.Visuals.ErasureCodeFigures
 import SecureMessagingDocs.Chapters.ErasureCodes.Defs
 import SecureMessagingDocs.Chapters.ErasureCodes.ReedSolomon
 import SecureMessagingDocs.Chapters.ErasureCodes.SPQRReedSolomon
+import SecureMessagingDocs.Chapters.ErasureCodes.Payloads
 
 /-! # Blueprint chapter: Erasure Codes -/
 
@@ -26,11 +29,20 @@ set_option linter.hashCommand false
 - {Informal.citet SPQR_ENC}[]
 - {Informal.citet MLKEM_Braid}[]
 
+::::::gameGrid
+:::::gameCell "\\textsf{Illustration: erasure codes and their instances}" (kind := "scheme")
+:::erasureCodeInstancesFigure
+:::
+:::::
+::::::
+
 {include 1 SecureMessagingDocs.Chapters.ErasureCodes.Defs}
 
 {include 1 SecureMessagingDocs.Chapters.ErasureCodes.ReedSolomon}
 
 {include 1 SecureMessagingDocs.Chapters.ErasureCodes.SPQRReedSolomon}
+
+{include 1 SecureMessagingDocs.Chapters.ErasureCodes.Payloads}
 
 {blueprint_graph}
 
