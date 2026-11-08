@@ -284,10 +284,6 @@ $`\mathrm{fail}(H)` over all tables is at most $`\delta`:
 
 $$`\frac{1}{|\mathcal{H}|} \sum_{H \in \mathcal{H}} \mathrm{fail}(H) \;\le\; \delta.`
 
-Lean also checks that the finite table is a correct model of SHAKE here. Like SHAKE, the table gives
-one fixed stream of bits for each input. Also, SHAKE outputs for other inputs, or after `outputBits`
-bits, do not change the failure probability.
-
 The theorem does not bound $`\mathrm{fail}(H)` for one table. In Lean, `ROM.honestFailureProb` is
 this average. It samples $`H` uniformly, and then runs key generation and encapsulation.
 
