@@ -62,19 +62,6 @@ private theorem blockBound_eq (a b P : ℕ) :
   congr 1
   norm_num [Nat.cast_mul, Nat.cast_add, mul_comm]
 
-/-- The salted parameter set of the same size. Each eFrodoKEM set has the same certificate
-parameters as its salted twin, so one certificate covers both. -/
-private def salted : ParameterSet → ParameterSet
-  | .FrodoKEM640 | .eFrodoKEM640 => .FrodoKEM640
-  | .FrodoKEM976 | .eFrodoKEM976 => .FrodoKEM976
-  | .FrodoKEM1344 | .eFrodoKEM1344 => .FrodoKEM1344
-
-private theorem certificateValues_salted (ps : ParameterSet) :
-    ToVCVio.RoundedConvolution.certificateValues (config ps) (badWeight ps) =
-      ToVCVio.RoundedConvolution.certificateValues
-        (config (salted ps)) (badWeight (salted ps)) := by
-  cases ps <;> rfl
-
 private theorem matrixBound_eq (ps : ParameterSet) :
     64 *
       (((ToVCVio.RoundedConvolution.certificateValues
@@ -82,9 +69,15 @@ private theorem matrixBound_eq (ps : ParameterSet) :
         ((ToVCVio.RoundedConvolution.certificateValues
           (config ps) (badWeight ps)).2 : ℝ≥0∞) / 2 ^ precision ps) =
       failureBound ps := by
-  rw [certificateValues_salted]
-  cases ps <;> dsimp only [salted] <;>
-    first | rw [certificate640] | rw [certificate976] | rw [certificate1344]
+  open ToVCVio.RoundedConvolution in
+  cases ps <;> first
+    | rw [certificate640] | rw [certificate976] | rw [certificate1344]
+    | rw [show certificateValues (config .eFrodoKEM640) (badWeight .eFrodoKEM640) = _ from
+        certificate640]
+    | rw [show certificateValues (config .eFrodoKEM976) (badWeight .eFrodoKEM976) = _ from
+        certificate976]
+    | rw [show certificateValues (config .eFrodoKEM1344) (badWeight .eFrodoKEM1344) = _ from
+        certificate1344]
   all_goals exact blockBound_eq _ _ _
 
 /-- With independent noise, large decryption noise has probability at most `failureBound`. -/
