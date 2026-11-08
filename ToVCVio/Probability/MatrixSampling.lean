@@ -86,26 +86,7 @@ private theorem finiteLaw_sampleIID_map
         ((fun xs : Fin n → α => fun k => f (xs k)) <$>
           ProbComp.sampleIID n χ) =
       finiteLaw (ProbComp.sampleIID n (f <$> χ)) := by
-  induction n with
-  | zero =>
-      simp only [ProbComp.sampleIID, Fin.mOfFn, map_pure]
-      congr 2
-      funext k
-      exact k.elim0
-  | succ n ih =>
-      simp only [ProbComp.sampleIID, Fin.mOfFn, map_eq_bind_pure_comp,
-        Function.comp_apply, bind_assoc, pure_bind]
-      refine finiteLaw_bind_congr χ fun a => ?_
-      have htail := finiteLaw_map_congr ih
-        (fun rest : Fin n → β => @Fin.cons n (fun _ => β) (f a) rest)
-      convert htail using 1
-      · simp only [ProbComp.sampleIID, map_eq_bind_pure_comp, bind_assoc, pure_bind,
-          Function.comp_apply]
-        refine finiteLaw_bind_congr (Fin.mOfFn n fun _ => χ) fun rest => ?_
-        congr 2
-        funext k
-        exact Fin.cases (by simp) (fun l => by simp) k
-      · simp only [ProbComp.sampleIID, map_eq_bind_pure_comp, Function.comp_def]
+  simp only [ProbComp.sampleIID, Fin.mOfFn_map]
 
 private theorem finiteLaw_sampleIID_congr
     {α : Type} (n : ℕ) (χ ψ : ProbComp α)
