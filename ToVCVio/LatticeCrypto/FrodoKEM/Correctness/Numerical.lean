@@ -62,6 +62,19 @@ private theorem blockBound_eq (a b P : ℕ) :
   congr 1
   norm_num [Nat.cast_mul, Nat.cast_add, mul_comm]
 
+/-- The salted parameter set of the same size. Each eFrodoKEM set has the same certificate
+parameters as its salted twin, so one certificate covers both. -/
+private def salted : ParameterSet → ParameterSet
+  | .FrodoKEM640 | .eFrodoKEM640 => .FrodoKEM640
+  | .FrodoKEM976 | .eFrodoKEM976 => .FrodoKEM976
+  | .FrodoKEM1344 | .eFrodoKEM1344 => .FrodoKEM1344
+
+private theorem certificateValues_salted (ps : ParameterSet) :
+    FailureCertificate.RoundedConvolution.certificateValues (config ps) (badWeight ps) =
+      FailureCertificate.RoundedConvolution.certificateValues
+        (config (salted ps)) (badWeight (salted ps)) := by
+  cases ps <;> rfl
+
 private theorem matrixBound_eq (ps : ParameterSet) :
     64 *
       (((FailureCertificate.RoundedConvolution.certificateValues
@@ -69,22 +82,10 @@ private theorem matrixBound_eq (ps : ParameterSet) :
         ((FailureCertificate.RoundedConvolution.certificateValues
           (config ps) (badWeight ps)).2 : ℝ≥0∞) / 2 ^ precision ps) =
       failureBound ps := by
-  have he640 : FailureCertificate.RoundedConvolution.certificateValues
-      (config .eFrodoKEM640) (badWeight .eFrodoKEM640) =
-        (10891243206164296039, 4220411) := certificate640
-  have he976 : FailureCertificate.RoundedConvolution.certificateValues
-      (config .eFrodoKEM976) (badWeight .eFrodoKEM976) =
-        (97175197777440479084, 6213051) := certificate976
-  have he1344 : FailureCertificate.RoundedConvolution.certificateValues
-      (config .eFrodoKEM1344) (badWeight .eFrodoKEM1344) =
-        (198663617378549905966698, 4264645) := certificate1344
-  cases ps <;>
+  rw [certificateValues_salted]
+  cases ps <;> dsimp only [salted] <;>
     first | rw [certificate640] | rw [certificate976] | rw [certificate1344]
-          | rw [he640] | rw [he976] | rw [he1344]
-  all_goals first
-    | exact blockBound_eq 10891243206164296039 4220411 192
-    | exact blockBound_eq 97175197777440479084 6213051 256
-    | exact blockBound_eq 198663617378549905966698 4264645 320
+  all_goals exact blockBound_eq _ _ _
 
 /-- With independent noise, large decryption noise has probability at most `failureBound`. -/
 -- ANCHOR: frodoKEM_certificate
