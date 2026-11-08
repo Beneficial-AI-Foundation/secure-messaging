@@ -33,10 +33,10 @@ set-based decoder.
 :::defTitle "erasure_code_payload" "Erasure-code payload"
 :::
 
-:::::::definition "erasure_code_payload" (parent := "erasure_code_payloads") (lean := "ErasureCodePayload, ErasureCodePayload.counterIndex, ErasureCodePayload.encode, ErasureCodePayload.decode") (tags := "gh-251") (uses := "erasure_code_scheme")
-An *erasure-code payload* for a payload space $`Y` is an
+:::::::definition "erasure_code_payload" (parent := "erasure_code_payloads") (lean := "ErasureCodePayload, ErasureCodePayload.counterIndex, ErasureCodePayload.encode, ErasureCodePayload.boundedChunks, ErasureCodePayload.decode") (tags := "gh-251") (uses := "erasure_code_scheme")
+An *erasure-code payload* for a payload space $`Y` consists of an
 {bpref "erasure_code_scheme"}[erasure code] $`(\Encode,\Decode)` over $`\Sigma`, with block
-length $`N` and message length $`k`, for which there exist maps
+length $`N` and message length $`k`, and two maps
 
 - $`\mathsf{Serialize}:Y\to\Sigma^k`, mapping each payload to a message of $`k` symbols, and
 - $`\mathsf{Parse}:\Sigma^k\to Y\cup\{\bot\}`, mapping each message to a payload or to $`\bot`,
