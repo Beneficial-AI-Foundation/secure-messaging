@@ -50,8 +50,8 @@ theorem kdf_signed_gap_eq (P : Parameters ProbComp)
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (A : Adversary P irl) (n : ℕ) :
     (Pr{let x ← kdfExp P.kdfOK (n + 1) (kdfReduction P hMac irl A (n + 1)) true}[x = true]).toReal -
-      (Pr{let x ← kdfExp P.kdfOK (n + 1)
-        (kdfReduction P hMac irl A (n + 1)) false}[x = true]).toReal =
+      (Pr{let x ← (kdfExp P.kdfOK (n + 1)
+        (kdfReduction P hMac irl A (n + 1)) false)}[x = true]).toReal =
     (Pr{let x ← rawHybrid P hMac irl A (n + 1)}[x = true]).toReal -
       (Pr{let x ← hybrid P hMac irl A (n + 1)}[x = true]).toReal := by
   have hJH : ∀ t, t ≠ n + 1 →
