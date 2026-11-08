@@ -40,10 +40,10 @@ An *erasure code* over a symbol set $`\Sigma`, with block length $`N` and messag
 $`k`, where $`0<k\le N`, consists of two deterministic algorithms over the indices
 $`[N]=\{0,\ldots,N-1\}`:
 
-- $`\Encode(M,i)\to c`: encodes a message $`M\in\Sigma^k` as a chunk $`c\in\Sigma` at an index
-  $`i\in[N]`;
-- $`\Decode(L)\to M`: decodes a finite chunk set $`L\subseteq[N]\times\Sigma` to a message
-  $`M\in\Sigma^k`, or to $`\bot` on failure.
+- $`\Encode(M,i)\to c`: maps a message $`M\in\Sigma^k` and an index $`i\in[N]` to a symbol
+  $`c\in\Sigma`;
+- $`\Decode(L)\to M`: maps a finite chunk set $`L\subseteq[N]\times\Sigma` to a message
+  $`M\in\Sigma^k` or to $`\bot`.
 
 :::leanPillCaption "ErasureCode"
 :::
@@ -60,9 +60,9 @@ structure ErasureCode (Sym : Type) where
   nchunk_pos : 0 < nchunk
   /-- The message fits within the codeword. -/
   nchunk_le_N : nchunk ≤ N
-  /-- `Encode(M, i)`: encodes message `M` as a chunk at index `i`. -/
+  /-- `Encode(M, i)`: maps message `M` and index `i` to a symbol. -/
   encode : (Fin nchunk → Sym) → Fin N → Sym
-  /-- `Decode(L)`: decodes a chunk set to a message, or fails (`none`). -/
+  /-- `Decode(L)`: maps a chunk set to a message, or fails (`none`). -/
   decode : Finset (Fin N × Sym) → Option (Fin nchunk → Sym)
 ```
 

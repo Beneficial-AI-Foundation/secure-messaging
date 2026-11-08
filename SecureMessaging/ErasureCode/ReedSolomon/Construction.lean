@@ -88,10 +88,9 @@ recovers the message.
 An erasure code over a set of symbols `Σ`, with block length `N > 0` and message size
 `nchunk ≤ N`, consists of two algorithms:
 
-* `Encode(M, j) → c` — encodes a message `M ∈ Σ^nchunk` as a symbol `c ∈ Σ` at a position
-  `j ∈ {0, …, N-1}`;
-* `Decode(L) → M` — decodes a chunk set `L ⊆ {0, …, N-1} × Σ` to a message `M`, or to `⊥`
-  on failure.
+* `Encode(M, j) → c` — maps a message `M ∈ Σ^nchunk` and a position `j ∈ {0, …, N-1}`
+  to a symbol `c ∈ Σ`;
+* `Decode(L) → M` — maps a chunk set `L ⊆ {0, …, N-1} × Σ` to a message `M`, or to `⊥`.
 
 A *chunk* of `M` is a pair `(j, Encode(M, j))`. Correctness: any `nchunk` chunks of
 `M` at distinct positions decode to `M`; fewer decode to `⊥`.

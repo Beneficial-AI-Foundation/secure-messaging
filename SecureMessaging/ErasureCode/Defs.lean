@@ -20,9 +20,9 @@ Syntax and correctness of erasure codes following Definition A.6 from:
 
 An *erasure code* over a set of symbols `Σ`, with block length `N` and message size
 `0 < nchunk ≤ N`, consists of two algorithms:
-- `Encode(M, i) → c`: encodes message `M ∈ Σ^nchunk` at a bounded chunk index
-  `i : Fin N` to a symbol `c ∈ Σ`;
-- `Decode(L) → M`: decodes a chunk set `L ⊆ Fin N × Σ` to a message `M ∈ Σ^nchunk`,
+- `Encode(M, i) → c`: maps a message `M ∈ Σ^nchunk` and an index `i : Fin N`
+  to a symbol `c ∈ Σ`;
+- `Decode(L) → M`: maps a chunk set `L ⊆ Fin N × Σ` to a message `M ∈ Σ^nchunk`,
   or fails with `⊥`.
 
 This model restricts `Encode` and `Decode` to deterministic functions, covering
@@ -47,8 +47,8 @@ Writing `L_I = {(i, Encode(M, i)) | i ∈ I}` for the chunks of `M` at indices
 - `nchunk`: the number of source symbols and the number of distinct encoded
   chunks required to recover the message;
 - `nchunk > 0`: at least one distinct encoded chunk is required for recovery;
-- `encode M i`: encodes message `M` as a chunk at index `i`;
-- `decode L`: decodes a chunk set `L` to a message, or fails (`none`).
+- `encode M i`: maps message `M` and index `i` to a symbol;
+- `decode L`: maps a chunk set `L` to a message, or fails (`none`).
 -/
 -- ANCHOR: ErasureCode
 structure ErasureCode (Sym : Type) where
@@ -62,9 +62,9 @@ structure ErasureCode (Sym : Type) where
   nchunk_pos : 0 < nchunk
   /-- The message fits within the codeword. -/
   nchunk_le_N : nchunk ≤ N
-  /-- `Encode(M, i)`: encodes message `M` as a chunk at index `i`. -/
+  /-- `Encode(M, i)`: maps message `M` and index `i` to a symbol. -/
   encode : (Fin nchunk → Sym) → Fin N → Sym
-  /-- `Decode(L)`: decodes a chunk set to a message, or fails (`none`). -/
+  /-- `Decode(L)`: maps a chunk set to a message, or fails (`none`). -/
   decode : Finset (Fin N × Sym) → Option (Fin nchunk → Sym)
 -- ANCHOR_END: ErasureCode
 
