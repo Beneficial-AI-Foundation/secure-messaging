@@ -12,6 +12,7 @@ public import Mathlib.Data.Finset.Attr
 public import Mathlib.LinearAlgebra.Matrix.Defs
 public import Mathlib.Tactic.Bound.Init
 public import Mathlib.Tactic.SetLike
+public import ToVCVio.Data.Vector.Split
 
 /-!
 # Matrices as bit strings
@@ -41,7 +42,6 @@ here:
 
 * `bitIndex_lt`: bit `t` of entry `(i, j)` lands in range;
 * `getElem_matrixToBitsWith`: where the bits of an entry sit.
-* `splitBits_append`: splitting a concatenation recovers its parts.
 * `reverseOctetIndex_lt`: reversing an index within a complete octet stays in range.
 -/
 
@@ -92,32 +92,11 @@ abbrev Bits (n : ℕ) := Vector Bool n
 
 /-- Split a bit string of length a + b into its first a bits and remaining b bits. -/
 def splitBits {a b : ℕ} (v : Bits (a + b)) : Bits a × Bits b :=
-  (Vector.ofFn fun i : Fin a => v[Fin.castAdd b i],
-   Vector.ofFn fun i : Fin b => v[Fin.natAdd a i])
-
-/-- `splitBits` inverts concatenation. -/
-theorem splitBits_append {a b : ℕ} (x : Bits a) (y : Bits b) :
-    splitBits (x ++ y) = (x, y) := by
-  apply Prod.ext <;> apply Vector.ext <;> intro i hi <;> simp [splitBits]
+  Vector.splitAt v
 
 /-- `splitBits` as an equivalence, with concatenation as its inverse. -/
-def splitBitsEquiv (a b : ℕ) :
-    Bits (a + b) ≃ Bits a × Bits b where
-  toFun := splitBits
-  invFun := fun p => p.1 ++ p.2
-  left_inv := by
-    intro v
-    apply Vector.ext
-    intro i hi
-    simp only [splitBits, Vector.getElem_append hi]
-    split
-    · simp_all
-    · simp only [Vector.getElem_ofFn]
-      have hfin : Fin.natAdd a ⟨i - a, by omega⟩ = ⟨i, hi⟩ := by
-        apply Fin.ext
-        simp [Nat.add_sub_of_le (Nat.le_of_not_gt ‹¬i < a›)]
-      exact congrArg (fun j : Fin (a + b) => v[j]) hfin
-  right_inv := fun p => splitBits_append p.1 p.2
+def splitBitsEquiv (a b : ℕ) : Bits (a + b) ≃ Bits a × Bits b :=
+  Vector.splitAtEquiv a b
 
 /-- Reversing the position of a bit inside its octet keeps its index
 within a bit string whose length is a multiple of 8. -/

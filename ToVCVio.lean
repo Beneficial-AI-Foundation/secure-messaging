@@ -2,6 +2,7 @@ module
 
 public import ToVCVio.Control.SimpAttr
 public import ToVCVio.Control.StateT
+public import ToVCVio.Data.Vector.Split
 public import ToVCVio.CryptoFoundations.AdjoinRootReflect
 public import ToVCVio.CryptoFoundations.KeyEncapMech
 public import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage

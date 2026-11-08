@@ -8,6 +8,7 @@ module
 
 public import ToVCVio.Probability.MatrixSampling
 public import VCVio.OracleComp.Constructions.SampleableType.Measure
+public import ToVCVio.Data.Vector.Split
 
 /-!
 # Finite tables for extendable-output functions
@@ -84,51 +85,12 @@ theorem answer_prefix_consistent {lengths : Finset ℕ} {O : ℕ}
       simp
   · simp [answer, hx, hmn]
 
-private def splitVector (a b : ℕ) (v : Vector Bool (a + b)) :
-    Vector Bool a × Vector Bool b :=
-  (Vector.ofFn fun i : Fin a => v[i.val]'(by omega),
-   Vector.ofFn fun i : Fin b => v[a + i.val]'(by omega))
-
-private def joinVector {a b : ℕ} (v : Vector Bool a × Vector Bool b) :
-    Vector Bool (a + b) :=
-  v.1 ++ v.2
-
-private theorem joinVector_splitVector (a b : ℕ) (v : Vector Bool (a + b)) :
-    joinVector (splitVector a b v) = v := by
-  apply Vector.ext
-  intro i hi
-  simp only [joinVector, Vector.getElem_append hi]
-  split
-  · simp_all [splitVector]
-  · simp only [splitVector, Vector.getElem_ofFn]
-    congr 1
-    omega
-
-private theorem splitVector_joinVector {a b : ℕ}
-    (v : Vector Bool a × Vector Bool b) :
-    splitVector a b (joinVector v) = v := by
-  rcases v with ⟨x, y⟩
-  apply Prod.ext
-  · apply Vector.ext
-    intro i hi
-    simp [splitVector, joinVector]
-  · apply Vector.ext
-    intro i hi
-    simp [splitVector, joinVector]
-
-private def splitEquiv (a b : ℕ) :
-    Vector Bool (a + b) ≃ Vector Bool a × Vector Bool b where
-  toFun := splitVector a b
-  invFun := joinVector
-  left_inv := joinVector_splitVector a b
-  right_inv := splitVector_joinVector
-
-private theorem splitEquiv_fst_eq_prefix (a b : ℕ) (v : Vector Bool (a + b)) :
-    (splitEquiv a b v).1 = «prefix» v a := by
+private theorem splitAt_fst_eq_prefix (a b : ℕ) (v : Vector Bool (a + b)) :
+    (Vector.splitAt v).1 = «prefix» v a := by
   apply Vector.ext
   intro i hi
   have hi' : i < a + b := by omega
-  simp [splitEquiv, splitVector, «prefix», hi']
+  simp [«prefix», hi']
 
 /-- A bounded prefix of a uniform stored stream is itself uniform. -/
 theorem finiteLaw_prefix_uniform (O n : ℕ) (h : n ≤ O) :
@@ -140,20 +102,20 @@ theorem finiteLaw_prefix_uniform (O n : ℕ) (h : n ≤ O) :
   let : MeasurableSpace (Vector Bool k) := ⊤
   let : MeasurableSpace (Vector Bool n × Vector Bool k) := ⊤
   have hsplit := SampleableType.map_uniformSample_evalDistEq_of_bijective
-    (splitEquiv n k).bijective
+    (Vector.splitAtEquiv (α := Bool) n k).bijective
   have hfst := hsplit.map (fun p : Vector Bool n × Vector Bool k => p.1)
   calc
     ToVCVio.finiteLaw
         ((fun v => «prefix» v n) <$> ($ᵗ (Vector Bool (n + k)))) =
       ToVCVio.finiteLaw
         ((fun p : Vector Bool n × Vector Bool k => p.1) <$>
-          ((splitEquiv n k) <$> ($ᵗ (Vector Bool (n + k))))) := by
+          ((Vector.splitAtEquiv n k) <$> ($ᵗ (Vector Bool (n + k))))) := by
         apply congrArg ToVCVio.finiteLaw
         rw [Functor.map_map]
         apply congrArg (fun f : Vector Bool (n + k) → Vector Bool n =>
           f <$> ($ᵗ (Vector Bool (n + k))))
         funext v
-        exact (splitEquiv_fst_eq_prefix n k v).symm
+        exact (splitAt_fst_eq_prefix n k v).symm
     _ = ToVCVio.finiteLaw
         ((fun p : Vector Bool n × Vector Bool k => p.1) <$>
           ($ᵗ (Vector Bool n × Vector Bool k))) := hfst.evalDist_eq
