@@ -253,67 +253,6 @@ theorem decaps_encapsFromCoins_of_noiseBound
     ps.params.ell = shared
   rw [ite_eq_left ⟨rfl, rfl⟩]
 
-/-- Every possible honest run comes from some random inputs, and for those inputs
-decapsulation returns the honest shared secret whenever the noise is small. -/
-theorem honest_support_correctness
-    {ps : ParameterSet} (ops : Operations ps)
-    (keys : PublicKey ps × SecretKey ps)
-    (hkeys : keys ∈ support (keygen ops))
-    (out : Ciphertext ps × SharedSecretBits ps)
-    (hout : out ∈ support (encaps ops keys.1)) :
-    ∃ (fallback : SharedSecretBits ps) (keySeed : SeedSEBits ps)
-      (z : Bits lenZ) (message : MessageBits ps) (salt : SaltBits ps),
-      keys = keygenFromCoins ops fallback keySeed z ∧
-      out = encapsFromCoins ops keys.1 message salt ∧
-      (NoiseBound ps.params
-          (PKE.decryptionNoise ops keySeed
-            (deriveSeedAndKey ops (hashPublicKey ops keys.1)
-              message salt).1) →
-        (asKEMScheme ops).decaps keys.2 out.1 = pure (some out.2)) := by
-  rw [keygen_eq] at hkeys
-  simp only [mem_support_bind_iff, mem_support_pure_iff] at hkeys
-  obtain ⟨fallback, _, keySeed, _, z, _, hkeys⟩ := hkeys
-  rw [encaps_eq] at hout
-  simp only [mem_support_bind_iff, mem_support_pure_iff] at hout
-  obtain ⟨message, _, salt, _, hout⟩ := hout
-  refine ⟨fallback, keySeed, z, message, salt, hkeys, hout, ?_⟩
-  intro hnoise
-  change pure (some (decaps ops keys.2 out.1)) = pure (some out.2)
-  have hkeysFst := congrArg Prod.fst hkeys
-  have hkeysSnd := congrArg Prod.snd hkeys
-  have houtFst := congrArg Prod.fst hout
-  have houtSnd := congrArg Prod.snd hout
-  have hcipher : out.1 =
-      (encapsFromCoins ops
-        (keygenFromCoins ops fallback keySeed z).1 message salt).1 := by
-    calc
-      out.1 = (encapsFromCoins ops keys.1 message salt).1 := houtFst
-      _ = (encapsFromCoins ops
-          (keygenFromCoins ops fallback keySeed z).1 message salt).1 := by
-        rw [hkeysFst]
-  have hshared : out.2 =
-      (encapsFromCoins ops
-        (keygenFromCoins ops fallback keySeed z).1 message salt).2 := by
-    calc
-      out.2 = (encapsFromCoins ops keys.1 message salt).2 := houtSnd
-      _ = (encapsFromCoins ops
-          (keygenFromCoins ops fallback keySeed z).1 message salt).2 := by
-        rw [hkeysFst]
-  have hdec : decaps ops keys.2 out.1 = out.2 := by
-    calc
-      decaps ops keys.2 out.1 =
-          decaps ops (keygenFromCoins ops fallback keySeed z).2
-            (encapsFromCoins ops
-              (keygenFromCoins ops fallback keySeed z).1 message salt).1 :=
-        congrArg₂ (decaps ops) hkeysSnd hcipher
-      _ = (encapsFromCoins ops
-          (keygenFromCoins ops fallback keySeed z).1 message salt).2 := by
-        apply decaps_encapsFromCoins_of_noiseBound ops fallback keySeed z message salt
-        simpa only [hkeysFst] using hnoise
-      _ = out.2 := hshared.symm
-  exact congrArg
-    (fun x : SharedSecretBits ps => (pure (some x) : ProbComp (Option (SharedSecretBits ps)))) hdec
-
 end KEM
 
 end FrodoKEM
