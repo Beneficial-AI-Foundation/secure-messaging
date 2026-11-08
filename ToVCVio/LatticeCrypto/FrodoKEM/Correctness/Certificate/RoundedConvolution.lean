@@ -3,10 +3,13 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import ToVCVio.Probability.IntMeasure.Packing
-import ToVCVio.Probability.IntMeasure.Radix
-import VCVio.ProgramLogic.Unary.HoareTriple
-import VCVio.OracleComp.EvalDist.Sum
+
+module
+
+public import ToVCVio.Probability.IntMeasure.Packing
+public import ToVCVio.Probability.IntMeasure.Radix
+public import VCVio.OracleComp.EvalDist.Sum
+public import VCVio.OracleComp.ProbComp.Basic
 
 /-!
 # Rounded convolution certificates
@@ -15,6 +18,8 @@ A precision-parametric, downward-rounded convolution of integer counting measure
 counts are dominated by the exact ones, and mass lost outside the window is counted as failure,
 so `probEvent_le_certificate` bounds a failure probability by two packed natural numbers.
 -/
+
+@[expose] public section
 
 open OracleComp
 open scoped BigOperators ENNReal

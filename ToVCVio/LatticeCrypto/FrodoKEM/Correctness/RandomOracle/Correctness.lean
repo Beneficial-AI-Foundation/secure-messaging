@@ -4,9 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.RandomOracle.Model
-import VCVio.OracleComp.Constructions.SampleableType.Measure
-import VCVio.OracleComp.QueryTracking.RandomOracle.EagerTable
+module
+
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.RandomOracle.Model
+public import VCVio.OracleComp.QueryTracking.RandomOracle.EagerTable
 
 /-!
 # FrodoKEM correctness in the finite random-oracle model
@@ -18,6 +19,8 @@ joint distribution as five independently sampled ones. Averaging the bound of
 `FailureProbability.lean` over the table then bounds the KEM failure probability by the
 probability of large noise in the independent-noise experiment.
 -/
+
+@[expose] public section
 
 namespace FrodoKEM.ROM
 

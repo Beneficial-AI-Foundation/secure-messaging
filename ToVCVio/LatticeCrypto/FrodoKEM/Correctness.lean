@@ -3,14 +3,17 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Basic
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Deterministic
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Sampling
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.IndepNoise
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.FailureProbability
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Numerical
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.RandomOracle.Correctness
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.RandomOracle.Numerical
+
+module
+
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Basic
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Deterministic
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Sampling
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.IndepNoise
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.FailureProbability
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Numerical
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.RandomOracle.Correctness
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.RandomOracle.Numerical
 
 /-!
 # FrodoKEM correctness
@@ -38,6 +41,8 @@ not read the table.
   CCA-Secure Learning With Errors Key Encapsulation Mechanism*, IACR
   Communications in Cryptology 2:3, <https://cic.iacr.org/p/2/3/25>.
 -/
+
+@[expose] public section
 
 namespace FrodoKEM
 

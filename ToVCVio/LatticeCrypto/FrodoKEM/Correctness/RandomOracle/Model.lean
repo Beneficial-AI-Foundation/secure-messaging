@@ -3,9 +3,12 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import ToVCVio.Probability.FiniteXOF
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.IndepNoise
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.FailureProbability
+
+module
+
+public import ToVCVio.Probability.FiniteXOF
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.IndepNoise
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.FailureProbability
 
 /-!
 # Finite random-oracle model for FrodoKEM
@@ -13,6 +16,9 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.FailureProbability
 Replaces SHAKE by a finite table of uniformly random answers. The function generating the
 public matrix is fixed independently of that table.
 -/
+
+@[expose] public section
+
 namespace FrodoKEM.ROM
 open OracleComp LatticeCrypto
 

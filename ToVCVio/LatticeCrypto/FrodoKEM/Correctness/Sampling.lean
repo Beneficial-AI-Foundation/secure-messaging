@@ -4,12 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Basic
-import ToVCVio.Probability.MatrixSampling
-import VCVio.OracleComp.Constructions.SampleableType.Measure
-import VCVio.OracleComp.Constructions.UniformFinMeasure
-import VCVio.OracleComp.EvalDist.Sum
-import VCVio.EvalDist.IndepProductMeasure
+module
+
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Basic
+public import ToVCVio.Probability.MatrixSampling
+public import VCVio.OracleComp.EvalDist.Sum
+public import Mathlib.Data.Fin.Tuple.Sort
 
 /-!
 # FrodoKEM sampling laws
@@ -18,6 +18,8 @@ This module proves the exact probability of each value of FrodoKEM's error sampl
 distribution of its matrix sampler. The matrix theorem cuts a uniform bit string into one block
 per entry. The proof also covers matrices with a zero dimension.
 -/
+
+@[expose] public section
 
 namespace FrodoKEM
 

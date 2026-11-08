@@ -3,8 +3,10 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Deterministic
-import VCVio.EvalDist.ProbabilityBounds
+
+module
+
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Deterministic
 
 /-!
 # FrodoKEM failure from large noise
@@ -13,6 +15,8 @@ Honest decapsulation fails only if the decryption noise is too large, so the fai
 probability is at most the probability of large noise. The seeds are derived exactly as the
 KEM derives them, and no property of SHAKE is assumed.
 -/
+
+@[expose] public section
 
 namespace FrodoKEM.KEM
 

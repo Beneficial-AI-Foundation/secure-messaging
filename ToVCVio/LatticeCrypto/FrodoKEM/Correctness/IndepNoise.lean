@@ -3,9 +3,11 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Deterministic
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Sampling
-import VCVio.EvalDist.ProbabilityBounds
+
+module
+
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Deterministic
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Sampling
 
 /-!
 # Decryption failure for FrodoKEM with independent noise
@@ -13,6 +15,8 @@ import VCVio.EvalDist.ProbabilityBounds
 This file bounds decryption failure when the five error matrices come from independent
 uniform bit strings. It makes no claim about how SHAKE expands a seed.
 -/
+
+@[expose] public section
 
 namespace FrodoKEM.IndepNoise
 open OracleComp LatticeCrypto ToVCVio
@@ -81,7 +85,8 @@ def threshold (ps : ParameterSet) : ℕ :=
 def entryBad (ps : ParameterSet) (z : ℤ) : Prop :=
   z < -(threshold ps : ℤ) ∨ (threshold ps : ℤ) ≤ z
 
-private instance (ps : ParameterSet) : DecidablePred (entryBad ps) :=
+/-- `entryBad` is decidable, so `badWeight` and the certificates can compute with it. -/
+instance (ps : ParameterSet) : DecidablePred (entryBad ps) :=
   fun z => inferInstanceAs (Decidable (z < -(threshold ps : ℤ) ∨ (threshold ps : ℤ) ≤ z))
 
 /-- Sample one entry of the noise matrix, as an integer: two sums of products of independent

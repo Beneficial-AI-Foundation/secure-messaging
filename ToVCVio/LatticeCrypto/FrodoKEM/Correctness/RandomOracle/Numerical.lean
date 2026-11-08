@@ -3,8 +3,11 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Numerical
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.RandomOracle.Correctness
+
+module
+
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Numerical
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.RandomOracle.Correctness
 
 /-!
 # FrodoKEM correctness in the finite random-oracle model
@@ -13,6 +16,8 @@ These bounds average over one random table and the honest KEM coins. The public 
 generator is fixed and does not read the table. They are not bounds for concrete SHAKE, for one
 fixed table, or for many encapsulations.
 -/
+
+@[expose] public section
 
 namespace FrodoKEM.ROM
 

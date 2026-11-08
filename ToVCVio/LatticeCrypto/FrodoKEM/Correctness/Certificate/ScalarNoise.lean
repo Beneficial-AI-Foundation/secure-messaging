@@ -4,9 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.RoundedConvolution
-import ToVCVio.Probability.MatrixSampling
-import VCVio.EvalDist.Monad.Seq
+module
+
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.RoundedConvolution
+public import ToVCVio.Probability.MatrixSampling
 
 /-!
 # Exact scalar product-sum noise law
@@ -17,6 +18,8 @@ each sum, has counts `P ^ (2 * n) * C` out of `(2 ^ seedBits) ^ (4 * n + 1)`. He
 the product of two samples. Since `χ` is symmetric, the minus sign does not change the
 distribution. `probOutput_entryNoiseIntExp_counts` proves this result.
 -/
+
+@[expose] public section
 
 open OracleComp
 open scoped BigOperators ENNReal

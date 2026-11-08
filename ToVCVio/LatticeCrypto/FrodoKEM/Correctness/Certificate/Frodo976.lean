@@ -4,13 +4,17 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.ClosedForm
+module
+
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.ClosedForm
 
 /-!
 # Kernel-checked failure certificate for FrodoKEM-976
 
 The certificate also covers eFrodoKEM-976, which has the same parameters.
 -/
+
+@[expose] public section
 
 namespace FrodoKEM.Certificate
 

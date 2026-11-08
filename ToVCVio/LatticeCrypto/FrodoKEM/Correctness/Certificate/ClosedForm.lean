@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.Parameters
+module
+
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.Parameters
 
 /-!
 # Closed forms for kernel evaluation of rounded-convolution certificates
@@ -14,6 +16,8 @@ have thousands of terms. The kernel keeps every intermediate value of such a fol
 uses gigabytes of memory. This file proves that the folds equal short geometric-series formulas.
 Thus the certificate for each size is one `decide +kernel` command with no precomputed values.
 -/
+
+@[expose] public section
 
 namespace FailureCertificate.RoundedConvolution
 

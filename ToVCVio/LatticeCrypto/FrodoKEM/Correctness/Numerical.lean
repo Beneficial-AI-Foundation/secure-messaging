@@ -3,10 +3,13 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Counts
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.Frodo640
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.Frodo976
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.Frodo1344
+
+module
+
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Counts
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.Frodo640
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.Frodo976
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.Frodo1344
 
 /-!
 # Numerical correctness bounds for independently sampled FrodoKEM errors
@@ -22,6 +25,8 @@ whole. This file makes no claim about SHAKE.
   CCA-Secure Learning With Errors Key Encapsulation Mechanism*, IACR
   Communications in Cryptology 2:3, <https://cic.iacr.org/p/2/3/25>.
 -/
+
+@[expose] public section
 
 namespace FrodoKEM.Certificate
 

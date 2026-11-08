@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.IndepNoise
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.RoundedConvolution
+module
+
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.IndepNoise
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.RoundedConvolution
 
 /-!
 # Certificate parameters for each FrodoKEM size
@@ -19,6 +21,8 @@ share them.
   CCA-Secure Learning With Errors Key Encapsulation Mechanism*, IACR
   Communications in Cryptology 2:3, <https://cic.iacr.org/p/2/3/25>.
 -/
+
+@[expose] public section
 
 open scoped ENNReal
 

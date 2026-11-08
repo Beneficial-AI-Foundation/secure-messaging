@@ -3,8 +3,11 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.Parameters
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.ScalarNoise
+
+module
+
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.Parameters
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.ScalarNoise
 
 /-!
 # Exact noise counts for FrodoKEM
@@ -12,6 +15,8 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.ScalarNoise
 This file applies the general result of `Certificate/ScalarNoise.lean` to the error sampler of
 FrodoKEM. The result is the exact distribution of one entry of the decryption noise.
 -/
+
+@[expose] public section
 
 namespace FrodoKEM.Certificate
 

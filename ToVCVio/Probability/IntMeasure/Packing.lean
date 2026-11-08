@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.Probability.IntMeasure.Radix
+module
+
+public import ToVCVio.Probability.IntMeasure.Radix
 
 /-!
 # Generic packing lemmas for integer counting measures
@@ -12,6 +14,8 @@ import ToVCVio.Probability.IntMeasure.Radix
 This module proves radix-packing arguments used by numerical certificates.
 It contains no scheme-specific constants or recurrence.
 -/
+
+@[expose] public section
 
 open scoped BigOperators
 

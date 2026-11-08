@@ -3,11 +3,11 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import ToVCVio.LatticeCrypto.FrodoKEM.Encoding
-import ToVCVio.LatticeCrypto.FrodoKEM.Packing
-import ToVCVio.LatticeCrypto.FrodoKEM.Sampling
-import ToVCVio.LatticeCrypto.FrodoKEM.Construction
-import LatticeCrypto.Ring.Norms
+
+module
+
+public import ToVCVio.LatticeCrypto.FrodoKEM.Construction
+public import LatticeCrypto.Ring.Norms
 
 /-!
 # FrodoKEM encoding, packing and sampling correctness
@@ -59,6 +59,8 @@ recovers the original chunk.
   learning with errors*, draft-longa-cfrg-frodokem-03, 22 June 2026,
   <https://datatracker.ietf.org/doc/html/draft-longa-cfrg-frodokem-03>.
 -/
+
+@[expose] public section
 
 namespace FrodoKEM
 

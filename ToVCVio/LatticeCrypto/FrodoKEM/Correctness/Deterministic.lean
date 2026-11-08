@@ -3,8 +3,10 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Basic
-import VCVio.EvalDist.Monad.Support
+
+module
+
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Basic
 
 /-!
 # Correctness of the FrodoPKE and FrodoKEM constructions
@@ -14,6 +16,8 @@ If the noise matrix is small, decryption returns the message. The file also give
 and encapsulation as functions of their random inputs (`KEM.keygenFromCoins`,
 `KEM.encapsFromCoins`). Thus the correctness statements can name each choice of those inputs.
 -/
+
+@[expose] public section
 
 namespace FrodoKEM
 
