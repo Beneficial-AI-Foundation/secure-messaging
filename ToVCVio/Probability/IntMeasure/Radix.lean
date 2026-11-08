@@ -7,6 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import ToVCVio.Probability.IntMeasure
+public import Mathlib.Algebra.BigOperators.ModEq
 public import Mathlib.Data.Nat.Bitwise
 public import Mathlib.Tactic
 
@@ -123,18 +124,6 @@ private theorem sum_mul_pow_blocks {R : ℕ} (a b : ℕ) (f : ℕ → ℕ) :
   rw [pow_add, pow_mul]
   ring
 
-/-- Congruence of finite sums from termwise congruence. -/
-theorem sum_modEq {M : ℕ} {ι : Type*} {s : Finset ι} {f g : ι → ℕ}
-    (h : ∀ i ∈ s, f i ≡ g i [MOD M]) :
-    (∑ i ∈ s, f i) ≡ ∑ i ∈ s, g i [MOD M] := by
-  classical
-  induction s using Finset.cons_induction with
-  | empty => rfl
-  | cons a s ha ih =>
-    rw [Finset.sum_cons, Finset.sum_cons]
-    exact (h a (Finset.mem_cons_self a s)).add
-      (ih fun i hi => h i (Finset.mem_cons_of_mem hi))
-
 /-- Reduction of a packed sequence modulo the repunit `R ^ q - 1` folds the
 digits `q` apart onto each other. -/
 private theorem sum_mul_pow_mod_repunit {R q m : ℕ} {f : ℕ → ℕ} (hR : 2 ≤ R) (hq : 0 < q)
@@ -167,7 +156,7 @@ private theorem sum_mul_pow_mod_repunit {R q m : ℕ} {f : ℕ → ℕ} (hR : 2 
       rw [Finset.sum_comm]
       exact Finset.sum_congr rfl fun t _ => Finset.sum_mul _ _ _
     rw [hswap]
-    exact sum_modEq fun j _ => sum_modEq fun t _ => hterm j t
+    exact Nat.ModEq.sum fun j _ => Nat.ModEq.sum fun t _ => hterm j t
   have hRHSlt : (∑ t ∈ Finset.range q, (∑ j ∈ Finset.range m, f (q * j + t)) * R ^ t) <
       R ^ q - 1 := sum_mul_pow_lt_pred hR hq hfold
   calc (∑ i ∈ Finset.range (q * m), f i * R ^ i) % (R ^ q - 1)

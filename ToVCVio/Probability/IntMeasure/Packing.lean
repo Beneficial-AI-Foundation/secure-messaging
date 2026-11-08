@@ -149,7 +149,7 @@ private theorem pack_mod_pred_eq_sum
   have hcong :
       (∑ i ∈ Finset.range n, f i * R ^ i) ≡
         ∑ i ∈ Finset.range n, f i [MOD R - 1] :=
-    Radix.sum_modEq fun i _ => hterm i
+    Nat.ModEq.sum fun i _ => hterm i
   calc
     (∑ i ∈ Finset.range n, f i * R ^ i) % (R - 1) =
         (∑ i ∈ Finset.range n, f i) % (R - 1) := hcong
