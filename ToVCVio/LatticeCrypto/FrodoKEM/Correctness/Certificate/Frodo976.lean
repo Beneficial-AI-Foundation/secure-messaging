@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.ClosedForm
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.Parameters
 
 /-!
 # Kernel-checked failure certificate for FrodoKEM-976

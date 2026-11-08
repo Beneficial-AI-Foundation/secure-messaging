@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.Parameters
+public import ToVCVio.Probability.RoundedConvolution
 
 /-!
 # Closed forms for kernel evaluation of rounded-convolution certificates
@@ -14,7 +14,9 @@ public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.Parameters
 `certificateValues` is defined with long folds: the window mask and the failure weights each
 have thousands of terms. The kernel keeps every intermediate value of such a fold, and this
 uses gigabytes of memory. This file proves that the folds equal short geometric-series formulas.
-Thus the certificate for each size is one `decide +kernel` command with no precomputed values.
+`certificateValues_eq_closedValues` applies when the failure weight is `1` at both ends of the
+extended window and `0` in the middle. Then a concrete certificate is one `decide +kernel` command
+with no precomputed values.
 -/
 
 @[expose] public section
@@ -171,22 +173,3 @@ theorem certificateValues_eq_closedValues (c : Config) (w : ℤ → ℕ) (lo mid
   simp only [← Nat.one_shiftLeft]
 
 end ToVCVio.RoundedConvolution
-
-namespace FrodoKEM.Certificate
-
-open ToVCVio.RoundedConvolution
-
-/-- For each parameter set, the bad-event weight splits at the decoding radius `t` around the
-extended-window centre `m`, so its certificate reduces to `closedValues`. -/
-theorem certificateValues_eq_closed (ps : ParameterSet) (t m : ℕ)
-    (ht : ps.params.noiseRadius = t) (hm : (config ps).window + (config ps).a = m) (htm : t ≤ m) :
-    certificateValues (config ps) (badWeight ps) =
-      closedValues (config ps) (m - t) (2 * t) (m - t + 1) := by
-  apply certificateValues_eq_closedValues
-  · omega
-  all_goals
-    intro i hi
-    simp only [badWeight, IndepNoise.entryBad, ht, hm]
-    split_ifs <;> omega
-
-end FrodoKEM.Certificate
