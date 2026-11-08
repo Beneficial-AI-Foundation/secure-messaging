@@ -284,6 +284,10 @@ $`\mathrm{fail}(H)` over all tables is at most $`\delta`:
 
 $$`\frac{1}{|\mathcal{H}|} \sum_{H \in \mathcal{H}} \mathrm{fail}(H) \;\le\; \delta.`
 
+Lean also checks that the finite table is a correct model of SHAKE here. Like SHAKE, the table gives
+one fixed stream of bits for each input. Also, SHAKE outputs for other inputs, or after `outputBits`
+bits, do not change the failure probability.
+
 The theorem does not bound $`\mathrm{fail}(H)` for one table. In Lean, `ROM.honestFailureProb` is
 this average. It samples $`H` uniformly, and then runs key generation and encapsulation.
 
@@ -315,41 +319,6 @@ theorem honestFailureProb_tenth_power_le
     (ps : ParameterSet) (gen : Generator ps) :
     honestFailureProb ps gen ^ 10 *
       2 ^ Certificate.exponentTenths ps ≤ 1
-```
-
-Lean also proves two facts which show that a finite table is a correct model of SHAKE here. A call
-$`\mathrm{SHAKE}(x, n)` gives the input bit string $`x` and asks for $`n` output bits.
-
-First, the table gives one fixed stream of bits for each input. If we ask for $`n` bits and keep
-the first $`m`, we get the same bits as when we ask for $`m` bits. SHAKE has the same property.
-
-:::leanPillCaption "The table gives one stream of bits for each input"
-:::
-
-```anchor finiteXOF_answer_prefix_consistent (project := ".") (module := ToVCVio.Probability.FiniteXOF)
-theorem answer_prefix_consistent {lengths : Finset ℕ} {O : ℕ}
-    (H : Table lengths O) (x : List Bool) (m n : ℕ) (hmn : m ≤ n) :
-    (answer H x n).toList.take m = (answer H x m).toList
-```
-
-Second, only a small part of SHAKE can change the failure probability. Take two functions that the
-KEM uses in place of SHAKE, with the same $`\mathsf{gen}`. In Lean, `ops₁` and `ops₂` hold
-$`\mathsf{gen}` and these functions. Suppose that the two functions give the same $`n` bits for
-every input $`x` with one of the five input lengths, and every $`n` up to `outputBits`. Then the
-KEM fails with the same probability with each function. Thus the outputs for other inputs, or
-after `outputBits` bits, have no effect.
-
-:::leanPillCaption "Only the inputs and output bits that the KEM uses matter"
-:::
-
-```anchor frodoKEM_rom_bounded_agreement (project := ".") (module := ToVCVio.LatticeCrypto.FrodoKEM.Correctness.RandomOracle.Model)
-theorem honestFailureProb_congr_of_bounded_agreement
-    (ps : ParameterSet) (ops₁ ops₂ : Operations ps)
-    (hgen : ops₁.gen = ops₂.gen)
-    (hshake : ∀ (x : List Bool) (n : ℕ),
-      x.length ∈ inputLengths ps → n ≤ outputBits ps →
-        ops₁.shake x n = ops₂.shake x n) :
-    KEM.honestFailureProb ops₁ = KEM.honestFailureProb ops₂
 ```
 
 *Not covered.*
