@@ -174,13 +174,16 @@ theorem samplesFromCoins_residual_eq
 /-- Take two sets of operations with the same `gen`. If their SHAKE functions agree on every
 covered input length, for up to `outputBits ps` output bits, then the two honest failure
 probabilities are equal. -/
+-- ANCHOR: frodoKEM_rom_bounded_agreement
 theorem honestFailureProb_congr_of_bounded_agreement
     (ps : ParameterSet) (ops₁ ops₂ : Operations ps)
     (hgen : ops₁.gen = ops₂.gen)
     (hshake : ∀ (x : List Bool) (n : ℕ),
       x.length ∈ inputLengths ps → n ≤ outputBits ps →
         ops₁.shake x n = ops₂.shake x n) :
-    KEM.honestFailureProb ops₁ = KEM.honestFailureProb ops₂ := by
+    KEM.honestFailureProb ops₁ = KEM.honestFailureProb ops₂
+-- ANCHOR_END: frodoKEM_rom_bounded_agreement
+    := by
   have hs (r : QueryRole) (x : List Bool) (hx : x.length = inputLength ps r) :
       ops₁.shake x (outputLength ps r) = ops₂.shake x (outputLength ps r) :=
     hshake x _ (hx ▸ (query_bounds ps r).1) (query_bounds ps r).2
