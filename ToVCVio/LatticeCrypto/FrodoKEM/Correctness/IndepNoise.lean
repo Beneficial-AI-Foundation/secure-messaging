@@ -8,6 +8,7 @@ module
 
 public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Deterministic
 public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Sampling
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.ScalarNoise
 
 /-!
 # Decryption failure for FrodoKEM with independent noise
@@ -91,13 +92,8 @@ instance (ps : ParameterSet) : DecidablePred (entryBad ps) :=
 
 /-- Sample one entry of the noise matrix, as an integer: two sums of products of independent
 errors, and one more error. -/
-def entryNoiseExp (ps : ParameterSet) : ProbComp ℤ := do
-  let s0 ← ProbComp.sampleIID ps.params.n (sampleError ps)
-  let e0 ← ProbComp.sampleIID ps.params.n (sampleError ps)
-  let s1 ← ProbComp.sampleIID ps.params.n (sampleError ps)
-  let e1 ← ProbComp.sampleIID ps.params.n (sampleError ps)
-  let extra ← sampleError ps
-  return (∑ k, s1 k * e0 k) - (∑ k, e1 k * s0 k) + extra
+def entryNoiseExp (ps : ParameterSet) : ProbComp ℤ :=
+  ToVCVio.Probability.ScalarNoise.entryNoiseIntExp ps.params.n (sampleError ps)
 
 /-- Probability that one entry of the noise matrix, as an integer, lies outside the decoding
 interval. -/
@@ -228,7 +224,8 @@ theorem finiteLaw_residual_entry (ps : ParameterSet)
     (finiteLaw_map_congr (finiteLaw_SampleMatrix ps mbar nbar) _).trans
       (finiteLaw_sampleMatrix_entry mbar nbar (sampleError ps) i j)
   apply hProjected.trans
-  dsimp only [projected, entryNoiseExp]
+  dsimp only [projected, entryNoiseExp,
+    ToVCVio.Probability.ScalarNoise.entryNoiseIntExp]
   refine (finiteLaw_bind_head (hrow nbar ps.params.n j) _).trans ?_
   refine finiteLaw_bind_congr _ fun _ => ?_
   refine (finiteLaw_bind_head (hcol ps.params.n nbar j) _).trans ?_
