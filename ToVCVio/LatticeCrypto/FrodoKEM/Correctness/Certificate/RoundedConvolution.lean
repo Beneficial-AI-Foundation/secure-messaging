@@ -529,13 +529,6 @@ private theorem measurePack_approxCounts
       rw [measurePack_lowerCounts_runN c hmass, ← run_eq_runN,
         ← extraPack_eq_measurePack']
 
-
-/-- The number `runN c k` packs `lowerCounts c k`: in base `radix c`, digit `v + window` is the
-count at `v`. -/
-theorem runN_eq_measurePack (c : Config)
-    (hmass : ToVCVio.totalMass (counts c) = 2 ^ c.seedBits) (k : ℕ) :
-    runN c k = ToVCVio.Radix.measurePack (radix c) (-(c.window : ℤ)) (lowerCounts c k) :=
-  (measurePack_lowerCounts_runN c hmass k).symm
 private theorem lowerCounts_mul_domination
     (c : Config) (k : ℕ) (G : ToVCVio.IntMeasure)
     (ih : ∀ z, (2 ^ (2 * c.seedBits)) ^ k * lowerCounts c k z ≤
