@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import ToVCVio.Probability.MatrixSampling
+public import ToVCVio.Probability.FiniteLaw
 public import VCVio.OracleComp.Constructions.SampleableType.Measure
 public import ToVCVio.Data.Vector.Split
 

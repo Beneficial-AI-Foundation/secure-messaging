@@ -7,7 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Certificate.RoundedConvolution
-public import ToVCVio.Probability.MatrixSampling
+public import ToVCVio.Probability.FiniteLaw
 
 /-!
 # Exact scalar product-sum noise law
