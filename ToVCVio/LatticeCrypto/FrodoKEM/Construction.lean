@@ -29,7 +29,10 @@ recorded in `ParameterSet.params` and summarized below; relations between these
 values are stated as theorems in that file.
 
 `Operations ps` supplies deterministic Gen and SHAKE functions for a parameter set
-`ps`. Given `ops : Operations ps`, the descriptions below use the following notation:
+`ps`. The KEM algorithms are written once against `OperationsM m ps`, whose SHAKE calls
+take place in a monad `m`; `Operations.toM` makes deterministic operations monadic, and the
+random-oracle model of `Correctness/RandomOracle/OracleKEM.lean` makes each SHAKE call an
+oracle query. Given `ops`, the descriptions below use the following notation:
 
 | Notation                  | Meaning                                                      |
 |---------------------------|--------------------------------------------------------------|
@@ -131,40 +134,45 @@ determined by the component being packed or unpacked.
 The public key is `(seedA, b)`, the secret key is `(s, pk, Sᵀ, pkh)`, and the
 ciphertext is `(c₁, c₂, salt)`.
 
-The two derivation functions in namespace `KEM` are:
+The two derivation functions in namespace `KEM`, for `ops : OperationsM m ps`, are:
 
-* `KEM.hashPublicKey ops : PublicKey ps → PublicKeyHashBits ps`,
+* `KEM.hashPublicKeyM ops : PublicKey ps → m (PublicKeyHashBits ps)`,
   `(seedA, b) ↦ H(seedA || b, ℓ)`;
-* `KEM.deriveSeedAndKey ops : PublicKeyHashBits ps → MessageBits ps → SaltBits ps →
-  SeedSEBits ps × SharedSecretBits ps`,
+* `KEM.deriveSeedAndKeyM ops : PublicKeyHashBits ps → MessageBits ps → SaltBits ps →
+  m (SeedSEBits ps × SharedSecretBits ps)`,
   `(pkh, μ, salt) ↦ (seedSE, k)`, splitting
   `H(pkh || μ || salt, ps.params.lenSeedSE + ℓ)` after `ps.params.lenSeedSE` bits.
 
-The KEM algorithms are:
+The KEM algorithms are the following; the uniform sampling of key generation and
+encapsulation lifts from `ProbComp` into `m`:
 
-* **Key generation** (`KEM.keygen`): sample the seeds, generate the public
+* **Key generation** (`KEM.keygenM`): sample the seeds, generate the public
   and secret matrices, and pack the public-key matrix `B`. Store the fallback secret `s`,
   public key, secret matrix `Sᵀ`, and public-key hash in the secret key.
 
-* **Encapsulation** (`KEM.encaps`): sample a message `μ` and salt, then
+* **Encapsulation** (`KEM.encapsM`): sample a message `μ` and salt, then
   derive an encryption seed and intermediate key. Encrypt `μ` and pack the
   ciphertext matrices, then hash the ciphertext and intermediate key to obtain
   the shared secret.
 
-* **Decapsulation** (`KEM.decaps`): decrypt the ciphertext and reencrypt the
+* **Decapsulation** (`KEM.decapsM`): decrypt the ciphertext and reencrypt the
   recovered message. If both ciphertext matrices match, use the derived
   intermediate key; otherwise use the fallback secret. Hash the ciphertext
   and selected key to obtain the shared secret.
 
 These follow Algorithms 8–10 of `[CiC25]` and Sections 7.1–7.3 of `[LBES26]`.
+For `ops : Operations ps`, `KEM.keygen ops` and `KEM.encaps ops` are these algorithms in
+`ProbComp`, `KEM.decaps ops` is decapsulation as a function, and `KEM.hashPublicKey ops`
+and `KEM.deriveSeedAndKey ops` are the derivation functions.
 
 ## Scope and limitations of this formalization
 
 This module defines the PKE and KEM algorithms using caller-supplied Gen and SHAKE
 functions. Input lengths and matrix dimensions are specified by the Lean types.
 Concrete primitive implementations, byte parsing,
-signed secret-key serialization, constant-time execution, decryption-failure bounds
-and cryptographic security proofs are outside the present formalization.
+signed secret-key serialization, constant-time execution and cryptographic security
+proofs are outside the present formalization. `FrodoKEM/Correctness.lean` bounds
+the decapsulation failure probability, averaged over a random table that replaces SHAKE.
 The types of the supplied functions do not ensure that they implement the specified
 Gen and SHAKE algorithms or satisfy the assumptions needed for security proofs.
 
@@ -172,8 +180,6 @@ Section 8 of `[LBES26]` requires fewer than 256 ciphertexts per ephemeral public
 This module does not enforce that usage restriction.
 
 ## References
-
-The FrodoKEM modules use the following references:
 
 * `[CiC25]`, Glabush, Longa, Naehrig, Peikert, Stebila and Virdia, *FrodoKEM: A
   CCA-Secure Learning With Errors Key Encapsulation Mechanism*, IACR
@@ -220,6 +226,24 @@ structure Operations (ps : ParameterSet) where
   /-- SHAKE function with variable output length: the `H(x, L)` of the module header. -/
   shake : List Bool → (outBits : ℕ) → Bits outBits
 -- ANCHOR_END: frodoKEM_operations
+
+/-- Gen and SHAKE functions where each SHAKE call is made in the monad `m`. The KEM algorithms
+`KEM.keygenM`, `KEM.encapsM` and `KEM.decapsM` are written once against this interface: with
+`Operations.toM` they run a deterministic SHAKE, and with an oracle query in place of `shake`
+they give FrodoKEM in the random-oracle model. -/
+structure OperationsM (m : Type → Type) (ps : ParameterSet) where
+  /-- Gen function mapping seedA to the n × n public matrix A. -/
+  gen : SeedABits →
+    FrodoMatrix ps.params ps.params.n ps.params.n
+  /-- SHAKE call with variable output length, made in the monad `m`. -/
+  shake : List Bool → (outBits : ℕ) → m (Bits outBits)
+
+/-- Deterministic Gen and SHAKE functions, seen as operations in any monad `m`:
+each SHAKE call returns its value with `pure`. -/
+def Operations.toM {ps : ParameterSet} (m : Type → Type) [Pure m] (ops : Operations ps) :
+    OperationsM m ps where
+  gen := ops.gen
+  shake x n := pure (ops.shake x n)
 
 /-- Bit string of the key-generation domain separator 0x5F, least-significant bit first. -/
 def keygenPrefix : Bits 8 :=
@@ -452,34 +476,37 @@ end PKE
 namespace KEM
 
 /-- Compute the public-key hash pkh = SHAKE(seedA || b, ℓ),
-where b is the packed public matrix B. -/
-def hashPublicKey {ps : ParameterSet} (ops : Operations ps)
-    (pk : PublicKey ps) : PublicKeyHashBits ps :=
+where b is the packed public matrix B. The SHAKE call is made in the monad `m` of `ops`. -/
+def hashPublicKeyM {m : Type → Type} {ps : ParameterSet} (ops : OperationsM m ps)
+    (pk : PublicKey ps) : m (PublicKeyHashBits ps) :=
   ops.shake (pk.seedA.toList ++ pk.b.toList) ps.params.ell
 
 /-- Derive seedSE and intermediate key k from SHAKE(pkh || μ || salt, lenSeedSE + ℓ).
-The first lenSeedSE bits form seedSE; the remaining ℓ bits form k. -/
-def deriveSeedAndKey {ps : ParameterSet} (ops : Operations ps)
+The first lenSeedSE bits form seedSE; the remaining ℓ bits form k.
+The SHAKE call is made in the monad `m` of `ops`. -/
+def deriveSeedAndKeyM {m : Type → Type} [Functor m] {ps : ParameterSet}
+    (ops : OperationsM m ps)
     (pkh : PublicKeyHashBits ps) (message : MessageBits ps)
-    (salt : SaltBits ps) : SeedSEBits ps × SharedSecretBits ps :=
-  splitBits (a := ps.params.lenSeedSE) (b := ps.params.ell)
-    (ops.shake (pkh.toList ++ message.toList ++ salt.toList)
-      (ps.params.lenSeedSE + ps.params.ell))
+    (salt : SaltBits ps) : m (SeedSEBits ps × SharedSecretBits ps) :=
+  splitBits (a := ps.params.lenSeedSE) (b := ps.params.ell) <$>
+    ops.shake (pkh.toList ++ message.toList ++ salt.toList)
+      (ps.params.lenSeedSE + ps.params.ell)
 
 /-- FrodoKEM key generation: sample fallback value s and seeds seedSE and z
 independently and uniformly, then construct the public and secret keys
-(Section 7.1, including 7.1.1, of `[LBES26]`, Algorithm 8 of `[CiC25]`). -/
+(Section 7.1, including 7.1.1, of `[LBES26]`, Algorithm 8 of `[CiC25]`).
+The SHAKE calls are made in the monad `m` of `ops`, into which uniform sampling lifts. -/
 -- ANCHOR: frodoKEM_keyGeneration
 -- ANCHOR: frodoKEM_keygen
-def keygen {ps : ParameterSet} (ops : Operations ps) :
-    ProbComp (PublicKey ps × SecretKey ps) := do
+def keygenM {m : Type → Type} [Monad m] [MonadLiftT ProbComp m] {ps : ParameterSet}
+    (ops : OperationsM m ps) : m (PublicKey ps × SecretKey ps) := do
   let fallback ← $ᵗ (SharedSecretBits ps)
   let seedSE ← $ᵗ (SeedSEBits ps)
   let z ← $ᵗ (Bits lenZ)
   let p := ps.params
-  let seedA := ops.shake z.toList lenSeedA
+  let seedA ← ops.shake z.toList lenSeedA
   let a := ops.gen seedA
-  let stream := ops.shake
+  let stream ← ops.shake
     (keygenPrefix.toList ++ seedSE.toList)
     (nbar * p.n * lenChi + p.n * nbar * lenChi)
   let samples := splitBits
@@ -493,27 +520,30 @@ def keygen {ps : ParameterSet} (ops : Operations ps) :
   let pk : PublicKey ps :=
     { seedA := seedA
       b := packBits ps p.n nbar (publicKeyBits_mod_eight ps) b }
+  let pkh ← hashPublicKeyM ops pk
   return (pk,
     { fallback := fallback
       publicKey := pk
       secretTranspose := st
-      publicKeyHash := hashPublicKey ops pk })
+      publicKeyHash := pkh })
 -- ANCHOR_END: frodoKEM_keygen
 -- ANCHOR_END: frodoKEM_keyGeneration
 
 /-- FrodoKEM encapsulation: sample message μ and salt independently and uniformly,
 then construct the ciphertext and shared secret (Section 7.2 of `[LBES26]`,
-Algorithm 9 of `[CiC25]`). The salt is empty for ephemeral parameter sets. -/
+Algorithm 9 of `[CiC25]`). The salt is empty for ephemeral parameter sets.
+The SHAKE calls are made in the monad `m` of `ops`, into which uniform sampling lifts. -/
 -- ANCHOR: frodoKEM_encapsulation
 -- ANCHOR: frodoKEM_encaps
-def encaps {ps : ParameterSet} (ops : Operations ps)
-    (pk : PublicKey ps) :
-    ProbComp (Ciphertext ps × SharedSecretBits ps) := do
+def encapsM {m : Type → Type} [Monad m] [MonadLiftT ProbComp m] {ps : ParameterSet}
+    (ops : OperationsM m ps) (pk : PublicKey ps) :
+    m (Ciphertext ps × SharedSecretBits ps) := do
   let message ← $ᵗ (MessageBits ps)
   let salt ← $ᵗ (SaltBits ps)
   let p := ps.params
-  let derived := deriveSeedAndKey ops (hashPublicKey ops pk) message salt
-  let stream := ops.shake
+  let pkh ← hashPublicKeyM ops pk
+  let derived ← deriveSeedAndKeyM ops pkh message salt
+  let stream ← ops.shake
     (encryptionPrefix.toList ++ derived.1.toList)
     (mbar * p.n * lenChi +
       (mbar * p.n * lenChi + mbar * nbar * lenChi))
@@ -537,25 +567,27 @@ def encaps {ps : ParameterSet} (ops : Operations ps)
   let c2 := packBits ps mbar nbar (ciphertext2Bits_mod_eight ps)
     (v + Encode p (message.cast (messageBits_length ps)))
   let c : Ciphertext ps := { c1 := c1, c2 := c2, salt := salt }
-  return (c, ops.shake
+  let k ← ops.shake
     (c.c1.toList ++ c.c2.toList ++ c.salt.toList ++ derived.2.toList)
-    p.ell)
+    p.ell
+  return (c, k)
 -- ANCHOR_END: frodoKEM_encaps
 -- ANCHOR_END: frodoKEM_encapsulation
 
 /-- FrodoKEM decapsulation using secret key sk, with implicit rejection:
 if ciphertext validation fails, derive the shared secret using fallback value s
-(Section 7.3 of `[LBES26]`, Algorithm 10 of `[CiC25]`). -/
+(Section 7.3 of `[LBES26]`, Algorithm 10 of `[CiC25]`).
+The SHAKE calls are made in the monad `m` of `ops`; no sampling takes place. -/
 -- ANCHOR: frodoKEM_decaps
-def decaps {ps : ParameterSet} (ops : Operations ps)
-    (sk : SecretKey ps) (c : Ciphertext ps) : SharedSecretBits ps :=
+def decapsM {m : Type → Type} [Monad m] {ps : ParameterSet} (ops : OperationsM m ps)
+    (sk : SecretKey ps) (c : Ciphertext ps) : m (SharedSecretBits ps) := do
   let p := ps.params
   let bp := unpackBits ps mbar p.n (ciphertext1Bits_mod_eight ps) c.c1
   let cm := unpackBits ps mbar nbar (ciphertext2Bits_mod_eight ps) c.c2
-  let m := cm - bp * sk.secretTranspose.transpose
-  let message := (Decode p m).cast (messageBits_length ps).symm
-  let derived := deriveSeedAndKey ops sk.publicKeyHash message c.salt
-  let stream := ops.shake
+  let diff := cm - bp * sk.secretTranspose.transpose
+  let message := (Decode p diff).cast (messageBits_length ps).symm
+  let derived ← deriveSeedAndKeyM ops sk.publicKeyHash message c.salt
+  let stream ← ops.shake
     (encryptionPrefix.toList ++ derived.1.toList)
     (mbar * p.n * lenChi +
       (mbar * p.n * lenChi + mbar * nbar * lenChi))
@@ -582,6 +614,48 @@ def decaps {ps : ParameterSet} (ops : Operations ps)
     p.ell
 -- ANCHOR_END: frodoKEM_decaps
 
+/-- Package the generic FrodoKEM algorithms as a VCVio `KEMScheme` in the monad `m` of `ops`.
+Decapsulation always returns `some`. -/
+def asKEMSchemeM {m : Type → Type} [Monad m] [MonadLiftT ProbComp m] {ps : ParameterSet}
+    (ops : OperationsM m ps) :
+    KEMScheme m (SharedSecretBits ps) (PublicKey ps) (SecretKey ps) (Ciphertext ps) where
+  keygen := keygenM ops
+  encaps := encapsM ops
+  decaps := fun sk c => some <$> decapsM ops sk c
+
+/-! ### FrodoKEM with deterministic SHAKE
+
+With `ops : Operations ps`, the SHAKE calls are pure: key generation and encapsulation are
+probabilistic only through their sampling, and decapsulation is a function. -/
+
+/-- The public-key hash pkh = SHAKE(seedA || b, ℓ) for deterministic SHAKE. -/
+def hashPublicKey {ps : ParameterSet} (ops : Operations ps)
+    (pk : PublicKey ps) : PublicKeyHashBits ps :=
+  Id.run (hashPublicKeyM (ops.toM Id) pk)
+
+/-- seedSE and intermediate key k from SHAKE(pkh || μ || salt, lenSeedSE + ℓ),
+for deterministic SHAKE. -/
+def deriveSeedAndKey {ps : ParameterSet} (ops : Operations ps)
+    (pkh : PublicKeyHashBits ps) (message : MessageBits ps)
+    (salt : SaltBits ps) : SeedSEBits ps × SharedSecretBits ps :=
+  Id.run (deriveSeedAndKeyM (ops.toM Id) pkh message salt)
+
+/-- FrodoKEM key generation (`keygenM`) for deterministic SHAKE. -/
+def keygen {ps : ParameterSet} (ops : Operations ps) :
+    ProbComp (PublicKey ps × SecretKey ps) :=
+  keygenM (ops.toM ProbComp)
+
+/-- FrodoKEM encapsulation (`encapsM`) for deterministic SHAKE. -/
+def encaps {ps : ParameterSet} (ops : Operations ps)
+    (pk : PublicKey ps) :
+    ProbComp (Ciphertext ps × SharedSecretBits ps) :=
+  encapsM (ops.toM ProbComp) pk
+
+/-- FrodoKEM decapsulation (`decapsM`) for deterministic SHAKE, as a function. -/
+def decaps {ps : ParameterSet} (ops : Operations ps)
+    (sk : SecretKey ps) (c : Ciphertext ps) : SharedSecretBits ps :=
+  Id.run (decapsM (ops.toM Id) sk c)
+
 /-- Package the FrodoKEM algorithms as a VCVio `KEMScheme`.
 Implicit rejection returns a shared secret, so decapsulation always returns `some`.
 
@@ -597,6 +671,90 @@ def asKEMScheme {ps : ParameterSet} (ops : Operations ps) :
   encaps := encaps ops
   decaps := fun sk c => return some (decaps ops sk c)
 -- ANCHOR_END: frodoKEM_scheme
+
+/-! ### Changing the monad of the SHAKE calls
+
+A monad morphism `F : m →ᵐ n` that fixes uniform sampling carries each generic algorithm run with
+`ops` to the same algorithm run with `ops.map F`, whose SHAKE calls are those of `ops` mapped
+by `F`. In the random-oracle model, `F` answers the oracle queries from a fixed table. -/
+
+end KEM
+
+/-- Map the SHAKE calls of `ops` along the monad morphism `F`. -/
+def OperationsM.map {m n : Type → Type} [Monad m] [Monad n] {ps : ParameterSet}
+    (ops : OperationsM m ps) (F : m →ᵐ n) : OperationsM n ps where
+  gen := ops.gen
+  shake x k := F (ops.shake x k)
+
+namespace KEM
+
+section MonadMap
+
+variable {m n : Type → Type} [Monad m] [LawfulMonad m] [Monad n] [LawfulMonad n]
+  {ps : ParameterSet} (ops : OperationsM m ps) (F : m →ᵐ n)
+
+omit [LawfulMonad m] [LawfulMonad n] in
+/-- `F` carries the generic public-key hash to the one with `ops.map F`. -/
+theorem mmap_hashPublicKeyM (pk : PublicKey ps) :
+    F (hashPublicKeyM ops pk) = hashPublicKeyM (ops.map F) pk :=
+  rfl
+
+/-- `F` carries the generic seed and key derivation to the one with `ops.map F`. -/
+theorem mmap_deriveSeedAndKeyM (pkh : PublicKeyHashBits ps) (message : MessageBits ps)
+    (salt : SaltBits ps) :
+    F (deriveSeedAndKeyM ops pkh message salt) =
+      deriveSeedAndKeyM (ops.map F) pkh message salt := by
+  simp only [deriveSeedAndKeyM, MonadHom.mmap_map, OperationsM.map]
+
+omit [LawfulMonad m] [LawfulMonad n] in
+/-- A monad morphism fixing uniform sampling carries `keygenM ops` to `keygenM (ops.map F)`. -/
+theorem mmap_keygenM [MonadLiftT ProbComp m] [MonadLiftT ProbComp n]
+    (hF : ∀ {α : Type} (mx : ProbComp α), F (liftM mx : m α) = liftM mx) :
+    F (keygenM ops) = keygenM (ops.map F) := by
+  simp only [keygenM, MonadHom.mmap_bind, MonadHom.mmap_pure, hF, mmap_hashPublicKeyM]
+  rfl
+
+/-- A monad morphism fixing uniform sampling carries `encapsM ops` to `encapsM (ops.map F)`. -/
+theorem mmap_encapsM [MonadLiftT ProbComp m] [MonadLiftT ProbComp n]
+    (hF : ∀ {α : Type} (mx : ProbComp α), F (liftM mx : m α) = liftM mx)
+    (pk : PublicKey ps) :
+    F (encapsM ops pk) = encapsM (ops.map F) pk := by
+  simp only [encapsM, MonadHom.mmap_bind, MonadHom.mmap_pure, hF, mmap_hashPublicKeyM,
+    mmap_deriveSeedAndKeyM]
+  rfl
+
+/-- A monad morphism carries `decapsM ops` to `decapsM (ops.map F)`. -/
+theorem mmap_decapsM (sk : SecretKey ps) (c : Ciphertext ps) :
+    F (decapsM ops sk c) = decapsM (ops.map F) sk c := by
+  simp only [decapsM, MonadHom.mmap_bind, mmap_deriveSeedAndKeyM]
+  rfl
+
+omit [Monad n] [LawfulMonad n] in
+/-- With deterministic SHAKE, generic decapsulation in any lawful monad returns `decaps`. -/
+theorem decapsM_toM (ops : Operations ps) (sk : SecretKey ps) (c : Ciphertext ps) :
+    decapsM (ops.toM m) sk c = pure (decaps ops sk c) :=
+  (mmap_decapsM (ops.toM Id) (MonadHom.pure m) sk c).symm
+
+end MonadMap
+
+/-! ### Deterministic SHAKE unfolded
+
+With `ops : Operations ps`, each SHAKE call of the generic algorithms returns its value with
+`pure`. These lemmas restate the helpers and decapsulation without the monad. -/
+
+/-- `hashPublicKey` with deterministic SHAKE, written without the monad. -/
+theorem hashPublicKey_eq {ps : ParameterSet} (ops : Operations ps) (pk : PublicKey ps) :
+    hashPublicKey ops pk = ops.shake (pk.seedA.toList ++ pk.b.toList) ps.params.ell :=
+  rfl
+
+/-- `deriveSeedAndKey` with deterministic SHAKE, written without the monad. -/
+theorem deriveSeedAndKey_eq {ps : ParameterSet} (ops : Operations ps)
+    (pkh : PublicKeyHashBits ps) (message : MessageBits ps) (salt : SaltBits ps) :
+    deriveSeedAndKey ops pkh message salt =
+      splitBits (a := ps.params.lenSeedSE) (b := ps.params.ell)
+        (ops.shake (pkh.toList ++ message.toList ++ salt.toList)
+          (ps.params.lenSeedSE + ps.params.ell)) :=
+  rfl
 
 end KEM
 

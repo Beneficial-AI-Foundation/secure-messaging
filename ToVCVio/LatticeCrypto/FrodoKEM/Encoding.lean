@@ -15,9 +15,9 @@ public import Mathlib.Data.ZMod.Basic
 
 `Frodo.Encode` and `Frodo.Decode`.
 
-References are listed in `Construction.lean`. The maps on bit strings are named
-in Section 3.3 and given in Appendix B of `[CiC25]`. `[LBES26]` gives the
-same maps as pseudocode in Section 6.3, with the chunking layout written out.
+The maps on bit strings are named in Section 3.3 and given in Appendix B of `[CiC25]`.
+`[LBES26]` gives the same maps as pseudocode in Section 6.3, with the chunking layout written
+out.
 
 ## Main definitions
 
@@ -71,6 +71,15 @@ The specification's `Frodo.Encode` and `Frodo.Decode` are
 * `getElem_chunkMatrixToBits`: bit `t` of entry `(i, j)` sits at position
   `(i * nbar + j) * B + t`, as a theorem. The bit order and layout it fixes are
   pinned by the `example`s beside the definitions.
+
+## References
+
+* `[CiC25]`, Glabush, Longa, Naehrig, Peikert, Stebila and Virdia, *FrodoKEM: A
+  CCA-Secure Learning With Errors Key Encapsulation Mechanism*, IACR
+  Communications in Cryptology 2:3, <https://cic.iacr.org/p/2/3/25>;
+* `[LBES26]`, Longa, Bos, Ehlen and Stebila, *FrodoKEM: key encapsulation from
+  learning with errors*, draft-longa-cfrg-frodokem-03, 22 June 2026,
+  <https://datatracker.ietf.org/doc/html/draft-longa-cfrg-frodokem-03>.
 -/
 
 @[expose] public section
@@ -99,12 +108,12 @@ functions. -/
 For well-formed parameters, this equals the message length `p.ell`. -/
 abbrev ChunkMatrix (p : Params) := Matrix (Fin mbar) (Fin nbar) (ZMod (2 ^ p.B))
 
-/-- The entrywise step of `Frodo.Encode` (Appendix B), on input already chunked
+/-- The entrywise step of `Frodo.Encode` (Appendix B of `[CiC25]`), on input already chunked
 into `B`-bit values: apply `ec` to every entry. -/
 def EncodeChunks (p : Params) (M : ChunkMatrix p) : FrodoMatrix p mbar nbar :=
   M.map (ec p)
 
-/-- The entrywise step of `Frodo.Decode` (Appendix B), returning the chunked
+/-- The entrywise step of `Frodo.Decode` (Appendix B of `[CiC25]`), returning the chunked
 form: apply `dc` to every entry. -/
 def DecodeChunks (p : Params) (C : FrodoMatrix p mbar nbar) : ChunkMatrix p :=
   C.map (dc p)
