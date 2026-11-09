@@ -616,4 +616,14 @@ lemma oracleUnif_run_eq {StA StB I Rho : Type} (n : ℕ) (s : GameState StA StB 
   simp [SCKAScheme.oracleUnif, QueryImpl.liftTarget, StateT.run_monadLift,
     map_eq_bind_pure_comp]
 
+/-- A uniform-randomness query from a mapped state is the query from the state, with the
+successor mapped. -/
+theorem oracleUnif_run_map {StA StB I Rho : Type}
+    (f : GameState StA StB I Rho → GameState StA StB I Rho) (n : ℕ)
+    (s : GameState StA StB I Rho) :
+    (oracleUnif StA StB I Rho n).run (f s) =
+      Prod.map id f <$> (oracleUnif StA StB I Rho n).run s := by
+  rw [oracleUnif_run_eq, oracleUnif_run_eq, Functor.map_map]
+  rfl
+
 end SCKAScheme

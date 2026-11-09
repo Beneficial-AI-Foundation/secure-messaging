@@ -81,6 +81,7 @@ public import SecureMessaging.RKEM.RatchetSimulatabilityHelper
 public import SecureMessaging.SCKA.Correctness
 public import SecureMessaging.SCKA.Defs
 public import SecureMessaging.SCKA.Correctness.Tracked
+public import SecureMessaging.SCKA.Security.Hybrids
 public import SecureMessaging.SCKA.MLKEMBraid.Authenticator
 public import SecureMessaging.SCKA.MLKEMBraid.Basic
 public import SecureMessaging.SCKA.MLKEMBraid.Construction

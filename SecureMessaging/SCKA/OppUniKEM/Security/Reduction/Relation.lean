@@ -26,9 +26,9 @@ honest game `Q_e(kemMat, kStar)` (`Game`), which knows them.
 - *Commutation.* On hidden states, the simulated sends and receives equal the honest ones followed
   by hiding (`sendA_hide`, `sendArleak_hide`, `sendB_hide`, `sendBrleak_hide`, `recvA_hide`,
   `recvB_hide`). The same holds for challenges (`challenge_hide`): the honest challenge oracle
-  `pinnedChallenge e kStar` answers an eligible challenge at `t` with a uniform key if
-  `0 < t < e`, `kStar` if `t = e`, and the recorded key otherwise, and the simulator reads a
-  hidden recorded key as `kStar`.
+  `pinnedChallenge e kStar` (`SCKA.Security.Hybrids`) answers an eligible challenge at `t`
+  with a uniform key if `0 < t < e`, `kStar` if `t = e`, and the recorded key otherwise, and the
+  simulator reads a hidden recorded key as `kStar`.
 -/
 
 @[expose] public section
@@ -348,23 +348,15 @@ theorem recvA_hide (e : ℕ)
 end
 
 variable {kem} in
-/-- Challenge oracle on honest states: rejects exposed, already challenged, or unrecorded epochs.
-Otherwise it returns a uniform key at epochs `1, …, e - 1`, `kStar` at `e`, and the recorded key
-elsewhere. -/
-def pinnedChallenge [SampleableType K]
-    (e : ℕ) (kStar : K) : QueryImpl (ℕ →ₒ Option K)
-      (StateT (GameState onoff Sym) ProbComp) :=
-  challengeWith id e kStar
-
-variable {kem} in
 /-- Running `challenge onoff e kStar t` from `hideState e s` coincides with running
-`pinnedChallenge onoff e kStar t` from `s` and applying `hideState e` to the successor state. -/
+`pinnedChallenge e kStar t` from `s` and applying `hideState e` to the successor state. -/
 theorem challenge_hide [SampleableType K]
     (e : ℕ) (kStar : K) (t : ℕ)
     (s : GameState onoff Sym) :
     (challenge onoff e kStar t).run (hideState e s) =
-      Prod.map id (hideState e) <$> (pinnedChallenge onoff e kStar t).run s := by
-  simp only [challenge, pinnedChallenge, challengeWith, StateT.run_bind, StateT.run_get, pure_bind]
+      Prod.map id (hideState e) <$> (SCKAScheme.pinnedChallenge e kStar t).run s := by
+  simp only [challenge, SCKAScheme.pinnedChallenge, SCKAScheme.pinnedChallengeWith,
+    StateT.run_bind, StateT.run_get, pure_bind]
   by_cases hg : t ∈ s.exposed ∨ t ∈ s.challenged
   · simp [hideState, hg, StateT.run_pure, Prod.map]
   · cases hA : s.keyA t <;> cases hB : s.keyB t
@@ -375,93 +367,6 @@ theorem challenge_hide [SampleableType K]
         simp [hr, ht, hide, StateT.run_bind, StateT.run_set, StateT.run_pure,
           StateT.run_monadLift, monadLift_self,
           hideState, Prod.map]
-
-variable {kem} in
-/-- A query leaves the state unchanged or adds its unexposed epoch to `challenged`
-(`SCKAScheme.RecordsChallenges`). -/
-theorem pinnedChallenge_recordsChallenges [SampleableType K]
-    (e : ℕ) (kStar : K) :
-    SCKAScheme.RecordsChallenges (pinnedChallenge (Sym := Sym) onoff e kStar) := by
-  intro t s res hres
-  by_cases helig : t ∈ s.exposed ∨ t ∈ s.challenged
-  · left
-    simp only [pinnedChallenge, challengeWith, StateT.run_bind, StateT.run_get, pure_bind, helig,
-      ↓reduceIte, StateT.run_pure, mem_support_pure_iff] at hres
-    rw [hres]
-  · simp only [pinnedChallenge, challengeWith, StateT.run_bind, StateT.run_get, pure_bind, helig,
-      ↓reduceIte] at hres
-    repeat' split at hres
-    all_goals
-      simp only [StateT.run_pure, StateT.run_bind, StateT.run_map, StateT.run_set,
-        StateT.run_monadLift, monadLift_self, bind_pure_comp,
-        map_pure, Functor.map_map, mem_support_pure_iff,
-        support_map, support_uniformSample, Set.image_univ, Set.mem_range] at hres
-    all_goals
-      first
-      | (obtain rfl := hres; exact Or.inl rfl)
-      | (obtain ⟨_, rfl⟩ := hres; exact Or.inr ⟨fun h => helig (Or.inl h), rfl⟩)
-
-variable {kem} in
-/-- For an eligible `e`, `pinnedChallenge e kStar e` from `s` is `pure (some kStar, s')`, where
-`s'` adds `e` to `challenged`. -/
-theorem pinnedChallenge_selected [SampleableType K]
-    (e : ℕ) (kStar : K)
-    (s : GameState onoff Sym)
-    (helig : ¬(e ∈ s.exposed ∨ e ∈ s.challenged))
-    (hkey : (s.keyA e).isSome ∨ (s.keyB e).isSome) :
-    (pinnedChallenge onoff e kStar e).run s =
-      pure (some kStar, { s with challenged := insert e s.challenged }) := by
-  cases hA : s.keyA e <;> cases hB : s.keyB e
-  all_goals try simp [hA, hB] at hkey
-  all_goals simp [pinnedChallenge, challengeWith, helig, hA, hB, StateT.run_bind,
-    StateT.run_get, StateT.run_set]
-
-variable {kem} in
-/-- Unless `t = e` and `e` is eligible, `pinnedChallenge e k t` and `pinnedChallenge e k' t` are
-equal computations from `s`. -/
-theorem pinnedChallenge_eq_of_unused [SampleableType K]
-    (e t : ℕ) (k k' : K)
-    (s : GameState onoff Sym)
-    (h : ¬(t = e ∧ e ∉ s.exposed ∧ e ∉ s.challenged ∧
-      ((s.keyA e).isSome ∨ (s.keyB e).isSome))) :
-    (pinnedChallenge onoff e k t).run s = (pinnedChallenge onoff e k' t).run s := by
-  by_cases ht : t = e
-  · subst t
-    by_cases hg : e ∈ s.exposed ∨ e ∈ s.challenged
-    · simp [pinnedChallenge, challengeWith, hg, StateT.run_bind, StateT.run_get]
-    · have hk : s.keyA e = none ∧ s.keyB e = none := by
-        cases hA : s.keyA e <;> cases hB : s.keyB e <;> simp_all
-      simp [pinnedChallenge, challengeWith, hg, hk, StateT.run_bind, StateT.run_get]
-  · simp only [pinnedChallenge, challengeWith, ht, ↓reduceIte]
-
-variable {kem} in
-/-- If every key recorded at `e` in `s` equals `kStar`, `pinnedChallenge e kStar` and the ordinary
-SCKA challenge oracle randomizing epochs `1, …, e - 1` give equal computations from `s`. -/
-theorem pinnedChallenge_eq_recorded [SampleableType K]
-    (e : ℕ) (kStar : K) (t : ℕ)
-    (s : GameState onoff Sym)
-    (hkey : ∀ k, s.keyA e = some k ∨ s.keyB e = some k → k = kStar) :
-    (pinnedChallenge onoff e kStar t).run s =
-      (SCKAScheme.oracleChall (decide (0 < t ∧ t < e))
-        (StA onoff Sym) (StB onoff Sym) K (Message Sym) t).run s := by
-  by_cases hg : t ∈ s.exposed ∨ t ∈ s.challenged
-  · simp [pinnedChallenge, challengeWith, SCKAScheme.oracleChall, hg]
-  · by_cases ht : t = e
-    · subst t
-      cases hA : s.keyA e with
-      | none =>
-        cases hB : s.keyB e with
-        | none => simp [pinnedChallenge, challengeWith, SCKAScheme.oracleChall, hg, hA, hB]
-        | some k =>
-          have hk := hkey k (.inr hB)
-          subst k
-          simp [pinnedChallenge, challengeWith, SCKAScheme.oracleChall, hg, hA, hB]
-      | some k =>
-        have hk := hkey k (.inl hA)
-        subst k
-        simp [pinnedChallenge, challengeWith, SCKAScheme.oracleChall, hg, hA]
-    · cases hA : s.keyA t <;> cases hB : s.keyB t <;> by_cases hr : 0 < t ∧ t < e <;>
-        simp [pinnedChallenge, challengeWith, SCKAScheme.oracleChall, hg, hA, hB, ht, hr]
 
 /-- Hide each coin returned by a send in epoch `t` via `hide e t`. -/
 def hideCoins {KG OFF ON : Type} (e t : ℕ) :

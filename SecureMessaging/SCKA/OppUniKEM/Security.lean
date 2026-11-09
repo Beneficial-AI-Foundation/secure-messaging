@@ -138,8 +138,9 @@ Pr[S_e^real = true] - Pr[S_e^random = true] = p_{e-1} - p_e      (step 4)
      AdvGuess_SCKA(scka, adv) ≤ |p_0 - p_q| / 2 + q · ε = (q / 2) · AdvINDCPA_KEM(kem, 𝓑) + q · ε
      ```
 
-Supporting modules: `Basic` (interface, send budget), `Invariant` (transcript and epoch
-invariants), `SCKA.Security` (generic guards), ToVCVio (sampling and stopping).
+Supporting modules: `Basic` (interface), `Invariant` (transcript and epoch invariants),
+`SCKA.Defs` (send budget), `SCKA.Security` (generic guards), `SCKA.Security.Hybrids`
+(state-dependent oracles, epoch hybrids, pinned challenge), ToVCVio (sampling and stopping).
 -/
 
 @[expose] public section
@@ -248,7 +249,7 @@ theorem security
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
     (leak : kem.OnOffRandLeak onoff)
-    (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
+    (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SCKAScheme.SecuritySendQueryBound adv q) :
     let scka := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak
     let 𝓑 := Security.Embedding.securityReduction kem onoff ecEk ecCt0 ecCt1 leak adv q
     let ε := (kem.correctnessError ProbCompRuntime.probComp).toReal

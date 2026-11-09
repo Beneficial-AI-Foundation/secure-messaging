@@ -742,8 +742,8 @@ Let $`\Pi` be the Opp-UniKEM protocol ({bpref "opp_unikem_cka_spec"}[]) such tha
 * the underlying erasure codes are correct ({bpref "erasure_code_correctness"}[]).
 
 Then for every SCKA adversary $`\mathcal A` against $`\Pi` making at most $`q` ordinary or
-leaking sends in total, the IND-CPA adversary $`\mathcal B` against $`\Gamma`, constructed from
-$`\mathcal A`, satisfies
+leaking sends in total ({bpref "scka_oracles"}[]), the IND-CPA adversary $`\mathcal B` against
+$`\Gamma`, constructed from $`\mathcal A`, satisfies
 
 $$`\Adv{\mathsf{guess}}{\mathsf{SCKA},\Pi}(\mathcal A)
 \le \frac q2\Adv{\mathsf{IND\text{-}CPA}}{\mathsf{KEM},\Gamma}(\mathcal B)
@@ -769,22 +769,12 @@ theorem security
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
     (leak : kem.OnOffRandLeak onoff)
-    (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
+    (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SCKAScheme.SecuritySendQueryBound adv q) :
     let scka := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak
     let 𝓑 := Security.Embedding.securityReduction kem onoff ecEk ecCt0 ecCt1 leak adv q
     let ε := (kem.correctnessError ProbCompRuntime.probComp).toReal
     SCKAScheme.sckaGuessAdvantage scka adv (exposureA kem onoff leak) (exposureB kem onoff leak) ≤
       (q / 2 : ℝ) * (kem.IND_CPA_Advantage ProbCompRuntime.probComp 𝓑).toReal + q * ε
-```
-
-:::leanPillCaption "SecuritySendQueryBound"
-:::
-
-```anchor SecuritySendQueryBound (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security.Basic)
-def SecuritySendQueryBound {kem : KEMScheme ProbComp K PK SK C}
-    {onoff : kem.OnOffStructure} {leak : kem.OnOffRandLeak onoff}
-    (adv : SecurityAdversary leak Sym) (q : ℕ) : Prop :=
-  adv.IsQueryBoundP (fun t => SCKAScheme.sckaSecuritySpec.isSendQuery t = true) q
 ```
 
 :::leanPillCaption "The constructed KEM adversary $`\\mathcal B`"
