@@ -176,19 +176,6 @@ theorem idealCorrectnessImpl_securitySets_eq
   exact SCKAScheme.correctnessImpl_securitySets_eq _ t s res hres
 
 omit [SampleableType K] in
-/-- Every successor state `res.2` of an ideal correctness query `t` from `s` satisfies
-`res.2.nA ≤ s.nA + 1` when `t` is a send query and `res.2.nA ≤ s.nA` otherwise. -/
-theorem idealCorrectnessImpl_nA_step
-    (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
-    (s : GameState onoff Sym)
-    (res : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Range t ×
-      GameState onoff Sym)
-    (hres : res ∈ support ((idealCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak t).run s)) :
-    res.2.nA ≤ s.nA + if SCKAScheme.isSendQuery t then 1 else 0 := by
-  rw [idealCorrectnessImpl_run_eq] at hres
-  exact SCKAScheme.correctnessImpl_nA_step _ t s res hres
-
-omit [SampleableType K] in
 include hEk hCt0 hCt1 in
 /-- Assuming the erasure codes are correct, every query of `idealCorrectnessImpl` preserves
 `reachableInv`. -/
@@ -558,7 +545,7 @@ include hEk hCt0 hCt1 in
 `SecuritySendQueryBound adv q`, the tracked execution of `G_b` from `(initialGame, false)`
 satisfies `Pr[bad_final = true] ≤ q · ε`, where `bad_final` is its final failure flag. -/
 theorem kem_failure_probability_le (b : Bool)
-    (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
+    (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SCKAScheme.SecuritySendQueryBound adv q) :
     Pr{let res ← ((simulateQ (trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b) adv).run
         (initialGame (Sym := Sym) kem onoff, false))}[res.2.2 = true] ≤
       (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp := by
@@ -628,7 +615,7 @@ include hEk hCt0 hCt1 in
 the real game `G_b` and ideal game `I_b` satisfy
 `|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`. -/
 theorem security_correctness_endpoint_le (b : Bool)
-    (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
+    (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SCKAScheme.SecuritySendQueryBound adv q) :
     |(Pr{let x ← (SCKAScheme.securityExpFixedBit
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv b
         (exposureA kem onoff leak) (exposureB kem onoff leak))}[x = true]).toReal -

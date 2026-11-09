@@ -145,7 +145,7 @@ $$`\begin{array}{rcccl}
 :::defTitle "scka_oracles" "SCKA game state and oracles"
 :::
 
-:::::::definition "scka_oracles" (parent := "cka_protocols_scka") (lean := "SCKAScheme.VulnerableEpochs, SCKAScheme.GameState, SCKAScheme.oracleSendA, SCKAScheme.oracleSendB, SCKAScheme.oracleSendArleak, SCKAScheme.oracleSendBrleak, SCKAScheme.oracleRecvA, SCKAScheme.oracleRecvB, SCKAScheme.oracleChall, SCKAScheme.oracleCorruptA, SCKAScheme.oracleCorruptB, SCKAScheme.sckaCorrectnessSpec, SCKAScheme.sckaCorrectnessImpl, SCKAScheme.SCKACorrectnessAdversary, SCKAScheme.sckaSecuritySpec, SCKAScheme.sckaSecurityImpl, SCKAScheme.SCKAAdversary") (uses := "scka_scheme")
+:::::::definition "scka_oracles" (parent := "cka_protocols_scka") (lean := "SCKAScheme.VulnerableEpochs, SCKAScheme.GameState, SCKAScheme.oracleSendA, SCKAScheme.oracleSendB, SCKAScheme.oracleSendArleak, SCKAScheme.oracleSendBrleak, SCKAScheme.oracleRecvA, SCKAScheme.oracleRecvB, SCKAScheme.oracleChall, SCKAScheme.oracleCorruptA, SCKAScheme.oracleCorruptB, SCKAScheme.sckaCorrectnessSpec, SCKAScheme.sckaCorrectnessImpl, SCKAScheme.SCKACorrectnessAdversary, SCKAScheme.sckaSecuritySpec, SCKAScheme.sckaSecurityImpl, SCKAScheme.SCKAAdversary, SCKAScheme.SendQueryBound, SCKAScheme.SecuritySendQueryBound") (uses := "scka_scheme")
 Game state and oracles adapted from {Informal.citet SCKA25}[], Figure 1.
 We extend the vulnerable-epoch model to randomness leakage and modify the leaking-send
 oracles accordingly. The changes are boxed.
@@ -810,6 +810,18 @@ def sckaSecurityImpl (isRandom : Bool) (vulnA : VulnerableEpochs StA Rand)
 ```anchor SCKAAdversary (project := ".") (module := SecureMessaging.SCKA.Defs)
 abbrev SCKAAdversary (StA StB I Rho Rand : Type) :=
   OracleComp (sckaSecuritySpec StA StB I Rho Rand) Bool
+```
+
+An adversary makes *at most* $`q` *sends* if, on every path of oracle answers, it makes at most
+$`q` queries in total to $`\OSendA`, $`\OSendB` and, with $`\Osec`, $`\OSendARLeak` and
+$`\OSendBRLeak`.
+
+:::leanPillCaption "SecuritySendQueryBound"
+:::
+
+```anchor SecuritySendQueryBound (project := ".") (module := SecureMessaging.SCKA.Defs)
+def SecuritySendQueryBound (adv : SCKAAdversary StA StB I Rho Rand) (q : ℕ) : Prop :=
+  adv.IsQueryBoundP (fun t => sckaSecuritySpec.isSendQuery t = true) q
 ```
 
 :::::
