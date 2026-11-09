@@ -78,11 +78,14 @@ state.
   probability. The agreement is needed only at states satisfying an invariant of `left`.
 - `prEvent_optionRun_eq_of_state_map_some`: the same transport when only the answers
   `a ≠ ⊥` and their successors are compared; an answer `⊥` contributes its mass alone, so the
-  states at which the runs stop need not be related by `f`. `evalDist_stopped_map_of_base`
-  derives its per-query hypothesis from a base-level state map when `stop` is invariant
-  under `f`.
+  states at which the runs stop need not be related by `f`. If `stop` is invariant under `f`, a
+  base-level state map lifts to the joint distribution of stopped answers and successor states
+  (`evalDistEq_stopOnState_of_map`), whose marginal on continuing answers is the per-query
+  hypothesis (`evalDist_stopped_map_of_base`).
 - `prEvent_stoppedRun_eq_of_inv`: stopping has no effect when an invariant of `base` keeps
   `stop` false; the stopped and ordinary runs accept with the same probability.
+- `prEvent_stoppedRun_eq_of_query_eq`: two oracles answering alike from the states of an
+  invariant of one of them have stopped runs accepting with the same probability.
 - `signed_gap_stoppedRun_eq`: if two oracles `left` and `right` of the type of `base` answer
   queries identically until both enter states where `stop` stays false, and accept with equal
   probability from every state where `stop` holds, then stopping both runs leaves the difference
@@ -383,6 +386,25 @@ theorem prEvent_stoppedRun_eq_of_inv
     rw [hstop z.2 hi]
     simpa [StateT.run'_eq] using ih z.1 z.2 hi
 
+/-- Let `left` preserve `Inv` and `right` answer every query from a state satisfying `Inv` by the
+same computation as `left`. Then the stopped runs of `right` and `left` from a state satisfying
+`Inv` accept with the same probability. -/
+theorem prEvent_stoppedRun_eq_of_query_eq
+    (left right : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool) (Inv : σ → Prop)
+    (hpres : QueryImpl.PreservesInv left Inv)
+    (hquery : ∀ t s, Inv s → (right t).run s = (left t).run s)
+    (oa : OracleComp spec Bool) (s : σ) (hs : Inv s) :
+    Pr{let x ← (stoppedRun right stop oa
+        s)}[x = true] = Pr{let x ← stoppedRun left stop oa s}[x = true] := by
+  unfold stoppedRun
+  refine prEvent_optionRun_eq_of_state_map _ _ id Inv ?_ ?_ oa s hs
+  · intro t s hs z hz hsome
+    obtain ⟨y, hy, -, hzy⟩ := exists_of_mem_support_stopOnState _ stop t s z hz hsome
+    rw [hzy]
+    exact hpres t s hs y hy
+  · intro t s hs
+    rw [Prod.map_id, id_map, id, stopOnState_run_eq_map, stopOnState_run_eq_map, hquery t s hs]
+
 /-! ### Cancellation of terminated paths -/
 
 /-- If `impl` preserves `Inv`, `Inv u` implies `stop u = false`, and every `(a, s')` in the
@@ -577,6 +599,25 @@ variable {ι σ τ : Type} {spec : OracleSpec ι}
 
 /-! ### Lifting a base-level state map to stopped answers -/
 
+/-- If `stop' (f u) = stop u` for every `u` and the response/state pairs of `right t` from `f s`
+are equal in distribution to those of `left t` from `s` with the state mapped through `f`, then so
+are the pairs of `stopOnState right stop' t` from `f s` and of `stopOnState left stop t` from `s`
+with the state mapped through `f`. -/
+theorem evalDistEq_stopOnState_of_map
+    (left : QueryImpl spec (StateT σ ProbComp))
+    (right : QueryImpl spec (StateT τ ProbComp)) (f : σ → τ)
+    (stop : σ → Bool) (stop' : τ → Bool) (hstop : ∀ u, stop' (f u) = stop u)
+    (t : spec.Domain) (s : σ)
+    (hmap : (right t).run (f s) =ᵈ Prod.map id f <$> (left t).run s) :
+    ((stopOnState right stop' t).run).run (f s) =ᵈ
+      Prod.map id f <$> ((stopOnState left stop t).run).run s := by
+  rw [stopOnState_run_eq_map, stopOnState_run_eq_map, Functor.map_map]
+  refine (hmap.map _).trans ?_
+  rw [Functor.map_map]
+  convert EvalDistEq.rfl using 2
+  funext y
+  simp [Prod.map, hstop]
+
 /-- If `right` from `f s` has the distribution of `left` from `s` with the successor mapped,
 and `stop` is invariant under `f`, then the stopped answers paired with their successors agree
 as `prEvent_optionRun_eq_of_state_map_some` requires. -/
@@ -586,25 +627,10 @@ lemma evalDist_stopped_map_of_base (left : QueryImpl spec (StateT σ ProbComp))
     (h : (right q).run (f s) =ᵈ Prod.map id f <$> (left q).run s) :
     ((fun z => z.1.map fun a => (a, z.2)) <$> ((stopOnState right stop' q).run).run (f s)) =ᵈ
       ((fun z => z.1.map fun a => (a, f z.2)) <$> ((stopOnState left stop q).run).run s) := by
-  have hL : (fun z : Option (spec.Range q) × σ => z.1.map fun a => (a, f z.2)) <$>
-      ((stopOnState left stop q).run).run s =
-      (fun z : spec.Range q × σ => if stop z.2 then none else some (z.1, f z.2)) <$>
-        (left q).run s := by
-    simp only [stopOnState, OptionT.run_mk, StateT.run, map_eq_bind_pure_comp, bind_assoc,
-      pure_bind]
-    refine bind_congr fun z => ?_
-    by_cases hz : stop z.2 = true <;> simp [hz]
-  have hR : (fun z : Option (spec.Range q) × τ => z.1.map fun a => (a, z.2)) <$>
-      ((stopOnState right stop' q).run).run (f s) =
-      (fun z : spec.Range q × τ => if stop' z.2 then none else some (z.1, z.2)) <$>
-        (right q).run (f s) := by
-    simp only [stopOnState, OptionT.run_mk, StateT.run, map_eq_bind_pure_comp, bind_assoc,
-      pure_bind]
-    refine bind_congr fun z => ?_
-    by_cases hz : stop' z.2 = true <;> simp [hz]
-  rw [hL, hR]
-  refine (h.map _).trans ?_
-  simp only [Functor.map_map, Prod.map_fst, Prod.map_snd, id_eq, hstop]
-  exact EvalDistEq.refl _
+  refine ((evalDistEq_stopOnState_of_map left right f stop stop' hstop q s h).map _).trans ?_
+  rw [Functor.map_map]
+  convert EvalDistEq.rfl using 2
+  funext z
+  rcases z with ⟨_ | a, u⟩ <;> rfl
 
 end OracleComp

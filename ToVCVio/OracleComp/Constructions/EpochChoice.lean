@@ -51,4 +51,16 @@ theorem toReal_prEvent_epochChoice_bind_sub {α : Type} (q : ℕ) (hq : q ≠ 0)
   rw [toReal_prEvent_epochChoice_bind q hq X p, toReal_prEvent_epochChoice_bind q hq Y p,
     Finset.sum_sub_distrib, mul_sub]
 
+open OracleComp in
+/-- Every possible output of `epochChoice q` is positive. -/
+theorem pos_of_mem_support_epochChoice {q e : ℕ}
+    (he : e ∈ support (epochChoice q)) : 0 < e := by
+  unfold epochChoice at he
+  split_ifs at he with hq
+  · have h1 : e = 1 := by simpa using he
+    omega
+  · let : NeZero q := ⟨hq⟩
+    obtain ⟨i, rfl⟩ : ∃ i : Fin q, i.val + 1 = e := by simpa using he
+    omega
+
 end ToVCVio
