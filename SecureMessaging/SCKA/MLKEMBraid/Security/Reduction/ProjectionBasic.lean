@@ -27,7 +27,7 @@ next state, and allows for the answers that stopping at the exposure of `e` drop
 open OracleSpec OracleComp ENNReal
 open ErasureCodePayload.Streaming
 
-namespace MLKEMBraid.NoAuth
+namespace Braid.NoAuth
 
 variable {P : Parameters ProbComp}
 
@@ -45,7 +45,7 @@ def eraseAt (e : ℕ) (T : ℕ → EpochTranscript P) : ℕ → EpochTranscript 
   fun t => if t = e then { keypair := none, encaps1 := none } else T t
 
 /-- The simulator game of a trace game: masked states and relabelled keys at `e`. -/
-def simGameOf (e : ℕ) (v : P.EpochKey) (g : MLKEMBraid.GameState P Unit) : SimGame P :=
+def simGameOf (e : ℕ) (v : P.EpochKey) (g : Braid.GameState P Unit) : SimGame P :=
   { stA := maskState e g.stA, stB := maskState e g.stB
     keyA := relabel e v g.keyA, keyB := relabel e v g.keyB
     msgA := g.msgA, msgB := g.msgB, nA := g.nA, nB := g.nB
@@ -58,7 +58,7 @@ def simOf (e : ℕ) (v : P.EpochKey) (s : TraceState P) : SimState P :=
 section SimView
 
 /-- The simulator's party state is the masked trace party state. -/
-theorem simGameOf_stateAt (e : ℕ) (v : P.EpochKey) (g : MLKEMBraid.GameState P Unit)
+theorem simGameOf_stateAt (e : ℕ) (v : P.EpochKey) (g : Braid.GameState P Unit)
     (party : Bool) : (simGameOf e v g).stateAt party = maskState e (g.stateAt party) := by
   cases party <;> rfl
 
@@ -71,11 +71,11 @@ theorem simOf_transcript (e : ℕ) (v : P.EpochKey) (s : TraceState P) :
     (simOf e v s).transcript = eraseAt e s.transcript := rfl
 
 /-- The exposed epochs of the simulator view. -/
-theorem simGameOf_exposed (e : ℕ) (v : P.EpochKey) (g : MLKEMBraid.GameState P Unit) :
+theorem simGameOf_exposed (e : ℕ) (v : P.EpochKey) (g : Braid.GameState P Unit) :
     (simGameOf e v g).exposed = g.exposed := rfl
 
 /-- The challenged epochs of the simulator view. -/
-theorem simGameOf_challenged (e : ℕ) (v : P.EpochKey) (g : MLKEMBraid.GameState P Unit) :
+theorem simGameOf_challenged (e : ℕ) (v : P.EpochKey) (g : Braid.GameState P Unit) :
     (simGameOf e v g).challenged = g.challenged := rfl
 
 /-- Relabelling commutes with recording a key. -/
@@ -136,7 +136,7 @@ theorem simVuln_maskState (e : ℕ) (st : State P Unit) : simVuln e (maskState e
 /-- A masked state sends its next chunk deterministically. -/
 theorem send_masked (hMac : P.Mac = Unit) {e : ℕ} {st : State P Unit} {m : Masked P}
     (hm : maskState e st = .inr m) :
-    ∃ R : SendResult P Unit, MLKEMBraid.send P (auth P hMac) st = pure R ∧
+    ∃ R : SendResult P Unit, Braid.send P (auth P hMac) st = pure R ∧
       R.msg = (maskedSend e m).1 ∧ R.sendingEpoch = e - 1 ∧ R.outputKey = none ∧
       maskState e R.state = .inr (maskedSend e m).2 := by
   cases st with
@@ -197,7 +197,7 @@ theorem send_masked (hMac : P.Mac = Unit) {e : ℕ} {st : State P Unit} {m : Mas
 variable [DecidableEq P.EpochKey]
 
 /-- The simulator game of a trace send update. -/
-theorem simGameOf_sendUpdate (e : ℕ) (v : P.EpochKey) (g : MLKEMBraid.GameState P Unit)
+theorem simGameOf_sendUpdate (e : ℕ) (v : P.EpochKey) (g : Braid.GameState P Unit)
     (party : Bool) (r : SendResult P Unit) (X : Finset ℕ) :
     simGameOf e v { sendUpdate g party r with exposed := X } =
       { (simGameOf e v g).sendUpdate party (relabelKey e v r.outputKey) r.msg r.sendingEpoch
@@ -207,7 +207,7 @@ theorem simGameOf_sendUpdate (e : ℕ) (v : P.EpochKey) (g : MLKEMBraid.GameStat
       SimGame.sendUpdate, keyUpdate, relabelKey, relabel_update]
 
 /-- The simulator game of a trace receive update. -/
-theorem simGameOf_recvUpdate (e : ℕ) (v : P.EpochKey) (g : MLKEMBraid.GameState P Unit)
+theorem simGameOf_recvUpdate (e : ℕ) (v : P.EpochKey) (g : Braid.GameState P Unit)
     (party : Bool) (tsnd trcv : ℕ) (key : Option (ℕ × P.EpochKey)) (st : State P Unit) :
     simGameOf e v (recvUpdate g party tsnd ⟨trcv, key, st⟩ trcv) =
       (simGameOf e v g).recvUpdate party (relabelKey e v key) (maskState e st) := by
@@ -300,14 +300,14 @@ theorem unif_step (t : ℕ) (s : TraceState P) :
     rfl)
 
 /-- A corruption of A on the game state. -/
-theorem oracleCorruptA_run (V : State P Unit → Finset ℕ) (g : MLKEMBraid.GameState P Unit) :
+theorem oracleCorruptA_run (V : State P Unit → Finset ℕ) (g : Braid.GameState P Unit) :
     (SCKAScheme.oracleCorruptA V (State P Unit) P.EpochKey (Message P.Sym) ()).run g =
       if V g.stA ∩ g.challenged ≠ ∅ then pure (none, g)
       else pure (some g.stA, { g with exposed := g.exposed ∪ V g.stA }) :=
   SCKAScheme.oracleCorruptA_run V g
 
 /-- A corruption of B on the game state. -/
-theorem oracleCorruptB_run (V : State P Unit → Finset ℕ) (g : MLKEMBraid.GameState P Unit) :
+theorem oracleCorruptB_run (V : State P Unit → Finset ℕ) (g : Braid.GameState P Unit) :
     (SCKAScheme.oracleCorruptB V (State P Unit) P.EpochKey (Message P.Sym) ()).run g =
       if V g.stB ∩ g.challenged ≠ ∅ then pure (none, g)
       else pure (some g.stB, { g with exposed := g.exposed ∪ V g.stB }) :=
@@ -370,7 +370,7 @@ theorem corruptB_step (s : TraceState P) :
     exact StepSim.of_eq (by rw [map_pure]; rfl)
 
 /-- The available key in the simulator view. -/
-theorem simLookup_simGameOf (e : ℕ) (v : P.EpochKey) (g : MLKEMBraid.GameState P Unit) (t : ℕ) :
+theorem simLookup_simGameOf (e : ℕ) (v : P.EpochKey) (g : Braid.GameState P Unit) (t : ℕ) :
     simLookup (simGameOf e v g) t =
       if t = e then (lookupKey g t).map (fun _ => v) else lookupKey g t := by
   by_cases ht : t = e
@@ -468,7 +468,7 @@ theorem installedSample_eq_none (e : ℕ) (kp : Option (P.PK × P.SK))
 /-- The trace send of a masked state. -/
 theorem traceSend_masked (party leaking : Bool) (s : TraceState P) {e : ℕ} {m : Masked P}
     (hm : maskState e (s.game.stateAt party) = .inr m) {R : SendResult P Unit}
-    (hR : MLKEMBraid.send P (auth P hMac) (s.game.stateAt party) = pure R) :
+    (hR : Braid.send P (auth P hMac) (s.game.stateAt party) = pure R) :
     traceSend P hMac irl party leaking s =
       pure (some (R.sendingEpoch, R.outputKey.map Prod.fst, R.msg, SendRand.none),
         { game := { sendUpdate s.game party R with exposed := s.game.exposed },
@@ -529,8 +529,8 @@ theorem ghostSample_eq (e : ℕ) (s : TraceState P) (party : Bool)
       refine congrArg (· <$> irl.encaps1Rleak hdr) (funext fun x => ?_)
       simp only [eraseAt_update_encaps1 e t ht]
   | _ =>
-      simp only [ghostSample, sampledSend, hst, MLKEMBraid.sendRleak, Functor.map_map]
+      simp only [ghostSample, sampledSend, hst, Braid.sendRleak, Functor.map_map]
 
 end Sends
 
-end MLKEMBraid.NoAuth
+end Braid.NoAuth

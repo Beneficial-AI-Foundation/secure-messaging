@@ -81,12 +81,12 @@ instance does not refuse decapsulation.
 
 ## Relation to the paper model
 
-The paper model is `MLKEMBraid`. SPQR sends `ct1Ack` in `ekSentCt1Received`, accepts it in
+The paper model is `Braid`. SPQR sends `ct1Ack` in `ekSentCt1Received`, accepts it in
 `ekReceivedCt1Sampled`, and accepts plain `ek` chunks in `ct1Acknowledged`. A future epoch is an
 error except for the `ct2Sampled` successor case. These cases differ from the paper transitions.
 
 `SPQR.Construction` packages this model as an SCKA scheme. `SPQR.Correspondence` translates states
-and messages into `MLKEMBraid` and states the hypotheses under which their transitions agree.
+and messages into `Braid` and states the hypotheses under which their transitions agree.
 -/
 
 @[expose] public section

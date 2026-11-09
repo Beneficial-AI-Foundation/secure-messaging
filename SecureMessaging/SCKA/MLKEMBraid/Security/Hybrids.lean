@@ -25,7 +25,7 @@ accepted sends, and the send budget bounds this number on every path.
 open OracleSpec OracleComp ENNReal
 open ErasureCodePayload.Streaming
 
-namespace MLKEMBraid.NoAuth
+namespace Braid.NoAuth
 
 variable {P : Parameters ProbComp}
 
@@ -47,7 +47,7 @@ private theorem sendBound_init :
   fun _ he => absurd rfl he
 
 /-- A key held by a party is for a positive epoch with a recorded first-stage encapsulation. -/
-private theorem encaps1_of_key {T : ℕ → EpochTranscript P} {g : MLKEMBraid.GameState P Unit}
+private theorem encaps1_of_key {T : ℕ → EpochTranscript P} {g : Braid.GameState P Unit}
     (h : RepairInv hMac T g) (party : Bool) {e : ℕ} (hk : g.keysAt party e ≠ none) :
     0 < e ∧ (T e).encaps1 ≠ none := by
   change (if party then g.keyA else g.keyB) e ≠ none at hk
@@ -59,7 +59,7 @@ private theorem encaps1_of_key {T : ℕ → EpochTranscript P} {g : MLKEMBraid.G
     exact absurd rfl hk
 
 /-- An available challenge key is held by one of the parties. -/
-private theorem keysAt_of_lookupKey {g : MLKEMBraid.GameState P Unit} {e : ℕ}
+private theorem keysAt_of_lookupKey {g : Braid.GameState P Unit} {e : ℕ}
     (hk : lookupKey g e ≠ none) : ∃ party, g.keysAt party e ≠ none := by
   cases hA : g.keyA e with
   | some k => exact ⟨true, by simp [GameState.keysAt, hA]⟩
@@ -117,7 +117,7 @@ private theorem traceChallenge_mode_eq [SampleableType P.K] [SampleableType P.Ep
 variable [DecidableEq P.EpochKey] (irl : P.kem.IncrementalRandLeak P.inc)
 
 /-- An accepted send increments the number of accepted sends. -/
-private theorem sendUpdate_count (g : MLKEMBraid.GameState P Unit) (party : Bool)
+private theorem sendUpdate_count (g : Braid.GameState P Unit) (party : Bool)
     (r : SendResult P Unit) :
     (sendUpdate g party r).nA + (sendUpdate g party r).nB = g.nA + g.nB + 1 := by
   cases party <;> rcases hk : r.outputKey with _ | ⟨e, k⟩ <;>
@@ -371,4 +371,4 @@ theorem hybrid_endpoints (P : Parameters ProbComp)
     run_mode_evalDist_eq hMac irl hHdrSound hEkSound hCt1Sound hCt2Sound A qS hqS _ _
       fun _ _ he => by simp [he]⟩
 
-end MLKEMBraid.NoAuth
+end Braid.NoAuth

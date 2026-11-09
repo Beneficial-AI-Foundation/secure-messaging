@@ -23,7 +23,7 @@ produce, these epochs are `vuln st' \ vuln st`, as in the rule of [SCKA, Fig. 1]
 
 open OracleComp
 
-namespace MLKEMBraid.NoAuth
+namespace Braid.NoAuth
 
 /-- The authenticator with unit state and unit tags that accepts every tag. -/
 -- ANCHOR: noAuthAuthenticator
@@ -44,7 +44,7 @@ def auth (P : Parameters ProbComp) (hMac : P.Mac = Unit) :
 -- ANCHOR: noAuthScheme
 def scheme (P : Parameters ProbComp)
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc) :=
-  MLKEMBraid.scheme P (auth P hMac) irl (pure ())
+  Braid.scheme P (auth P hMac) irl (pure ())
 -- ANCHOR_END: noAuthScheme
 
 /-- The epochs that revealing the local state exposes: none before key generation, while
@@ -87,20 +87,20 @@ theorem sendExposure_eq_delta
     (st : State P Unit)
     (out : SendResult P Unit × SendRand irl.KeygenRand irl.Encaps1Rand)
     (hout : out ∈ support
-      (MLKEMBraid.sendRleak P irl (auth P hMac) st)) :
+      (Braid.sendRleak P irl (auth P hMac) st)) :
     (nativeExposure P irl).rleak st out.2 = vuln out.1.state \ vuln st := by
   cases st
   case keysUnsampled e a =>
-    simp only [MLKEMBraid.sendRleak, mem_support_bind_iff, mem_support_pure_iff] at hout
+    simp only [Braid.sendRleak, mem_support_bind_iff, mem_support_pure_iff] at hout
     obtain ⟨⟨⟨pk, sk⟩, r⟩, _, rfl⟩ := hout
     simp [nativeExposure, sendExposure, vuln, State.epoch]
   case headerReceived e a hdr dec =>
-    simp only [MLKEMBraid.sendRleak, mem_support_bind_iff, mem_support_pure_iff] at hout
+    simp only [Braid.sendRleak, mem_support_bind_iff, mem_support_pure_iff] at hout
     obtain ⟨⟨⟨es, ct1, k⟩, r⟩, _, rfl⟩ := hout
     simp [nativeExposure, sendExposure, vuln, State.epoch]
   all_goals
-    simp only [MLKEMBraid.sendRleak, MLKEMBraid.send, map_pure, mem_support_pure_iff] at hout
+    simp only [Braid.sendRleak, Braid.send, map_pure, mem_support_pure_iff] at hout
     subst hout
     simp [nativeExposure, sendExposure, vuln, State.epoch]
 
-end MLKEMBraid.NoAuth
+end Braid.NoAuth

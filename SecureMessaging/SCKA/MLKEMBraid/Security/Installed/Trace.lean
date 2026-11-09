@@ -25,7 +25,7 @@ open OracleSpec OracleComp
 open SCKAScheme.sckaSecuritySpec SCKAScheme.sckaCorrectnessSpec ENNReal
 open ErasureCodePayload.Streaming
 
-namespace MLKEMBraid.NoAuth
+namespace Braid.NoAuth
 
 variable {P : Parameters ProbComp}
 
@@ -546,4 +546,4 @@ theorem encaps1_hit_records (e : ℕ) (kp : Option (P.PK × P.SK))
 
 end Dispatch
 
-end MLKEMBraid.NoAuth
+end Braid.NoAuth

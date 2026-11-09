@@ -22,7 +22,7 @@ state, records of the sampled key pairs and first-stage encapsulations, and a ba
 
 open OracleSpec OracleComp
 
-namespace MLKEMBraid.NoAuth
+namespace Braid.NoAuth
 
 /-- The full SCKA security interface of the no-authentication instance. -/
 abbrev Spec (P : Parameters ProbComp)
@@ -57,9 +57,9 @@ inductive Mode where
 set once it is set. -/
 structure TraceState (P : Parameters ProbComp) where
   /-- The state of the security game that the oracles use. -/
-  game : MLKEMBraid.GameState P Unit
+  game : Braid.GameState P Unit
   /-- The sampled key pairs and first-stage encapsulations. The adversary never sees them. -/
-  transcript : ℕ → MLKEMBraid.EpochTranscript P
+  transcript : ℕ → Braid.EpochTranscript P
   /-- Set at a first-stage encapsulation when decapsulation would not give the derived key. -/
   bad : Bool
 
@@ -67,7 +67,7 @@ open ErasureCodePayload.Streaming
 
 /-- Run a game-state oracle on the `game` field, and keep the records and the bad flag. -/
 def liftGame {P : Parameters ProbComp} {α : Type}
-    (c : StateT (MLKEMBraid.GameState P Unit) ProbComp α) :
+    (c : StateT (Braid.GameState P Unit) ProbComp α) :
     StateT (TraceState P) ProbComp α :=
   fun s => (fun z => (z.1, { s with game := z.2 })) <$> c.run s.game
 
@@ -117,20 +117,20 @@ def sampledSend (P : Parameters ProbComp) [DecidableEq P.EpochKey]
         Function.update s.transcript e { (s.transcript e) with encaps1 := some x.1 },
         encaps1Bad s e x.1)) <$> irl.encaps1Rleak hdr
   | st => (fun out => (out, s.transcript, s.bad)) <$>
-      MLKEMBraid.sendRleak P irl (auth P hMac) st
+      Braid.sendRleak P irl (auth P hMac) st
 
 /-- Forgetting the records of `sampledSend` gives the leaking send. -/
 theorem sampledSend_erase (P : Parameters ProbComp) [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (s : TraceState P) (party : Bool) :
     Prod.fst <$> sampledSend P hMac irl s party =
-      MLKEMBraid.sendRleak P irl (auth P hMac) (s.game.stateAt party) := by
+      Braid.sendRleak P irl (auth P hMac) (s.game.stateAt party) := by
   cases hst : s.game.stateAt party <;>
-    simp [sampledSend, hst, MLKEMBraid.sendRleak, keygenStep, encaps1Step]
+    simp [sampledSend, hst, Braid.sendRleak, keygenStep, encaps1Step]
 
 /-- A send of `party` that reveals its coins if `leaking`. If the game refuses a leaking send, it
 keeps neither the new game state nor the new records. Otherwise it updates the game state with
-`MLKEMBraid.sendUpdate`. -/
+`Braid.sendUpdate`. -/
 def traceSend (P : Parameters ProbComp) [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
     (party leaking : Bool) :
@@ -143,7 +143,7 @@ def traceSend (P : Parameters ProbComp) [DecidableEq P.EpochKey]
     let leaked := (nativeExposure P irl).rleak (s.game.stateAt party) coins
     if leaking && decide (leaked ∩ s.game.challenged ≠ ∅) then (none, s)
     else (some (result.sendingEpoch, result.outputKey.map Prod.fst, result.msg, coins),
-      { game := { MLKEMBraid.sendUpdate s.game party result with
+      { game := { Braid.sendUpdate s.game party result with
           exposed := if leaking then s.game.exposed ∪ leaked else s.game.exposed },
         transcript := w.2.1, bad := w.2.2 })) <$> sampledSend P hMac irl s party
 
@@ -162,10 +162,10 @@ def repairedRecv (P : Parameters ProbComp)
           | some _, some (_, _, k) =>
               some (some (e, P.kdfOK k e), msg.epoch - 1,
                 .noHeaderReceived (e + 1) () P.decHdr.empty)
-          | _, _ => MLKEMBraid.recvSCKA P (auth P hMac) st msg
-        else MLKEMBraid.recvSCKA P (auth P hMac) st msg
-    | _, _, _ => MLKEMBraid.recvSCKA P (auth P hMac) st msg
-  else MLKEMBraid.recvSCKA P (auth P hMac) st msg
+          | _, _ => Braid.recvSCKA P (auth P hMac) st msg
+        else Braid.recvSCKA P (auth P hMac) st msg
+    | _, _, _ => Braid.recvSCKA P (auth P hMac) st msg
+  else Braid.recvSCKA P (auth P hMac) st msg
 
 /-- The no-authentication scheme with the receive algorithm `repairedRecv` for transcript `T`. -/
 def recvScheme (P : Parameters ProbComp)
@@ -188,7 +188,7 @@ def traceReceive (P : Parameters ProbComp)
     else SCKAScheme.oracleRecvB (recvScheme P hMac irl repair s.transcript) n)) s
 
 /-- The recorded key of epoch `e` read by the challenge oracle: A's key, else B's. -/
-def lookupKey {P : Parameters ProbComp} (g : MLKEMBraid.GameState P Unit) (e : ℕ) :
+def lookupKey {P : Parameters ProbComp} (g : Braid.GameState P Unit) (e : ℕ) :
     Option P.EpochKey :=
   match g.keyA e with
   | some k => some k
@@ -258,8 +258,8 @@ def traceImpl (P : Parameters ProbComp)
 
 /-- The literal initial state of the trace games. -/
 def initTrace (P : Parameters ProbComp) (hMac : P.Mac = Unit) : TraceState P :=
-  { game := SCKAScheme.initGameState (MLKEMBraid.initA P (auth P hMac) ())
-      (MLKEMBraid.initB P (auth P hMac) ())
+  { game := SCKAScheme.initGameState (Braid.initA P (auth P hMac) ())
+      (Braid.initB P (auth P hMac) ())
     transcript := fun _ => { keypair := none, encaps1 := none }
     bad := false }
 
@@ -282,8 +282,8 @@ def fixed (P : Parameters ProbComp)
     (A : Adversary P irl) (b : Bool) : ProbComp Bool :=
   (simulateQ (SCKAScheme.sckaSecurityImpl b
     (nativeExposure P irl) (nativeExposure P irl) (scheme P hMac irl)) A).run'
-      (SCKAScheme.initGameState (MLKEMBraid.initA P (auth P hMac) ())
-        (MLKEMBraid.initB P (auth P hMac) ()))
+      (SCKAScheme.initGameState (Braid.initA P (auth P hMac) ())
+        (Braid.initB P (auth P hMac) ()))
 
 /-- `fixed A b` is the SCKA security experiment with the bit fixed to `b` and the functions
 `nativeExposure`. -/
@@ -296,9 +296,9 @@ theorem fixed_eq_native
       SCKAScheme.securityExpFixedBit (scheme P hMac irl) A b
         (nativeExposure P irl) (nativeExposure P irl) := by
   have h1 : (scheme P hMac irl).initKeyGen = pure () := rfl
-  have h2 : ∀ ik, (scheme P hMac irl).initA ik = pure (MLKEMBraid.initA P (auth P hMac) ik) :=
+  have h2 : ∀ ik, (scheme P hMac irl).initA ik = pure (Braid.initA P (auth P hMac) ik) :=
     fun _ => rfl
-  have h3 : ∀ ik, (scheme P hMac irl).initB ik = pure (MLKEMBraid.initB P (auth P hMac) ik) :=
+  have h3 : ∀ ik, (scheme P hMac irl).initB ik = pure (Braid.initB P (auth P hMac) ik) :=
     fun _ => rfl
   simp only [SCKAScheme.securityExpFixedBit, h1, h2, h3, pure_bind]
   simp only [fixed, StateT.run'_eq, map_eq_bind_pure_comp]
@@ -324,4 +324,4 @@ def rawHybrid (P : Parameters ProbComp)
     (fun t => if t < e then .uniform
       else if t = e then .derivedUniform else .real) A
 
-end MLKEMBraid.NoAuth
+end Braid.NoAuth

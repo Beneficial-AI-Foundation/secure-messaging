@@ -23,7 +23,7 @@ reduction.
 open OracleSpec OracleComp
 open ErasureCodePayload.Streaming
 
-namespace MLKEMBraid.NoAuth
+namespace Braid.NoAuth
 
 variable {P : Parameters ProbComp}
 
@@ -275,7 +275,7 @@ def ghostSample (P : Parameters ProbComp) (hMac : P.Mac = Unit)
   | .headerReceived t a hdr dec => (fun x : (P.inc.St × P.inc.C₁ × P.K) × irl.Encaps1Rand =>
       ((encaps1Step P hMac t a hdr dec x.1.1 x.1.2.1 x.1.2.2, SendRand.encaps1 x.2),
         Function.update T t { (T t) with encaps1 := some x.1 })) <$> irl.encaps1Rleak hdr
-  | st => (fun out => (out, T)) <$> MLKEMBraid.sendRleak P irl (auth P hMac) st
+  | st => (fun out => (out, T)) <$> Braid.sendRleak P irl (auth P hMac) st
 
 /-- The send of an ordinary state of the selected epoch `e` that samples, with the challenge
 installed: key generation installs the challenge public key, and first-stage encapsulation the
@@ -413,8 +413,8 @@ def simImpl (P : Parameters ProbComp) [SampleableType P.K] [SampleableType P.Epo
 records. -/
 def simInit (P : Parameters ProbComp) (hMac : P.Mac = Unit) : SimState P :=
   { game :=
-      { stA := .inl (MLKEMBraid.initA P (auth P hMac) ())
-        stB := .inl (MLKEMBraid.initB P (auth P hMac) ())
+      { stA := .inl (Braid.initA P (auth P hMac) ())
+        stB := .inl (Braid.initB P (auth P hMac) ())
         keyA := fun _ => none, keyB := fun _ => none
         msgA := fun _ => none, msgB := fun _ => none
         nA := 0, nB := 0, exposed := ∅, challenged := ∅ }
@@ -444,4 +444,4 @@ def kemReduction (P : Parameters ProbComp) [SampleableType P.K] [SampleableType 
           (simImpl P hMac irl (e + 1) ⟨pk, (P.inc.splitC c).1, (P.inc.splitC c).2, k⟩)
           (simStop (e + 1)) A (simInit P hMac) }
 
-end MLKEMBraid.NoAuth
+end Braid.NoAuth

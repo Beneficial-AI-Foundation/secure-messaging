@@ -24,24 +24,24 @@ open OracleSpec OracleComp
 open SCKAScheme.sckaSecuritySpec SCKAScheme.sckaCorrectnessSpec
 open ErasureCodePayload.Streaming
 
-namespace MLKEMBraid.NoAuth
+namespace Braid.NoAuth
 
 variable {P : Parameters ProbComp}
 
 /-- `liftGame` runs a game oracle on the `game` field. -/
-theorem liftGame_run {α : Type} (c : StateT (MLKEMBraid.GameState P Unit) ProbComp α)
+theorem liftGame_run {α : Type} (c : StateT (Braid.GameState P Unit) ProbComp α)
     (s : TraceState P) :
     (liftGame c).run s = (fun z => (z.1, { s with game := z.2 })) <$> c.run s.game := rfl
 
 /-- Projecting a lifted game oracle to its game state gives the game oracle. -/
-theorem map_game_liftGame {α : Type} (c : StateT (MLKEMBraid.GameState P Unit) ProbComp α)
+theorem map_game_liftGame {α : Type} (c : StateT (Braid.GameState P Unit) ProbComp α)
     (s : TraceState P) :
     Prod.map id TraceState.game <$> (liftGame c).run s = c.run s.game := by
   rw [liftGame_run, Functor.map_map]
   exact id_map (c.run s.game)
 
 /-- The outcomes of a lifted game oracle keep the records and the bad flag. -/
-theorem mem_support_liftGame {α : Type} {c : StateT (MLKEMBraid.GameState P Unit) ProbComp α}
+theorem mem_support_liftGame {α : Type} {c : StateT (Braid.GameState P Unit) ProbComp α}
     {s : TraceState P} {z : α × TraceState P} (hz : z ∈ support ((liftGame c).run s)) :
     ∃ w ∈ support (c.run s.game), z = (w.1, { s with game := w.2 }) := by
   rw [liftGame_run, support_map] at hz
@@ -50,7 +50,7 @@ theorem mem_support_liftGame {α : Type} {c : StateT (MLKEMBraid.GameState P Uni
 
 /-- A corruption of A reveals A's state, or is refused without a state change. -/
 theorem mem_support_oracleCorruptA {V : State P Unit → Finset ℕ}
-    {g : MLKEMBraid.GameState P Unit} {w : Option (State P Unit) × MLKEMBraid.GameState P Unit}
+    {g : Braid.GameState P Unit} {w : Option (State P Unit) × Braid.GameState P Unit}
     (hw : w ∈ support ((SCKAScheme.oracleCorruptA V (State P Unit) P.EpochKey
       (Message P.Sym) ()).run g)) :
     w.2 = g ∨ (V g.stA ∩ g.challenged = ∅ ∧ w.2 = { g with exposed := g.exposed ∪ V g.stA }) := by
@@ -65,7 +65,7 @@ theorem mem_support_oracleCorruptA {V : State P Unit → Finset ℕ}
 
 /-- The version of `mem_support_oracleCorruptA` for B. -/
 theorem mem_support_oracleCorruptB {V : State P Unit → Finset ℕ}
-    {g : MLKEMBraid.GameState P Unit} {w : Option (State P Unit) × MLKEMBraid.GameState P Unit}
+    {g : Braid.GameState P Unit} {w : Option (State P Unit) × Braid.GameState P Unit}
     (hw : w ∈ support ((SCKAScheme.oracleCorruptB V (State P Unit) P.EpochKey
       (Message P.Sym) ()).run g)) :
     w.2 = g ∨ (V g.stB ∩ g.challenged = ∅ ∧ w.2 = { g with exposed := g.exposed ∪ V g.stB }) := by
@@ -204,8 +204,8 @@ variable (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
 /-- A send from a state that does not sample is `send` without coins. -/
 theorem sendRleak_of_noSample {st : State P Unit} (h1 : ∀ t a, st ≠ .keysUnsampled t a)
     (h2 : ∀ t a hdr dec, st ≠ .headerReceived t a hdr dec) :
-    MLKEMBraid.sendRleak P irl (auth P hMac) st =
-      (fun r => (r, SendRand.none)) <$> MLKEMBraid.send P (auth P hMac) st := by
+    Braid.sendRleak P irl (auth P hMac) st =
+      (fun r => (r, SendRand.none)) <$> Braid.send P (auth P hMac) st := by
   cases st with
   | keysUnsampled t a => exact absurd rfl (h1 t a)
   | headerReceived t a hdr dec => exact absurd rfl (h2 t a hdr dec)
@@ -218,9 +218,9 @@ theorem sampledSend_of_noSample (s : TraceState P) (party : Bool)
     (h1 : ∀ t a, s.game.stateAt party ≠ .keysUnsampled t a)
     (h2 : ∀ t a hdr dec, s.game.stateAt party ≠ .headerReceived t a hdr dec) :
     sampledSend P hMac irl s party = (fun r => ((r, SendRand.none), s.transcript, s.bad)) <$>
-      MLKEMBraid.send P (auth P hMac) (s.game.stateAt party) := by
+      Braid.send P (auth P hMac) (s.game.stateAt party) := by
   have hS : sampledSend P hMac irl s party = (fun out => (out, s.transcript, s.bad)) <$>
-      MLKEMBraid.sendRleak P irl (auth P hMac) (s.game.stateAt party) := by
+      Braid.sendRleak P irl (auth P hMac) (s.game.stateAt party) := by
     cases hst : s.game.stateAt party with
     | keysUnsampled t a => exact absurd hst (h1 t a)
     | headerReceived t a hdr dec => exact absurd hst (h2 t a hdr dec)
@@ -243,7 +243,7 @@ theorem mem_support_sampledSend (s : TraceState P) (party : Bool)
         encaps1Bad s t x.1)) ∨
     ((∀ t a, s.game.stateAt party ≠ .keysUnsampled t a) ∧
       (∀ t a hdr dec, s.game.stateAt party ≠ .headerReceived t a hdr dec) ∧
-      ∃ r ∈ support (MLKEMBraid.send P (auth P hMac) (s.game.stateAt party)),
+      ∃ r ∈ support (Braid.send P (auth P hMac) (s.game.stateAt party)),
         w = ((r, SendRand.none), s.transcript, s.bad)) := by
   cases hst : s.game.stateAt party
   case keysUnsampled t a =>
@@ -324,7 +324,7 @@ theorem traceSend_bad {party leaking : Bool} {s : TraceState P} (hb : s.bad = tr
   · rw [hz]; exact sampledSend_bad hMac irl hw hb
 
 /-- The send update keeps the exposed and challenged epochs. -/
-theorem sendUpdate_flags (g : MLKEMBraid.GameState P Unit) (party : Bool)
+theorem sendUpdate_flags (g : Braid.GameState P Unit) (party : Bool)
     (r : SendResult P Unit) :
     (sendUpdate g party r).exposed = g.exposed ∧
       (sendUpdate g party r).challenged = g.challenged := by
@@ -350,4 +350,4 @@ theorem traceSend_disjoint {party leaking : Bool} {s : TraceState P}
     rw [Finset.union_inter_distrib_right, Finset.union_eq_empty]
     exact ⟨hs, hE rfl⟩
 
-end MLKEMBraid.NoAuth
+end Braid.NoAuth

@@ -29,7 +29,7 @@ Forgetting the records and the bad flag of the real trace game gives the securit
 open OracleSpec OracleComp ENNReal
 open ErasureCodePayload.Streaming
 
-namespace MLKEMBraid.NoAuth
+namespace Braid.NoAuth
 
 variable {P : Parameters ProbComp}
 
@@ -242,7 +242,7 @@ theorem traceImpl_real_eq_repaired
 theorem traceImpl_bad_mono (repair : Bool) (mode : ℕ → Mode) :
     QueryImpl.PreservesInv (traceImpl P hMac irl repair mode) (fun s => s.bad = true) := by
   have hlift : ∀ {ι : Type} {spec : OracleSpec ι}
-      (c : QueryImpl spec (StateT (MLKEMBraid.GameState P Unit) ProbComp)),
+      (c : QueryImpl spec (StateT (Braid.GameState P Unit) ProbComp)),
       QueryImpl.PreservesInv (fun t => liftGame (c t)) (fun s : TraceState P => s.bad = true) := by
     intro ι spec c t s hs z hz
     obtain ⟨w, -, rfl⟩ := mem_support_liftGame hz
@@ -276,7 +276,7 @@ variable [DecidableEq P.EpochKey] (hMac : P.Mac = Unit)
   (irl : P.kem.IncrementalRandLeak P.inc)
 
 /-- A non-leaking send records the update of `sendUpdate` with the exposed epochs unchanged. -/
-private theorem sendUpdate_with_exposed (g : MLKEMBraid.GameState P Unit) (party : Bool)
+private theorem sendUpdate_with_exposed (g : Braid.GameState P Unit) (party : Bool)
     (r : SendResult P Unit) :
     { sendUpdate g party r with exposed := g.exposed } = sendUpdate g party r := by
   cases party <;> rcases hk : r.outputKey with _ | ⟨e, k⟩ <;>
@@ -297,7 +297,7 @@ private theorem tracePlain_map (party : Bool) (t : Unit) (s : TraceState P) :
   simp [sendUpdate_with_exposed]
 
 /-- The leaking send of A in the security game with `nativeExposure`. -/
-private theorem oracleSendArleak_run (g : MLKEMBraid.GameState P Unit) :
+private theorem oracleSendArleak_run (g : Braid.GameState P Unit) :
     (SCKAScheme.oracleSendArleak (nativeExposure P irl).rleak (scheme P hMac irl) ()).run
         g =
       (fun out : SendResult P Unit × SendRand irl.KeygenRand irl.Encaps1Rand =>
@@ -305,9 +305,9 @@ private theorem oracleSendArleak_run (g : MLKEMBraid.GameState P Unit) :
         else (some (out.1.sendingEpoch, out.1.outputKey.map Prod.fst, out.1.msg, out.2),
           { sendUpdate g true out.1 with
             exposed := g.exposed ∪ (nativeExposure P irl).rleak g.stA out.2 })) <$>
-        MLKEMBraid.sendRleak P irl (auth P hMac) g.stA := by
+        Braid.sendRleak P irl (auth P hMac) g.stA := by
   simp only [SCKAScheme.oracleSendArleak, StateT.run_bind, StateT.run_get,
-    pure_bind, StateT.run_monadLift, monadLift_self, scheme, MLKEMBraid.scheme, bind_assoc,
+    pure_bind, StateT.run_monadLift, monadLift_self, scheme, Braid.scheme, bind_assoc,
     map_eq_bind_pure_comp]
   refine bind_congr fun out => ?_
   rcases out with ⟨r, rand⟩
@@ -318,7 +318,7 @@ private theorem oracleSendArleak_run (g : MLKEMBraid.GameState P Unit) :
       simp [hk, sendUpdate, SCKAScheme.sendAUpdate, SCKAScheme.knownPrefix, StateT.run_set]
 
 /-- The leaking send of B in the security game with `nativeExposure`. -/
-private theorem oracleSendBrleak_run (g : MLKEMBraid.GameState P Unit) :
+private theorem oracleSendBrleak_run (g : Braid.GameState P Unit) :
     (SCKAScheme.oracleSendBrleak (nativeExposure P irl).rleak (scheme P hMac irl) ()).run
         g =
       (fun out : SendResult P Unit × SendRand irl.KeygenRand irl.Encaps1Rand =>
@@ -326,9 +326,9 @@ private theorem oracleSendBrleak_run (g : MLKEMBraid.GameState P Unit) :
         else (some (out.1.sendingEpoch, out.1.outputKey.map Prod.fst, out.1.msg, out.2),
           { sendUpdate g false out.1 with
             exposed := g.exposed ∪ (nativeExposure P irl).rleak g.stB out.2 })) <$>
-        MLKEMBraid.sendRleak P irl (auth P hMac) g.stB := by
+        Braid.sendRleak P irl (auth P hMac) g.stB := by
   simp only [SCKAScheme.oracleSendBrleak, StateT.run_bind, StateT.run_get,
-    pure_bind, StateT.run_monadLift, monadLift_self, scheme, MLKEMBraid.scheme, bind_assoc,
+    pure_bind, StateT.run_monadLift, monadLift_self, scheme, Braid.scheme, bind_assoc,
     map_eq_bind_pure_comp]
   refine bind_congr fun out => ?_
   rcases out with ⟨r, rand⟩
@@ -435,8 +435,8 @@ theorem run_erase (P : Parameters ProbComp)
         run P hMac irl false (fun _ => if b then .uniform else .real) A =
       (simulateQ (SCKAScheme.sckaSecurityImpl b (nativeExposure P irl) (nativeExposure P irl)
         (scheme P hMac irl)) A).run
-        (SCKAScheme.initGameState (MLKEMBraid.initA P (auth P hMac) ())
-          (MLKEMBraid.initB P (auth P hMac) ())) :=
+        (SCKAScheme.initGameState (Braid.initA P (auth P hMac) ())
+          (Braid.initB P (auth P hMac) ())) :=
   OracleComp.map_run_simulateQ_eq_of_query_map_eq _ _ TraceState.game
     (traceImpl_real_map hMac irl b) A _
 
@@ -471,4 +471,4 @@ theorem fixed_repaired_gap_le (P : Parameters ProbComp)
       hCt2Sound _ t s ⟨hs, by simpa using hb⟩)
     A (fun x => x = true) _ (traceInv_init hMac false)
 
-end MLKEMBraid.NoAuth
+end Braid.NoAuth

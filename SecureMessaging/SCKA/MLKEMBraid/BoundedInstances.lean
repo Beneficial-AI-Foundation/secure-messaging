@@ -92,7 +92,7 @@ noncomputable def parameters (p : MLKEM.ParameterSet) (ring : MLKEM.NTTRingOps)
     (prims : MLKEM.Primitives (MLKEM.ParameterSet.params p)
       (MLKEM.Concrete.concreteEncoding (MLKEM.ParameterSet.params p)))
     {EpochKey : Type} (kdfOK : MLKEM.SharedSecret → ℕ → EpochKey) :
-    MLKEMBraid.Parameters ProbComp where
+    Braid.Parameters ProbComp where
   K := MLKEM.SharedSecret
   PK := MLKEM.EncapsulationKey (MLKEM.ParameterSet.params p)
     (MLKEM.Bounded.encoding (MLKEM.ParameterSet.params p))

@@ -21,7 +21,7 @@ correctness game preserves `ControlInv s ∧ StatePairInv s`
 open OracleSpec OracleComp
 open SCKAScheme.sckaCorrectnessSpec
 
-namespace MLKEMBraid
+namespace Braid
 
 /-- The pairs of a key generator's state and an encapsulator's state that occur at the same
 epoch. -/
@@ -155,4 +155,4 @@ theorem correctnessImpl_preserves_controlInv_statePairInv :
       hs.2.2 hs.2.1
     rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;> exact ⟨hpair.2, hpair.1⟩
 
-end MLKEMBraid
+end Braid

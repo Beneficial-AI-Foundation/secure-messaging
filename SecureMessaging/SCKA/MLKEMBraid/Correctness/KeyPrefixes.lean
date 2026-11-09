@@ -22,7 +22,7 @@ preserves it.
 
 open OracleSpec OracleComp
 
-namespace MLKEMBraid
+namespace Braid
 
 variable {P : Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
@@ -117,4 +117,4 @@ theorem correctnessImpl_preserves_keyPrefixInv
       simpa [SCKAScheme.recvBUpdate, hstep.2.1, hstep.2.2] using
         SCKAScheme.update_succ_ne_none_iff hs.prefixB key
 
-end MLKEMBraid
+end Braid

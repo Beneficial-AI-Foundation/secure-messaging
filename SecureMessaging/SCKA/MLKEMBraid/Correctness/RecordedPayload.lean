@@ -24,7 +24,7 @@ open OracleSpec OracleComp
 open ErasureCodePayload.Streaming
 open SCKAScheme.sckaCorrectnessSpec
 
-namespace MLKEMBraid
+namespace Braid
 
 variable {P : Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
@@ -174,4 +174,4 @@ theorem receive_recorded_payload
       receive_ct2Sampled_payload auth ik T e a enc msg hLocal ⟨hkp, hce⟩
     exact hnoKey r hr hnone hinv
 
-end MLKEMBraid
+end Braid

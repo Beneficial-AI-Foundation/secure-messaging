@@ -27,7 +27,7 @@ open OracleSpec OracleComp
 open SCKAScheme.sckaSecuritySpec SCKAScheme.sckaCorrectnessSpec
 open ErasureCodePayload.Streaming
 
-namespace MLKEMBraid.NoAuth
+namespace Braid.NoAuth
 
 variable {P : Parameters ProbComp}
 
@@ -382,4 +382,4 @@ theorem mem_support_tracePlainAt {e : ℕ} {kp : Option (P.PK × P.SK)}
 
 end TargetSends
 
-end MLKEMBraid.NoAuth
+end Braid.NoAuth

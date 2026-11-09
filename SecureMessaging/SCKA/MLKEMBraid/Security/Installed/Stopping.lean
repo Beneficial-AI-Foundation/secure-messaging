@@ -28,7 +28,7 @@ it at the challenge (`stoppedRun_chalSample`).
 open OracleSpec OracleComp ENNReal
 open ErasureCodePayload.Streaming
 
-namespace MLKEMBraid.NoAuth
+namespace Braid.NoAuth
 
 variable {P : Parameters ProbComp}
 
@@ -515,4 +515,4 @@ theorem stoppedRun_chalSample (e : ℕ) (kp : Option (P.PK × P.SK))
 
 end ChallengeSample
 
-end MLKEMBraid.NoAuth
+end Braid.NoAuth

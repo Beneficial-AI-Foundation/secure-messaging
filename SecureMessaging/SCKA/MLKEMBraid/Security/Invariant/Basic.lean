@@ -23,13 +23,13 @@ invariant ignores the exposed and challenged epochs.
 open OracleSpec OracleComp
 open ErasureCodePayload.Streaming
 
-namespace MLKEMBraid.NoAuth
+namespace Braid.NoAuth
 
 variable {P : Parameters ProbComp}
 
 /-- `TranscriptInv` for the unit authenticator with no condition on decapsulation. -/
 abbrev RepairInv (hMac : P.Mac = Unit) (T : ℕ → EpochTranscript P)
-    (s : MLKEMBraid.GameState P Unit) : Prop :=
+    (s : Braid.GameState P Unit) : Prop :=
   TranscriptInv (auth P hMac) (fun _ _ _ _ _ _ => True) () T s
 
 /-- Actual decapsulation of every recorded first-stage encapsulation gives its derived key. -/
@@ -40,7 +40,7 @@ def DecapsGood (T : ℕ → EpochTranscript P) : Prop :=
 
 namespace RepairInv
 
-variable {hMac : P.Mac = Unit} {T : ℕ → EpochTranscript P} {s : MLKEMBraid.GameState P Unit}
+variable {hMac : P.Mac = Unit} {T : ℕ → EpochTranscript P} {s : Braid.GameState P Unit}
 
 /-- Transcript consistency implies the repaired invariant. -/
 theorem of_transcriptConsistent (h : TranscriptConsistent (auth P hMac) () T s) :
@@ -62,7 +62,7 @@ theorem setFlags (h : RepairInv hMac T s) (X Y : Finset ℕ) :
 
 /-- Build the invariant for the same transcript at a state with larger epochs and completed
 epochs whose local states, messages and keys agree with the transcript. -/
-theorem of_le (h : RepairInv hMac T s) {s' : MLKEMBraid.GameState P Unit}
+theorem of_le (h : RepairInv hMac T s) {s' : Braid.GameState P Unit}
     (hc : s'.correct = true) (hC : ControlInv s') (hP : StatePairInv s')
     (he : ∀ party, (s.stateAt party).epoch ≤ (s'.stateAt party).epoch)
     (hcomp : ∀ party, (s.stateAt party).completedEpoch ≤ (s'.stateAt party).completedEpoch)
@@ -103,4 +103,4 @@ theorem PairInv.peer_of_ekSentCt1Received {st peer : State P Unit}
       State.completedEpoch] at * <;>
     omega
 
-end MLKEMBraid.NoAuth
+end Braid.NoAuth

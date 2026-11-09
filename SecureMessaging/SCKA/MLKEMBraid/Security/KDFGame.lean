@@ -19,7 +19,7 @@ The distinguisher chooses the label before the shared secret is sampled.
 
 open OracleSpec OracleComp
 
-namespace MLKEMBraid
+namespace Braid
 
 /-- The PRG experiment for `kdfOK (·, e)`, with a derived key or a uniform epoch key. -/
 -- ANCHOR: kdfExp
@@ -57,4 +57,4 @@ noncomputable def kdfAdvantage {K EpochKey : Type} (kdfOK : K → ℕ → EpochK
   (𝒟[kdfContextExp kdfOK C true].boolDist 𝒟[kdfContextExp kdfOK C false]).toReal
 -- ANCHOR_END: kdfAdvantage
 
-end MLKEMBraid
+end Braid

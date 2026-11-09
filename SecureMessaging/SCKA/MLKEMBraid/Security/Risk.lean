@@ -27,7 +27,7 @@ open OracleSpec OracleComp ENNReal
 open ErasureCodePayload.Streaming
 open OracleComp.ProgramLogic
 
-namespace MLKEMBraid.NoAuth
+namespace Braid.NoAuth
 
 variable {P : Parameters ProbComp}
 
@@ -359,7 +359,7 @@ theorem traceImpl_payoff (mode : ℕ → Mode) :
     intro ι spec c hc t s hs
     simpa using hc t s hs
   have hlift : ∀ {ι : Type} {spec : OracleSpec ι}
-      (c : QueryImpl spec (StateT (MLKEMBraid.GameState P Unit) ProbComp)),
+      (c : QueryImpl spec (StateT (Braid.GameState P Unit) ProbComp)),
       ∀ t (s : TraceState P), ∀ z ∈ support ((liftGame (c t)).run s),
         z.2.transcript = s.transcript ∧ z.2.bad = s.bad := by
     intro ι spec c t s z hz
@@ -427,4 +427,4 @@ theorem badEvent_le (P : Parameters ProbComp)
     _ = (qS : ℝ≥0∞) * P.kem.correctnessError ProbCompRuntime.probComp := by
         rw [h0, zero_add]
 
-end MLKEMBraid.NoAuth
+end Braid.NoAuth

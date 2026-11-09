@@ -23,7 +23,7 @@ and the next state.
 open OracleSpec OracleComp
 open ErasureCodePayload.Streaming
 
-namespace MLKEMBraid.NoAuth
+namespace Braid.NoAuth
 
 variable {P : Parameters ProbComp}
 variable (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc) [DecidableEq P.EpochKey]
@@ -105,7 +105,7 @@ theorem sendStep_ghost (e : ℕ) (v : P.EpochKey) (ch : Challenge P) (kp : Optio
   have hedge : SendEdge (auth P hMac) (s.game.stateAt party) w.1.1 := by
     refine (mem_support_send_iff (auth P hMac)).mp ?_
     have h1' : w.1 ∈ support
-        (MLKEMBraid.sendRleak P irl (auth P hMac) (s.game.stateAt party)) := by
+        (Braid.sendRleak P irl (auth P hMac) (s.game.stateAt party)) := by
       rw [← sampledSend_erase P hMac irl s party, support_map]
       exact ⟨w, hw, rfl⟩
     rw [send_eq_map_sendRleak P irl, support_map]
@@ -160,4 +160,4 @@ theorem leakStep (e : ℕ) (v : P.EpochKey) (ch : Challenge P) (hv : P.kdfOK ch.
       ((traceLeakAt P hMac irl e (some (ch.pk, sk)) (some (es, ch.ct1, k)) party t).run s) :=
   StepSim.of_eq (sendStep hMac irl e v ch hv sk es k party true s)
 
-end MLKEMBraid.NoAuth
+end Braid.NoAuth

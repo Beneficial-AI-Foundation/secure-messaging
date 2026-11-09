@@ -33,7 +33,7 @@ up to the difference between two consecutive hybrids, so their sum over `e` tele
 
 open OracleSpec OracleComp ENNReal ToVCVio
 
-namespace MLKEMBraid.NoAuth
+namespace Braid.NoAuth
 
 variable (P : Parameters ProbComp) [SampleableType P.K] [SampleableType P.EpochKey]
   [DecidableEq P.EpochKey]
@@ -143,4 +143,4 @@ theorem hybrid_gap_eq_query_factor (hHdrSound : P.decHdr.Sound P.ecpHdr)
     (Pr{let x ← hybrid P hMac irl A i}[x = true]).toReal -
     (Pr{let x ← hybrid P hMac irl A (i + 1)}[x = true]).toReal) q, Finset.sum_range_sub']
 
-end MLKEMBraid.NoAuth
+end Braid.NoAuth

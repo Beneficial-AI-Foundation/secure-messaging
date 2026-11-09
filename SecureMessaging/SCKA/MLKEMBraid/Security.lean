@@ -21,7 +21,7 @@ trivial internal authenticator.
 
 - the Braid protocol `scheme P hMac irl` over a KEM `P.kem` with incremental encapsulation and
   randomness leakage `irl`, with the optional internal authenticator switched off
-  (`hMac : P.Mac = Unit`, `NoAuth.auth`), and stream decoders for its four streams (header,
+  (`hMac : P.Mac = Unit`, `Braid.NoAuth.auth`), and stream decoders for its four streams (header,
   public-key vector, and the two ciphertext components) that are sound for their erasure codes
   (`StreamDecoder.Sound`);
 - the exposure functions `nativeExposure P irl` for both parties: corrupting a party exposes its
@@ -59,11 +59,11 @@ Let:
 - `ε` be the KEM correctness error (`correctnessError`): the probability that an honest
   encapsulation `(c, k) ← Encaps(pk)` under `(pk, sk) ← KeyGen` does not decapsulate to `k`.
 
-**Theorem** (`NoAuth.security`). For every `q : ℕ`,
+**Theorem** (`Braid.NoAuth.security`). For every `q : ℕ`,
 
 `AdvGuess(A) ≤ (q / 2) · (AdvINDCPA(ℬ) + AdvKDF(𝒞)) + q · ε`.
 
-`MLKEMBraid.security` states the same bound for Braid over ML-KEM with finite-payload
+`MLKEMBraid.NoAuth.security` states the same bound for Braid over ML-KEM with finite-payload
 Reed–Solomon codes (`Bounded.parameters`). There `ℬ` attacks raw ML-KEM through
 `MLKEM.Bounded.liftAdversary`, and `ε` is the correctness error of raw ML-KEM.
 
@@ -87,7 +87,7 @@ Reed–Solomon codes (`Bounded.parameters`). There `ℬ` attacks raw ML-KEM thro
 
 ## Proof structure
 
-Paths are relative to `MLKEMBraid/Security/`.
+Paths are relative to `Braid/Security/`.
 
 **Notation.** Every game runs `A` and returns its output bit.
 
@@ -145,12 +145,12 @@ Paths are relative to `MLKEMBraid/Security/`.
      ```
 
    - For `q = 0` both sides are `0`. Hence `|p_0 - p_q| ≤ q · (AdvINDCPA(ℬ) + AdvKDF(𝒞))`, and
-     step 1 gives `NoAuth.security`.
+     step 1 gives `Braid.NoAuth.security`.
 
 5. *ML-KEM instance* (this module). `MLKEM.Bounded.indCPAAdvantage_lift` and
    `MLKEM.Bounded.correctnessError_eq` move the KEM terms to raw ML-KEM, and
    `Bounded.payloads_correct` and `setDecoder_sound` show that the set-based decoders of the four
-   streams are sound (`MLKEMBraid.security`).
+   streams are sound (`MLKEMBraid.NoAuth.security`).
 
 Supporting modules: `NoAuth` (authenticator and exposure functions), `KDFGame` (the key-derivation
 game), `Games` (games and hybrids), `Reduction/Simulator` (the simulation that `ℬ_e` runs), ToVCVio
@@ -169,7 +169,7 @@ sends, leaking or not (`SendQueryBound A q`). Let `ℬ := kemMixReduction A q`,
 exposure functions `nativeExposure` for both parties,
 `AdvGuess(A) ≤ (q / 2) · (AdvINDCPA(ℬ) + AdvKDF(𝒞)) + q · ε`. -/
 -- ANCHOR: genericSecurity
-theorem MLKEMBraid.NoAuth.security (P : Parameters ProbComp)
+theorem Braid.NoAuth.security (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
     [DecidableEq P.K] [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)
@@ -248,7 +248,7 @@ let `ε` be the correctness error of ML-KEM. Then, with the exposure functions `
 both parties, `AdvGuess(A) ≤ (q / 2) · (AdvINDCPA(ℬ) + AdvKDF(𝒞)) + q · ε`, where the IND-CPA
 game is the one of ML-KEM. -/
 -- ANCHOR: security
-theorem MLKEMBraid.security
+theorem MLKEMBraid.NoAuth.security
     (p : MLKEM.ParameterSet) (ring : MLKEM.NTTRingOps)
     (prims : MLKEM.Primitives (MLKEM.ParameterSet.params p)
       (MLKEM.Concrete.concreteEncoding (MLKEM.ParameterSet.params p)))
@@ -258,26 +258,26 @@ theorem MLKEMBraid.security
     let irl := MLKEM.incrementalRandLeak ring
       (MLKEM.Bounded.encoding (MLKEM.ParameterSet.params p))
       (MLKEM.Bounded.primitives (MLKEM.ParameterSet.params p) prims)
-    ∀ (A : MLKEMBraid.NoAuth.Adversary P irl) (q : ℕ),
-      MLKEMBraid.NoAuth.SendQueryBound A q →
+    ∀ (A : Braid.NoAuth.Adversary P irl) (q : ℕ),
+      Braid.NoAuth.SendQueryBound A q →
       let ℬ := MLKEM.Bounded.liftAdversary p ring prims
-        (MLKEMBraid.NoAuth.kemMixReduction P rfl irl A q)
-      let 𝒞 := MLKEMBraid.NoAuth.kdfMixReduction P rfl irl A q
+        (Braid.NoAuth.kemMixReduction P rfl irl A q)
+      let 𝒞 := Braid.NoAuth.kdfMixReduction P rfl irl A q
       let ε := ((MLKEM.mlkemScheme p ring prims).correctnessError
         ProbCompRuntime.probComp).toReal
       SCKAScheme.sckaGuessAdvantage
-        (MLKEMBraid.NoAuth.scheme P rfl irl) A
-        (MLKEMBraid.NoAuth.nativeExposure P irl)
-        (MLKEMBraid.NoAuth.nativeExposure P irl) ≤
+        (Braid.NoAuth.scheme P rfl irl) A
+        (Braid.NoAuth.nativeExposure P irl)
+        (Braid.NoAuth.nativeExposure P irl) ≤
         (q / 2 : ℝ) *
           (((MLKEM.mlkemScheme p ring prims).IND_CPA_Advantage ProbCompRuntime.probComp ℬ).toReal +
-            MLKEMBraid.kdfAdvantage P.kdfOK 𝒞) + q * ε
+            Braid.kdfAdvantage P.kdfOK 𝒞) + q * ε
 -- ANCHOR_END: security
     := by
   intro P irl A q hq
   dsimp only
-  obtain ⟨hHdr, hEk, hCt1, hCt2⟩ := Bounded.payloads_correct p
-  refine le_trans (NoAuth.security P rfl irl
+  obtain ⟨hHdr, hEk, hCt1, hCt2⟩ := MLKEMBraid.Bounded.payloads_correct p
+  refine le_trans (Braid.NoAuth.security P rfl irl
     (ErasureCodePayload.Streaming.setDecoder_sound _ hHdr)
     (ErasureCodePayload.Streaming.setDecoder_sound _ hEk)
     (ErasureCodePayload.Streaming.setDecoder_sound _ hCt1)
@@ -286,7 +286,7 @@ theorem MLKEMBraid.security
   · apply mul_le_mul_of_nonneg_left _ (by positivity)
     apply add_le_add
     · exact le_of_eq (congrArg ENNReal.toReal (MLKEM.Bounded.indCPAAdvantage_lift p ring prims
-        (NoAuth.kemMixReduction P rfl irl A q))).symm
+        (Braid.NoAuth.kemMixReduction P rfl irl A q))).symm
     · exact le_rfl
   · exact le_of_eq (congrArg (fun x => (q : ℝ) * x.toReal)
       (MLKEM.Bounded.correctnessError_eq p ring prims))

@@ -67,7 +67,7 @@ b' \gets \adv(r); \\
 :::defTitle "kdf_context_game" "Key derivation with an adversarially chosen label"
 :::
 
-:::::::definition "kdf_context_game" (parent := "prg") (lean := "MLKEMBraid.kdfExp, MLKEMBraid.KDFContextAdversary, MLKEMBraid.kdfContextExp, MLKEMBraid.kdfAdvantage") (uses := "prg")
+:::::::definition "kdf_context_game" (parent := "prg") (lean := "Braid.kdfExp, Braid.KDFContextAdversary, Braid.kdfContextExp, Braid.kdfAdvantage") (uses := "prg")
 Let $`F:\mathcal K\times\mathbb N\to\mathcal I` be a derivation function. A distinguisher
 $`\mathcal C` first chooses a label $`e` and retains a state $`\sigma`. It then receives either
 $`F(u,e)` for uniform $`u\in\mathcal K`, or a uniform $`x\in\mathcal I`, and outputs a bit.

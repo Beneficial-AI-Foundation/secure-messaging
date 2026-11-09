@@ -13,7 +13,7 @@ public import SecureMessaging.SCKA.MLKEMBraid.Correctness.ReceiveInvariant
 /-!
 # Drift of the failure potential
 
-Per-query bounds for `failurePotential`, used by `MLKEMBraid.correctness_error_le`.
+Per-query bounds for `failurePotential`, used by `Braid.correctness_error_le`.
 -/
 
 @[expose] public section
@@ -24,7 +24,7 @@ open ErasureCodePayload.Streaming
 open SCKAScheme.sckaCorrectnessSpec
 open ENNReal
 
-namespace MLKEMBraid
+namespace Braid
 
 variable {P : Parameters ProbComp} [DecidableEq P.K] [DecidableEq P.EpochKey]
   {InitKey AuthState : Type}
@@ -509,4 +509,4 @@ theorem wp_failurePotential_query_le
       exact wp_failurePotential_recv_le auth irl sampleInitKey hHdrSound hEkSound
         hCt1Sound hCt2Sound ik s hs false n
 
-end MLKEMBraid
+end Braid

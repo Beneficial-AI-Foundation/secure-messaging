@@ -28,7 +28,7 @@ open OracleSpec OracleComp
 open SCKAScheme.sckaSecuritySpec SCKAScheme.sckaCorrectnessSpec ENNReal
 open ErasureCodePayload.Streaming
 
-namespace MLKEMBraid.NoAuth
+namespace Braid.NoAuth
 
 variable {P : Parameters ProbComp}
 
@@ -513,4 +513,4 @@ theorem stoppedRun_installBoth (hHdrSound : P.decHdr.Sound P.ecpHdr)
 
 end Dispatch
 
-end MLKEMBraid.NoAuth
+end Braid.NoAuth

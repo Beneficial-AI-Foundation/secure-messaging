@@ -24,20 +24,20 @@ second case does not assume that decapsulation succeeds.
 open OracleSpec OracleComp
 open ErasureCodePayload.Streaming
 
-namespace MLKEMBraid.NoAuth
+namespace Braid.NoAuth
 
 variable {P : Parameters ProbComp}
 
 section Receive
 
 variable {hMac : P.Mac = Unit} {T : ℕ → EpochTranscript P}
-  {s : MLKEMBraid.GameState P Unit}
+  {s : Braid.GameState P Unit}
 
 /-- Outside the generator's `ct₂` states, `repairedRecv` runs `recvSCKA`. -/
 theorem repairedRecv_eq_of_not_ekSent (repair : Bool) (T : ℕ → EpochTranscript P)
     {st : State P Unit} (msg : Message P.Sym)
     (hst : ∀ e a sk ct1 dec, st ≠ .ekSentCt1Received e a sk ct1 dec) :
-    repairedRecv P hMac repair T st msg = MLKEMBraid.recvSCKA P (auth P hMac) st msg := by
+    repairedRecv P hMac repair T st msg = Braid.recvSCKA P (auth P hMac) st msg := by
   cases repair
   · rfl
   · cases st <;> first | rfl | exact absurd rfl (hst _ _ _ _ _)
@@ -59,7 +59,7 @@ theorem receive_cases
     (∃ r, receive P (auth P hMac) (s.stateAt party) msg = .ok r ∧ r.outputKey = none ∧
       LocalPayloadInv (auth P hMac) () T r.state ∧
       ∀ repair, repairedRecv P hMac repair T (s.stateAt party) msg =
-        MLKEMBraid.recvSCKA P (auth P hMac) (s.stateAt party) msg) := by
+        Braid.recvSCKA P (auth P hMac) (s.stateAt party) msg) := by
   have hRole := h.control.role party
   have hLocal := h.local _ party
   have hPayload := h.messages (!party) n msg tsnd hmsg
@@ -87,7 +87,7 @@ theorem receive_cases
       ∃ r, receive P (auth P hMac) st msg = .ok r ∧ r.outputKey = none ∧
         LocalPayloadInv (auth P hMac) () T r.state ∧
         ∀ repair, repairedRecv P hMac repair T st msg =
-          MLKEMBraid.recvSCKA P (auth P hMac) st msg :=
+          Braid.recvSCKA P (auth P hMac) st msg :=
     fun r hr hnone hinv hne =>
       ⟨r, hr, hnone, hinv, fun repair => repairedRecv_eq_of_not_ekSent repair T msg hne⟩
   cases st
@@ -276,7 +276,7 @@ private theorem recvNoKey (irl : P.kem.IncrementalRandLeak P.inc) [DecidableEq P
       exact h.keys who e
 
 /-- The current game epoch after a receive. -/
-private theorem tcurAt_recvSuccessor (s : MLKEMBraid.GameState P Unit) (party who : Bool)
+private theorem tcurAt_recvSuccessor (s : Braid.GameState P Unit) (party who : Bool)
     (r : RecvResult P Unit) (trcv : ℕ) :
     (recvSuccessor s party r trcv).tcurAt who =
       if who = party then max (s.tcurAt who) trcv else s.tcurAt who := by
@@ -536,12 +536,12 @@ theorem recv_outcome [DecidableEq P.EpochKey]
           rw [hdk] at hg
           have hk' : P.kdfOK k' e = P.kdfOK k e := Option.some.inj hg
           rw [hst]
-          simp [repairedRecv, MLKEMBraid.recvSCKA, receive, Message.wellFormed, hdecode, hdk,
+          simp [repairedRecv, Braid.recvSCKA, receive, Message.wellFormed, hdecode, hdk,
             hk', auth]
     · exact hrep_true
-  · have hscka : MLKEMBraid.recvSCKA P (auth P hMac) (s.stateAt party) msg =
+  · have hscka : Braid.recvSCKA P (auth P hMac) (s.stateAt party) msg =
         some (none, msg.epoch - 1, r.state) := by
-      simp [MLKEMBraid.recvSCKA, hr, hnone]
+      simp [Braid.recvSCKA, hr, hnone]
     have hupd : recvUpdate s party tsnd ⟨msg.epoch - 1, none, r.state⟩ (msg.epoch - 1) =
         recvUpdate s party tsnd r (msg.epoch - 1) := by
       rcases r with ⟨re, rk, rs⟩
@@ -618,4 +618,4 @@ theorem traceReceive_outcome
       subst hz
       exact ⟨hinv, rfl, rfl⟩
 
-end MLKEMBraid.NoAuth
+end Braid.NoAuth

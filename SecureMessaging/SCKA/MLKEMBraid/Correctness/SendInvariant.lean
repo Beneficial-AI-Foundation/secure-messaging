@@ -23,7 +23,7 @@ open OracleSpec OracleComp
 open ErasureCodePayload.Streaming
 open SCKAScheme.sckaCorrectnessSpec
 
-namespace MLKEMBraid
+namespace Braid
 
 variable {P : Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
@@ -488,4 +488,4 @@ theorem oracleSend_preserves_correctnessInv (ik : InitKey) (party : Bool) :
   rw [heq] at hCPz ⊢
   exact Or.inr (send_preserves_transcript auth hT party hr hCPz)
 
-end MLKEMBraid
+end Braid

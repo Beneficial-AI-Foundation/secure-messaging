@@ -25,7 +25,7 @@ and maps of states then gives the same acceptance probability for the stopped ru
 open OracleSpec OracleComp ENNReal
 open ErasureCodePayload.Streaming
 
-namespace MLKEMBraid.NoAuth
+namespace Braid.NoAuth
 
 variable {P : Parameters ProbComp}
 
@@ -99,7 +99,7 @@ theorem simOf_initTrace (hMac : P.Mac = Unit) (e : ℕ) (v : P.EpochKey) :
       fun _ => { keypair := none, encaps1 := none } :=
     funext fun t => by simp [eraseAt]
   simp [simOf, simGameOf, initTrace, simInit, SCKAScheme.initGameState, maskState,
-    MLKEMBraid.initA, MLKEMBraid.initB, h1, h2]
+    Braid.initA, Braid.initB, h1, h2]
 
 section SimStep
 
@@ -173,4 +173,4 @@ theorem simStep_eq (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sou
 
 end SimStep
 
-end MLKEMBraid.NoAuth
+end Braid.NoAuth

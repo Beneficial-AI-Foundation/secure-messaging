@@ -23,7 +23,7 @@ decapsulation succeeds.
 open OracleSpec OracleComp ENNReal
 open ErasureCodePayload.Streaming
 
-namespace MLKEMBraid.NoAuth
+namespace Braid.NoAuth
 
 variable {P : Parameters ProbComp}
 
@@ -71,10 +71,10 @@ theorem repairedRecv_unmasked {e : ℕ} {v : P.EpochKey} {T : ℕ → EpochTrans
     {st' : State P Unit} (hm : maskState e st = .inl st)
     (hr : repairedRecv P hMac true T st msg = some (key?, trcv, st')) :
     maskState e st' = .inl st' ∧ relabelKey e v key? = key? := by
-  have hscka : ∀ x, MLKEMBraid.recvSCKA P (auth P hMac) st msg = some x →
+  have hscka : ∀ x, Braid.recvSCKA P (auth P hMac) st msg = some x →
       maskState e x.2.2 = .inl x.2.2 ∧ relabelKey e v x.1 = x.1 := by
     intro x hx
-    unfold MLKEMBraid.recvSCKA at hx
+    unfold Braid.recvSCKA at hx
     split at hx
     · cases hx
     · rename_i r hrecv
@@ -99,13 +99,13 @@ theorem repairedRecv_unmasked {e : ℕ} {v : P.EpochKey} {T : ℕ → EpochTrans
       rw [repairedRecv_eq_of_not_ekSent true _ msg (fun _ _ _ _ _ h => by cases h)] at hr
       exact hscka _ hr
 
-/-- Unfold `MLKEMBraid.recvSCKA` and `receive` in the hypothesis `h`, with the extra simp lemmas
+/-- Unfold `Braid.recvSCKA` and `receive` in the hypothesis `h`, with the extra simp lemmas
 `l`. -/
 local syntax "recv_norm" " [" Lean.Parser.Tactic.simpArg,* "]" " at " ident : tactic
 
 macro_rules
   | `(tactic| recv_norm [$l,*] at $h:ident) =>
-    `(tactic| simp only [MLKEMBraid.recvSCKA, receive, Message.wellFormed, Bool.false_eq_true,
+    `(tactic| simp only [Braid.recvSCKA, receive, Message.wellFormed, Bool.false_eq_true,
         Bool.not_false, Bool.not_true, Option.isNone_none, Option.isNone_some,
         Option.isSome_none, Option.isSome_some, Option.some.injEq, Prod.mk.injEq, ↓reduceIte,
         $l,*] at $h:ident)
@@ -114,7 +114,7 @@ macro_rules
 private theorem maskedRecv_keysSampled {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C₂} {a : Unit}
     {sk : P.SK} {vec : P.inc.PKvector} {enc : EncoderState (P.inc.PKheader × P.Mac) P.Sym}
     {msg : Message P.Sym} {key? : Option (ℕ × P.EpochKey)} {trcv : ℕ} {st' : State P Unit}
-    (hr : MLKEMBraid.recvSCKA P (auth P hMac) (.keysSampled e a sk vec enc) msg =
+    (hr : Braid.recvSCKA P (auth P hMac) (.keysSampled e a sk vec enc) msg =
       some (key?, trcv, st')) :
     maskedRecv P hMac e c2 v (.keysSampled vec enc) msg =
       some (relabelKey e v key?, trcv, maskState e st') := by
@@ -128,7 +128,7 @@ private theorem maskedRecv_keysSampled {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C�
 private theorem maskedRecv_headerSent {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C₂} {a : Unit}
     {sk : P.SK} {dec : P.decCt1.D} {enc : EncoderState P.inc.PKvector P.Sym}
     {msg : Message P.Sym} {key? : Option (ℕ × P.EpochKey)} {trcv : ℕ} {st' : State P Unit}
-    (hr : MLKEMBraid.recvSCKA P (auth P hMac) (.headerSent e a sk dec enc) msg =
+    (hr : Braid.recvSCKA P (auth P hMac) (.headerSent e a sk dec enc) msg =
       some (key?, trcv, st')) :
     maskedRecv P hMac e c2 v (.headerSent dec enc) msg =
       some (relabelKey e v key?, trcv, maskState e st') := by
@@ -149,7 +149,7 @@ private theorem maskedRecv_headerSent {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C�
 private theorem maskedRecv_ct1Received {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C₂} {a : Unit}
     {sk : P.SK} {ct1 : P.inc.C₁} {enc : EncoderState P.inc.PKvector P.Sym}
     {msg : Message P.Sym} {key? : Option (ℕ × P.EpochKey)} {trcv : ℕ} {st' : State P Unit}
-    (hr : MLKEMBraid.recvSCKA P (auth P hMac) (.ct1Received e a sk ct1 enc) msg =
+    (hr : Braid.recvSCKA P (auth P hMac) (.ct1Received e a sk ct1 enc) msg =
       some (key?, trcv, st')) :
     maskedRecv P hMac e c2 v (.ct1Received ct1 enc) msg =
       some (relabelKey e v key?, trcv, maskState e st') := by
@@ -203,7 +203,7 @@ private theorem maskedRecv_ct1Sampled {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C�
     (hc2 : ∀ pk sk es c1 k, (T e).keypair = some (pk, sk) → (T e).encaps1 = some (es, c1, k) →
       c2 = P.hEnc2.encaps2Det es (P.inc.toHeader pk) (P.inc.toVector pk))
     {msg : Message P.Sym} {key? : Option (ℕ × P.EpochKey)} {trcv : ℕ} {st' : State P Unit}
-    (hr : MLKEMBraid.recvSCKA P (auth P hMac) (.ct1Sampled e () hdr es c1 enc dec) msg =
+    (hr : Braid.recvSCKA P (auth P hMac) (.ct1Sampled e () hdr es c1 enc dec) msg =
       some (key?, trcv, st'))
     (hloc' : LocalPayloadInv (auth P hMac) () T st') :
     maskedRecv P hMac e c2 v (.ct1Sampled hdr c1 enc dec) msg =
@@ -230,7 +230,7 @@ private theorem maskedRecv_ct1Sampled {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C�
               · recv_norm [hd, hv] at hr
                 obtain ⟨rfl, rfl, rfl⟩ := hr
                 simp [maskedRecv, Message.wellFormed, maskState, relabelKey, hd, hv]
-              · simp [MLKEMBraid.recvSCKA, receive, Message.wellFormed, hd, hv] at hr
+              · simp [Braid.recvSCKA, receive, Message.wellFormed, hd, hv] at hr
     case ekCt1Ack =>
       cases md with
       | none =>
@@ -251,7 +251,7 @@ private theorem maskedRecv_ct1Sampled {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C�
                   rw [hc2 pk sk es c1 k hkp hec]
                   exact ct2_of_local hMac hkp hec hloc'
                 simp [maskedRecv, Message.wellFormed, maskState, relabelKey, hd, hv, h2]
-              · simp [MLKEMBraid.recvSCKA, receive, Message.wellFormed, hd, hv] at hr
+              · simp [Braid.recvSCKA, receive, Message.wellFormed, hd, hv] at hr
     all_goals
       cases md <;>
         recv_norm [] at hr <;>
@@ -270,7 +270,7 @@ private theorem maskedRecv_ekReceived {e : ℕ} {v : P.EpochKey} {c2 : P.inc.C�
     (hc2 : ∀ pk sk es c1 k, (T e).keypair = some (pk, sk) → (T e).encaps1 = some (es, c1, k) →
       c2 = P.hEnc2.encaps2Det es (P.inc.toHeader pk) (P.inc.toVector pk))
     {msg : Message P.Sym} {key? : Option (ℕ × P.EpochKey)} {trcv : ℕ} {st' : State P Unit}
-    (hr : MLKEMBraid.recvSCKA P (auth P hMac) (.ekReceivedCt1Sampled e () es c1 hdr vec enc)
+    (hr : Braid.recvSCKA P (auth P hMac) (.ekReceivedCt1Sampled e () es c1 hdr vec enc)
       msg = some (key?, trcv, st'))
     (hloc' : LocalPayloadInv (auth P hMac) () T st') :
     maskedRecv P hMac e c2 v (.ekReceivedCt1Sampled c1 hdr vec enc) msg =
@@ -311,7 +311,7 @@ private theorem maskedRecv_ct1Acknowledged {e : ℕ} {v : P.EpochKey} {c2 : P.in
     (hc2 : ∀ pk sk es c1 k, (T e).keypair = some (pk, sk) → (T e).encaps1 = some (es, c1, k) →
       c2 = P.hEnc2.encaps2Det es (P.inc.toHeader pk) (P.inc.toVector pk))
     {msg : Message P.Sym} {key? : Option (ℕ × P.EpochKey)} {trcv : ℕ} {st' : State P Unit}
-    (hr : MLKEMBraid.recvSCKA P (auth P hMac) (.ct1Acknowledged e () hdr es c1 dec) msg =
+    (hr : Braid.recvSCKA P (auth P hMac) (.ct1Acknowledged e () hdr es c1 dec) msg =
       some (key?, trcv, st'))
     (hloc' : LocalPayloadInv (auth P hMac) () T st') :
     maskedRecv P hMac e c2 v (.ct1Acknowledged hdr c1 dec) msg =
@@ -341,7 +341,7 @@ private theorem maskedRecv_ct1Acknowledged {e : ℕ} {v : P.EpochKey} {c2 : P.in
                   rw [hc2 pk sk es c1 k hkp hec]
                   exact ct2_of_local hMac hkp hec hloc'
                 simp [maskedRecv, Message.wellFormed, maskState, relabelKey, hd, hv, h2]
-              · simp [MLKEMBraid.recvSCKA, receive, Message.wellFormed, hd, hv] at hr
+              · simp [Braid.recvSCKA, receive, Message.wellFormed, hd, hv] at hr
     all_goals
       cases md <;>
         recv_norm [] at hr <;>
@@ -519,4 +519,4 @@ theorem recvStep (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound
 
 end ReceiveStep
 
-end MLKEMBraid.NoAuth
+end Braid.NoAuth

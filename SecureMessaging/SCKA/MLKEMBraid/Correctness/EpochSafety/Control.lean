@@ -24,7 +24,7 @@ that every send and receive oracle preserves `ControlInv`.
 open OracleSpec OracleComp
 open SCKAScheme.sckaCorrectnessSpec
 
-namespace MLKEMBraid
+namespace Braid
 
 /-- A lower bound on the step of the sender's control position after it sends a message of this
 type. -/
@@ -318,4 +318,4 @@ theorem correctnessImpl_preserves_controlInv :
     (oracleRecv_preserves_controlInv auth irl sampleInitKey true)
     (oracleRecv_preserves_controlInv auth irl sampleInitKey false)
 
-end MLKEMBraid
+end Braid

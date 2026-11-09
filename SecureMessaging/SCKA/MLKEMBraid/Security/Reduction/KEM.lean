@@ -24,7 +24,7 @@ two experiments with the difference between adjacent hybrids (`kem_signed_gap_eq
 open OracleSpec OracleComp ENNReal
 open ErasureCodePayload.Streaming
 
-namespace MLKEMBraid.NoAuth
+namespace Braid.NoAuth
 
 variable {P : Parameters ProbComp}
 
@@ -193,4 +193,4 @@ theorem kem_signed_gap_eq (P : Parameters ProbComp)
   unfold hybrid rawHybrid
   rw [hgap, hH, hJ]
 
-end MLKEMBraid.NoAuth
+end Braid.NoAuth

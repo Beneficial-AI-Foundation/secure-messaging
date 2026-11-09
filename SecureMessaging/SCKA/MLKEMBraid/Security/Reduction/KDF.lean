@@ -22,7 +22,7 @@ does not need sound stream decoders.
 
 open OracleSpec OracleComp
 
-namespace MLKEMBraid.NoAuth
+namespace Braid.NoAuth
 
 /-- The key-derivation distinguisher for epoch `e`. For `e = 0` it returns
 `false`. Otherwise it samples all KEM material itself and runs the repaired game of `A` once. It
@@ -97,4 +97,4 @@ theorem kdf_signed_gap_eq (P : Parameters ProbComp)
   unfold rawHybrid hybrid
   rw [hgap, hJ, hH]
 
-end MLKEMBraid.NoAuth
+end Braid.NoAuth

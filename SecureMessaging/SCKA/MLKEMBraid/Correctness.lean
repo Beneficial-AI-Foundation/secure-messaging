@@ -68,7 +68,7 @@ open OracleSpec OracleComp ENNReal
 
 universe u
 
-namespace MLKEMBraid
+namespace Braid
 
 /-- With sound stream decoders, every query preserves `CorrectnessInv auth ik` on supported
 outcomes for every initial key `ik`. -/
@@ -131,7 +131,11 @@ theorem correctness_error_le
   · exact wp_failurePotential_query_le auth irl sampleInitKey
       hHdrSound hEkSound hCt1Sound hCt2Sound
 
-/-- The bound of `correctness_error_le` for `mlkemBraidScheme`, using the correctness error of
+end Braid
+
+namespace MLKEMBraid
+
+/-- The bound of `Braid.correctness_error_le` for `mlkemBraidScheme`, using the correctness error of
 `MLKEM.mlkemScheme p ring prims`. -/
 theorem mlkemBraidScheme_correctness_error_le
     (p : MLKEM.ParameterSet) (ring : MLKEM.NTTRingOps)
@@ -155,7 +159,7 @@ theorem mlkemBraidScheme_correctness_error_le
     (hEkCorrect : ecpEk.ec.Correct)
     (hCt1Correct : ecpCt1.ec.Correct)
     (hCt2Correct : ecpCt2.ec.Correct)
-    (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
+    (adv : SCKAScheme.SCKACorrectnessAdversary (Braid.Message Sym))
     (q : ℕ) (hq : SCKAScheme.SendQueryBound adv q) :
     1 - Pr{let x ← (SCKAScheme.correctnessExp
         (mlkemBraidScheme p ring prims kdfOK
@@ -174,7 +178,7 @@ theorem mlkemBraidScheme_correctness_error_le
     let : DecidableEq P₀.Sym := by
       change DecidableEq Sym
       infer_instance
-    exact correctness_error_le P₀ auth
+    exact Braid.correctness_error_le P₀ auth
       (MLKEM.mlkemIncrementalRandLeak p ring prims) sampleInitKey
       (ErasureCodePayload.Streaming.setDecoder_sound _ hHdrCorrect)
       (ErasureCodePayload.Streaming.setDecoder_sound _ hEkCorrect)

@@ -26,7 +26,7 @@ open OracleSpec OracleComp
 open ErasureCodePayload.Streaming
 open SCKAScheme.sckaCorrectnessSpec
 
-namespace MLKEMBraid.NoAuth
+namespace Braid.NoAuth
 
 variable {P : Parameters ProbComp}
 
@@ -170,4 +170,4 @@ theorem traceSend_preserves (party leaking : Bool) (s : TraceState P)
       exact ⟨RepairInv.setFlags
         (send_existing_transcript (auth P hMac) h party hr hsteady hCP) _ _, fun hg _ => hg⟩
 
-end MLKEMBraid.NoAuth
+end Braid.NoAuth

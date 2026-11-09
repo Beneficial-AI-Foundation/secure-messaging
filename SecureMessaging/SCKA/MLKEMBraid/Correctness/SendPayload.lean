@@ -20,7 +20,7 @@ The proofs use only the local invariant, so they also apply to the repaired secu
 
 open ErasureCodePayload.Streaming
 
-namespace MLKEMBraid
+namespace Braid
 
 variable {P : Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
@@ -94,4 +94,4 @@ theorem send_steady_step {ik : InitKey} {T : ℕ → EpochTranscript P}
     · simp only [EncoderState.nextChunk]
       rw [hecp, hpay]
 
-end MLKEMBraid
+end Braid

@@ -22,7 +22,7 @@ open OracleSpec OracleComp
 open ErasureCodePayload.Streaming
 open SCKAScheme.sckaCorrectnessSpec
 
-namespace MLKEMBraid
+namespace Braid
 
 variable {P : Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
@@ -353,4 +353,4 @@ theorem receive_recorded_output
     rw [(ReceiveEdge.of_eq_ok auth hr).outputKey_eq_none (fun _ _ _ _ _ h => by cases h)] at hout
     cases hout
 
-end MLKEMBraid
+end Braid

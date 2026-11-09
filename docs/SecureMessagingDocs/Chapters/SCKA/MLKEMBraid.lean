@@ -105,7 +105,7 @@ ML-KEM Braid.
 :::defTitle "mlkem_braid_protocol_parameters" "Protocol parameters"
 :::
 
-::::definition "mlkem_braid_protocol_parameters" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.Parameters") (uses := "incremental_kem_scheme, erasure_code_payload")
+::::definition "mlkem_braid_protocol_parameters" (parent := "mlkem_braid_protocol") (lean := "Braid.Parameters") (uses := "incremental_kem_scheme, erasure_code_payload")
 
 :::leanPillCaption "incremental KEM, pure receive operations, epoch-key derivation, and streams"
 :::
@@ -158,7 +158,7 @@ structure Parameters (m : Type → Type u) [Monad m] where
 :::defTitle "mlkem_braid_protocol_messages" "Messages"
 :::
 
-::::definition "mlkem_braid_protocol_messages" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.MessageType, MLKEMBraid.Message")
+::::definition "mlkem_braid_protocol_messages" (parent := "mlkem_braid_protocol") (lean := "Braid.MessageType, Braid.Message")
 
 :::leanPillCaption "message types"
 :::
@@ -200,7 +200,7 @@ structure Message (Sym : Type) where
 :::defTitle "mlkem_braid_protocol_states" "Protocol states"
 :::
 
-::::definition "mlkem_braid_protocol_states" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.State") (uses := "erasure_code_streaming")
+::::definition "mlkem_braid_protocol_states" (parent := "mlkem_braid_protocol") (lean := "Braid.State") (uses := "erasure_code_streaming")
 
 :::leanPillCaption "the eleven protocol states"
 :::
@@ -251,7 +251,7 @@ inductive State (P : Parameters m) (AuthState : Type) where
 :::defTitle "mlkem_braid_protocol_transitions" "Send and receive"
 :::
 
-::::definition "mlkem_braid_protocol_transitions" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.send, MLKEMBraid.receive") (uses := "mlkem_braid_protocol_parameters, mlkem_braid_ratcheted_authenticator, erasure_code_streaming")
+::::definition "mlkem_braid_protocol_transitions" (parent := "mlkem_braid_protocol") (lean := "Braid.send, Braid.receive") (uses := "mlkem_braid_protocol_parameters, mlkem_braid_ratcheted_authenticator, erasure_code_streaming")
 
 :::leanPillCaption "send transition"
 :::
@@ -278,7 +278,7 @@ def receive (P : Parameters m)
 :::defTitle "mlkem_braid_protocol_init" "Initialization"
 :::
 
-::::definition "mlkem_braid_protocol_init" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.initA, MLKEMBraid.initB") (uses := "mlkem_braid_ratcheted_authenticator, erasure_code_streaming")
+::::definition "mlkem_braid_protocol_init" (parent := "mlkem_braid_protocol") (lean := "Braid.initA, Braid.initB") (uses := "mlkem_braid_ratcheted_authenticator, erasure_code_streaming")
 
 :::leanPillCaption "Alice's initial state"
 :::
@@ -304,7 +304,7 @@ def initB (P : Parameters m)
 :::defTitle "mlkem_braid_spec" "ML-KEM Braid protocol"
 :::
 
-::::definition "mlkem_braid_spec" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.scheme") (tags := "gh-271") (uses := "scka_scheme, mlkem_braid_protocol_parameters, mlkem_braid_ratcheted_authenticator, mlkem_braid_protocol_transitions, mlkem_braid_protocol_init")
+::::definition "mlkem_braid_spec" (parent := "cka_protocols_mlkem_braid") (lean := "Braid.scheme") (tags := "gh-271") (uses := "scka_scheme, mlkem_braid_protocol_parameters, mlkem_braid_ratcheted_authenticator, mlkem_braid_protocol_transitions, mlkem_braid_protocol_init")
 Let $`P` be a set of {bpref "mlkem_braid_protocol_parameters"}[protocol parameters], let
 $`\mathsf{Auth}` be a {bpref "mlkem_braid_ratcheted_authenticator"}[ratcheted authenticator] for
 the epoch keys, headers, ciphertexts in $`C_1\times C_2` and tags of $`P`, and let
@@ -348,7 +348,7 @@ def scheme (P : Parameters m)
 :::defTitle "mlkem_braid_correctness" "ML-KEM Braid correctness"
 :::
 
-::::theorem "mlkem_braid_correctness" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.correctness_error_le, MLKEMBraid.mlkemBraidScheme_correctness_error_le") (tags := "gh-243") (uses := "mlkem_braid_spec, scka_correctness, incremental_kem_scheme, incremental_kem_rand_leak, erasure_code_correctness, stream_decoder")
+::::theorem "mlkem_braid_correctness" (parent := "cka_protocols_mlkem_braid") (lean := "Braid.correctness_error_le, MLKEMBraid.mlkemBraidScheme_correctness_error_le") (tags := "gh-243") (uses := "mlkem_braid_spec, scka_correctness, incremental_kem_scheme, incremental_kem_rand_leak, erasure_code_correctness, stream_decoder")
 $`\todo`
 
 :::leanPillCaption "Correctness error bound"
@@ -374,15 +374,16 @@ theorem correctness_error_le
 ```
 ::::
 
-:::defTitle "mlkem_braid_noauth_spec" "ML-KEM Braid without authentication"
+:::defTitle "mlkem_braid_noauth_spec" "Parameterized Braid without authentication"
 :::
 
-::::definition "mlkem_braid_noauth_spec" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.NoAuth.auth, MLKEMBraid.NoAuth.scheme") (uses := "mlkem_braid_spec, mlkem_braid_ratcheted_authenticator")
-Let $`P` be a set of protocol parameters whose tag space $`P.\mathsf{Mac}` is the unit type. The
+::::definition "mlkem_braid_noauth_spec" (parent := "cka_protocols_mlkem_braid") (lean := "Braid.NoAuth.auth, Braid.NoAuth.scheme") (uses := "mlkem_braid_spec, mlkem_braid_ratcheted_authenticator")
+Let $`P` contain an incremental KEM, key derivation and payload streams as in
+{bpref "mlkem_braid_protocol_parameters"}[]. Assume its tag space $`P.\mathsf{Mac}` is the unit type. The
 *trivial authenticator* $`\mathsf{Auth}_\top` has the unit type as its state space, gives the unit
 tag to every header and ciphertext, and accepts every tag:
 $`\mathsf{Verify}_H=\mathsf{Verify}_C=\mathsf{true}`.
-*ML-KEM Braid without authentication* is the protocol
+*Braid without authentication* is the protocol
 $`\mathsf{Braid}_{\mathsf{NoAuth}}(P)=\mathsf{Braid}(P,\mathsf{Auth}_\top,\mathsf{InitKeyGen}_\top)` of
 {bpref "mlkem_braid_spec"}[], where $`\mathsf{InitKeyGen}_\top` returns the unit initial key.
 
@@ -409,14 +410,14 @@ def auth (P : Parameters ProbComp) (hMac : P.Mac = Unit) :
 ```anchor noAuthScheme (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security.NoAuth)
 def scheme (P : Parameters ProbComp)
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc) :=
-  MLKEMBraid.scheme P (auth P hMac) irl (pure ())
+  Braid.scheme P (auth P hMac) irl (pure ())
 ```
 ::::
 
 :::defTitle "mlkem_braid_noauth_vulnerable_epochs" "Vulnerable epochs of ML-KEM Braid without authentication"
 :::
 
-::::definition "mlkem_braid_noauth_vulnerable_epochs" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.NoAuth.vuln, MLKEMBraid.NoAuth.sendExposure, MLKEMBraid.NoAuth.nativeExposure, MLKEMBraid.NoAuth.sendExposure_eq_delta") (uses := "mlkem_braid_noauth_spec, mlkem_braid_protocol_states, scka_oracles")
+::::definition "mlkem_braid_noauth_vulnerable_epochs" (parent := "cka_protocols_mlkem_braid") (lean := "Braid.NoAuth.vuln, Braid.NoAuth.sendExposure, Braid.NoAuth.nativeExposure, Braid.NoAuth.sendExposure_eq_delta") (uses := "mlkem_braid_noauth_spec, mlkem_braid_protocol_states, scka_oracles")
 The security game of {bpref "scka_oracles"}[] for $`\mathsf{Braid}_{\mathsf{NoAuth}}(P)` uses the
 following exposure functions for both parties. Let $`\mathsf{st}` be a local state
 ({bpref "mlkem_braid_protocol_states"}[]) with epoch $`\mathsf{ep}(\mathsf{st})`, and let $`r` be
@@ -476,10 +477,10 @@ def nativeExposure (P : Parameters ProbComp)
 ```
 ::::
 
-:::defTitle "mlkem_braid_noauth_security" "Security of ML-KEM Braid without authentication"
+:::defTitle "mlkem_braid_noauth_security" "Security of parameterized Braid without authentication"
 :::
 
-::::theorem "mlkem_braid_noauth_security" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.NoAuth.security, MLKEMBraid.security, MLKEMBraid.Bounded.parameters, ErasureCode.SPQRReedSolomon.byteBlocksEquiv, MLKEMBraid.NoAuth.SendQueryBound, MLKEMBraid.NoAuth.kemMixReduction, MLKEMBraid.NoAuth.kdfMixReduction") (tags := "gh-244") (uses := "mlkem_braid_noauth_spec, mlkem_braid_noauth_vulnerable_epochs, scka_security, scka_oracles, incremental_kem_scheme, incremental_kem_rand_leak, erasure_code_correctness, erasure_code_streaming, kdf_context_game")
+::::theorem "mlkem_braid_noauth_security" (parent := "cka_protocols_mlkem_braid") (lean := "Braid.NoAuth.security, MLKEMBraid.NoAuth.security, MLKEMBraid.Bounded.parameters, ErasureCode.SPQRReedSolomon.byteBlocksEquiv, Braid.NoAuth.SendQueryBound, Braid.NoAuth.kemMixReduction, Braid.NoAuth.kdfMixReduction") (tags := "gh-244") (uses := "mlkem_braid_noauth_spec, mlkem_braid_noauth_vulnerable_epochs, scka_security, scka_oracles, incremental_kem_scheme, incremental_kem_rand_leak, erasure_code_correctness, erasure_code_streaming, kdf_context_game")
 Let $`\Pi=\mathsf{Braid}_{\mathsf{NoAuth}}(P)` ({bpref "mlkem_braid_noauth_spec"}[]), and assume
 that:
 
@@ -515,9 +516,9 @@ where:
   later epochs with their real keys. They output the bit that $`\mathcal A` outputs, or $`0` if
   epoch $`e` becomes exposed.
 
-The same bound holds for ML-KEM with byte encodings of the prescribed lengths, with Reed–Solomon
-codes and the set-based decoder on the four streams. Here $`\mathcal B` is the adversary of the
-general case, run on raw ML-KEM inputs through `MLKEM.Bounded.liftAdversary`, and $`\varepsilon`
+Instantiating the parameterized protocol with ML-KEM, byte encodings of the prescribed lengths,
+Reed–Solomon codes and the set-based decoder gives the same bound. Here $`\mathcal B` is the adversary
+of the general case, run on raw ML-KEM inputs through `MLKEM.Bounded.liftAdversary`, and $`\varepsilon`
 is the correctness error of ML-KEM. The four payload encodings use `byteBlocksEquiv` to turn
 32-byte blocks into chunks of 16 field elements. The field enumeration is abstract;
 correspondence with SPQR's runtime field representation remains unproved. The bound depends on
@@ -537,7 +538,7 @@ noncomputable def byteBlocksEquiv (k : ℕ) :
 :::
 
 ```anchor security (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security)
-theorem MLKEMBraid.security
+theorem MLKEMBraid.NoAuth.security
     (p : MLKEM.ParameterSet) (ring : MLKEM.NTTRingOps)
     (prims : MLKEM.Primitives (MLKEM.ParameterSet.params p)
       (MLKEM.Concrete.concreteEncoding (MLKEM.ParameterSet.params p)))
@@ -547,27 +548,27 @@ theorem MLKEMBraid.security
     let irl := MLKEM.incrementalRandLeak ring
       (MLKEM.Bounded.encoding (MLKEM.ParameterSet.params p))
       (MLKEM.Bounded.primitives (MLKEM.ParameterSet.params p) prims)
-    ∀ (A : MLKEMBraid.NoAuth.Adversary P irl) (q : ℕ),
-      MLKEMBraid.NoAuth.SendQueryBound A q →
+    ∀ (A : Braid.NoAuth.Adversary P irl) (q : ℕ),
+      Braid.NoAuth.SendQueryBound A q →
       let ℬ := MLKEM.Bounded.liftAdversary p ring prims
-        (MLKEMBraid.NoAuth.kemMixReduction P rfl irl A q)
-      let 𝒞 := MLKEMBraid.NoAuth.kdfMixReduction P rfl irl A q
+        (Braid.NoAuth.kemMixReduction P rfl irl A q)
+      let 𝒞 := Braid.NoAuth.kdfMixReduction P rfl irl A q
       let ε := ((MLKEM.mlkemScheme p ring prims).correctnessError
         ProbCompRuntime.probComp).toReal
       SCKAScheme.sckaGuessAdvantage
-        (MLKEMBraid.NoAuth.scheme P rfl irl) A
-        (MLKEMBraid.NoAuth.nativeExposure P irl)
-        (MLKEMBraid.NoAuth.nativeExposure P irl) ≤
+        (Braid.NoAuth.scheme P rfl irl) A
+        (Braid.NoAuth.nativeExposure P irl)
+        (Braid.NoAuth.nativeExposure P irl) ≤
         (q / 2 : ℝ) *
           (((MLKEM.mlkemScheme p ring prims).IND_CPA_Advantage ProbCompRuntime.probComp ℬ).toReal +
-            MLKEMBraid.kdfAdvantage P.kdfOK 𝒞) + q * ε
+            Braid.kdfAdvantage P.kdfOK 𝒞) + q * ε
 ```
 
 :::leanPillCaption "security for an abstract KEM and abstract codes"
 :::
 
 ```anchor genericSecurity (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security)
-theorem MLKEMBraid.NoAuth.security (P : Parameters ProbComp)
+theorem Braid.NoAuth.security (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
     [DecidableEq P.K] [DecidableEq P.EpochKey]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc)

@@ -24,7 +24,7 @@ open OracleSpec OracleComp
 open ErasureCodePayload.Streaming
 open SCKAScheme.sckaCorrectnessSpec
 
-namespace MLKEMBraid
+namespace Braid
 
 variable {P : Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
@@ -420,4 +420,4 @@ theorem TranscriptInv.mono {ik : InitKey} {T : ℕ → EpochTranscript P} {s : G
       obtain ⟨h0, hle, pk, sk, hkp, hdec⟩ := hT.encaps e es ct1 key hc
       exact ⟨h0, hle, pk, sk, hkp, fun h => hD e pk sk es ct1 key hkp hc (hdec h)⟩ }
 
-end MLKEMBraid
+end Braid
