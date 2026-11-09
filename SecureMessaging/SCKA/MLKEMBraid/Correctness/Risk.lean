@@ -12,7 +12,7 @@ public import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
 /-!
 # Failure potential of the current epoch
 
-The definitions used in the potential argument of `MLKEMBraid.correctness_error_le`.
+The definitions used in the potential argument of `Braid.correctness_error_le`.
 `currentEpochFailure_eq_transcript` computes the current-epoch quantity from a consistent
 sampling transcript.
 -/
@@ -24,7 +24,7 @@ open ErasureCodePayload.Streaming
 open SCKAScheme.sckaCorrectnessSpec
 open ENNReal
 
-namespace MLKEMBraid
+namespace Braid
 
 variable {P : Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
@@ -338,4 +338,4 @@ theorem currentEpochFailure_eq_transcript_party [DecidableEq P.K] [DecidableEq P
         ite_eq_right heq, ite_eq_right (Ne.symm heq)]
   · rfl
 
-end MLKEMBraid
+end Braid

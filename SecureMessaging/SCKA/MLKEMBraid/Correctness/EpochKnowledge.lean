@@ -22,7 +22,7 @@ one. Every oracle of the correctness game preserves it.
 open OracleSpec OracleComp
 open SCKAScheme.sckaCorrectnessSpec
 
-namespace MLKEMBraid
+namespace Braid
 
 variable {P : Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
@@ -194,4 +194,4 @@ theorem correctnessImpl_preserves_epochKnowledgeInv :
     (oracleRecv_preserves_epochKnowledgeInv auth irl sampleInitKey true)
     (oracleRecv_preserves_epochKnowledgeInv auth irl sampleInitKey false)
 
-end MLKEMBraid
+end Braid

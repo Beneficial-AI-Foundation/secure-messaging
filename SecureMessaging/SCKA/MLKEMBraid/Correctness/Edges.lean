@@ -28,7 +28,7 @@ to `t`, and every other transition keeps it.
 
 open ErasureCodePayload.Streaming OracleComp
 
-namespace MLKEMBraid
+namespace Braid
 
 variable {P : Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
@@ -534,4 +534,4 @@ theorem outputKey_eq_none (h : ReceiveEdge auth st msg r)
 
 end ReceiveEdge
 
-end MLKEMBraid
+end Braid

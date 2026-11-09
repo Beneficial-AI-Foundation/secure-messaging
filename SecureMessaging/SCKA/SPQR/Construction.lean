@@ -36,7 +36,7 @@ version 0, which disables SPQR.
 @[expose] public section
 
 open ErasureCodePayload.Streaming
-open MLKEMBraid (SendRand)
+open Braid (SendRand)
 
 universe u
 

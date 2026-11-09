@@ -1593,4 +1593,29 @@ theorem securityImplOf_bookkeeping (s : GameState StA StB I Rho)
 
 end SecurityFamily
 
+section GuessAdvantage
+
+/-- Let the fixed-bit security game of each bit `b` output `true` with probability within `δ` of
+`p b`. Then the guessing advantage is at most `|p true - p false| / 2 + δ`. -/
+theorem sckaGuessAdvantage_le_of_abs_sub_le [SampleableType I] [DecidableEq I]
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (adversary : SCKAAdversary StA StB I Rho Rand)
+    (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand)
+    (p : Bool → ℝ) (δ : ℝ)
+    (h : ∀ b, |(Pr{let x ← securityExpFixedBit scka adversary b vulnA vulnB}[x = true]).toReal -
+      p b| ≤ δ) :
+    sckaGuessAdvantage scka adversary vulnA vulnB ≤ |p true - p false| / 2 + δ := by
+  rw [sckaGuessAdvantage_eq_sckaDistAdvantage_div_two, sckaDistAdvantage]
+  have h1 := h true
+  have h0 := h false
+  rw [abs_sub_comm] at h0
+  have h2 := abs_sub_le
+    (Pr{let x ← securityExpFixedBit scka adversary true vulnA vulnB}[x = true]).toReal (p true)
+    (Pr{let x ← securityExpFixedBit scka adversary false vulnA vulnB}[x = true]).toReal
+  have h3 := abs_sub_le (p true) (p false)
+    (Pr{let x ← securityExpFixedBit scka adversary false vulnA vulnB}[x = true]).toReal
+  linarith
+
+end GuessAdvantage
+
 end SCKAScheme

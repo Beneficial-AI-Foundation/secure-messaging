@@ -24,7 +24,7 @@ header and MAC payload requires 3 chunks, the 1152-byte encapsulation-key vector
 @[expose] public section
 
 open ErasureCode.SPQRReedSolomon (Chunk GF16 erasureCode)
-open MLKEMBraid (SendRand)
+open Braid (SendRand)
 
 namespace SPQR
 

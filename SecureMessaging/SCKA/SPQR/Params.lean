@@ -71,7 +71,7 @@ structure Parameters (m : Type → Type u) [Monad m] where
 
 /-- The Braid parameters induced by the SPQR algorithms and payload streams. -/
 abbrev Parameters.toBraid {m : Type → Type u} [Monad m] (P : Parameters m) :
-    MLKEMBraid.Parameters m where
+    Braid.Parameters m where
   K := P.K
   PK := P.PK
   SK := P.SK

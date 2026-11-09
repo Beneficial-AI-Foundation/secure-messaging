@@ -28,7 +28,7 @@ open ErasureCodePayload.Streaming
 
 universe u
 
-namespace MLKEMBraid
+namespace Braid
 
 variable {m : Type → Type u} [Monad m] {P : Parameters m} {InitKey AuthState : Type}
 
@@ -157,4 +157,4 @@ def scheme (P : Parameters m)
     recvB := recvSCKA P auth }
 -- ANCHOR_END: Braid_scheme
 
-end MLKEMBraid
+end Braid
