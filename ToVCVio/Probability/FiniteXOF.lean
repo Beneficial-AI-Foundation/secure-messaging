@@ -73,18 +73,6 @@ theorem encode_eq_iff (lengths : Finset ℕ) (x y : List Bool)
     subst y
     rfl
 
-/-- Asking for a longer answer preserves every shorter prefix. -/
-theorem answer_prefix_consistent {lengths : Finset ℕ} {O : ℕ}
-    (H : Table lengths O) (x : List Bool) (m n : ℕ) (hmn : m ≤ n) :
-    (answer H x n).toList.take m = (answer H x m).toList := by
-  by_cases hx : x.length ∈ lengths
-  · simp only [answer, hx, ↓reduceDIte, «prefix», Vector.toList_ofFn]
-    apply List.ext_get
-    · simp [hmn]
-    · intro i hi₁ hi₂
-      simp
-  · simp [answer, hx, hmn]
-
 private theorem splitAt_fst_eq_prefix (a b : ℕ) (v : Vector Bool (a + b)) :
     (Vector.splitAt v).1 = «prefix» v a := by
   apply Vector.ext
