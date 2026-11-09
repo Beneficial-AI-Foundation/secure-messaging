@@ -261,31 +261,21 @@ def decaps {ps : ParameterSet} (ops : Operations ps)
 
 ::::theorem "frodo_kem_correctness" (parent := "frodo_kem") (lean := "FrodoKEM.ROM.honestFailureProb_tenth_power_le") (tags := "gh-260") (uses := "frodo_kem_scheme")
 We work in the random-oracle model, for all six parameter sets: FrodoKEM and eFrodoKEM, each at
-sizes 640, 976 and 1344. We assume the following.
+sizes 640, 976 and 1344.
 
-- One table $`H` of uniformly random answers replaces SHAKE in all its uses, each of which reads
-  its own part of the table (`ROM.domain_disjoint`). This is SHAKE128 for size 640 and SHAKE256
-  for sizes 976 and 1344.
+- A random function $`H` replaces SHAKE. This is SHAKE128 for size 640 and SHAKE256 for sizes
+  976 and 1344.
 - The function $`\mathsf{gen}` that computes the public matrix $`A` from $`\mathsf{seed}_A` is
-  any fixed function that does not read $`H`. Thus GenSHAKE keeps the real SHAKE128, and GenAES
-  keeps AES.
+  any fixed function, such as GenSHAKE or GenAES.
 
 Let $`\delta` be $`2^{-138.7}`, $`2^{-199.6}` or $`2^{-252.5}` for sizes 640, 976 and 1344.
-{Informal.citet FrodoKEM}[] lists these values as the failure rates in Table 4 (§6.2).
+{Informal.citet FrodoKEM}[] lists these values as the failure rates in Table 4 (§6.2). Then
 
-For one fixed table $`H`, let $`\mathrm{fail}(H)` be the failure probability of the KEM that uses
-$`H` in place of SHAKE. Here the probability is over the honest random choices only:
+$$`\Pr_{\substack{H \gets \mathsf{RO},\\ (\mathsf{pk},\mathsf{sk}) \gets \mathsf{KeyGen}^H(),\\ (c,K) \gets \mathsf{Encaps}^H(\mathsf{pk})}}\bigl[\mathsf{Decaps}^H(\mathsf{sk},c) \ne K\bigr] \;\le\; \delta.`
 
-$$`\mathrm{fail}(H) \;=\; \Pr_{\substack{(\mathsf{pk},\mathsf{sk}) \gets \mathsf{KeyGen}^H(),\\ (c,K) \gets \mathsf{Encaps}^H(\mathsf{pk})}}\bigl[\mathsf{Decaps}^H(\mathsf{sk},c) \ne K\bigr].`
-
-Let $`\mathcal{H}` be the set of all tables. It is finite, because the six uses of SHAKE have only
-five input lengths, and the KEM reads at most `outputBits` bits. Then the average of
-$`\mathrm{fail}(H)` over all tables is at most $`\delta`:
-
-$$`\frac{1}{|\mathcal{H}|} \sum_{H \in \mathcal{H}} \mathrm{fail}(H) \;\le\; \delta.`
-
-The theorem does not bound $`\mathrm{fail}(H)` for one table. In Lean, `ROM.honestFailureProb` is
-this average. It samples $`H` uniformly, and then runs key generation and encapsulation.
+The probability is over the random function $`H` and the honest random choices. In Lean,
+`ROM.honestFailureProb` is this probability. The KEM uses SHAKE on only five input lengths and
+reads at most `outputBits` bits, so $`H` is a uniformly random table of finite size.
 
 :::leanPillCaption "The failure probability in the random-oracle model"
 :::
