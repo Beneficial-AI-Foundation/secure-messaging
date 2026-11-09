@@ -348,7 +348,7 @@ def scheme (P : Parameters m)
 :::defTitle "mlkem_braid_correctness" "ML-KEM Braid correctness"
 :::
 
-::::theorem "mlkem_braid_correctness" (parent := "cka_protocols_mlkem_braid") (lean := "Braid.correctness_error_le, MLKEMBraid.mlkemBraidScheme_correctness_error_le") (tags := "gh-243") (uses := "mlkem_braid_spec, scka_correctness, incremental_kem_scheme, incremental_kem_rand_leak, erasure_code_correctness, stream_decoder")
+::::theorem "mlkem_braid_correctness" (parent := "cka_protocols_mlkem_braid") (lean := "Braid.correctness_error_le, MLKEMBraid.mlkemBraidScheme_correctness_error_le") (tags := "gh-243") (uses := "mlkem_braid_spec, scka_correctness, incremental_kem_scheme, incremental_kem_rand_leak, erasure_code_correctness, erasure_code_streaming")
 $`\todo`
 
 :::leanPillCaption "Correctness error bound"

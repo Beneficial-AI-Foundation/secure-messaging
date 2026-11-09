@@ -3,6 +3,8 @@ import VersoBlueprint
 import VersoBlueprint.Commands.Graph
 import VersoBlueprint.Commands.Summary
 import SecureMessagingDocs.Bibliography
+import SecureMessagingDocs.Visuals.GameBoxes
+import SecureMessagingDocs.Visuals.SCKAFigures
 import SecureMessagingDocs.Chapters.SCKA.Defs
 import SecureMessagingDocs.Chapters.SCKA.OppUniKEM
 import SecureMessagingDocs.Chapters.SCKA.OppBiKEM
@@ -27,6 +29,13 @@ set_option linter.hashCommand false
 - {Informal.citet SCKA25}[]
 - {Informal.citet MLKEM_Braid}[]
 - {Informal.citet SPQR}[]
+
+::::::gameGrid
+:::::gameCell "\\textsf{Illustration: a KEM-based SCKA epoch}" (kind := "scheme")
+:::sckaOverviewFigure
+:::
+:::::
+::::::
 
 {include 1 SecureMessagingDocs.Chapters.SCKA.Defs}
 

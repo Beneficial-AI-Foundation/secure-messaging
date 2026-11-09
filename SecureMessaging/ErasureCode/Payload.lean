@@ -59,10 +59,12 @@ def ofEquiv {M Sym : Type} (ec : ErasureCode Sym) (e : M ≃ (Fin ec.nchunk → 
 variable {Sym : Type} [DecidableEq Sym]
 
 /-- The natural-index representation of an honest subset of a payload's codeword. -/
+-- ANCHOR: payloadChunks
 noncomputable def payloadChunks {M : Type}
     (ecp : ErasureCodePayload M Sym) (payload : M)
     (I : Finset (Fin ecp.ec.N)) : Finset (ℕ × Sym) :=
   (ecp.ec.encodeChunks (ecp.serialize payload) I).map ErasureCode.chunkToNat
+-- ANCHOR_END: payloadChunks
 
 omit [DecidableEq Sym] in
 /-- The empty set of codeword positions gives no chunks. -/
@@ -90,20 +92,11 @@ theorem payloadChunks_boundedMap {M : Type}
     (ecp : ErasureCodePayload M Sym) (payload : M)
     (I : Finset (Fin ecp.ec.N))
     (hvalid : ∀ chunk ∈ payloadChunks ecp payload I, chunk.1 < ecp.ec.N) :
-    let toBounded : {chunk // chunk ∈ payloadChunks ecp payload I} ↪
-        (Fin ecp.ec.N × Sym) :=
-      { toFun := fun chunk =>
-          (⟨chunk.1.1, hvalid chunk.1 chunk.2⟩, chunk.1.2)
-        inj' := by
-          intro a b hab
-          apply Subtype.ext
-          exact Prod.ext
-            (congrArg (fun chunk : Fin ecp.ec.N × Sym => chunk.1.val) hab)
-            (congrArg (fun chunk : Fin ecp.ec.N × Sym => chunk.2) hab) }
-    (payloadChunks ecp payload I).attach.map toBounded =
+    ecp.boundedChunks (payloadChunks ecp payload I) hvalid =
       ecp.ec.encodeChunks (ecp.serialize payload) I := by
   ext chunk
-  simp only [Finset.mem_map, Finset.mem_attach, true_and, Subtype.exists]
+  simp only [ErasureCodePayload.boundedChunks, Finset.mem_map, Finset.mem_attach, true_and,
+    Subtype.exists]
   constructor
   · rintro ⟨_, hnat, rfl⟩
     obtain ⟨bounded, hbounded, rfl⟩ := Finset.mem_map.mp hnat
@@ -114,16 +107,18 @@ theorem payloadChunks_boundedMap {M : Type}
 omit [DecidableEq Sym] in
 /-- Decoding an honest chunk set at or above the reconstruction threshold recovers
 its payload. -/
+-- ANCHOR: decode_payloadChunks
 theorem decode_payloadChunks {M : Type}
     (ecp : ErasureCodePayload M Sym) (hcorrect : ecp.ec.Correct)
     (payload : M) (I : Finset (Fin ecp.ec.N))
     (hcard : ecp.ec.nchunk ≤ I.card) :
-    ecp.decode (payloadChunks ecp payload I) = some payload := by
+    ecp.decode (payloadChunks ecp payload I) = some payload
+-- ANCHOR_END: decode_payloadChunks
+    := by
   classical
   rw [ErasureCodePayload.decode]
   split
   next hvalid =>
-    dsimp only
     rw [payloadChunks_boundedMap ecp payload I hvalid]
     rw [(hcorrect (ecp.serialize payload) I).1 hcard]
     exact ecp.parse_serialize payload
@@ -131,16 +126,18 @@ theorem decode_payloadChunks {M : Type}
 
 omit [DecidableEq Sym] in
 /-- Decoding an honest chunk set below the reconstruction threshold fails. -/
+-- ANCHOR: decode_payloadChunks_none
 theorem decode_payloadChunks_none {M : Type}
     (ecp : ErasureCodePayload M Sym) (hcorrect : ecp.ec.Correct)
     (payload : M) (I : Finset (Fin ecp.ec.N))
     (hcard : I.card < ecp.ec.nchunk) :
-    ecp.decode (payloadChunks ecp payload I) = none := by
+    ecp.decode (payloadChunks ecp payload I) = none
+-- ANCHOR_END: decode_payloadChunks_none
+    := by
   classical
   rw [ErasureCodePayload.decode]
   split
   next hvalid =>
-    dsimp only
     rw [payloadChunks_boundedMap ecp payload I hvalid]
     simp [(hcorrect (ecp.serialize payload) I).2 hcard]
   next hvalid => exact False.elim (hvalid (payloadChunks_valid ecp payload I))

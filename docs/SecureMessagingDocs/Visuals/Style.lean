@@ -496,7 +496,66 @@ def smDocsCss : String := r#"
    Verso's blueprint title row is a 2-column grid (caption + number); we add a
    third column so the name sits inline on the same line, in the heading font. */
 .bp_heading_title_row.bp_heading_title_row_statement {
-  grid-template-columns: 11ch max-content max-content;
+  grid-template-columns: 11ch max-content max-content auto;
+}
+/* Share link after the title: copies the URL of the definition or theorem. */
+.bp-share-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  justify-self: start;
+  margin-inline-start: 0.35rem;
+  padding: 0.12rem;
+  border-radius: 4px;
+  color: var(--bp-color-text-faint);
+  opacity: 0.45;
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+.bp_heading:hover .bp-share-link,
+.bp-share-link:focus-visible,
+.bp-share-link.is-flashing {
+  opacity: 1;
+}
+.bp-share-link:hover,
+.bp-share-link:focus-visible {
+  color: var(--bp-color-text-muted);
+  background: var(--bp-color-surface-muted);
+}
+.bp-share-link.is-flashing {
+  color: #2a7b7b;
+}
+.bp-share-link svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+.bp-share-link[data-feedback]::after {
+  content: attr(data-feedback);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 4px);
+  transform: translateX(-50%);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  background: #1f2937;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+}
+/* The same feedback for screen readers, which do not read the tooltip. */
+.bp-share-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 .bp-heading-title-marker {
   display: none;
@@ -938,12 +997,95 @@ def smDocsJs : String := r#"
       });
     });
   }
+  // Share links: each definition or theorem heading gets an icon that copies the URL of
+  // the statement, whose id is `--informal-preview-<label>--statement`.
+  function statementName(wrapper) {
+    var caption = wrapper.querySelector(":scope > .bp_heading .bp_caption");
+    var number = wrapper.querySelector(":scope > .bp_heading .bp_label");
+    var parts = [caption && caption.textContent.trim(), number && number.textContent.trim()];
+    return parts.filter(Boolean).join(" ") || "this statement";
+  }
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise(function (resolve, reject) {
+      var area = document.createElement("textarea");
+      area.value = text;
+      area.setAttribute("readonly", "");
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.appendChild(area);
+      area.select();
+      var copied = false;
+      try { copied = document.execCommand("copy"); } catch (_) {}
+      area.remove();
+      if (copied) { resolve(); } else { reject(); }
+    });
+  }
+  // A status region announces the copy feedback; screen readers do not read the tooltip.
+  var shareStatus = null;
+  function flashShareLink(link, text) {
+    link.setAttribute("data-feedback", text);
+    link.classList.add("is-flashing");
+    shareStatus.textContent = text;
+    window.clearTimeout(link.bpFlashTimer);
+    link.bpFlashTimer = window.setTimeout(function () {
+      link.classList.remove("is-flashing");
+      link.removeAttribute("data-feedback");
+      shareStatus.textContent = "";
+    }, 1600);
+  }
+  function installShareLinks() {
+    // Created with the links: a region added at the moment of its update is often not announced.
+    if (!shareStatus) {
+      shareStatus = document.createElement("div");
+      shareStatus.className = "bp-share-status";
+      shareStatus.setAttribute("role", "status");
+      document.body.appendChild(shareStatus);
+    }
+    document.querySelectorAll('.bp_wrapper[id$="--statement"]').forEach(function (wrapper) {
+      var row = wrapper.querySelector(":scope > .bp_heading .bp_heading_title_row_statement");
+      if (!row || row.querySelector(".bp-share-link")) return;
+      // An absolute URL: pages set `<base href>`, against which `#id` would name the site root.
+      var url = window.location.origin + window.location.pathname + window.location.search +
+        '#' + wrapper.id;
+      var label = "Copy link to " + statementName(wrapper);
+      var link = document.createElement("a");
+      link.className = "bp-share-link";
+      link.href = url;
+      link.title = label;
+      link.setAttribute("aria-label", label);
+      link.innerHTML =
+        '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" fill="none" ' +
+        'stroke="currentColor" stroke-width="1.5" stroke-linecap="round">' +
+        '<path d="M6.6 9.4l2.8-2.8"/>' +
+        '<path d="M7.3 4.7l1.1-1.1a2.6 2.6 0 0 1 3.7 3.7l-1.1 1.1"/>' +
+        '<path d="M8.7 11.3l-1.1 1.1a2.6 2.6 0 0 1-3.7-3.7l1.1-1.1"/></svg>';
+      link.addEventListener("click", function (event) {
+        // Modified and middle clicks keep the default link behaviour.
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey ||
+            event.altKey) return;
+        // Keep the page in place: the blueprint's link handler would re-centre the statement.
+        event.preventDefault();
+        event.stopPropagation();
+        window.history.replaceState(null, "", url);
+        copyText(url).then(
+          function () { flashShareLink(link, "Link copied"); },
+          function () { flashShareLink(link, "Copy the address bar"); });
+      });
+      row.appendChild(link);
+    });
+  }
   function revealFragment() {
     var hash = window.location.hash;
     if (!hash) return;
     var target;
     try {
-      target = document.getElementById(decodeURIComponent(hash.slice(1)));
+      var id = decodeURIComponent(hash.slice(1));
+      // A short link `#<label>` names the statement `--informal-preview-<label>--statement`.
+      target = document.getElementById(id) ||
+        document.getElementById("--informal-preview-" + id + "--statement");
     } catch (_) {
       return;
     }
@@ -1004,6 +1146,7 @@ def smDocsJs : String := r#"
   });
   function initLeanPills() {
     installHeadingTitles();
+    installShareLinks();
     wrapLeanBlocks();
     installLeanCompares();
     moveMetadataPanels();

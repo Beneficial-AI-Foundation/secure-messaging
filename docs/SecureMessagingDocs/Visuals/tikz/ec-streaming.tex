@@ -1,0 +1,39 @@
+% directive: erasureCodeStreamingFigure
+% aria-label: Erasure-code streaming: the encoder emits chunks c_t = EncodePayload(y, t) at indices t mod N, here N = 8; chunks c_4 and c_7 are lost; the decoder adds the others and stores their distinct indices P = {0, 1, 2, 3, 5, 6}; Decode returns y if |P| >= k and bottom if |P| < k.
+\documentclass[tikz,border=6pt]{standalone}
+\input{preamble}
+\tikzset{schunk/.style={draw=signalolive!70, line width=0.5pt, rounded corners=1pt, fill=white,
+  minimum width=0.5cm, minimum height=0.42cm, inner sep=0pt, font=\scriptsize\sffamily},
+  schunklost/.style={schunk, fill=gray!12, draw=gray!45, text=gray!55}}
+\begin{document}
+\begin{tikzpicture}[x=1cm, y=1cm]
+  \node[statebox, minimum width=1.5cm, font=\normalsize] at (-6.6, 1.15) (M) {$y$};
+  \node[note, anchor=north, align=center] at (-6.6, 0.62) {payload};
+  \foreach \i/\x in {0/-4.7, 1/-4.0, 2/-3.3, 3/-2.6, 5/-1.2, 6/-0.5} {
+    \node[schunk] at (\x, 1.15) (ch\i) {$c_{\i}$};
+  }
+  \node[schunklost] at (-1.9, 1.15) (ch4) {$c_4$};
+  \node[schunklost] at ( 0.2, 1.15) (ch7) {$c_7$};
+  \draw[flow] (M.east) -- node[above, slbl] {$\mathsf{Next}$} (ch0.west);
+  \draw[lossy] (ch4.south) -- ++(0,-0.5);
+  \draw[lossy] (ch7.south) -- ++(0,-0.5);
+  \node[note, anchor=north] at (-0.85, 0.55) {lost in transit};
+  \node[note, anchor=west] at (-5.75, 1.78)
+    {chunk $c_t=\mathsf{EncodePayload}(y,t)$ has index $t \bmod N$, here $N=8$};
+  \node[note, anchor=south, align=center] at (4.35, 1.62)
+    {decoder stores the \textbf{distinct indices} $P$};
+  \foreach \k in {0, 1, 2, 3, 5, 6} { \node[slotfull] at ({2.6 + 0.5*\k}, 1.15) {}; }
+  \foreach \k in {4, 7} { \node[slotempty] at ({2.6 + 0.5*\k}, 1.15) {}; }
+  \foreach \k in {0, ..., 7} { \node[slbl, text=commentcolor] at ({2.6 + 0.5*\k}, 0.78) {\k}; }
+  \draw[decorate, decoration={brace, amplitude=4pt}] (2.35, 1.45) -- (6.35, 1.45);
+  \draw[flow] (0.55, 1.15) -- node[above, slbl] {$\mathsf{Add}$} (2.3, 1.15);
+  \node[goodpill] at (2.6, -0.35) (ok) {$\mathsf{Decode}$ returns $y$};
+  \node[failpill] at (2.6, -1.35) (no) {$\mathsf{Decode}$ returns $\bot$};
+  \node[anchor=west, font=\normalsize] at (-6.9, -0.35) {$|P| \ \ge\ k$};
+  \node[anchor=west, font=\normalsize] at (-6.9, -1.35) {$|P| \ <\ k$};
+  \draw[flow] (-5.3, -0.35) -- (ok.west);
+  \draw[flow] (-5.3, -1.35) -- (no.west);
+  \node[note, anchor=west, align=left] at (4.35, -0.35) {any $k$ distinct indices};
+  \node[note, anchor=west, align=left] at (4.35, -0.72) {are enough to recover $y$};
+\end{tikzpicture}
+\end{document}

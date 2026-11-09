@@ -1,0 +1,47 @@
+% directive: parallelReedSolomonFigure
+% aria-label: Parallel Reed-Solomon encoding: each message chunk m_i has 16 coordinates m_i[0], ..., m_i[15]; each row l is encoded by its own polynomial P_l with P_l(x_i) = m_i[l]; the columns of the resulting 16 by N grid are the chunks Encode(m, j).
+\documentclass[tikz,border=6pt]{standalone}
+\input{preamble}
+\begin{document}
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[keypill, font=\normalsize] at (-5.95,2.25) (msgin) {$m=(m_0,\ldots,m_{k-1})\in(F^{16})^k$};
+  \node[statebox, minimum width=3.40cm, font=\normalsize] at (-5.95,0.55) (tuplein)
+    {$m_i=(m_i[0],\ldots,m_i[15])$};
+  \node[algbox, minimum width=2.60cm, minimum height=0.80cm, font=\normalsize] at (-5.95,-1.25) (poly)
+    {$P_\ell(x_i)=m_i[\ell]$};
+  \draw[flow] (msgin.south) -- (tuplein.north);
+  \draw[flow] (tuplein.south) -- node[midway, right, lbl] {interpolate each row $\ell$} (poly.north);
+  \draw[flow] (poly.east) -- (-2.25,-1.25);
+  \begin{scope}[shift={(2.2,-1.25)}]
+  \node[slbl, font=\small\sffamily] at (-2.70,2.05) {$m_0$};
+  \node[slbl, font=\small\sffamily] at (-1.45,2.05) {$m_1$};
+  \node[slbl, font=\small\sffamily] at (-0.50,2.05) {$\cdots$};
+  \node[slbl, font=\small\sffamily] at (0.45,2.05) {$m_{k-1}$};
+  \node[slbl, font=\small\sffamily] at (3.05,2.05) {redundancy};
+  \node[slbl] at (-3.55,1.55) {$0$};
+  \node[slbl] at (-3.55,0.90) {$1$};
+  \node[slbl] at (-3.55,0.25) {$\vdots$};
+  \node[slbl] at (-3.55,-0.40) {$15$};
+  \foreach \x/\i in {-2.70/0, -1.45/1, 0.45/{k-1}} {
+    \node[sourcechunk, minimum width=1.15cm] at (\x,1.55) {$m_{\i}[0]$};
+    \node[sourcechunk, minimum width=1.15cm] at (\x,0.90) {$m_{\i}[1]$};
+    \node[font=\small] at (\x,0.25) {$\vdots$};
+    \node[sourcechunk, minimum width=1.15cm] at (\x,-0.40) {$m_{\i}[15]$};
+  }
+  \foreach \y in {1.55, 0.90, -0.40} {
+    \node[font=\small] at (-0.50,\y) {$\cdots$};
+    \node[font=\small] at (3.05,\y) {$\cdots$};
+  }
+  \foreach \x/\j in {1.95/{k}, 4.15/{N-1}} {
+    \node[chunk, minimum width=1.55cm] at (\x,1.55) {$P_{0}(x_{\j})$};
+    \node[chunk, minimum width=1.55cm] at (\x,0.90) {$P_{1}(x_{\j})$};
+    \node[font=\small] at (\x,0.25) {$\vdots$};
+    \node[chunk, minimum width=1.55cm] at (\x,-0.40) {$P_{15}(x_{\j})$};
+  }
+  \draw[gray!55, line width=0.5pt, dashed] (1.10,1.90) -- (1.10,-0.75);
+  \draw[decorate, decoration={brace, mirror, amplitude=5pt}] (-3.30,-0.88) -- (4.95,-0.88);
+  \node[anchor=north, font=\small\sffamily] at (0.83,-1.14)
+    {columns: chunks $\Encode(m,0),\ \ldots,\ \Encode(m,N-1)$};
+  \end{scope}
+\end{tikzpicture}
+\end{document}
