@@ -46,7 +46,8 @@ def answer {lengths : Finset ℕ} {O : ℕ} (H : Table lengths O)
   if h : x.length ∈ lengths then «prefix» (H (encode lengths x h)) n
   else Vector.replicate n false
 
-private noncomputable instance inputFintype (lengths : Finset ℕ) :
+/-- The modeled inputs form a finite type. -/
+noncomputable instance inputFintype (lengths : Finset ℕ) :
     Fintype (Input lengths) := Fintype.ofFinite _
 
 private noncomputable instance tableFintype (lengths : Finset ℕ) (O : ℕ) :

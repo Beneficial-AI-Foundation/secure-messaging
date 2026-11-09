@@ -231,7 +231,7 @@ theorem decaps_encapsFromCoins_of_noiseBound
     dsimp only [encrypted]
     rw [hpkePK]
     exact PKE.decrypt_encryptFromSeed_of_noiseBound ops seedA keySeed derived.1 message hnoise
-  dsimp only [decaps, ciphertext, sk, shared]
+  dsimp only [decaps, decapsM, ciphertext, sk, shared]
   rw [unpackBits_packBits, unpackBits_packBits]
   change (let recovered := PKE.decrypt pkeKeys.2 encrypted
     let regenerated := deriveSeedAndKey ops (hashPublicKey ops pk) recovered salt

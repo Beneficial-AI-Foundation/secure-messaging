@@ -14,6 +14,7 @@ public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.FailureProbability
 public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.Numerical
 public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.RandomOracle.Correctness
 public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.RandomOracle.Numerical
+public import ToVCVio.LatticeCrypto.FrodoKEM.Correctness.RandomOracle.OracleKEM
 
 /-!
 # FrodoKEM correctness
@@ -26,6 +27,9 @@ same values (Table 4, §6.2). The bound holds for FrodoKEM and for eFrodoKEM.
 
 The final theorem is `FrodoKEM.ROM.honestFailureProb_tenth_power_le`. The proofs are in the files
 under `Correctness/`, and the FrodoKEM chapter of the docs explains each step.
+
+`FrodoKEM.ROM.romKem_deltaCorrect` states the same bound with VCVio's `KEMScheme.deltaCorrect`, for
+FrodoKEM with oracle SHAKE calls run in the random-oracle runtime `ProbCompRuntime.rom`.
 
 ## Scope
 

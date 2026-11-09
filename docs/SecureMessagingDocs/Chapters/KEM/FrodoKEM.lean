@@ -84,6 +84,12 @@ $`P(M)` uses the draft's packing convention, representing each packed byte
 least-significant-bit first. $`U(b)` reverses this conversion. In Lean, these
 operations are implemented by `packBits` and `unpackBits`.
 
+The Lean specifications below are written once for SHAKE calls in a monad `m`
+(`OperationsM m ps`): each SHAKE call is a monadic step `← ops.shake x L`, and uniform
+sampling lifts into `m`. With a deterministic SHAKE they give `KEM.keygen`, `KEM.encaps`
+and `KEM.decaps`; with each SHAKE call made as a random-oracle query they give
+`FrodoKEM.ROM.romKem`.
+
 ::::::gameGrid
 
 :::::gameCell "\\mathsf{KeyGen}()" (kind := "game")
@@ -107,15 +113,15 @@ b \gets P(B);\quad \mathsf{pk} \gets (a,b) \\[0.35em]
 :::
 
 ```anchor frodoKEM_keyGeneration (project := ".") (module := ToVCVio.LatticeCrypto.FrodoKEM.Construction)
-def keygen {ps : ParameterSet} (ops : Operations ps) :
-    ProbComp (PublicKey ps × SecretKey ps) := do
+def keygenM {m : Type → Type} [Monad m] [MonadLiftT ProbComp m] {ps : ParameterSet}
+    (ops : OperationsM m ps) : m (PublicKey ps × SecretKey ps) := do
   let fallback ← $ᵗ (SharedSecretBits ps)
   let seedSE ← $ᵗ (SeedSEBits ps)
   let z ← $ᵗ (Bits lenZ)
   let p := ps.params
-  let seedA := ops.shake z.toList lenSeedA
+  let seedA ← ops.shake z.toList lenSeedA
   let a := ops.gen seedA
-  let stream := ops.shake
+  let stream ← ops.shake
     (keygenPrefix.toList ++ seedSE.toList)
     (nbar * p.n * lenChi + p.n * nbar * lenChi)
   let samples := splitBits
@@ -129,11 +135,12 @@ def keygen {ps : ParameterSet} (ops : Operations ps) :
   let pk : PublicKey ps :=
     { seedA := seedA
       b := packBits ps p.n nbar (publicKeyBits_mod_eight ps) b }
+  let pkh ← hashPublicKeyM ops pk
   return (pk,
     { fallback := fallback
       publicKey := pk
       secretTranspose := st
-      publicKeyHash := hashPublicKey ops pk })
+      publicKeyHash := pkh })
 ```
 :::::
 
@@ -156,14 +163,15 @@ c_1 \gets P(B');\quad c_2 \gets P(C);\quad c \gets (c_1,c_2,\mathsf{salt}) \\[0.
 :::
 
 ```anchor frodoKEM_encapsulation (project := ".") (module := ToVCVio.LatticeCrypto.FrodoKEM.Construction)
-def encaps {ps : ParameterSet} (ops : Operations ps)
-    (pk : PublicKey ps) :
-    ProbComp (Ciphertext ps × SharedSecretBits ps) := do
+def encapsM {m : Type → Type} [Monad m] [MonadLiftT ProbComp m] {ps : ParameterSet}
+    (ops : OperationsM m ps) (pk : PublicKey ps) :
+    m (Ciphertext ps × SharedSecretBits ps) := do
   let message ← $ᵗ (MessageBits ps)
   let salt ← $ᵗ (SaltBits ps)
   let p := ps.params
-  let derived := deriveSeedAndKey ops (hashPublicKey ops pk) message salt
-  let stream := ops.shake
+  let pkh ← hashPublicKeyM ops pk
+  let derived ← deriveSeedAndKeyM ops pkh message salt
+  let stream ← ops.shake
     (encryptionPrefix.toList ++ derived.1.toList)
     (mbar * p.n * lenChi +
       (mbar * p.n * lenChi + mbar * nbar * lenChi))
@@ -187,9 +195,10 @@ def encaps {ps : ParameterSet} (ops : Operations ps)
   let c2 := packBits ps mbar nbar (ciphertext2Bits_mod_eight ps)
     (v + Encode p (message.cast (messageBits_length ps)))
   let c : Ciphertext ps := { c1 := c1, c2 := c2, salt := salt }
-  return (c, ops.shake
+  let k ← ops.shake
     (c.c1.toList ++ c.c2.toList ++ c.salt.toList ++ derived.2.toList)
-    p.ell)
+    p.ell
+  return (c, k)
 ```
 :::::
 
@@ -216,15 +225,15 @@ $`\begin{array}{l}
 :::
 
 ```anchor frodoKEM_decaps (project := ".") (module := ToVCVio.LatticeCrypto.FrodoKEM.Construction)
-def decaps {ps : ParameterSet} (ops : Operations ps)
-    (sk : SecretKey ps) (c : Ciphertext ps) : SharedSecretBits ps :=
+def decapsM {m : Type → Type} [Monad m] {ps : ParameterSet} (ops : OperationsM m ps)
+    (sk : SecretKey ps) (c : Ciphertext ps) : m (SharedSecretBits ps) := do
   let p := ps.params
   let bp := unpackBits ps mbar p.n (ciphertext1Bits_mod_eight ps) c.c1
   let cm := unpackBits ps mbar nbar (ciphertext2Bits_mod_eight ps) c.c2
-  let m := cm - bp * sk.secretTranspose.transpose
-  let message := (Decode p m).cast (messageBits_length ps).symm
-  let derived := deriveSeedAndKey ops sk.publicKeyHash message c.salt
-  let stream := ops.shake
+  let diff := cm - bp * sk.secretTranspose.transpose
+  let message := (Decode p diff).cast (messageBits_length ps).symm
+  let derived ← deriveSeedAndKeyM ops sk.publicKeyHash message c.salt
+  let stream ← ops.shake
     (encryptionPrefix.toList ++ derived.1.toList)
     (mbar * p.n * lenChi +
       (mbar * p.n * lenChi + mbar * nbar * lenChi))
@@ -305,6 +314,22 @@ theorem honestFailureProb_tenth_power_le
     (ps : ParameterSet) (gen : Generator ps) :
     honestFailureProb ps gen ^ 10 *
       2 ^ Certificate.exponentTenths ps ≤ 1
+```
+
+The certified value `Certificate.failureBound`, which is at most $`\delta`, also bounds the
+standard KEM correctness predicate `KEMScheme.deltaCorrect`. In `ROM.romKem`, each SHAKE call is
+a query to VCVio's lazy random oracle `ProbCompRuntime.rom`.
+Its correctness error is equal to `ROM.honestFailureProb` (`ROM.romKem_correctnessError`),
+because the lazy oracle has the same distribution as a uniformly random table
+(`OracleComp.rom_evalDist_empty_eq_uniformTable`).
+
+:::leanPillCaption "Failure bound as δ-correctness"
+:::
+
+```anchor frodoKEM_rom_deltaCorrect (project := ".") (module := ToVCVio.LatticeCrypto.FrodoKEM.Correctness.RandomOracle.OracleKEM)
+theorem romKem_deltaCorrect (ps : ParameterSet) (gen : Generator ps) :
+    (romKem ps gen).deltaCorrect (ProbCompRuntime.rom (hashSpec ps))
+      (Certificate.failureBound ps)
 ```
 
 *Not covered.*

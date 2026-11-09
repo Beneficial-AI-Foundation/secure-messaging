@@ -161,7 +161,7 @@ private theorem eval_fixedCoinsProgram
     evalWithAnswerFn_liftM_query, QueryImpl.ofFn_apply, evalWithAnswerFn_pure]
   simp [samplesFromCoins, operations, ToVCVio.FiniteXOF.answer, queryInput,
     publicKeyFromStreams, KEM.keygenFromCoins, PKE.keygenFromSeeds,
-    KEM.hashPublicKey, KEM.deriveSeedAndKey, hz, hkg, hh, hd,
+    KEM.hashPublicKey_eq, KEM.deriveSeedAndKey_eq, hz, hkg, hh, hd,
     outputLength, outputBits]
 
 private def fiveQueryProgram {D R α : Type}
