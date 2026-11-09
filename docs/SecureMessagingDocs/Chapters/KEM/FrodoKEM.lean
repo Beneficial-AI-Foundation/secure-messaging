@@ -309,8 +309,6 @@ theorem honestFailureProb_tenth_power_le
 
 *Not covered.*
 
-- Concrete SHAKE. The random-oracle model is a heuristic, and the result is an average over all
-  tables, not a bound for one function.
 - Many encapsulations to one key. The theorem is about one key pair and one encapsulation. So it
   says nothing about the limit of eFrodoKEM to fewer than 256 ciphertexts per public key
   ({Informal.citet LBES26}[], §8).
