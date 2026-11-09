@@ -161,12 +161,9 @@ theorem romKem_correctnessError (ps : ParameterSet) (gen : Generator ps) :
       OracleComp.rom_evalDist_empty_eq_uniformTable, MeasureTheory.measure_univ, tsub_self]
 
 /-- In the random-oracle model, `romKem` is `Certificate.failureBound ps`-correct. -/
--- ANCHOR: frodoKEM_rom_deltaCorrect
 theorem romKem_deltaCorrect (ps : ParameterSet) (gen : Generator ps) :
     (romKem ps gen).deltaCorrect (ProbCompRuntime.rom (hashSpec ps))
-      (Certificate.failureBound ps)
--- ANCHOR_END: frodoKEM_rom_deltaCorrect
-    :=
+      (Certificate.failureBound ps) :=
   (romKem_correctnessError ps gen).trans_le (honestFailureProb_le_failureBound ps gen)
 
 end FrodoKEM.ROM

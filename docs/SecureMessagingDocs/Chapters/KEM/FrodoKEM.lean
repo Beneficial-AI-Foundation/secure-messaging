@@ -84,11 +84,9 @@ $`P(M)` uses the draft's packing convention, representing each packed byte
 least-significant-bit first. $`U(b)` reverses this conversion. In Lean, these
 operations are implemented by `packBits` and `unpackBits`.
 
-The Lean specifications below are written once for SHAKE calls in a monad `m`
-(`OperationsM m ps`): each SHAKE call is a monadic step `← ops.shake x L`, and uniform
-sampling lifts into `m`. With a deterministic SHAKE they give `KEM.keygen`, `KEM.encaps`
-and `KEM.decaps`; with each SHAKE call made as a random-oracle query they give
-`FrodoKEM.ROM.romKem`.
+The Lean code below takes SHAKE as a parameter, `ops.shake`. With SHAKE as a fixed function,
+the code gives the scheme (`KEM.keygen`, `KEM.encaps` and `KEM.decaps`). The correctness
+theorem below replaces SHAKE with a random function $`H`.
 
 ::::::gameGrid
 
@@ -314,22 +312,6 @@ theorem honestFailureProb_tenth_power_le
     (ps : ParameterSet) (gen : Generator ps) :
     honestFailureProb ps gen ^ 10 *
       2 ^ Certificate.exponentTenths ps ≤ 1
-```
-
-The certified value `Certificate.failureBound`, which is at most $`\delta`, also bounds the
-standard KEM correctness predicate `KEMScheme.deltaCorrect`. In `ROM.romKem`, each SHAKE call is
-a query to VCVio's lazy random oracle `ProbCompRuntime.rom`.
-Its correctness error is equal to `ROM.honestFailureProb` (`ROM.romKem_correctnessError`),
-because the lazy oracle has the same distribution as a uniformly random table
-(`OracleComp.rom_evalDist_empty_eq_uniformTable`).
-
-:::leanPillCaption "Failure bound as δ-correctness"
-:::
-
-```anchor frodoKEM_rom_deltaCorrect (project := ".") (module := ToVCVio.LatticeCrypto.FrodoKEM.Correctness.RandomOracle.OracleKEM)
-theorem romKem_deltaCorrect (ps : ParameterSet) (gen : Generator ps) :
-    (romKem ps gen).deltaCorrect (ProbCompRuntime.rom (hashSpec ps))
-      (Certificate.failureBound ps)
 ```
 
 *Not covered.*
