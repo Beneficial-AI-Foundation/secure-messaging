@@ -278,7 +278,7 @@ sizes 640, 976 and 1344.
 Let $`\delta` be $`2^{-138.7}`, $`2^{-199.6}` or $`2^{-252.5}` for sizes 640, 976 and 1344.
 {Informal.citet FrodoKEM}[] lists these values as the failure rates in Table 4 (§6.2). Then
 
-$$`\operatorname*{Pr}_{\substack{H \gets \mathsf{RO},\\ (\mathsf{pk},\mathsf{sk}) \gets \mathsf{KeyGen}^H(),\\ (c,K) \gets \mathsf{Encaps}^H(\mathsf{pk})}}\bigl[\mathsf{Decaps}^H(\mathsf{sk},c) \ne K\bigr] \;\le\; \delta.`
+$$`\Pr_{\substack{H \gets \mathsf{RO},\\ (\mathsf{pk},\mathsf{sk}) \gets \mathsf{KeyGen}^H(),\\ (c,K) \gets \mathsf{Encaps}^H(\mathsf{pk})}}\bigl[\mathsf{Decaps}^H(\mathsf{sk},c) \ne K\bigr] \;\le\; \delta.`
 
 The probability is over the random function $`H` and the honest random choices. In Lean,
 `ROM.honestFailureProb` is this probability. The KEM uses SHAKE on only five input lengths and
