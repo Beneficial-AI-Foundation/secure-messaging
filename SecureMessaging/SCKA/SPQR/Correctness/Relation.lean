@@ -145,8 +145,9 @@ private theorem toBraid_sendAUpdate [DecidableEq P.EpochKey] (s : GameState P Au
   have hmsg : (fun n => (Function.update s.msgA (s.nA + 1) (some (ρ, tsnd)) n).map
         fun (msg, t) => (msg.toBraid, t)) =
       Function.update s.toBraid.msgA (s.nA + 1) (some (ρ.toBraid, tsnd)) :=
-    Function.comp_update (Option.map fun (msg, t) => (msg.toBraid, t)) s.msgA (s.nA + 1)
-      (some (ρ, tsnd))
+    Function.comp_update
+      (Option.map (Prod.map Chunked.Message.toBraid id))
+      s.msgA (s.nA + 1) (some (ρ, tsnd))
   rcases keyOpt with _ | ⟨tI, key⟩ <;>
     simp only [SCKAScheme.sendAUpdate, GameState.toBraid, hmsg] <;> rfl
 
@@ -159,8 +160,9 @@ private theorem toBraid_sendBUpdate [DecidableEq P.EpochKey] (s : GameState P Au
   have hmsg : (fun n => (Function.update s.msgB (s.nB + 1) (some (ρ, tsnd)) n).map
         fun (msg, t) => (msg.toBraid, t)) =
       Function.update s.toBraid.msgB (s.nB + 1) (some (ρ.toBraid, tsnd)) :=
-    Function.comp_update (Option.map fun (msg, t) => (msg.toBraid, t)) s.msgB (s.nB + 1)
-      (some (ρ, tsnd))
+    Function.comp_update
+      (Option.map (Prod.map Chunked.Message.toBraid id))
+      s.msgB (s.nB + 1) (some (ρ, tsnd))
   rcases keyOpt with _ | ⟨tI, key⟩ <;>
     simp only [SCKAScheme.sendBUpdate, GameState.toBraid, hmsg] <;> rfl
 

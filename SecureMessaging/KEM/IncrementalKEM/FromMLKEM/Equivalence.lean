@@ -78,7 +78,7 @@ private theorem mlkemIncrementalDet_encaps :
   funext pk
   rw [(mlkemIncremental p ring prims).factor]
   simp only [IncrementalKEMDet.toKEM, mlkemIncrementalDet, mlkemIncremental,
-    map_eq_pure_bind, bind_assoc, pure_bind]
+    incrementalStructure, map_eq_pure_bind, bind_assoc, pure_bind]
   rfl
 
 /-- Key generation from one 64-byte seed has the distribution of ML-KEM key generation. -/

@@ -23,19 +23,19 @@ Let:
 * `ε := P.det.toKEM.correctnessError ProbCompRuntime.probComp` be the correctness error of the
   underlying KEM.
 
-The game is the one of `Braid.Correctness`. The adversary chooses which party sends and which
-recorded message each party receives, so it may omit, delay, reorder, duplicate or replay
+The game is the SCKA correctness game of the Braid proof. The adversary chooses which party sends
+and which recorded message each party receives, so it may omit, delay, reorder, duplicate or replay
 messages. The game keeps a correctness flag, which becomes false when a receive refuses a recorded
 message or when a check on the reported epochs and the output keys fails.
 
 ## Main results
 
-If the four stream decoders of `P` are sound for their erasure codes and `Adv` makes at most `q`
-send queries, then
+If the four stream decoders of `P` are sound for their erasure codes (`StreamDecoder.Sound`) and
+`Adv` makes at most `q` send queries, then
 
 * `correctness_error_le`: `1 - Pr[G(Adv) = true] ≤ q · ε`;
-* `v1Scheme_correctness_error_le`: the same bound for `v1Scheme`, whose four SPQR Reed-Solomon
-  codes are correct, with `ε` the correctness error of ML-KEM-768.
+* `v1Scheme_correctness_error_le`: the same bound for `v1Scheme`, with `ε` the correctness error of
+  ML-KEM-768. Its four SPQR Reed-Solomon codes are correct, so its set-based decoders are sound.
 
 This is the bound of `Braid.correctness_error_le`, for the SPQR scheme.
 
@@ -43,10 +43,10 @@ This is the bound of `Braid.correctness_error_le`, for the SPQR scheme.
 
 The proof translates SPQR game states into Braid game states (`GameState.toBraid`) and takes
 the invariant `CorrectnessInv` and the potential `failurePotential` of the Braid proof on the
-translated state. The SPQR invariant adds
-`Ct1AckInv`. Then `SCKAScheme.correctness_error_le_of_potential` gives the bound, once each query
-is shown to preserve the invariant and to raise the expected potential by at most `ε` for a send
-and not at all otherwise:
+translated state. The SPQR invariant adds `Ct1AckInv`. Then
+`SCKAScheme.correctness_error_le_of_potential` gives the bound, once each query is shown to preserve
+the invariant and to raise the expected potential by at most `ε` for a send and not at all
+otherwise:
 
 * if the correctness flag is already false, it stays false and the potential stays `1`;
 * a query that delivers no message in `RecvDivergence` is the Braid query on the translated state
@@ -56,9 +56,9 @@ and not at all otherwise:
   that record is an acknowledging vector chunk (`sckaCorrectnessImpl_run_toBraidAck`).
 
 The relabelling in the last case changes neither the invariant nor the potential. The Braid
-invariant sees the type of a recorded
-vector chunk only through the step its sender must have reached. The sender is in `ct1Received`,
-which is late enough for an acknowledging chunk. The potential does not read recorded messages.
+invariant sees the type of a recorded vector chunk only through the step its sender must have
+reached. The sender is in `ct1Received`, which is late enough for an acknowledging chunk. The
+potential does not read recorded messages.
 
 ## References
 
@@ -87,8 +87,8 @@ variable {P : SPQR.Parameters ProbComp} {InitKey AuthState : Type}
 
 /-! ### Relabelling a recorded vector chunk -/
 
-/-- A property of recorded messages that holds for the new entry and for every entry of a message
-table holds for every entry of the table after the update with the new entry. -/
+/-- If a property of recorded messages holds for a new entry and for every entry of a message
+table, it holds for every entry of the table updated with the new entry. -/
 private theorem forall_update_record {f : ℕ → Option (Braid.Message P.Sym × ℕ)} {n : ℕ}
     {e : Braid.Message P.Sym × ℕ} {Q : Braid.Message P.Sym → ℕ → Prop}
     (hold : ∀ k m t, f k = some (m, t) → Q m t) (hnew : Q e.1 e.2) :
