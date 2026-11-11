@@ -31,6 +31,8 @@ open OracleSpec OracleComp
 
 namespace MLKEMBraid.Auth
 
+open Braid
+
 /-- The full SCKA security interface of the scheme with a scheduled authenticator. -/
 abbrev Spec (P : Parameters ProbComp) (Root MacKey : Type)
     (irl : P.kem.IncrementalRandLeak P.inc) :=

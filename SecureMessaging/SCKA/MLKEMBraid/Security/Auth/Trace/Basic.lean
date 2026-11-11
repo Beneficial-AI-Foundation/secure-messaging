@@ -42,6 +42,8 @@ open ErasureCodePayload.Streaming
 
 namespace MLKEMBraid.Auth
 
+open Braid
+
 /-- What the game has decided for one epoch: the key pair, the first-stage encapsulation, the
 epoch key output at the first-stage encapsulation, and the authenticator value installed by the
 update of the epoch. Epoch `0` holds the initial authenticator value. -/
@@ -109,7 +111,7 @@ structure Modes where
   /-- How the authenticator value of an epoch is chosen. -/
   pair : ℕ → PairMode
   /-- How an eligible challenge of an epoch is answered. -/
-  chal : ℕ → NoAuth.Mode
+  chal : ℕ → Braid.NoAuth.Mode
 
 /-- Every entry is chosen the real way. -/
 def Modes.real : Modes where
@@ -236,11 +238,11 @@ def sampledSend [DecidableEq P.EpochKey] (view : RatchetedAuthenticator P.EpochK
         | none => s.bad
         | some (pk, sk) => s.bad || decide (decapsEpochKey (P := P) t pk sk x.1.1 x.1.2.1 ≠
             some (P.kdfOK x.1.2.2 t)))
-  | st => (fun out => (out, s.transcript, s.bad)) <$> MLKEMBraid.sendRleak P irl view st
+  | st => (fun out => (out, s.transcript, s.bad)) <$> Braid.sendRleak P irl view st
 
 /-- A send of `party` that reveals its coins if `leaking`. If the game refuses a leaking send, it
 keeps neither the new game state nor the new records. Otherwise it updates the game state with
-`MLKEMBraid.sendUpdate`. -/
+`Braid.sendUpdate`. -/
 def traceSend [DecidableEq P.EpochKey] (view : RatchetedAuthenticator P.EpochKey P.EpochKey AS
       P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
     (irl : P.kem.IncrementalRandLeak P.inc) (tbl : Installed P irl AS) (rules : UpdateRules P AS)
@@ -254,7 +256,7 @@ def traceSend [DecidableEq P.EpochKey] (view : RatchetedAuthenticator P.EpochKey
     let leaked := (exposureAt P irl AS).rleak (s.game.stateAt party) coins
     if leaking && decide (leaked ∩ s.game.challenged ≠ ∅) then (none, s)
     else (some (result.sendingEpoch, result.outputKey.map Prod.fst, result.msg, coins),
-      { game := { MLKEMBraid.sendUpdate s.game party result with
+      { game := { Braid.sendUpdate s.game party result with
           exposed := if leaking then s.game.exposed ∪ leaked else s.game.exposed },
         transcript := w.2.1, bad := w.2.2 })) <$> sampledSend view irl tbl rules s party
 
@@ -274,10 +276,10 @@ def repairedRecv (view : RatchetedAuthenticator P.EpochKey P.EpochKey AS
           | some _, some x =>
               some (some (t, x), msg.epoch - 1,
                 .noHeaderReceived (t + 1) ((T t).pair.getD a) P.decHdr.empty)
-          | _, _ => MLKEMBraid.recvSCKA P view st msg
-        else MLKEMBraid.recvSCKA P view st msg
-    | _, _, _ => MLKEMBraid.recvSCKA P view st msg
-  else MLKEMBraid.recvSCKA P view st msg
+          | _, _ => Braid.recvSCKA P view st msg
+        else Braid.recvSCKA P view st msg
+    | _, _, _ => Braid.recvSCKA P view st msg
+  else Braid.recvSCKA P view st msg
 
 /-- ML-KEM Braid with the authenticator `view` and the receive algorithm `repairedRecv` for the
 records `T`. -/
@@ -286,7 +288,7 @@ def recvScheme [SampleableType P.EpochKey] (view : RatchetedAuthenticator P.Epoc
     (irl : P.kem.IncrementalRandLeak P.inc) (repair : Bool) (T : ℕ → EpochRecord P AS) :
     SCKAScheme ProbComp P.EpochKey (State P AS) (State P AS) P.EpochKey (Message P.Sym)
       (SendRand irl.KeygenRand irl.Encaps1Rand) :=
-  { MLKEMBraid.scheme P view irl ($ᵗ P.EpochKey) with
+  { Braid.scheme P view irl ($ᵗ P.EpochKey) with
     recvA := repairedRecv view repair T
     recvB := repairedRecv view repair T }
 
@@ -307,7 +309,7 @@ def lookupKey (g : GameState P AS) (e : ℕ) : Option P.EpochKey :=
   | none => g.keyB e
 
 /-- The challenge oracle. An eligible challenge of `e` is answered by the installed answer for
-`e` if there is one, and otherwise by `NoAuth.challengeValue` for the mode of `e`. -/
+`e` if there is one, and otherwise by `Braid.NoAuth.challengeValue` for the mode of `e`. -/
 def traceChallenge [SampleableType P.K] [SampleableType P.EpochKey]
     {irl : P.kem.IncrementalRandLeak P.inc} (tbl : Installed P irl AS) (modes : Modes) :
     QueryImpl (ℕ →ₒ Option P.EpochKey) (StateT (TraceState P AS) ProbComp) :=
@@ -319,7 +321,7 @@ def traceChallenge [SampleableType P.K] [SampleableType P.EpochKey]
           { s.game with challenged := insert e s.game.challenged } })) <$>
           (match tbl.chal e with
             | some w => pure w
-            | none => NoAuth.challengeValue P (modes.chal e) e k)
+            | none => Braid.NoAuth.challengeValue P (modes.chal e) e k)
 
 /-- The uniform-randomness oracle of the trace game. -/
 def traceUnif (P : Parameters ProbComp) (AS : Type) :

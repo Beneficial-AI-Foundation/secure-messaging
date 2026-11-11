@@ -30,6 +30,8 @@ open ErasureCodePayload.Streaming
 
 namespace MLKEMBraid.Auth
 
+open Braid
+
 variable {P : Parameters ProbComp} {Root MacKey : Type}
 
 /-- Outside the generator's `ct₂` states, `repairedRecv` runs `recvSCKA`. -/
@@ -38,7 +40,7 @@ theorem repairedRecv_eq_of_not_ekSent {AS : Type}
       P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
     (repair : Bool) (T : ℕ → EpochRecord P AS) {st : State P AS} (msg : Message P.Sym)
     (hst : ∀ t a sk ct1 dec, st ≠ .ekSentCt1Received t a sk ct1 dec) :
-    repairedRecv view repair T st msg = MLKEMBraid.recvSCKA P view st msg := by
+    repairedRecv view repair T st msg = Braid.recvSCKA P view st msg := by
   cases repair
   · rfl
   · cases st <;> first | rfl | exact absurd rfl (hst _ _ _ _ _)
@@ -86,7 +88,7 @@ theorem receive_cases [DecidableEq P.Mac] {irl : P.kem.IncrementalRandLeak P.inc
     (∃ r, receive P S.toRatcheted (s.stateAt party) msg = .ok r ∧ r.outputKey = none ∧
       LocalPayloadInv (recorded S T) ik (EpochRecord.toTranscript ∘ T) r.state ∧
       ∀ repair, repairedRecv S.toRatcheted repair T (s.stateAt party) msg =
-        MLKEMBraid.recvSCKA P S.toRatcheted (s.stateAt party) msg) := by
+        Braid.recvSCKA P S.toRatcheted (s.stateAt party) msg) := by
   have hRole := h.control.role party
   have hLocal := h.local party
   have hPayload := h.messages (!party) n msg tsnd hmsg
@@ -119,7 +121,7 @@ theorem receive_cases [DecidableEq P.Mac] {irl : P.kem.IncrementalRandLeak P.inc
       ∃ r, receive P S.toRatcheted st msg = .ok r ∧ r.outputKey = none ∧
         LocalPayloadInv (recorded S T) ik (EpochRecord.toTranscript ∘ T) r.state ∧
         ∀ repair, repairedRecv S.toRatcheted repair T st msg =
-          MLKEMBraid.recvSCKA P S.toRatcheted st msg :=
+          Braid.recvSCKA P S.toRatcheted st msg :=
     fun r hr hnone hinv hne =>
       ⟨r, (hconv st msg hne).symm.trans hr, hnone, hinv,
         fun repair => repairedRecv_eq_of_not_ekSent S.toRatcheted repair T msg hne⟩
@@ -555,9 +557,9 @@ theorem recv_outcome [DecidableEq P.Mac] [DecidableEq P.EpochKey]
     subst htsnd
     exact ⟨some (t, x), .noHeaderReceived (t + 1) p P.decHdr.empty, hrep_true,
       repairedRecv_preserves h party hst hc hx hp⟩
-  · have hscka : MLKEMBraid.recvSCKA P S.toRatcheted (s.stateAt party) msg =
+  · have hscka : Braid.recvSCKA P S.toRatcheted (s.stateAt party) msg =
         some (none, msg.epoch - 1, r.state) := by
-      simp [MLKEMBraid.recvSCKA, hr, hnone]
+      simp [Braid.recvSCKA, hr, hnone]
     have hupd : recvUpdate s party tsnd ⟨msg.epoch - 1, none, r.state⟩ (msg.epoch - 1) =
         recvUpdate s party tsnd r (msg.epoch - 1) := by
       rcases r with ⟨re, rk, rs⟩
@@ -575,7 +577,7 @@ theorem recv_outcome_real [DecidableEq P.Mac]
     (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound P.ecpEk)
     (hCt1Sound : P.decCt1.Sound P.ecpCt1) (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     (h : RepairInv S (Installed.empty (irl := irl)) Modes.real ik T s)
-    (hgood : NoAuth.DecapsGood (EpochRecord.toTranscript ∘ T)) (party : Bool) {n : ℕ}
+    (hgood : Braid.NoAuth.DecapsGood (EpochRecord.toTranscript ∘ T)) (party : Bool) {n : ℕ}
     {msg : Message P.Sym} {tsnd : ℕ} (hmsg : s.messagesAt (!party) n = some (msg, tsnd)) :
     repairedRecv S.toRatcheted false T (s.stateAt party) msg =
       repairedRecv S.toRatcheted true T (s.stateAt party) msg := by
@@ -616,7 +618,7 @@ theorem recv_outcome_real [DecidableEq P.Mac]
               (recorded S T).macCiphertext x e c = S.macCiphertext x.2 e c := fun _ _ _ => rfl
           subst ha
           rw [hst]
-          simp [repairedRecv, MLKEMBraid.recvSCKA, receive, Message.wellFormed, hdecode, hdk,
+          simp [repairedRecv, Braid.recvSCKA, receive, Message.wellFormed, hdecode, hdk,
             hk', hx, hp, ScheduledAuthenticator.toRatcheted, htag, hauth, hmac]
   · exact (hrep false).trans (hrep true).symm
 
@@ -693,7 +695,7 @@ theorem traceReceive_real_eq [DecidableEq P.Mac] [DecidableEq P.EpochKey]
     (hCt1Sound : P.decCt1.Sound P.ecpCt1) (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     (party : Bool) (n : ℕ) (s : TraceState P (Root × MacKey))
     (h : RepairInv S (Installed.empty (irl := irl)) Modes.real ik s.transcript s.game)
-    (hgood : NoAuth.DecapsGood (EpochRecord.toTranscript ∘ s.transcript)) :
+    (hgood : Braid.NoAuth.DecapsGood (EpochRecord.toTranscript ∘ s.transcript)) :
     (traceReceive S.toRatcheted irl false party n).run s =
       (traceReceive S.toRatcheted irl true party n).run s := by
   cases hm : s.game.messagesAt (!party) n with

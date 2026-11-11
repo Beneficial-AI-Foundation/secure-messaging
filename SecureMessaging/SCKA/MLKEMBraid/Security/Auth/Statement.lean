@@ -22,7 +22,7 @@ exposure policy `successorExposure` (E⁺). For an adversary `A` making at most 
 `AdvGuess(A) ≤ 2q · (AdvINDCPA(ℬ) + AdvKDF(𝒞)) + q · (AdvInput(𝒟) + AdvRoot(ℰ)) + q · ε`,
 
 where `ℬ`, `𝒞`, `𝒟` and `ℰ` are the four reductions of `Reductions`, `AdvKDF` is the advantage in
-the key-derivation game `NoAuth.kdfContextExp`, `AdvInput` and `AdvRoot` are the advantages in
+the key-derivation game `Braid.kdfContextExp`, `AdvInput` and `AdvRoot` are the advantages in
 the two key-derivation experiments of the schedule (`inputExp`, `rootExp`), and `ε` is the KEM
 correctness error. The four stream decoders are sound for their erasure codes.
 
@@ -33,6 +33,8 @@ set-based decoders of four correct erasure codes.
 @[expose] public section
 
 namespace MLKEMBraid.Auth
+
+open Braid
 
 /-- Assume sound stream decoders for the four streams and an adversary `A` making at most `q`
 send queries in total (`SendQueryBound A q`). Then the guessing advantage of `A` under E⁺ is at
@@ -54,7 +56,7 @@ theorem security (P : Parameters ProbComp) {Root MacKey : Type}
     SCKAScheme.sckaGuessAdvantage (scheme P S irl) A
         (successorExposure P irl Root MacKey) (successorExposure P irl Root MacKey) ≤
       (2 * q : ℝ) * ((P.kem.IND_CPA_Advantage ProbCompRuntime.probComp ℬ).toReal +
-          NoAuth.kdfAdvantage P 𝒞) +
+          Braid.kdfAdvantage P.kdfOK 𝒞) +
       (q : ℝ) * (inputAdvantage S 𝒟 + rootAdvantage S ℰ) + q * ε := sorry
 
 /-- The bound of `security` for Braid over ML-KEM (`mlkemBraidParameters`) when the four erasure
@@ -104,7 +106,7 @@ theorem security_mlkem
           (successorExposure P irl Root MacKey) (successorExposure P irl Root MacKey) ≤
         (2 * q : ℝ) *
           (((MLKEM.mlkemScheme p ring prims).IND_CPA_Advantage ProbCompRuntime.probComp ℬ).toReal +
-            NoAuth.kdfAdvantage P 𝒞) +
+            Braid.kdfAdvantage P.kdfOK 𝒞) +
         (q : ℝ) * (inputAdvantage S 𝒟 + rootAdvantage S ℰ) + q * ε := sorry
 
 end MLKEMBraid.Auth

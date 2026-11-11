@@ -28,6 +28,8 @@ open SCKAScheme.sckaCorrectnessSpec
 
 namespace MLKEMBraid.Auth
 
+open Braid
+
 variable {P : Parameters ProbComp} {Root MacKey : Type}
 
 /-- An epoch key drawn by the rules is the installed one, or, with no installed value and the real
@@ -626,8 +628,8 @@ theorem traceSend_preserves [DecidableEq P.Mac] [DecidableEq P.EpochKey] [Sample
     (hz : z ∈ support ((traceSend S.toRatcheted irl tbl (installedRules S tbl modes) party
       leaking).run s)) :
     RepairInv S tbl modes ik z.2.transcript z.2.game ∧
-      (NoAuth.DecapsGood (EpochRecord.toTranscript ∘ s.transcript) → z.2.bad = false →
-        NoAuth.DecapsGood (EpochRecord.toTranscript ∘ z.2.transcript)) := by
+      (Braid.NoAuth.DecapsGood (EpochRecord.toTranscript ∘ s.transcript) → z.2.bad = false →
+        Braid.NoAuth.DecapsGood (EpochRecord.toTranscript ∘ z.2.transcript)) := by
   rcases mem_support_traceSend S.toRatcheted irl tbl (installedRules S tbl modes) hz with
     hz | ⟨⟨⟨r, rand⟩, T₂, bad'⟩, hw, -, hz⟩
   · rw [hz]
@@ -811,8 +813,8 @@ theorem traceSend_preserves [DecidableEq P.Mac] [DecidableEq P.EpochKey] [Sample
                 exposed := if leaking then s.game.exposed ∪
                   (exposureAt P irl (Root × MacKey)).rleak (State.keysUnsampled e a)
                     (SendRand.keygen x.2) else s.game.exposed } ∧
-            (NoAuth.DecapsGood (EpochRecord.toTranscript ∘ s.transcript) →
-              NoAuth.DecapsGood (EpochRecord.toTranscript ∘
+            (Braid.NoAuth.DecapsGood (EpochRecord.toTranscript ∘ s.transcript) →
+              Braid.NoAuth.DecapsGood (EpochRecord.toTranscript ∘
                 Function.update s.transcript e { (s.transcript e) with keypair := some x.1 })) := by
         intro x
         refine ⟨?_, fun hg => ?_⟩
@@ -902,9 +904,9 @@ theorem traceSend_preserves [DecidableEq P.Mac] [DecidableEq P.EpochKey] [Sample
               exposed := if leaking then s.game.exposed ∪
                 (exposureAt P irl (Root × MacKey)).rleak (State.headerReceived e a hdr dec)
                   (SendRand.encaps1 x.2) else s.game.exposed } ∧
-            (NoAuth.DecapsGood (EpochRecord.toTranscript ∘ s.transcript) →
+            (Braid.NoAuth.DecapsGood (EpochRecord.toTranscript ∘ s.transcript) →
               encaps1Bad s e x.1 = false →
-              NoAuth.DecapsGood (EpochRecord.toTranscript ∘ Function.update s.transcript e
+              Braid.NoAuth.DecapsGood (EpochRecord.toTranscript ∘ Function.update s.transcript e
                 { (s.transcript e) with
                   encaps1 := some x.1, key := some key, pair := some p })) := by
         intro x key p hk hp

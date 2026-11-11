@@ -31,6 +31,8 @@ open ErasureCodePayload.Streaming
 
 namespace MLKEMBraid.Auth
 
+open Braid
+
 variable {P : Parameters ProbComp} {Root MacKey : Type}
 
 /-- The game state `s` agrees with the records `T`. The records satisfy the fields of

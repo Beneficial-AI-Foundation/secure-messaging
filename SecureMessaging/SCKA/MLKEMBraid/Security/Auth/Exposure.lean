@@ -25,6 +25,8 @@ the security theorem holds.
 
 namespace MLKEMBraid.Auth
 
+open Braid
+
 /-- Every corruption exposes the stored epoch and its successor; a leak of key-generation or
 first-stage encapsulation coins exposes both; other leaks expose nothing. -/
 def successorExposure (P : Parameters ProbComp) (irl : P.kem.IncrementalRandLeak P.inc)

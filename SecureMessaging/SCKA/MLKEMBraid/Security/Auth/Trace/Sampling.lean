@@ -28,6 +28,8 @@ open ErasureCodePayload.Streaming
 
 namespace MLKEMBraid.Auth
 
+open Braid
+
 /-- The key-generation send of epoch `t` with the key pair `(pk, sk)`. -/
 def keygenStep {P : Parameters ProbComp} {AS : Type}
     (view : RatchetedAuthenticator P.EpochKey P.EpochKey AS
@@ -78,14 +80,14 @@ theorem keygenStep_eq {P : Parameters ProbComp} {AS : Type}
         sendingEpoch := t - 1, outputKey := none
         state := .keysSampled t a sk (P.inc.toVector pk) (hdrChunk view t a pk).2 } := rfl
 
-/-- The first-stage encapsulation send in terms of `NoAuth.ct1Chunk`. -/
+/-- The first-stage encapsulation send in terms of `Braid.NoAuth.ct1Chunk`. -/
 theorem encaps1Step_eq {P : Parameters ProbComp} {AS : Type} (t : ℕ) (a : AS)
     (hdr : P.inc.PKheader) (dec : P.decEk.D) (es : P.inc.St) (ct1 : P.inc.C₁)
     (x : P.EpochKey) (p : AS) :
     encaps1Step t a hdr dec es ct1 x p =
-      { msg := { epoch := t, type := .ct1, data := some (NoAuth.ct1Chunk P ct1).1 }
+      { msg := { epoch := t, type := .ct1, data := some (Braid.NoAuth.ct1Chunk P ct1).1 }
         sendingEpoch := t - 1, outputKey := some (t, x)
-        state := .ct1Sampled t p hdr es ct1 (NoAuth.ct1Chunk P ct1).2 dec } := rfl
+        state := .ct1Sampled t p hdr es ct1 (Braid.NoAuth.ct1Chunk P ct1).2 dec } := rfl
 
 /-- The send predicate in the nesting of `traceImpl`'s components. -/
 def sendElim (P : Parameters ProbComp) (Root MacKey : Type)
@@ -201,8 +203,8 @@ theorem sendRleak_of_noSample
       P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
     (irl : P.kem.IncrementalRandLeak P.inc) {st : State P AS}
     (h1 : ∀ t a, st ≠ .keysUnsampled t a) (h2 : ∀ t a hdr dec, st ≠ .headerReceived t a hdr dec) :
-    MLKEMBraid.sendRleak P irl view st =
-      (fun r => (r, SendRand.none)) <$> MLKEMBraid.send P view st := by
+    Braid.sendRleak P irl view st =
+      (fun r => (r, SendRand.none)) <$> Braid.send P view st := by
   cases st with
   | keysUnsampled t a => exact absurd rfl (h1 t a)
   | headerReceived t a hdr dec => exact absurd rfl (h2 t a hdr dec)
@@ -218,9 +220,9 @@ theorem sampledSend_of_noSample [DecidableEq P.EpochKey]
     (h2 : ∀ t a hdr dec, s.game.stateAt party ≠ .headerReceived t a hdr dec) :
     sampledSend view irl tbl rules s party =
       (fun r => ((r, SendRand.none), s.transcript, s.bad)) <$>
-        MLKEMBraid.send P view (s.game.stateAt party) := by
+        Braid.send P view (s.game.stateAt party) := by
   have hS : sampledSend view irl tbl rules s party = (fun out => (out, s.transcript, s.bad)) <$>
-      MLKEMBraid.sendRleak P irl view (s.game.stateAt party) := by
+      Braid.sendRleak P irl view (s.game.stateAt party) := by
     cases hst : s.game.stateAt party with
     | keysUnsampled t a => exact absurd hst (h1 t a)
     | headerReceived t a hdr dec => exact absurd hst (h2 t a hdr dec)

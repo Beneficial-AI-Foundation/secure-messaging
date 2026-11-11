@@ -27,6 +27,8 @@ written.
 
 namespace MLKEMBraid.Auth
 
+open Braid
+
 /-- The IND-CPA adversary against `P.kem` built from `A`. It draws the epoch `e`, the side and the
 slot, and embeds the challenge public key, ciphertext and key at epoch `e - 1` (predecessor slot)
 or `e` (target slot). Before the challenge it presamples the initial key and the joint
@@ -39,7 +41,7 @@ def kemMixReduction (P : Parameters ProbComp) {Root MacKey : Type}
     (S : ScheduledAuthenticator P Root MacKey) (irl : P.kem.IncrementalRandLeak P.inc)
     (A : Adversary P S irl) (q : ℕ) : P.kem.IND_CPA_Adversary := sorry
 
-/-- The key-derivation distinguisher built from `A`, in the game `NoAuth.kdfContextExp`. It draws
+/-- The key-derivation distinguisher built from `A`, in the game `Braid.kdfContextExp`. It draws
 the epoch `e`, the side and the slot, and announces the label `e - 1` (predecessor slot) or `e`
 (target slot); it then receives `kdfOK u` at that label for a uniform shared secret `u`, or a
 uniform epoch key. Before announcing the label it presamples the initial key and the joint
@@ -50,7 +52,7 @@ def kdfMixReduction (P : Parameters ProbComp) {Root MacKey : Type}
     [SampleableType P.K] [SampleableType P.EpochKey] [SampleableType Root] [SampleableType MacKey]
     [DecidableEq P.K] [DecidableEq P.EpochKey] [DecidableEq P.Mac]
     (S : ScheduledAuthenticator P Root MacKey) (irl : P.kem.IncrementalRandLeak P.inc)
-    (A : Adversary P S irl) (q : ℕ) : NoAuth.KDFContextAdversary P := sorry
+    (A : Adversary P S irl) (q : ℕ) : Braid.KDFContextAdversary P.EpochKey := sorry
 
 /-- The secret-input distinguisher built from `A`. It draws the epoch `e` and the side. Its
 challenge is the update of epoch `e - 1`, with the root `R_{e-2}` known and the update input

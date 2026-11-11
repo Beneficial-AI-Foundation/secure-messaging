@@ -25,6 +25,8 @@ open OracleComp
 
 namespace MLKEMBraid.Auth
 
+open Braid
+
 /-- Root and MAC keys ratcheted by a schedule `F`; tags computed from the MAC key alone. -/
 structure ScheduledAuthenticator (P : Parameters ProbComp) (Root MacKey : Type) where
   /-- The schedule: label, previous root, update input ↦ (new root, new MAC key). -/
@@ -55,6 +57,6 @@ def ScheduledAuthenticator.toRatcheted [DecidableEq P.Mac]
 /-- ML-KEM Braid with the scheduled authenticator `S` and a uniform initial key. -/
 def scheme (P : Parameters ProbComp) [DecidableEq P.Mac] [SampleableType P.EpochKey]
     (S : ScheduledAuthenticator P Root MacKey) (irl : P.kem.IncrementalRandLeak P.inc) :=
-  MLKEMBraid.scheme P S.toRatcheted irl ($ᵗ P.EpochKey)
+  Braid.scheme P S.toRatcheted irl ($ᵗ P.EpochKey)
 
 end MLKEMBraid.Auth
