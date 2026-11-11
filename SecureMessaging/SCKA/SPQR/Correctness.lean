@@ -87,16 +87,14 @@ variable {P : SPQR.Parameters ProbComp} {InitKey AuthState : Type}
 
 /-! ### Relabelling a recorded vector chunk -/
 
-/-- An entry of an updated message table is the new entry or an entry of the old table. -/
-private theorem update_eq_some {f : ℕ → Option (Braid.Message P.Sym × ℕ)} {n k : ℕ}
-    {e : Braid.Message P.Sym × ℕ} {m : Braid.Message P.Sym} {t : ℕ}
-    (h : Function.update f n (some e) k = some (m, t)) : (m, t) = e ∨ f k = some (m, t) := by
-  by_cases hkn : k = n
-  · subst hkn
-    simp only [Function.update_self, Option.some.injEq] at h
-    exact Or.inl h.symm
-  · rw [Function.update_of_ne hkn] at h
-    exact Or.inr h
+/-- A property of recorded messages that holds for the new entry and for every entry of a message
+table holds for every entry of the table after the update with the new entry. -/
+private theorem forall_update_record {f : ℕ → Option (Braid.Message P.Sym × ℕ)} {n : ℕ}
+    {e : Braid.Message P.Sym × ℕ} {Q : Braid.Message P.Sym → ℕ → Prop}
+    (hold : ∀ k m t, f k = some (m, t) → Q m t) (hnew : Q e.1 e.2) :
+    ∀ k m t, Function.update f n (some e) k = some (m, t) → Q m t :=
+  (Function.forall_update_iff f (fun _ entry => ∀ m t, entry = some (m, t) → Q m t)).2
+    ⟨fun m t h => by obtain rfl := Option.some.inj h; exact hnew, fun k _ => hold k⟩
 
 /-- Changing the type of a recorded vector chunk to `ek` or `ekCt1Ack` keeps transcript
 consistency, provided the sender's state allows the new type. -/
@@ -131,89 +129,39 @@ private theorem transcriptConsistent_retype {ik : InitKey}
         hEK.keyPrefix.prefixB⟩
   cases party
   · simp only [Bool.false_eq_true, ↓reduceIte] at hKP ⊢
-    have hmsgB : ∀ k m t, Function.update s.msgB n (some ({ msg with type := ty }, tsnd)) k =
-        some (m, t) → m.epoch ≤ s.stB.completedEpoch + 1 ∧ m.epoch ≤ s.stA.completedEpoch + 1 ∧
-          (m.type = .ct2 → m.epoch ≤ s.stB.completedEpoch) := by
-      intro k m t hk
-      rcases update_eq_some hk with he | hk
-      · cases he
-        exact ⟨hbound.1, hbound.2.1, fun h => absurd h hct2⟩
-      · exact hEK.msgB k m t hk
-    have hrepB : ∀ k m t, Function.update s.msgB n (some ({ msg with type := ty }, tsnd)) k =
-        some (m, t) → t = m.epoch - 1 := by
-      intro k m t hk
-      rcases update_eq_some hk with he | hk
-      · cases he
-        exact hrep
-      · exact hRR.msgB k m t hk
-    have hctlB : ∀ k m t, Function.update s.msgB n (some ({ msg with type := ty }, tsnd)) k =
-        some (m, t) → Braid.MessageControl false s.stB m := by
-      intro k m t hk
-      rcases update_eq_some hk with he | hk
-      · cases he
-        exact hctl
-      · exact (hT.control.roles false).2.2 k m t hk
-    have hpayB : ∀ k m t, Function.update s.msgB n (some ({ msg with type := ty }, tsnd)) k =
-        some (m, t) → Braid.MessagePayloadInv auth ik T m := by
-      intro k m t hk
-      rcases update_eq_some hk with he | hk
-      · cases he
-        exact hpay
-      · exact hT.messages false k m t hk
     exact { hT with
       control := { hT.control with
-        epochKnowledge := { hEK with keyPrefix := hKP, msgB := hmsgB }
-        recordedReport := { hRR with msgB := hrepB }
+        epochKnowledge := { hEK with
+          keyPrefix := hKP
+          msgB := forall_update_record hEK.msgB
+            ⟨hbound.1, hbound.2.1, fun h => absurd h hct2⟩ }
+        recordedReport := { hRR with msgB := forall_update_record hRR.msgB hrep }
         roles := fun p => by
           cases p
-          · exact ⟨(hT.control.roles false).1, (hT.control.roles false).2.1, hctlB⟩
+          · exact ⟨(hT.control.roles false).1, (hT.control.roles false).2.1,
+              forall_update_record (hT.control.roles false).2.2 hctl⟩
           · exact hT.control.roles true }
-      messages := fun p k m t hk => by
+      messages := fun p => by
         cases p
-        · exact hpayB k m t hk
-        · exact hT.messages true k m t hk }
+        · exact forall_update_record (hT.messages false) hpay
+        · exact hT.messages true }
   · simp only [↓reduceIte] at hKP ⊢
-    have hmsgA : ∀ k m t, Function.update s.msgA n (some ({ msg with type := ty }, tsnd)) k =
-        some (m, t) → m.epoch ≤ s.stA.completedEpoch + 1 ∧ m.epoch ≤ s.stB.completedEpoch + 1 ∧
-          (m.type = .ct2 → m.epoch ≤ s.stA.completedEpoch) := by
-      intro k m t hk
-      rcases update_eq_some hk with he | hk
-      · cases he
-        exact ⟨hbound.1, hbound.2.1, fun h => absurd h hct2⟩
-      · exact hEK.msgA k m t hk
-    have hrepA : ∀ k m t, Function.update s.msgA n (some ({ msg with type := ty }, tsnd)) k =
-        some (m, t) → t = m.epoch - 1 := by
-      intro k m t hk
-      rcases update_eq_some hk with he | hk
-      · cases he
-        exact hrep
-      · exact hRR.msgA k m t hk
-    have hctlA : ∀ k m t, Function.update s.msgA n (some ({ msg with type := ty }, tsnd)) k =
-        some (m, t) → Braid.MessageControl true s.stA m := by
-      intro k m t hk
-      rcases update_eq_some hk with he | hk
-      · cases he
-        exact hctl
-      · exact (hT.control.roles true).2.2 k m t hk
-    have hpayA : ∀ k m t, Function.update s.msgA n (some ({ msg with type := ty }, tsnd)) k =
-        some (m, t) → Braid.MessagePayloadInv auth ik T m := by
-      intro k m t hk
-      rcases update_eq_some hk with he | hk
-      · cases he
-        exact hpay
-      · exact hT.messages true k m t hk
     exact { hT with
       control := { hT.control with
-        epochKnowledge := { hEK with keyPrefix := hKP, msgA := hmsgA }
-        recordedReport := { hRR with msgA := hrepA }
+        epochKnowledge := { hEK with
+          keyPrefix := hKP
+          msgA := forall_update_record hEK.msgA
+            ⟨hbound.1, hbound.2.1, fun h => absurd h hct2⟩ }
+        recordedReport := { hRR with msgA := forall_update_record hRR.msgA hrep }
         roles := fun p => by
           cases p
           · exact hT.control.roles false
-          · exact ⟨(hT.control.roles true).1, (hT.control.roles true).2.1, hctlA⟩ }
-      messages := fun p k m t hk => by
+          · exact ⟨(hT.control.roles true).1, (hT.control.roles true).2.1,
+              forall_update_record (hT.control.roles true).2.2 hctl⟩ }
+      messages := fun p => by
         cases p
-        · exact hT.messages false k m t hk
-        · exact hpayA k m t hk }
+        · exact hT.messages false
+        · exact forall_update_record (hT.messages true) hpay }
 
 /-- In a consistent state, the sender of a plain vector chunk recorded at the epoch of a receiver in
 `ct1Acknowledged` is in `ct1Received` at that epoch, so it allows the chunk to be an acknowledging
@@ -238,10 +186,6 @@ private theorem messageControl_ekCt1Ack {ik : InitKey}
     simp_all [Braid.PairInv, Braid.AllowedStatePair, Braid.State.controlPosition,
       Braid.State.epoch, Braid.State.completedEpoch, Braid.MessageType.sendStep]
 
-variable [DecidableEq P.EpochKey]
-  (sampleInitKey : ProbComp InitKey)
-
-omit [DecidableEq P.EpochKey] in
 /-- If the translation of a state is consistent with a transcript, so is its relabelling at a plain
 vector chunk delivered to a party in `ct1Acknowledged`. -/
 private theorem transcriptConsistent_toBraidAck {ik : InitKey}
@@ -271,7 +215,6 @@ private theorem transcriptConsistent_toBraidAck {ik : InitKey}
   · have hraw : s.toBraid.msgB n = some (⟨core.ep, .ek, some chunk⟩, tsnd) := hmsg'
     simpa [GameState.toBraidAck, hraw] using h
 
-omit [DecidableEq P.EpochKey] in
 /-- After a query of the relabelled translation, restoring the plain vector chunk keeps the Braid
 invariant. -/
 private theorem correctnessInv_restore {ik : InitKey} (party : Bool) (n : ℕ)
@@ -326,6 +269,8 @@ private theorem correctnessInv_restore {ik : InitKey} (party : Bool) (n : ℕ)
     simp only [Bool.not_true, ↓reduceIte, Bool.false_eq_true] at h ⊢
     rw [hz', hrestore _ hraw] at h
     exact h
+
+variable [DecidableEq P.EpochKey] (sampleInitKey : ProbComp InitKey)
 
 /-- A receive query of the Braid game keeps both message tables. -/
 private theorem messagesAt_of_mem_support_recv {s : Braid.GameState P.toBraid AuthState}
@@ -395,9 +340,10 @@ theorem correctnessImpl_preserves_correctnessInv
     rw [← hzz]
     exact hbraid _ _ (Or.inr ⟨T, hT⟩) z' hz'
 
-/-- With sound stream decoders, one query of the SPQR correctness game raises the expected failure
-potential of the translated state by at most the KEM correctness error for a send query, and not
-at all for other queries. -/
+/-- With sound stream decoders, from a state whose translation satisfies the Braid correctness
+invariant `CorrectnessInv` and that satisfies `Ct1AckInv`, one query of the SPQR correctness game
+raises the expected failure potential of the translated state by at most the KEM correctness error
+for a send query, and not at all for other queries. -/
 -- ANCHOR: SPQR_wp_failurePotential_query_le
 theorem wp_failurePotential_query_le [DecidableEq P.K]
     (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound P.ecpEk)

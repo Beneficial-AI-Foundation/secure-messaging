@@ -1215,17 +1215,19 @@ noncomputable def v1Scheme {InitKey AuthState EpochKey Mac : Type}
 :::
 
 ::::definition "spqr_mlkem_braid_relation" (parent := "cka_protocols_spqr") (lean := "SPQR.Chunked.Message.toBraid, SPQR.Chunked.PartyState.toBraid, SPQR.RecvDivergence, SPQR.GameState.toBraid, SPQR.Ct1AckInv, SPQR.DeliveryDivergence, SPQR.sckaCorrectnessImpl_run_toBraid, SPQR.DeliveryDivergence.ct1Acknowledged_ek, SPQR.sckaCorrectnessImpl_run_toBraidAck") (tags := "gh-269") (uses := "spqr_chunked_scheme, mlkem_braid_spec, scka_correctness")
-SPQR party states and messages translate into ML-KEM Braid ones, field for field. The
-one exception is SPQR's `Ct1Ack(true)`, which SPQR sends in `ekSentCt1Received`. In
-that state ML-KEM Braid sends an empty message, so `Ct1Ack(true)` becomes an empty
-message. The translation extends to the states of the SCKA correctness game.
+SPQR party states translate to ML-KEM Braid states, replacing the stored encapsulation
+key by its vector. Message constructors translate to the corresponding message types,
+except for `Ct1Ack(true)`, which SPQR sends in `ekSentCt1Received`. In that state
+ML-KEM Braid sends an empty message, so `Ct1Ack(true)` becomes the empty message. The
+translation extends to the states of the SCKA correctness game.
 
 Under the translation, a query of the SPQR correctness game and the same query of the
 ML-KEM Braid game give successor states with the same distribution, unless the query
 delivers a message in one of the three cases of `RecvDivergence`. Under the invariants of
 the correctness proof only one case occurs: a plain vector chunk that arrives after an
-acknowledging vector chunk. For that delivery the same holds once the record is
-relabelled as an acknowledging vector chunk.
+acknowledging vector chunk. For that delivery, the successor-state distributions agree
+after relabelling the input record as an acknowledging vector chunk and restoring the
+original record in the Braid successor state.
 
 :::leanPillCaption "the translation of game states"
 :::
@@ -1237,8 +1239,8 @@ def GameState.toBraid (s : GameState P AuthState) :
   stB := s.stB.toBraid
   keyA := s.keyA
   keyB := s.keyB
-  msgA := fun n => (s.msgA n).map fun e => (e.1.toBraid, e.2)
-  msgB := fun n => (s.msgB n).map fun e => (e.1.toBraid, e.2)
+  msgA := fun n => (s.msgA n).map fun (msg, tsnd) => (msg.toBraid, tsnd)
+  msgB := fun n => (s.msgB n).map fun (msg, tsnd) => (msg.toBraid, tsnd)
   nA := s.nA
   nB := s.nB
   tcurA := s.tcurA
@@ -1277,7 +1279,7 @@ def DeliveryDivergence (s : GameState P AuthState) :
 :::
 
 ```anchor Relation_sckaCorrectnessImpl_run_toMLKEMBraid (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness.Relation)
-theorem sckaCorrectnessImpl_run_toBraid (s : GameState P AuthState)
+theorem sckaCorrectnessImpl_run_toBraid [DecidableEq P.EpochKey] (s : GameState P AuthState)
     (t : (SCKAScheme.sckaCorrectnessSpec (Chunked.Message P.Sym)).Domain)
     (ht : ¬ DeliveryDivergence s t) :
     (fun z => GameState.toBraid z.2) <$>

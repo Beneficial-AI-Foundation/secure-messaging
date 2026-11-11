@@ -86,8 +86,8 @@ def GameState.toBraid (s : GameState P AuthState) :
   stB := s.stB.toBraid
   keyA := s.keyA
   keyB := s.keyB
-  msgA := fun n => (s.msgA n).map fun e => (e.1.toBraid, e.2)
-  msgB := fun n => (s.msgB n).map fun e => (e.1.toBraid, e.2)
+  msgA := fun n => (s.msgA n).map fun (msg, tsnd) => (msg.toBraid, tsnd)
+  msgB := fun n => (s.msgB n).map fun (msg, tsnd) => (msg.toBraid, tsnd)
   nA := s.nA
   nB := s.nB
   tcurA := s.tcurA
@@ -125,7 +125,7 @@ vector chunk. -/
 def GameState.toBraidAck (s : GameState P AuthState) (party : Bool) (n : ℕ) :
     Braid.GameState P.toBraid AuthState :=
   let relabel : Option (Braid.Message P.Sym × ℕ) → Option (Braid.Message P.Sym × ℕ) :=
-    Option.map fun e => ({ e.1 with type := .ekCt1Ack }, e.2)
+    Option.map fun (msg, tsnd) => ({ msg with type := .ekCt1Ack }, tsnd)
   if party then
     { s.toBraid with
       msgB := Function.update s.toBraid.msgB n (relabel (s.toBraid.msgB n)) }
@@ -143,13 +143,10 @@ private theorem toBraid_sendAUpdate [DecidableEq P.EpochKey] (s : GameState P Au
     GameState.toBraid (SCKAScheme.sendAUpdate s keyOpt ρ tsnd stA') =
       SCKAScheme.sendAUpdate s.toBraid keyOpt ρ.toBraid tsnd stA'.toBraid := by
   have hmsg : (fun n => (Function.update s.msgA (s.nA + 1) (some (ρ, tsnd)) n).map
-        fun e => (e.1.toBraid, e.2)) =
-      Function.update s.toBraid.msgA (s.nA + 1) (some (ρ.toBraid, tsnd)) := by
-    funext n
-    by_cases hn : n = s.nA + 1
-    · subst hn
-      simp
-    · simp [Function.update_of_ne hn, GameState.toBraid]
+        fun (msg, t) => (msg.toBraid, t)) =
+      Function.update s.toBraid.msgA (s.nA + 1) (some (ρ.toBraid, tsnd)) :=
+    Function.comp_update (Option.map fun (msg, t) => (msg.toBraid, t)) s.msgA (s.nA + 1)
+      (some (ρ, tsnd))
   rcases keyOpt with _ | ⟨tI, key⟩ <;>
     simp only [SCKAScheme.sendAUpdate, GameState.toBraid, hmsg] <;> rfl
 
@@ -160,18 +157,14 @@ private theorem toBraid_sendBUpdate [DecidableEq P.EpochKey] (s : GameState P Au
     GameState.toBraid (SCKAScheme.sendBUpdate s keyOpt ρ tsnd stB') =
       SCKAScheme.sendBUpdate s.toBraid keyOpt ρ.toBraid tsnd stB'.toBraid := by
   have hmsg : (fun n => (Function.update s.msgB (s.nB + 1) (some (ρ, tsnd)) n).map
-        fun e => (e.1.toBraid, e.2)) =
-      Function.update s.toBraid.msgB (s.nB + 1) (some (ρ.toBraid, tsnd)) := by
-    funext n
-    by_cases hn : n = s.nB + 1
-    · subst hn
-      simp
-    · simp [Function.update_of_ne hn, GameState.toBraid]
+        fun (msg, t) => (msg.toBraid, t)) =
+      Function.update s.toBraid.msgB (s.nB + 1) (some (ρ.toBraid, tsnd)) :=
+    Function.comp_update (Option.map fun (msg, t) => (msg.toBraid, t)) s.msgB (s.nB + 1)
+      (some (ρ, tsnd))
   rcases keyOpt with _ | ⟨tI, key⟩ <;>
     simp only [SCKAScheme.sendBUpdate, GameState.toBraid, hmsg] <;> rfl
 
-variable [DecidableEq P.EpochKey]
-  (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
+variable (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
     P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
   (sampleInitKey : ProbComp InitKey)
 
@@ -180,7 +173,7 @@ variable [DecidableEq P.EpochKey]
 /-- Unless query `t` delivers a message in `RecvDivergence`, the translated SPQR successor state and
 the Braid successor state of the translated state have the same distribution. -/
 -- ANCHOR: Relation_sckaCorrectnessImpl_run_toMLKEMBraid
-theorem sckaCorrectnessImpl_run_toBraid (s : GameState P AuthState)
+theorem sckaCorrectnessImpl_run_toBraid [DecidableEq P.EpochKey] (s : GameState P AuthState)
     (t : (SCKAScheme.sckaCorrectnessSpec (Chunked.Message P.Sym)).Domain)
     (ht : ¬ DeliveryDivergence s t) :
     (fun z => GameState.toBraid z.2) <$>
@@ -280,12 +273,10 @@ private def PartyCt1Ack (st : PartyState P AuthState)
   ∀ n msg tsnd, msgs n = some (msg, tsnd) → msg.payload = .ct1Ack →
     msg.epoch < st.epoch ∨ ∃ core dec, st = .ekSentCt1Received core dec ∧ core.ep = msg.epoch
 
-omit [DecidableEq P.EpochKey] in
 private theorem ct1AckInv_iff (s : GameState P AuthState) :
     Ct1AckInv s ↔ PartyCt1Ack s.stA s.msgA ∧ PartyCt1Ack s.stB s.msgB :=
   ⟨fun h => ⟨h true, h false⟩, fun h party => by cases party; exacts [h.2, h.1]⟩
 
-omit [DecidableEq P.EpochKey] in
 /-- A send keeps the epoch and stamps the message with it. It sends `ct1Ack` only from
 `ekSentCt1Received`, which it keeps. -/
 private theorem send_ct1Ack {st : PartyState P AuthState} {r : SendResult P AuthState}
@@ -309,7 +300,6 @@ private theorem send_ct1Ack {st : PartyState P AuthState} {r : SendResult P Auth
     subst hr
     simp [PartyState.epoch]
 
-omit [DecidableEq P.EpochKey] in
 /-- A successful second-ciphertext receive moves to the next epoch. -/
 private theorem recvCt2_ep {core : EkSender.EkSentCt1Received P AuthState} {c2 : P.det.C₂}
     {tag : P.Mac} {next : CtSender.NoHeaderReceived AuthState} {key : ℕ × P.EpochKey}
@@ -323,7 +313,6 @@ private theorem recvCt2_ep {core : EkSender.EkSentCt1Received P AuthState} {c2 :
     cases h
     rfl
 
-omit [DecidableEq P.EpochKey] in
 /-- A receive never lowers the epoch. From `ekSentCt1Received` it stays in `ekSentCt1Received` at
 the same epoch or moves to a later epoch. -/
 private theorem recv_ct1Ack {st : PartyState P AuthState} {msg : Chunked.Message P.Sym}
@@ -362,7 +351,6 @@ private theorem recv_ct1Ack {st : PartyState P AuthState} {msg : Chunked.Message
       | (simp only [Option.some.injEq] at *; subst_vars; simp_all [PartyState.epoch]; done)
       | simp_all [PartyState.epoch, recvCt2_ep auth (by assumption)]
 
-omit [DecidableEq P.EpochKey] in
 private theorem partyCt1Ack_send {st : PartyState P AuthState}
     {msgs : ℕ → Option (Chunked.Message P.Sym × ℕ)} (h : PartyCt1Ack st msgs)
     {r : SendResult P AuthState} (hr : r ∈ support (send P auth st)) (k tsnd : ℕ) :
@@ -382,7 +370,6 @@ private theorem partyCt1Ack_send {st : PartyState P AuthState}
     · exact Or.inl (hep ▸ hlt)
     · exact Or.inr ⟨core, dec, (hkeep core dec hst).trans hst, hep'⟩
 
-omit [DecidableEq P.EpochKey] in
 private theorem partyCt1Ack_recv {st : PartyState P AuthState}
     {msgs : ℕ → Option (Chunked.Message P.Sym × ℕ)} (h : PartyCt1Ack st msgs)
     {msg : Chunked.Message P.Sym} {r : RecvResult P AuthState}
@@ -395,7 +382,6 @@ private theorem partyCt1Ack_recv {st : PartyState P AuthState}
     · exact Or.inr ⟨core', dec', hst', hep'.trans hep⟩
     · exact Or.inl (hep ▸ hlt)
 
-omit [DecidableEq P.EpochKey] in
 private theorem partyCt1Ack_recvSCKA {st : PartyState P AuthState}
     {msgs : ℕ → Option (Chunked.Message P.Sym × ℕ)} (h : PartyCt1Ack st msgs)
     {msg : Chunked.Message P.Sym} {keyOpt : Option (ℕ × P.EpochKey)} {trcv : ℕ}
@@ -410,7 +396,7 @@ private theorem partyCt1Ack_recvSCKA {st : PartyState P AuthState}
 
 /-- Every query of the SPQR correctness game preserves `Ct1AckInv`. -/
 -- ANCHOR: Relation_sckaCorrectnessImpl_preserves_ct1AckInv
-theorem sckaCorrectnessImpl_preserves_ct1AckInv :
+theorem sckaCorrectnessImpl_preserves_ct1AckInv [DecidableEq P.EpochKey] :
     QueryImpl.PreservesInv (SCKAScheme.sckaCorrectnessImpl (scheme P auth sampleInitKey))
       (Ct1AckInv (P := P) (AuthState := AuthState))
 -- ANCHOR_END: Relation_sckaCorrectnessImpl_preserves_ct1AckInv
@@ -449,18 +435,15 @@ theorem sckaCorrectnessImpl_preserves_ct1AckInv :
 
 /-! ### The divergent deliveries under the invariants -/
 
-omit [DecidableEq P.EpochKey] in
 private theorem toBraid_epoch (st : PartyState P AuthState) :
     st.toBraid.epoch = st.epoch := by
   cases st <;> rfl
 
-omit [DecidableEq P.EpochKey] in
 private theorem message_toBraid_epoch (msg : Chunked.Message P.Sym) :
     msg.toBraid.epoch = msg.epoch := by
   obtain ⟨e, payload⟩ := msg
   cases payload <;> rfl
 
-omit [DecidableEq P.EpochKey] in
 /-- Let `msg` be recorded by the peer of a receiver in state `st`, with the epoch bounds and the
 pair invariant of the Braid correctness proof for the translated states. A delivery of `msg` in
 `RecvDivergence` is then a plain vector chunk of the receiver's epoch, and the receiver is in
@@ -471,7 +454,6 @@ private theorem recvDivergence_ct1Acknowledged_ek {st peer : PartyState P AuthSt
     (hpair' : Braid.PairInv peer.toBraid st.toBraid)
     (hpeer : peer.toBraid.epoch ≤ st.toBraid.completedEpoch + 1)
     (hmsg : msg.epoch ≤ peer.epoch)
-    (hmsg' : msg.epoch ≤ st.toBraid.completedEpoch + 1)
     (hack : msg.payload = .ct1Ack →
       msg.epoch < peer.epoch ∨ ∃ core dec, peer = .ekSentCt1Received core dec ∧ core.ep = msg.epoch)
     (h : RecvDivergence st msg) :
@@ -503,7 +485,6 @@ private theorem recvDivergence_ct1Acknowledged_ek {st peer : PartyState P AuthSt
     subst heq hpay
     exact ⟨core, dec, chunk, rfl, rfl⟩
 
-omit [DecidableEq P.EpochKey] in
 /-- In a state whose translation satisfies the Braid control and pair invariants and that
 satisfies `Ct1AckInv`, a divergent delivery is a plain vector chunk of the receiver's epoch
 delivered to a party in `ct1Acknowledged`. -/
@@ -528,24 +509,20 @@ theorem DeliveryDivergence.ct1Acknowledged_ek {s : GameState P AuthState}
     have hmsg' : s.toBraid.msgB n = some (msg.toBraid, tsnd) := by
       simp [GameState.toBraid, hmsg]
     have hctl := (hC.roles false).2.2 n _ tsnd hmsg'
-    have hek := hC.epochKnowledge.msgB n _ tsnd hmsg'
     obtain ⟨core, dec, chunk, hst, rfl⟩ := recvDivergence_ct1Acknowledged_ek hP.1 hP.2
       hC.epochKnowledge.epochB_le
       (by simpa [Braid.GameState.stateAt, message_toBraid_epoch, toBraid_epoch,
         GameState.toBraid] using hctl.2.1)
-      (by simpa [message_toBraid_epoch, GameState.toBraid] using hek.2.1)
       (hack false n msg tsnd hmsg) hdiv
     exact ⟨true, n, core, dec, chunk, tsnd, rfl, hst, hmsg⟩
   · obtain ⟨msg, tsnd, hmsg, hdiv⟩ := h
     have hmsg' : s.toBraid.msgA n = some (msg.toBraid, tsnd) := by
       simp [GameState.toBraid, hmsg]
     have hctl := (hC.roles true).2.2 n _ tsnd hmsg'
-    have hek := hC.epochKnowledge.msgA n _ tsnd hmsg'
     obtain ⟨core, dec, chunk, hst, rfl⟩ := recvDivergence_ct1Acknowledged_ek hP.2 hP.1
       hC.epochKnowledge.epochA_le
       (by simpa [Braid.GameState.stateAt, message_toBraid_epoch, toBraid_epoch,
         GameState.toBraid] using hctl.2.1)
-      (by simpa [message_toBraid_epoch, GameState.toBraid] using hek.2.1)
       (hack true n msg tsnd hmsg) hdiv
     exact ⟨false, n, core, dec, chunk, tsnd, rfl, hst, hmsg⟩
 
@@ -553,7 +530,8 @@ theorem DeliveryDivergence.ct1Acknowledged_ek {s : GameState P AuthState}
 successor state has the distribution of the Braid successor state of the translation in which that
 record is an acknowledging vector chunk, once the record is restored. -/
 -- ANCHOR: Relation_sckaCorrectnessImpl_run_toMLKEMBraidAck
-theorem sckaCorrectnessImpl_run_toBraidAck (s : GameState P AuthState) (party : Bool)
+theorem sckaCorrectnessImpl_run_toBraidAck [DecidableEq P.EpochKey] (s : GameState P AuthState)
+    (party : Bool)
     (n : ℕ) (core : CtSender.Ct1Sent P AuthState) (dec : P.decEk.D)
     (chunk : ℕ × P.Sym) (tsnd : ℕ)
     (hst : (if party then s.stA else s.stB) = .ct1Acknowledged core dec)
