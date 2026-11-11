@@ -224,17 +224,16 @@ private theorem messagesAt_of_mem_support_recv {s : Braid.GameState P.toBraid Au
       (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
         else SCKAScheme.sckaCorrectnessSpec.ORecvB n)).run s))
     (who : Bool) : z.2.messagesAt who = s.messagesAt who := by
-  cases party
-  · rcases (SCKAScheme.mem_support_oracleRecvB_run_iff _ s n z).1 hz with
-      ⟨-, rfl⟩ | ⟨-, -, -, -, rfl⟩ | ⟨-, -, keyOpt, -, -, -, -, rfl⟩
-    · rfl
-    · cases who <;> rfl
-    · rcases keyOpt with _ | ⟨tI, key⟩ <;> cases who <;> rfl
-  · rcases (SCKAScheme.mem_support_oracleRecvA_run_iff _ s n z).1 hz with
-      ⟨-, rfl⟩ | ⟨-, -, -, -, rfl⟩ | ⟨-, -, keyOpt, -, -, -, -, rfl⟩
-    · rfl
-    · cases who <;> rfl
-    · rcases keyOpt with _ | ⟨tI, key⟩ <;> cases who <;> rfl
+  suffices h : ∀ z' : Option (ℕ × Option ℕ) × Braid.GameState P.toBraid AuthState,
+      z' ∈ support ((Braid.oracleRecv auth P.det.toRandLeak sampleInitKey party n).run s) →
+        z'.2.messagesAt who = s.messagesAt who by
+    cases party <;> exact h z hz
+  intro z' hz'
+  rcases Braid.oracleRecv_run_cases (P := P.toBraid) auth P.det.toRandLeak sampleInitKey party
+      hz' with ⟨-, rfl⟩ | ⟨-, -, -, -, -, rfl⟩ | ⟨-, -, -, -, -, rfl⟩
+  · rfl
+  · cases who <;> rfl
+  · simp
 
 /-! ### Preservation and drift -/
 

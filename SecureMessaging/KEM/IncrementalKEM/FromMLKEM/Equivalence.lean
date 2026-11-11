@@ -8,6 +8,7 @@ module
 
 public import SecureMessaging.KEM.IncrementalKEM.FromMLKEM
 public import SecureMessaging.KEM.MLKEM.Construction
+public import ToVCVio.Data.Vector.Split
 
 /-!
 # Correctness error of ML-KEM with explicit coins
@@ -20,8 +21,7 @@ last 32 bytes take the role of `z`.
 
 A uniform 64-byte seed, split in two, has the distribution of two independent uniform 32-byte seeds.
 Encapsulation and decapsulation are the same computations in both KEMs. So the two KEMs have the
-same correctness error (`mlkemIncrementalDet_correctnessError`). This module compares only the
-correctness error.
+same correctness error (`mlkemIncrementalDet_correctnessError`).
 -/
 
 @[expose] public section
@@ -31,30 +31,16 @@ open OracleComp KEMScheme SampleableType
 namespace MLKEM
 
 /-- Split the 64-byte key-generation seed into the FIPS 203 seeds `(d, z)`. -/
-private def splitKeygenRand : Bytes 64 ≃ Seed32 × Seed32 where
-  toFun r := (r.take 32, r.drop 32)
-  invFun r := r.1 ++ r.2
-  left_inv r := by
-    apply Vector.ext
-    intro i hi
-    simp only [Vector.getElem_append, Vector.getElem_take, Vector.getElem_drop]
-    split_ifs with h
-    · rfl
-    · congr 1
-      omega
-  right_inv r := by
-    apply Prod.ext
-    · apply Vector.ext
-      intro i hi
-      change ((r.1 ++ r.2).take 32)[i] = r.1[i]
-      rw [Vector.getElem_take, Vector.getElem_append, dite_eq_left hi]
-    · apply Vector.ext
-      intro i hi
-      change ((r.1 ++ r.2).drop 32)[i] = r.2[i]
-      rw [Vector.getElem_drop, Vector.getElem_append,
-        dite_eq_right (show ¬32 + i < 32 by omega)]
-      congr 1
-      omega
+private abbrev splitKeygenRand : Bytes 64 ≃ Seed32 × Seed32 := Vector.splitAtEquiv 32 32
+
+/-- The split is the pair of the first and the last 32 bytes. -/
+private theorem splitKeygenRand_apply (r : Bytes 64) :
+    splitKeygenRand r = (r.take 32, r.drop 32) := by
+  apply Prod.ext <;> apply Vector.ext <;> intro i hi <;>
+    simp only [splitKeygenRand, Vector.splitAtEquiv, Equiv.coe_fn_mk, Vector.getElem_splitAt_fst,
+      Vector.getElem_splitAt_snd]
+  · exact (Vector.getElem_take (by omega)).symm
+  · exact (Vector.getElem_drop (by omega)).symm
 
 /-- A uniform 64-byte seed, split in two, has the distribution of two independent uniform seeds. -/
 private theorem splitKeygenRand_uniform :
@@ -90,7 +76,7 @@ private theorem mlkemIncrementalDet_keygen :
   change (fun r : Bytes 64 => keygenInternal ring
     (Concrete.concreteEncoding (ParameterSet.params p)) prims (r.take 32) (r.drop 32)) <$>
       ($ᵗ Bytes 64) =ᵈ _
-  simpa only [map_eq_pure_bind, bind_assoc, pure_bind, splitKeygenRand, Equiv.coe_fn_mk,
+  simpa only [map_eq_pure_bind, bind_assoc, pure_bind, splitKeygenRand_apply,
     mlkemScheme, asKEMScheme, keygen] using h
 
 /-- ML-KEM with explicit coins and ML-KEM have the same correctness error. -/

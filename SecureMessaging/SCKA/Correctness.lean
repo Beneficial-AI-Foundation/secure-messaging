@@ -341,6 +341,21 @@ theorem oracleSend_run_eq (hsend : scka.sendB = scka.sendA) (party : Bool) :
     funext out
     rcases out with _ | ⟨keyOpt, ρ, tsnd, st'⟩ <;> rfl
 
+/-- The version of `mem_support_oracleSendA_run_iff` for `party`, when A and B send in the same
+way. -/
+theorem mem_support_oracleSend_run_iff (hsend : scka.sendB = scka.sendA) (party : Bool)
+    (z : Option (ℕ × Option ℕ × Rho) × GameState St St I Rho) :
+    z ∈ support ((oracleSend scka party ()).run s) ↔
+      ∃ out ∈ support (scka.sendA (if party then s.stA else s.stB)),
+        z = match out with
+          | none => (none, s)
+          | some (keyOpt, ρ, tsnd, st') =>
+              (some (tsnd, keyOpt.map Prod.fst, ρ),
+                if party then sendAUpdate s keyOpt ρ tsnd st'
+                else sendBUpdate s keyOpt ρ tsnd st') := by
+  rw [oracleSend_run_eq scka s hsend, support_map, Set.mem_image]
+  exact exists_congr fun out => and_congr_right fun _ => eq_comm
+
 /-- The version of `oracleRecvA_run_eq_of_none` for `party`. -/
 theorem oracleRecv_run_eq_of_none {party : Bool} {n : ℕ}
     (h : (if !party then s.msgA else s.msgB) n = none) :
@@ -372,6 +387,26 @@ theorem oracleRecv_run_eq_of_accept (hrecv : scka.recvB = scka.recvA) {party : B
   cases party
   · exact oracleRecvB_run_eq_of_accept scka s h (hrecv ▸ hr)
   · exact oracleRecvA_run_eq_of_accept scka s h hr
+
+/-- The version of `mem_support_oracleRecvA_run_iff` for `party`, when A and B receive in the same
+way. -/
+theorem mem_support_oracleRecv_run_iff (hrecv : scka.recvB = scka.recvA) (party : Bool) (n : ℕ)
+    (z : Option (ℕ × Option ℕ) × GameState St St I Rho) :
+    z ∈ support ((oracleRecv scka party n).run s) ↔
+      ((if !party then s.msgA else s.msgB) n = none ∧ z = (none, s)) ∨
+      (∃ ρ tsnd, (if !party then s.msgA else s.msgB) n = some (ρ, tsnd) ∧
+        scka.recvA (if party then s.stA else s.stB) ρ = none ∧
+        z = (none, { s with correct := false })) ∨
+      ∃ ρ tsnd keyOpt trcv st', (if !party then s.msgA else s.msgB) n = some (ρ, tsnd) ∧
+        scka.recvA (if party then s.stA else s.stB) ρ = some (keyOpt, trcv, st') ∧
+        z = (some (trcv, keyOpt.map Prod.fst),
+          if party then recvAUpdate s tsnd keyOpt trcv st'
+          else recvBUpdate s tsnd keyOpt trcv st') := by
+  cases party
+  · have h := mem_support_oracleRecvB_run_iff scka s n z
+    rw [hrecv] at h
+    exact h
+  · exact mem_support_oracleRecvA_run_iff scka s n z
 
 end Symmetric
 

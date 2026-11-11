@@ -286,6 +286,13 @@ theorem recvUpdate_correct (s : GameState P AuthState) (party : Bool) (tsnd : �
   cases party <;> cases who <;> rcases hkey : r.outputKey with _ | ⟨e, key⟩ <;>
     simp [recvUpdate, SCKAScheme.recvAUpdate, SCKAScheme.recvBUpdate, hkey, GameState.stateAt]
 
+/-- The receive oracle keeps both message tables. -/
+@[simp] theorem messagesAt_recvUpdate (s : GameState P AuthState) (party who : Bool) (tsnd : ℕ)
+    (r : RecvResult P AuthState) (trcv : ℕ) :
+    (recvUpdate s party tsnd r trcv).messagesAt who = s.messagesAt who := by
+  cases party <;> cases who <;> rcases hkey : r.outputKey with _ | ⟨e, key⟩ <;>
+    simp [recvUpdate, SCKAScheme.recvAUpdate, SCKAScheme.recvBUpdate, hkey, GameState.messagesAt]
+
 /-- If `s` and `recvUpdate s party tsnd r trcv` both have a true correctness flag, then the update
 equals `recvSuccessor s party r trcv`. -/
 theorem recvUpdate_eq_successor_of_correct (s : GameState P AuthState) (party : Bool) (tsnd : ℕ)

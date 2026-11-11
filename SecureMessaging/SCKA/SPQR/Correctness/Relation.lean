@@ -271,9 +271,20 @@ private def PartyCt1Ack (st : PartyState P AuthState)
   ∀ n msg tsnd, msgs n = some (msg, tsnd) → msg.payload = .ct1Ack →
     msg.epoch < st.epoch ∨ ∃ core dec, st = .ekSentCt1Received core dec ∧ core.ep = msg.epoch
 
-private theorem ct1AckInv_iff (s : GameState P AuthState) :
-    Ct1AckInv s ↔ PartyCt1Ack s.stA s.msgA ∧ PartyCt1Ack s.stB s.msgB :=
-  ⟨fun h => ⟨h true, h false⟩, fun h party => by cases party; exacts [h.2, h.1]⟩
+/-- Let `s` satisfy `Ct1AckInv`. A state `U` satisfies `Ct1AckInv` if it has the state and messages
+of `s` for the peer of `party` and satisfies the condition of `Ct1AckInv` for `party`. -/
+private theorem ct1AckInv_of_update {s U : GameState P AuthState} (party : Bool)
+    (hs : Ct1AckInv s) (hst : U.stateAt (!party) = s.stateAt (!party))
+    (hmsg : U.messagesAt (!party) = s.messagesAt (!party))
+    (h : PartyCt1Ack (U.stateAt party) (U.messagesAt party)) : Ct1AckInv U := by
+  intro who
+  by_cases hw : who = party
+  · subst hw
+    exact h
+  · obtain rfl : who = !party := by cases who <;> cases party <;> simp_all
+    have hs' : PartyCt1Ack (s.stateAt (!party)) (s.messagesAt (!party)) := hs (!party)
+    rw [← hst, ← hmsg] at hs'
+    exact hs'
 
 /-- A send keeps the epoch and stamps the message with it. It sends `ct1Ack` only from
 `ekSentCt1Received`, which it keeps. -/
@@ -399,37 +410,35 @@ theorem sckaCorrectnessImpl_preserves_ct1AckInv [DecidableEq P.EpochKey] :
       (Ct1AckInv (P := P) (AuthState := AuthState))
 -- ANCHOR_END: Relation_sckaCorrectnessImpl_preserves_ct1AckInv
     := by
-  refine SCKAScheme.sckaCorrectnessImpl_preservesInv _ ?_ ?_ ?_ ?_
-  · intro _ s hs z hz
-    obtain ⟨out, hout, rfl⟩ := (SCKAScheme.mem_support_oracleSendA_run_iff _ s z).1 hz
+  have hsend : ∀ party : Bool, QueryImpl.PreservesInv
+      (SCKAScheme.oracleSend (scheme P auth sampleInitKey) party) Ct1AckInv := by
+    intro party _ s hs z hz
+    obtain ⟨out, hout, rfl⟩ := (SCKAScheme.mem_support_oracleSend_run_iff _ s rfl party z).1 hz
     simp only [scheme, mem_support_bind_iff, mem_support_pure_iff] at hout
     obtain ⟨r, hr, rfl⟩ := hout
-    rw [ct1AckInv_iff] at hs ⊢
-    have hA := partyCt1Ack_send auth hs.1 hr (s.nA + 1) r.sendingEpoch
-    rcases r.outputKey with _ | ⟨tI, key⟩ <;> exact ⟨hA, hs.2⟩
-  · intro _ s hs z hz
-    obtain ⟨out, hout, rfl⟩ := (SCKAScheme.mem_support_oracleSendB_run_iff _ s z).1 hz
-    simp only [scheme, mem_support_bind_iff, mem_support_pure_iff] at hout
-    obtain ⟨r, hr, rfl⟩ := hout
-    rw [ct1AckInv_iff] at hs ⊢
-    have hB := partyCt1Ack_send auth hs.2 hr (s.nB + 1) r.sendingEpoch
-    rcases r.outputKey with _ | ⟨tI, key⟩ <;> exact ⟨hs.1, hB⟩
-  · intro n s hs z hz
-    rcases (SCKAScheme.mem_support_oracleRecvA_run_iff _ s n z).1 hz with
-      ⟨-, rfl⟩ | ⟨-, -, -, -, rfl⟩ | ⟨ρ, tsnd, keyOpt, trcv, stA', -, hr, rfl⟩
+    have hs' : PartyCt1Ack (GameState.stateAt s party) (GameState.messagesAt s party) := hs party
+    have hr' : r ∈ support (send P auth (GameState.stateAt s party)) := hr
+    refine ct1AckInv_of_update party hs ?_ ?_ ?_
+    · cases party <;> rcases r.outputKey with _ | ⟨_, _⟩ <;> rfl
+    · cases party <;> rcases r.outputKey with _ | ⟨_, _⟩ <;> rfl
+    · cases party <;> rcases r.outputKey with _ | ⟨_, _⟩ <;>
+        exact partyCt1Ack_send auth hs' hr' _ _
+  have hrecv : ∀ party : Bool, QueryImpl.PreservesInv
+      (SCKAScheme.oracleRecv (scheme P auth sampleInitKey) party) Ct1AckInv := by
+    intro party n s hs z hz
+    rcases (SCKAScheme.mem_support_oracleRecv_run_iff _ s rfl party n z).1 hz with
+      ⟨-, rfl⟩ | ⟨-, -, -, -, rfl⟩ | ⟨ρ, tsnd, keyOpt, trcv, st', -, hr, rfl⟩
     · exact hs
     · exact hs
-    · rw [ct1AckInv_iff] at hs ⊢
-      have hA := partyCt1Ack_recvSCKA auth hs.1 hr
-      rcases keyOpt with _ | ⟨tI, key⟩ <;> exact ⟨hA, hs.2⟩
-  · intro n s hs z hz
-    rcases (SCKAScheme.mem_support_oracleRecvB_run_iff _ s n z).1 hz with
-      ⟨-, rfl⟩ | ⟨-, -, -, -, rfl⟩ | ⟨ρ, tsnd, keyOpt, trcv, stB', -, hr, rfl⟩
-    · exact hs
-    · exact hs
-    · rw [ct1AckInv_iff] at hs ⊢
-      have hB := partyCt1Ack_recvSCKA auth hs.2 hr
-      rcases keyOpt with _ | ⟨tI, key⟩ <;> exact ⟨hs.1, hB⟩
+    · have hs' : PartyCt1Ack (GameState.stateAt s party) (GameState.messagesAt s party) := hs party
+      have hr' : recvSCKA P auth (GameState.stateAt s party) ρ = some (keyOpt, trcv, st') := hr
+      refine ct1AckInv_of_update party hs ?_ ?_ ?_
+      · cases party <;> rcases keyOpt with _ | ⟨_, _⟩ <;> rfl
+      · cases party <;> rcases keyOpt with _ | ⟨_, _⟩ <;> rfl
+      · cases party <;> rcases keyOpt with _ | ⟨_, _⟩ <;>
+          exact partyCt1Ack_recvSCKA auth hs' hr'
+  exact SCKAScheme.sckaCorrectnessImpl_preservesInv _ (hsend true) (hsend false)
+    (hrecv true) (hrecv false)
 
 /-! ### The divergent deliveries under the invariants -/
 
@@ -442,9 +451,9 @@ private theorem message_toBraid_epoch (msg : Chunked.Message P.Sym) :
   obtain ⟨e, payload⟩ := msg
   cases payload <;> rfl
 
-/-- Let `msg` be recorded by the peer of a receiver in state `st`, with the epoch bounds and the
-pair invariant of the Braid correctness proof for the translated states. A delivery of `msg` in
-`RecvDivergence` is then a plain vector chunk of the receiver's epoch, and the receiver is in
+/-- Let `msg` be recorded by the peer of a receiver in state `st`. Assume the Braid pair
+invariants and epoch bounds, and the `ct1Ack` condition `hack` below. Then a delivery in
+`RecvDivergence` is a plain vector chunk of the epoch of `st`, and `st` is in
 `ct1Acknowledged`. -/
 private theorem recvDivergence_ct1Acknowledged_ek {st peer : PartyState P AuthState}
     {msg : Chunked.Message P.Sym}
