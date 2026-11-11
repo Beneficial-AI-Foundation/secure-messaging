@@ -132,8 +132,8 @@ def SPQR_ENC : Verso.Genre.Manual.Bibliography.Citable := .article
 
 @[bib "MLKEM-Braid"]
 def MLKEM_Braid : Verso.Genre.Manual.Bibliography.Citable := .article
-  { title := inlines!"The ML-KEM Braid Specification"
-  , authors := #[inlines!"Signal"]
+  { title := inlines!"The ML-KEM Braid Protocol"
+  , authors := #[inlines!"Rolfe Schmidt"]
   , journal := inlines!"Signal Specifications"
   , year := 2025
   , month := none

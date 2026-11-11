@@ -12,21 +12,21 @@ public import SecureMessaging.SCKA.MLKEMBraid.Correctness
 /-!
 # The SPQR and ML-KEM Braid correctness games
 
-`SPQR.Correspondence` compares single transitions of `SPQR.Chunked` and `MLKEMBraid`. This module
+`SPQR.Correspondence` compares single transitions of `SPQR.Chunked` and `Braid`. This module
 compares the two SCKA correctness games. A game state records both party states, both key tables
-and the messages that each party has sent. `GameState.toMLKEMBraid` translates an SPQR game state
-into a Braid game state: the party states by `PartyState.toMLKEMBraid`, the recorded messages by
-`Message.toMLKEMBraid`, and every other field unchanged.
+and the messages that each party has sent. `GameState.toBraid` translates an SPQR game state
+into a Braid game state: the party states by `PartyState.toBraid`, the recorded messages by
+`Message.toBraid`, and every other field unchanged.
 
 ## Main results
 
-* `sckaCorrectnessImpl_run_toMLKEMBraid`: unless a query delivers a message in `RecvDivergence`,
+* `sckaCorrectnessImpl_run_toBraid`: unless a query delivers a message in `RecvDivergence`,
   the translated SPQR successor state and the Braid successor state of the translated state have
   the same distribution.
 * `DeliveryDivergence.ct1Acknowledged_ek`: if the translation of a state satisfies the Braid
   invariants `ControlInv` and `StatePairInv` and the state satisfies `Ct1AckInv`, a delivery in
   `RecvDivergence` is a plain vector chunk delivered to a party in `ct1Acknowledged`.
-* `sckaCorrectnessImpl_run_toMLKEMBraidAck`: for such a delivery, the translated SPQR successor
+* `sckaCorrectnessImpl_run_toBraidAck`: for such a delivery, the translated SPQR successor
   state has the distribution of the Braid successor state of the translation in which the
   delivered record is an acknowledging vector chunk, once the record is restored.
 
@@ -51,7 +51,7 @@ headerSent:  ek chunk m₁ ─────────┐
 ct1Received: ekCt1Ack chunk m₂ ───┼───────▶ ct1Sampled → ct1Acknowledged   (m₂ arrives first)
                                   └───────▶ m₁ arrives late:
                                               SPQR adds its chunk to the vector decoder;
-                                              MLKEMBraid ignores it
+                                              Braid ignores it
 ```
 
 Both games answer the late delivery with the same receive report, but B's successor states differ,
@@ -80,14 +80,14 @@ abbrev GameState (P : SPQR.Parameters ProbComp) (AuthState : Type) : Type :=
 /-- The Braid game state with translated party states and recorded messages. The key tables,
 counters, epochs and flags are unchanged. -/
 -- ANCHOR: Relation_GameState_toMLKEMBraid
-def GameState.toMLKEMBraid (s : GameState P AuthState) :
-    MLKEMBraid.GameState P.toBraid AuthState where
-  stA := s.stA.toMLKEMBraid
-  stB := s.stB.toMLKEMBraid
+def GameState.toBraid (s : GameState P AuthState) :
+    Braid.GameState P.toBraid AuthState where
+  stA := s.stA.toBraid
+  stB := s.stB.toBraid
   keyA := s.keyA
   keyB := s.keyB
-  msgA := fun n => (s.msgA n).map fun e => (e.1.toMLKEMBraid, e.2)
-  msgB := fun n => (s.msgB n).map fun e => (e.1.toMLKEMBraid, e.2)
+  msgA := fun n => (s.msgA n).map fun e => (e.1.toBraid, e.2)
+  msgB := fun n => (s.msgB n).map fun e => (e.1.toBraid, e.2)
   nA := s.nA
   nB := s.nB
   tcurA := s.tcurA
@@ -122,53 +122,53 @@ def DeliveryDivergence (s : GameState P AuthState) :
 /-- The translation of `s` in which record `n` of the peer of `party` becomes an acknowledging
 vector chunk. -/
 -- ANCHOR: Relation_GameState_toMLKEMBraidAck
-def GameState.toMLKEMBraidAck (s : GameState P AuthState) (party : Bool) (n : ℕ) :
-    MLKEMBraid.GameState P.toBraid AuthState :=
-  let relabel : Option (MLKEMBraid.Message P.Sym × ℕ) → Option (MLKEMBraid.Message P.Sym × ℕ) :=
+def GameState.toBraidAck (s : GameState P AuthState) (party : Bool) (n : ℕ) :
+    Braid.GameState P.toBraid AuthState :=
+  let relabel : Option (Braid.Message P.Sym × ℕ) → Option (Braid.Message P.Sym × ℕ) :=
     Option.map fun e => ({ e.1 with type := .ekCt1Ack }, e.2)
   if party then
-    { s.toMLKEMBraid with
-      msgB := Function.update s.toMLKEMBraid.msgB n (relabel (s.toMLKEMBraid.msgB n)) }
+    { s.toBraid with
+      msgB := Function.update s.toBraid.msgB n (relabel (s.toBraid.msgB n)) }
   else
-    { s.toMLKEMBraid with
-      msgA := Function.update s.toMLKEMBraid.msgA n (relabel (s.toMLKEMBraid.msgA n)) }
+    { s.toBraid with
+      msgA := Function.update s.toBraid.msgA n (relabel (s.toBraid.msgA n)) }
 -- ANCHOR_END: Relation_GameState_toMLKEMBraidAck
 
 /-! ### Translated game updates -/
 
 /-- The translation of A's send update is the send update of the translation. -/
-private theorem toMLKEMBraid_sendAUpdate [DecidableEq P.EpochKey] (s : GameState P AuthState)
+private theorem toBraid_sendAUpdate [DecidableEq P.EpochKey] (s : GameState P AuthState)
     (keyOpt : Option (ℕ × P.EpochKey)) (ρ : Chunked.Message P.Sym) (tsnd : ℕ)
     (stA' : PartyState P AuthState) :
-    GameState.toMLKEMBraid (SCKAScheme.sendAUpdate s keyOpt ρ tsnd stA') =
-      SCKAScheme.sendAUpdate s.toMLKEMBraid keyOpt ρ.toMLKEMBraid tsnd stA'.toMLKEMBraid := by
+    GameState.toBraid (SCKAScheme.sendAUpdate s keyOpt ρ tsnd stA') =
+      SCKAScheme.sendAUpdate s.toBraid keyOpt ρ.toBraid tsnd stA'.toBraid := by
   have hmsg : (fun n => (Function.update s.msgA (s.nA + 1) (some (ρ, tsnd)) n).map
-        fun e => (e.1.toMLKEMBraid, e.2)) =
-      Function.update s.toMLKEMBraid.msgA (s.nA + 1) (some (ρ.toMLKEMBraid, tsnd)) := by
+        fun e => (e.1.toBraid, e.2)) =
+      Function.update s.toBraid.msgA (s.nA + 1) (some (ρ.toBraid, tsnd)) := by
     funext n
     by_cases hn : n = s.nA + 1
     · subst hn
       simp
-    · simp [Function.update_of_ne hn, GameState.toMLKEMBraid]
+    · simp [Function.update_of_ne hn, GameState.toBraid]
   rcases keyOpt with _ | ⟨tI, key⟩ <;>
-    simp only [SCKAScheme.sendAUpdate, GameState.toMLKEMBraid, hmsg] <;> rfl
+    simp only [SCKAScheme.sendAUpdate, GameState.toBraid, hmsg] <;> rfl
 
-/-- The version of `toMLKEMBraid_sendAUpdate` for B. -/
-private theorem toMLKEMBraid_sendBUpdate [DecidableEq P.EpochKey] (s : GameState P AuthState)
+/-- The version of `toBraid_sendAUpdate` for B. -/
+private theorem toBraid_sendBUpdate [DecidableEq P.EpochKey] (s : GameState P AuthState)
     (keyOpt : Option (ℕ × P.EpochKey)) (ρ : Chunked.Message P.Sym) (tsnd : ℕ)
     (stB' : PartyState P AuthState) :
-    GameState.toMLKEMBraid (SCKAScheme.sendBUpdate s keyOpt ρ tsnd stB') =
-      SCKAScheme.sendBUpdate s.toMLKEMBraid keyOpt ρ.toMLKEMBraid tsnd stB'.toMLKEMBraid := by
+    GameState.toBraid (SCKAScheme.sendBUpdate s keyOpt ρ tsnd stB') =
+      SCKAScheme.sendBUpdate s.toBraid keyOpt ρ.toBraid tsnd stB'.toBraid := by
   have hmsg : (fun n => (Function.update s.msgB (s.nB + 1) (some (ρ, tsnd)) n).map
-        fun e => (e.1.toMLKEMBraid, e.2)) =
-      Function.update s.toMLKEMBraid.msgB (s.nB + 1) (some (ρ.toMLKEMBraid, tsnd)) := by
+        fun e => (e.1.toBraid, e.2)) =
+      Function.update s.toBraid.msgB (s.nB + 1) (some (ρ.toBraid, tsnd)) := by
     funext n
     by_cases hn : n = s.nB + 1
     · subst hn
       simp
-    · simp [Function.update_of_ne hn, GameState.toMLKEMBraid]
+    · simp [Function.update_of_ne hn, GameState.toBraid]
   rcases keyOpt with _ | ⟨tI, key⟩ <;>
-    simp only [SCKAScheme.sendBUpdate, GameState.toMLKEMBraid, hmsg] <;> rfl
+    simp only [SCKAScheme.sendBUpdate, GameState.toBraid, hmsg] <;> rfl
 
 variable [DecidableEq P.EpochKey]
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
@@ -180,97 +180,97 @@ variable [DecidableEq P.EpochKey]
 /-- Unless query `t` delivers a message in `RecvDivergence`, the translated SPQR successor state and
 the Braid successor state of the translated state have the same distribution. -/
 -- ANCHOR: Relation_sckaCorrectnessImpl_run_toMLKEMBraid
-theorem sckaCorrectnessImpl_run_toMLKEMBraid (s : GameState P AuthState)
+theorem sckaCorrectnessImpl_run_toBraid (s : GameState P AuthState)
     (t : (SCKAScheme.sckaCorrectnessSpec (Chunked.Message P.Sym)).Domain)
     (ht : ¬ DeliveryDivergence s t) :
-    (fun z => GameState.toMLKEMBraid z.2) <$>
+    (fun z => GameState.toBraid z.2) <$>
         (SCKAScheme.sckaCorrectnessImpl (scheme P auth sampleInitKey) t).run s =
       (fun z => z.2) <$>
         (SCKAScheme.sckaCorrectnessImpl
-          (MLKEMBraid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey) t).run
-          s.toMLKEMBraid
+          (Braid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey) t).run
+          s.toBraid
 -- ANCHOR_END: Relation_sckaCorrectnessImpl_run_toMLKEMBraid
     := by
   rcases t with ((((n | u) | u) | n) | n)
   · simp [SCKAScheme.sckaCorrectnessImpl, SCKAScheme.oracleUnif, StateT.run_monadLift]
-  · change (fun z => GameState.toMLKEMBraid z.2) <$>
+  · change (fun z => GameState.toBraid z.2) <$>
         (SCKAScheme.oracleSendA (scheme P auth sampleInitKey) ()).run s =
       (fun z => z.2) <$>
         (SCKAScheme.oracleSendA
-          (MLKEMBraid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey) ()).run
-          s.toMLKEMBraid
-    have hst : s.toMLKEMBraid.stA = s.stA.toMLKEMBraid := rfl
+          (Braid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey) ()).run
+          s.toBraid
+    have hst : s.toBraid.stA = s.stA.toBraid := rfl
     rw [SCKAScheme.oracleSendA_run_eq,
-      MLKEMBraid.oracleSendA_run_eq (P := P.toBraid) auth P.det.toRandLeak sampleInitKey, hst,
-      ← Chunked.send_toMLKEMBraid]
+      Braid.oracleSendA_run_eq (P := P.toBraid) auth P.det.toRandLeak sampleInitKey, hst,
+      ← Chunked.send_toBraid]
     simp only [scheme, bind_pure_comp, Functor.map_map]
     congr 1
     funext r
-    exact toMLKEMBraid_sendAUpdate s r.outputKey r.msg r.sendingEpoch r.state
-  · change (fun z => GameState.toMLKEMBraid z.2) <$>
+    exact toBraid_sendAUpdate s r.outputKey r.msg r.sendingEpoch r.state
+  · change (fun z => GameState.toBraid z.2) <$>
         (SCKAScheme.oracleSendB (scheme P auth sampleInitKey) ()).run s =
       (fun z => z.2) <$>
         (SCKAScheme.oracleSendB
-          (MLKEMBraid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey) ()).run
-          s.toMLKEMBraid
-    have hst : s.toMLKEMBraid.stB = s.stB.toMLKEMBraid := rfl
+          (Braid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey) ()).run
+          s.toBraid
+    have hst : s.toBraid.stB = s.stB.toBraid := rfl
     rw [SCKAScheme.oracleSendB_run_eq,
-      MLKEMBraid.oracleSendB_run_eq (P := P.toBraid) auth P.det.toRandLeak sampleInitKey, hst,
-      ← Chunked.send_toMLKEMBraid]
+      Braid.oracleSendB_run_eq (P := P.toBraid) auth P.det.toRandLeak sampleInitKey, hst,
+      ← Chunked.send_toBraid]
     simp only [scheme, bind_pure_comp, Functor.map_map]
     congr 1
     funext r
-    exact toMLKEMBraid_sendBUpdate s r.outputKey r.msg r.sendingEpoch r.state
-  · change (fun z => GameState.toMLKEMBraid z.2) <$>
+    exact toBraid_sendBUpdate s r.outputKey r.msg r.sendingEpoch r.state
+  · change (fun z => GameState.toBraid z.2) <$>
         (SCKAScheme.oracleRecvA (scheme P auth sampleInitKey) n).run s =
       (fun z => z.2) <$>
         (SCKAScheme.oracleRecvA
-          (MLKEMBraid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey) n).run
-          s.toMLKEMBraid
+          (Braid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey) n).run
+          s.toBraid
     rcases hmsg : s.msgB n with _ | ⟨ρ, tsnd⟩
-    · have hmsg' : s.toMLKEMBraid.msgB n = none := by simp [GameState.toMLKEMBraid, hmsg]
+    · have hmsg' : s.toBraid.msgB n = none := by simp [GameState.toBraid, hmsg]
       rw [SCKAScheme.oracleRecvA_run_eq_of_none _ _ hmsg,
         SCKAScheme.oracleRecvA_run_eq_of_none _ _ hmsg']
       simp
-    · have hmsg' : s.toMLKEMBraid.msgB n = some (ρ.toMLKEMBraid, tsnd) := by
-        simp [GameState.toMLKEMBraid, hmsg]
+    · have hmsg' : s.toBraid.msgB n = some (ρ.toBraid, tsnd) := by
+        simp [GameState.toBraid, hmsg]
       have hdiv : ¬ RecvDivergence s.stA ρ := fun h => ht ⟨ρ, tsnd, hmsg, h⟩
-      have hrecv := recvSCKA_toMLKEMBraid P auth s.stA ρ hdiv
+      have hrecv := recvSCKA_toBraid P auth s.stA ρ hdiv
       rcases hS : recvSCKA P auth s.stA ρ with _ | ⟨keyOpt, trcv, stA'⟩
       · rw [hS] at hrecv
         rw [SCKAScheme.oracleRecvA_run_eq_of_refuse _ _ hmsg (by simpa [scheme] using hS),
           SCKAScheme.oracleRecvA_run_eq_of_refuse _ _ hmsg' hrecv.symm]
-        simp [GameState.toMLKEMBraid]
+        simp [GameState.toBraid]
       · rw [hS] at hrecv
         rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hmsg (by simpa [scheme] using hS),
           SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hmsg' hrecv.symm]
         rcases keyOpt with _ | ⟨tI, key⟩ <;>
-          simp [SCKAScheme.recvAUpdate, GameState.toMLKEMBraid]
-  · change (fun z => GameState.toMLKEMBraid z.2) <$>
+          simp [SCKAScheme.recvAUpdate, GameState.toBraid]
+  · change (fun z => GameState.toBraid z.2) <$>
         (SCKAScheme.oracleRecvB (scheme P auth sampleInitKey) n).run s =
       (fun z => z.2) <$>
         (SCKAScheme.oracleRecvB
-          (MLKEMBraid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey) n).run
-          s.toMLKEMBraid
+          (Braid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey) n).run
+          s.toBraid
     rcases hmsg : s.msgA n with _ | ⟨ρ, tsnd⟩
-    · have hmsg' : s.toMLKEMBraid.msgA n = none := by simp [GameState.toMLKEMBraid, hmsg]
+    · have hmsg' : s.toBraid.msgA n = none := by simp [GameState.toBraid, hmsg]
       rw [SCKAScheme.oracleRecvB_run_eq_of_none _ _ hmsg,
         SCKAScheme.oracleRecvB_run_eq_of_none _ _ hmsg']
       simp
-    · have hmsg' : s.toMLKEMBraid.msgA n = some (ρ.toMLKEMBraid, tsnd) := by
-        simp [GameState.toMLKEMBraid, hmsg]
+    · have hmsg' : s.toBraid.msgA n = some (ρ.toBraid, tsnd) := by
+        simp [GameState.toBraid, hmsg]
       have hdiv : ¬ RecvDivergence s.stB ρ := fun h => ht ⟨ρ, tsnd, hmsg, h⟩
-      have hrecv := recvSCKA_toMLKEMBraid P auth s.stB ρ hdiv
+      have hrecv := recvSCKA_toBraid P auth s.stB ρ hdiv
       rcases hS : recvSCKA P auth s.stB ρ with _ | ⟨keyOpt, trcv, stB'⟩
       · rw [hS] at hrecv
         rw [SCKAScheme.oracleRecvB_run_eq_of_refuse _ _ hmsg (by simpa [scheme] using hS),
           SCKAScheme.oracleRecvB_run_eq_of_refuse _ _ hmsg' hrecv.symm]
-        simp [GameState.toMLKEMBraid]
+        simp [GameState.toBraid]
       · rw [hS] at hrecv
         rw [SCKAScheme.oracleRecvB_run_eq_of_accept _ _ hmsg (by simpa [scheme] using hS),
           SCKAScheme.oracleRecvB_run_eq_of_accept _ _ hmsg' hrecv.symm]
         rcases keyOpt with _ | ⟨tI, key⟩ <;>
-          simp [SCKAScheme.recvBUpdate, GameState.toMLKEMBraid]
+          simp [SCKAScheme.recvBUpdate, GameState.toBraid]
 
 /-! ### Recorded acknowledgements -/
 
@@ -450,13 +450,13 @@ theorem sckaCorrectnessImpl_preserves_ct1AckInv :
 /-! ### The divergent deliveries under the invariants -/
 
 omit [DecidableEq P.EpochKey] in
-private theorem toMLKEMBraid_epoch (st : PartyState P AuthState) :
-    st.toMLKEMBraid.epoch = st.epoch := by
+private theorem toBraid_epoch (st : PartyState P AuthState) :
+    st.toBraid.epoch = st.epoch := by
   cases st <;> rfl
 
 omit [DecidableEq P.EpochKey] in
-private theorem message_toMLKEMBraid_epoch (msg : Chunked.Message P.Sym) :
-    msg.toMLKEMBraid.epoch = msg.epoch := by
+private theorem message_toBraid_epoch (msg : Chunked.Message P.Sym) :
+    msg.toBraid.epoch = msg.epoch := by
   obtain ⟨e, payload⟩ := msg
   cases payload <;> rfl
 
@@ -467,36 +467,36 @@ pair invariant of the Braid correctness proof for the translated states. A deliv
 `ct1Acknowledged`. -/
 private theorem recvDivergence_ct1Acknowledged_ek {st peer : PartyState P AuthState}
     {msg : Chunked.Message P.Sym}
-    (hpair : MLKEMBraid.PairInv st.toMLKEMBraid peer.toMLKEMBraid)
-    (hpair' : MLKEMBraid.PairInv peer.toMLKEMBraid st.toMLKEMBraid)
-    (hpeer : peer.toMLKEMBraid.epoch ≤ st.toMLKEMBraid.completedEpoch + 1)
+    (hpair : Braid.PairInv st.toBraid peer.toBraid)
+    (hpair' : Braid.PairInv peer.toBraid st.toBraid)
+    (hpeer : peer.toBraid.epoch ≤ st.toBraid.completedEpoch + 1)
     (hmsg : msg.epoch ≤ peer.epoch)
-    (hmsg' : msg.epoch ≤ st.toMLKEMBraid.completedEpoch + 1)
+    (hmsg' : msg.epoch ≤ st.toBraid.completedEpoch + 1)
     (hack : msg.payload = .ct1Ack →
       msg.epoch < peer.epoch ∨ ∃ core dec, peer = .ekSentCt1Received core dec ∧ core.ep = msg.epoch)
     (h : RecvDivergence st msg) :
     ∃ core dec chunk, st = .ct1Acknowledged core dec ∧ msg = ⟨core.ep, .ek chunk⟩ := by
-  have hcomp := MLKEMBraid.State.completedEpoch_le_epoch st.toMLKEMBraid
-  rw [toMLKEMBraid_epoch] at hpeer hcomp
+  have hcomp := Braid.State.completedEpoch_le_epoch st.toBraid
+  rw [toBraid_epoch] at hpeer hcomp
   rcases h with ⟨hlt, hnot⟩ | ⟨heq, ⟨core, enc, rfl⟩, hpay⟩ | ⟨heq, ⟨core, dec, rfl⟩, chunk, hpay⟩
   · -- A future message reaches a receiver one epoch behind its sender, which is in `ct2Sampled`.
     have hsucc : msg.epoch = st.epoch + 1 := by omega
-    have hpos := (hpair.2 (by rw [toMLKEMBraid_epoch, toMLKEMBraid_epoch]; omega)).1
-    exact absurd ⟨by cases st <;> simp_all [PartyState.toMLKEMBraid,
-      MLKEMBraid.State.controlPosition], hsucc⟩ hnot
+    have hpos := (hpair.2 (by rw [toBraid_epoch, toBraid_epoch]; omega)).1
+    exact absurd ⟨by cases st <;> simp_all [PartyState.toBraid,
+      Braid.State.controlPosition], hsucc⟩ hnot
   · -- The sender of a `ct1Ack` has received a chunk of `ct₂`, so the receiver is in `ct2Sampled`.
     exfalso
     have hepE : (PartyState.ekReceivedCt1Sampled core enc).epoch = core.ep := rfl
     have hcompE :
-        (PartyState.ekReceivedCt1Sampled core enc).toMLKEMBraid.completedEpoch = core.ep := rfl
+        (PartyState.ekReceivedCt1Sampled core enc).toBraid.completedEpoch = core.ep := rfl
     rw [hepE] at heq
     rw [hcompE] at hpeer
     rcases hack hpay with hlt | ⟨core', dec', rfl, hep⟩
-    · have := (hpair.2 (by rw [toMLKEMBraid_epoch, toMLKEMBraid_epoch, hepE]; omega)).1
-      simp [PartyState.toMLKEMBraid, MLKEMBraid.State.controlPosition] at this
-    · have := hpair'.1 (by simp [PartyState.toMLKEMBraid, MLKEMBraid.State.epoch]; omega)
-        (by simp [PartyState.toMLKEMBraid, MLKEMBraid.State.controlPosition])
-      simp [PartyState.toMLKEMBraid, MLKEMBraid.AllowedStatePair] at this
+    · have := (hpair.2 (by rw [toBraid_epoch, toBraid_epoch, hepE]; omega)).1
+      simp [PartyState.toBraid, Braid.State.controlPosition] at this
+    · have := hpair'.1 (by simp [PartyState.toBraid, Braid.State.epoch]; omega)
+        (by simp [PartyState.toBraid, Braid.State.controlPosition])
+      simp [PartyState.toBraid, Braid.AllowedStatePair] at this
   · obtain ⟨e, payload⟩ := msg
     simp only [PartyState.epoch] at heq
     simp only at hpay
@@ -510,7 +510,7 @@ delivered to a party in `ct1Acknowledged`. -/
 -- ANCHOR: Relation_DeliveryDivergence_ct1Acknowledged_ek
 theorem DeliveryDivergence.ct1Acknowledged_ek {s : GameState P AuthState}
     {t : (SCKAScheme.sckaCorrectnessSpec (Chunked.Message P.Sym)).Domain}
-    (hC : MLKEMBraid.ControlInv s.toMLKEMBraid) (hP : MLKEMBraid.StatePairInv s.toMLKEMBraid)
+    (hC : Braid.ControlInv s.toBraid) (hP : Braid.StatePairInv s.toBraid)
     (hack : Ct1AckInv s) (h : DeliveryDivergence s t) :
     ∃ (party : Bool) (n : ℕ) (core : CtSender.Ct1Sent P AuthState)
       (dec : P.decEk.D) (chunk : ℕ × P.Sym) (tsnd : ℕ),
@@ -525,27 +525,27 @@ theorem DeliveryDivergence.ct1Acknowledged_ek {s : GameState P AuthState}
   · exact h.elim
   · exact h.elim
   · obtain ⟨msg, tsnd, hmsg, hdiv⟩ := h
-    have hmsg' : s.toMLKEMBraid.msgB n = some (msg.toMLKEMBraid, tsnd) := by
-      simp [GameState.toMLKEMBraid, hmsg]
+    have hmsg' : s.toBraid.msgB n = some (msg.toBraid, tsnd) := by
+      simp [GameState.toBraid, hmsg]
     have hctl := (hC.roles false).2.2 n _ tsnd hmsg'
     have hek := hC.epochKnowledge.msgB n _ tsnd hmsg'
     obtain ⟨core, dec, chunk, hst, rfl⟩ := recvDivergence_ct1Acknowledged_ek hP.1 hP.2
       hC.epochKnowledge.epochB_le
-      (by simpa [MLKEMBraid.GameState.stateAt, message_toMLKEMBraid_epoch, toMLKEMBraid_epoch,
-        GameState.toMLKEMBraid] using hctl.2.1)
-      (by simpa [message_toMLKEMBraid_epoch, GameState.toMLKEMBraid] using hek.2.1)
+      (by simpa [Braid.GameState.stateAt, message_toBraid_epoch, toBraid_epoch,
+        GameState.toBraid] using hctl.2.1)
+      (by simpa [message_toBraid_epoch, GameState.toBraid] using hek.2.1)
       (hack false n msg tsnd hmsg) hdiv
     exact ⟨true, n, core, dec, chunk, tsnd, rfl, hst, hmsg⟩
   · obtain ⟨msg, tsnd, hmsg, hdiv⟩ := h
-    have hmsg' : s.toMLKEMBraid.msgA n = some (msg.toMLKEMBraid, tsnd) := by
-      simp [GameState.toMLKEMBraid, hmsg]
+    have hmsg' : s.toBraid.msgA n = some (msg.toBraid, tsnd) := by
+      simp [GameState.toBraid, hmsg]
     have hctl := (hC.roles true).2.2 n _ tsnd hmsg'
     have hek := hC.epochKnowledge.msgA n _ tsnd hmsg'
     obtain ⟨core, dec, chunk, hst, rfl⟩ := recvDivergence_ct1Acknowledged_ek hP.2 hP.1
       hC.epochKnowledge.epochA_le
-      (by simpa [MLKEMBraid.GameState.stateAt, message_toMLKEMBraid_epoch, toMLKEMBraid_epoch,
-        GameState.toMLKEMBraid] using hctl.2.1)
-      (by simpa [message_toMLKEMBraid_epoch, GameState.toMLKEMBraid] using hek.2.1)
+      (by simpa [Braid.GameState.stateAt, message_toBraid_epoch, toBraid_epoch,
+        GameState.toBraid] using hctl.2.1)
+      (by simpa [message_toBraid_epoch, GameState.toBraid] using hek.2.1)
       (hack true n msg tsnd hmsg) hdiv
     exact ⟨false, n, core, dec, chunk, tsnd, rfl, hst, hmsg⟩
 
@@ -553,78 +553,78 @@ theorem DeliveryDivergence.ct1Acknowledged_ek {s : GameState P AuthState}
 successor state has the distribution of the Braid successor state of the translation in which that
 record is an acknowledging vector chunk, once the record is restored. -/
 -- ANCHOR: Relation_sckaCorrectnessImpl_run_toMLKEMBraidAck
-theorem sckaCorrectnessImpl_run_toMLKEMBraidAck (s : GameState P AuthState) (party : Bool)
+theorem sckaCorrectnessImpl_run_toBraidAck (s : GameState P AuthState) (party : Bool)
     (n : ℕ) (core : CtSender.Ct1Sent P AuthState) (dec : P.decEk.D)
     (chunk : ℕ × P.Sym) (tsnd : ℕ)
     (hst : (if party then s.stA else s.stB) = .ct1Acknowledged core dec)
     (hmsg : (if party then s.msgB else s.msgA) n = some (⟨core.ep, .ek chunk⟩, tsnd)) :
-    (fun z => GameState.toMLKEMBraid z.2) <$>
+    (fun z => GameState.toBraid z.2) <$>
         (SCKAScheme.sckaCorrectnessImpl (scheme P auth sampleInitKey)
           (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
             else SCKAScheme.sckaCorrectnessSpec.ORecvB n)).run s =
-      (fun z => if party then { z.2 with msgB := s.toMLKEMBraid.msgB }
-          else { z.2 with msgA := s.toMLKEMBraid.msgA }) <$>
+      (fun z => if party then { z.2 with msgB := s.toBraid.msgB }
+          else { z.2 with msgA := s.toBraid.msgA }) <$>
         (SCKAScheme.sckaCorrectnessImpl
-          (MLKEMBraid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey)
+          (Braid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey)
           (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
-            else SCKAScheme.sckaCorrectnessSpec.ORecvB n)).run (s.toMLKEMBraidAck party n)
+            else SCKAScheme.sckaCorrectnessSpec.ORecvB n)).run (s.toBraidAck party n)
 -- ANCHOR_END: Relation_sckaCorrectnessImpl_run_toMLKEMBraidAck
     := by
-  have hrecv := recvSCKA_ct1Acknowledged_ek_toMLKEMBraid P auth core dec chunk
+  have hrecv := recvSCKA_ct1Acknowledged_ek_toBraid P auth core dec chunk
   cases party
   · simp only [Bool.false_eq_true, ↓reduceIte] at hst hmsg ⊢
-    change (fun z => GameState.toMLKEMBraid z.2) <$>
+    change (fun z => GameState.toBraid z.2) <$>
         (SCKAScheme.oracleRecvB (scheme P auth sampleInitKey) n).run s =
-      (fun z => { z.2 with msgA := s.toMLKEMBraid.msgA }) <$>
+      (fun z => { z.2 with msgA := s.toBraid.msgA }) <$>
         (SCKAScheme.oracleRecvB
-          (MLKEMBraid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey) n).run
-          (s.toMLKEMBraidAck false n)
-    have hmsg' : (s.toMLKEMBraidAck false n).msgA n =
+          (Braid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey) n).run
+          (s.toBraidAck false n)
+    have hmsg' : (s.toBraidAck false n).msgA n =
         some (⟨core.ep, .ekCt1Ack, some chunk⟩, tsnd) := by
-      simp [GameState.toMLKEMBraidAck, GameState.toMLKEMBraid, hmsg,
-        Chunked.Message.toMLKEMBraid]
-    have hstB : (s.toMLKEMBraidAck false n).stB =
-        PartyState.toMLKEMBraid (.ct1Acknowledged core dec) := by
-      simp [GameState.toMLKEMBraidAck, GameState.toMLKEMBraid, hst]
+      simp [GameState.toBraidAck, GameState.toBraid, hmsg,
+        Chunked.Message.toBraid]
+    have hstB : (s.toBraidAck false n).stB =
+        PartyState.toBraid (.ct1Acknowledged core dec) := by
+      simp [GameState.toBraidAck, GameState.toBraid, hst]
     rcases hS : recvSCKA P auth (.ct1Acknowledged core dec) ⟨core.ep, .ek chunk⟩ with
       _ | ⟨keyOpt, trcv, stB'⟩
     · rw [hS] at hrecv
       rw [SCKAScheme.oracleRecvB_run_eq_of_refuse _ _ hmsg (by simpa [scheme, hst] using hS),
         SCKAScheme.oracleRecvB_run_eq_of_refuse _ _ hmsg' (by
-          simpa [MLKEMBraid.scheme, hstB] using hrecv.symm)]
-      simp [GameState.toMLKEMBraid, GameState.toMLKEMBraidAck]
+          simpa [Braid.scheme, hstB] using hrecv.symm)]
+      simp [GameState.toBraid, GameState.toBraidAck]
     · rw [hS] at hrecv
       rw [SCKAScheme.oracleRecvB_run_eq_of_accept _ _ hmsg (by simpa [scheme, hst] using hS),
         SCKAScheme.oracleRecvB_run_eq_of_accept _ _ hmsg' (by
-          simpa [MLKEMBraid.scheme, hstB] using hrecv.symm)]
+          simpa [Braid.scheme, hstB] using hrecv.symm)]
       rcases keyOpt with _ | ⟨tI, key⟩ <;>
-        simp [SCKAScheme.recvBUpdate, GameState.toMLKEMBraid, GameState.toMLKEMBraidAck]
+        simp [SCKAScheme.recvBUpdate, GameState.toBraid, GameState.toBraidAck]
   · simp only [↓reduceIte] at hst hmsg ⊢
-    change (fun z => GameState.toMLKEMBraid z.2) <$>
+    change (fun z => GameState.toBraid z.2) <$>
         (SCKAScheme.oracleRecvA (scheme P auth sampleInitKey) n).run s =
-      (fun z => { z.2 with msgB := s.toMLKEMBraid.msgB }) <$>
+      (fun z => { z.2 with msgB := s.toBraid.msgB }) <$>
         (SCKAScheme.oracleRecvA
-          (MLKEMBraid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey) n).run
-          (s.toMLKEMBraidAck true n)
-    have hmsg' : (s.toMLKEMBraidAck true n).msgB n =
+          (Braid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey) n).run
+          (s.toBraidAck true n)
+    have hmsg' : (s.toBraidAck true n).msgB n =
         some (⟨core.ep, .ekCt1Ack, some chunk⟩, tsnd) := by
-      simp [GameState.toMLKEMBraidAck, GameState.toMLKEMBraid, hmsg,
-        Chunked.Message.toMLKEMBraid]
-    have hstA : (s.toMLKEMBraidAck true n).stA =
-        PartyState.toMLKEMBraid (.ct1Acknowledged core dec) := by
-      simp [GameState.toMLKEMBraidAck, GameState.toMLKEMBraid, hst]
+      simp [GameState.toBraidAck, GameState.toBraid, hmsg,
+        Chunked.Message.toBraid]
+    have hstA : (s.toBraidAck true n).stA =
+        PartyState.toBraid (.ct1Acknowledged core dec) := by
+      simp [GameState.toBraidAck, GameState.toBraid, hst]
     rcases hS : recvSCKA P auth (.ct1Acknowledged core dec) ⟨core.ep, .ek chunk⟩ with
       _ | ⟨keyOpt, trcv, stA'⟩
     · rw [hS] at hrecv
       rw [SCKAScheme.oracleRecvA_run_eq_of_refuse _ _ hmsg (by simpa [scheme, hst] using hS),
         SCKAScheme.oracleRecvA_run_eq_of_refuse _ _ hmsg' (by
-          simpa [MLKEMBraid.scheme, hstA] using hrecv.symm)]
-      simp [GameState.toMLKEMBraid, GameState.toMLKEMBraidAck]
+          simpa [Braid.scheme, hstA] using hrecv.symm)]
+      simp [GameState.toBraid, GameState.toBraidAck]
     · rw [hS] at hrecv
       rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hmsg (by simpa [scheme, hst] using hS),
         SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hmsg' (by
-          simpa [MLKEMBraid.scheme, hstA] using hrecv.symm)]
+          simpa [Braid.scheme, hstA] using hrecv.symm)]
       rcases keyOpt with _ | ⟨tI, key⟩ <;>
-        simp [SCKAScheme.recvAUpdate, GameState.toMLKEMBraid, GameState.toMLKEMBraidAck]
+        simp [SCKAScheme.recvAUpdate, GameState.toBraid, GameState.toBraidAck]
 
 end SPQR

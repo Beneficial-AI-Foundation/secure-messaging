@@ -228,7 +228,7 @@ Incremental KEM from ML-KEM.
 :::defTitle "incremental_kem_from_ml_kem_spec" "Incremental KEM from ML-KEM construction"
 :::
 
-:::::::definition "incremental_kem_from_ml_kem_spec" (parent := "incremental_kem_incremental_kem_from_ml_kem") (lean := "MLKEM.incrementalHeader, MLKEM.EncapsulationState, MLKEM.incrementalEncaps1, MLKEM.incrementalEncaps2, MLKEM.mlkemIncremental, MLKEM.mlkemIncrementalDet") (tags := "gh-226") (uses := "incremental_kem_scheme, ml_kem_scheme, incremental_kem_det")
+:::::::definition "incremental_kem_from_ml_kem_spec" (parent := "incremental_kem_incremental_kem_from_ml_kem") (lean := "MLKEM.incrementalHeader, MLKEM.EncapsulationState, MLKEM.incrementalEncaps1, MLKEM.incrementalEncaps2, MLKEM.incrementalStructure, MLKEM.mlkemIncremental, MLKEM.mlkemIncrementalDet") (tags := "gh-226") (uses := "incremental_kem_scheme, ml_kem_scheme, incremental_kem_det")
 An {bpref "ml_kem_scheme"}[ML-KEM] encapsulation key is $`ek=\hat{\mathbf t}\mathbin\|\rho`, the
 encoded public vector followed by the matrix seed, and a ciphertext is $`c=(c_1,c_2)`;
 $`\mathsf H` is the hash function of ML-KEM ({Informal.citet FIPS203}[], §4.1). The
@@ -249,7 +249,7 @@ $`\mathsf{Decaps}` is ML-KEM decapsulation.
 :::leanPillCaption "public-key header (ρ, H(ek))"
 :::
 
-```anchor incrementalHeader (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
+```anchor incrementalHeader (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.MLKEM)
 def incrementalHeader {params : Params} {encoding : Encoding params}
     (prims : Primitives params encoding) (ek : EncapsulationKey params encoding) :
     Seed32 × PublicKeyHash :=
@@ -259,7 +259,7 @@ def incrementalHeader {params : Params} {encoding : Encoding params}
 :::leanPillCaption "state carried between encapsulation stages"
 :::
 
-```anchor incrementalEncapsulationState (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
+```anchor incrementalEncapsulationState (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.MLKEM)
 structure EncapsulationState (params : Params) where
   /-- NTT-domain form of the ephemeral vector `y`, used to compute the second ciphertext
   component. -/
@@ -273,7 +273,7 @@ structure EncapsulationState (params : Params) where
 :::leanPillCaption "first stage: state, $`c_1`, and shared key"
 :::
 
-```anchor incrementalEncaps1 (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
+```anchor incrementalEncaps1 (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.MLKEM)
 def incrementalEncaps1 {params : Params} {encoding : Encoding params} (ring : NTTRingOps)
     (prims : Primitives params encoding) (hdr : Seed32 × PublicKeyHash) (m : Message) :
     EncapsulationState params × encoding.EncodedU × SharedSecret :=
@@ -290,7 +290,7 @@ def incrementalEncaps1 {params : Params} {encoding : Encoding params} (ring : NT
 :::leanPillCaption "second stage: $`c_2` from the state and the vector"
 :::
 
-```anchor incrementalEncaps2 (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
+```anchor incrementalEncaps2 (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.MLKEM)
 def incrementalEncaps2 {params : Params} {encoding : Encoding params} (ring : NTTRingOps)
     (st : EncapsulationState params)
     (vec : encoding.EncodedTHat) : encoding.EncodedV :=
@@ -300,23 +300,22 @@ def incrementalEncaps2 {params : Params} {encoding : Encoding params} (ring : NT
   encoding.byteEncodeDV (encoding.compressDV v)
 ```
 
-:::leanPillCaption "complete incremental ML-KEM construction"
+:::leanPillCaption "incremental ML-KEM for any byte encoding"
 :::
 
-```anchor mlkemIncremental (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
-def mlkemIncremental (p : ParameterSet) (ring : NTTRingOps)
-    (prims : Primitives (ParameterSet.params p)
-      (Concrete.concreteEncoding (ParameterSet.params p))) :
-    (mlkemScheme p ring prims).IncrementalStructure
-    where
+```anchor incrementalStructure (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.MLKEM)
+def incrementalStructure {params : Params} (ring : NTTRingOps)
+    (encoding : Encoding params) (prims : Primitives params encoding)
+    [DecidableEq encoding.EncodedTHat]
+    [DecidableEq encoding.EncodedU] [DecidableEq encoding.EncodedV] :
+    (asKEMScheme ring encoding prims).IncrementalStructure where
   PKheader := Seed32 × PublicKeyHash
-  PKvector := (Concrete.concreteEncoding (ParameterSet.params p)).EncodedTHat
-  C₁ := (Concrete.concreteEncoding (ParameterSet.params p)).EncodedU
-  C₂ := (Concrete.concreteEncoding (ParameterSet.params p)).EncodedV
-  St := EncapsulationState (ParameterSet.params p)
+  PKvector := encoding.EncodedTHat
+  C₁ := encoding.EncodedU
+  C₂ := encoding.EncodedV
+  St := EncapsulationState params
   validPK hdr vec := decide
-    (encapsulationKeyHash (Concrete.concreteEncoding (ParameterSet.params p)) prims
-        { tHatEncoded := vec, rho := hdr.1 } = hdr.2)
+    (encapsulationKeyHash encoding prims { tHatEncoded := vec, rho := hdr.1 } = hdr.2)
   splitPK :=
     { toFun := fun ek => ⟨(incrementalHeader prims ek, ek.tHatEncoded), by simp [incrementalHeader]⟩
       invFun := fun parts => { tHatEncoded := parts.1.2, rho := parts.1.1.1 }
@@ -337,8 +336,7 @@ def mlkemIncremental (p : ParameterSet) (ring : NTTRingOps)
   encaps2 := fun st _hdr vec => return (incrementalEncaps2 ring st vec)
   factor := by
     intro ek
-    simp only [mlkemScheme, asKEMScheme, Equiv.coe_fn_symm_mk,
-      bind_assoc, pure_bind]
+    simp only [asKEMScheme, Equiv.coe_fn_symm_mk, bind_assoc, pure_bind]
     rfl
 ```
 
@@ -408,7 +406,7 @@ theorem incrementalCorrectExp_failure_le_mlkem768_easycrypt {failprob hsadv prfa
 :::defTitle "incremental_kem_rand_leak" "Incremental KEM randomness leakage"
 :::
 
-::::definition "incremental_kem_rand_leak" (parent := "incremental_kem") (lean := "KEMScheme.IncrementalRandLeak, MLKEM.mlkemIncrementalRandLeak") (tags := "gh-246") (uses := "incremental_kem_scheme, incremental_kem_from_ml_kem_spec")
+::::definition "incremental_kem_rand_leak" (parent := "incremental_kem") (lean := "KEMScheme.IncrementalRandLeak, MLKEM.incrementalRandLeak, MLKEM.mlkemIncrementalRandLeak") (tags := "gh-246") (uses := "incremental_kem_scheme, incremental_kem_from_ml_kem_spec")
 
 :::leanPillCaption "incremental KEM randomness leakage"
 :::
@@ -448,34 +446,36 @@ structure IncrementalRandLeak (kem : KEMScheme m K PK SK C)
       pure out.1) = inc.encaps2 st hdr vec
 ```
 
-:::leanPillCaption "ML-KEM incremental randomness leakage"
+:::leanPillCaption "randomness leakage of incremental ML-KEM for any byte encoding"
 :::
 
-```anchor mlkemIncrementalRandLeak (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
-def mlkemIncrementalRandLeak (p : ParameterSet) (ring : NTTRingOps)
-    (prims : Primitives (ParameterSet.params p)
-      (Concrete.concreteEncoding (ParameterSet.params p))) :
-    (mlkemScheme p ring prims).IncrementalRandLeak (mlkemIncremental p ring prims) where
+```anchor incrementalRandLeak (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.MLKEM)
+def incrementalRandLeak {params : Params} (ring : NTTRingOps)
+    (encoding : Encoding params) (prims : Primitives params encoding)
+    [DecidableEq encoding.EncodedTHat]
+    [DecidableEq encoding.EncodedU] [DecidableEq encoding.EncodedV] :
+    (asKEMScheme ring encoding prims).IncrementalRandLeak
+      (incrementalStructure ring encoding prims) where
   KeygenRand := Seed32 × Seed32
   Encaps1Rand := Message
   Encaps2Rand := Unit
   keygenRleak := do
     let d ← $ᵗ Seed32
     let z ← $ᵗ Seed32
-    return (keygenInternal ring (Concrete.concreteEncoding (ParameterSet.params p)) prims d z,
-      (d, z))
+    return (keygenInternal ring encoding prims d z, (d, z))
   encaps1Rleak := fun hdr => do
     let m ← $ᵗ Message
     return (incrementalEncaps1 ring prims hdr m, m)
   encaps2Rleak := fun st _hdr vec =>
     return (incrementalEncaps2 ring st vec, ())
   keygen_fst := by
-    simp only [mlkemScheme, asKEMScheme, keygen, bind_assoc, pure_bind]
+    simp only [asKEMScheme, keygen, bind_assoc, pure_bind]
   encaps1_fst := fun _hdr => by
-    simp only [mlkemIncremental, bind_assoc, pure_bind]
+    simp only [incrementalStructure, bind_assoc, pure_bind]
   encaps2_fst := fun _st _hdr _vec => by
-    simp only [mlkemIncremental, pure_bind]
+    simp only [incrementalStructure, pure_bind]
 ```
+
 ::::
 
 *References:*

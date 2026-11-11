@@ -110,7 +110,7 @@ r#"
 \newcommand{\Enc}{\mathsf{Enc}}                          % encryption oracle/algorithm
 \newcommand{\Dec}{\mathsf{Dec}}                          % decryption oracle/algorithm
 \newcommand{\Adv}[2]{\mathsf{Adv}^{#1}_{#2}}            % advantage Adv^{goal}_{scheme}
-\renewcommand{\Pr}{\operatorname{Pr}}
+\renewcommand{\Pr}{\operatorname*{Pr}}
 \newcommand{\game}[1]{\boxed{\begin{array}{l}#1\end{array}}} % framed pseudocode game box
 
 % oracle names and oracle sets (for the adversary access lists)

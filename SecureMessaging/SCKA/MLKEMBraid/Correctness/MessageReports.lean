@@ -21,7 +21,7 @@ report, and every oracle of the correctness game preserves it.
 
 open OracleSpec OracleComp
 
-namespace MLKEMBraid
+namespace Braid
 
 variable {P : Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
@@ -102,4 +102,4 @@ theorem correctnessImpl_preserves_recordedReportInv
     · exact ⟨hs.msgA, hs.msgB⟩
     · rcases r.outputKey with _ | ⟨tI, key⟩ <;> exact ⟨hs.msgA, hs.msgB⟩
 
-end MLKEMBraid
+end Braid

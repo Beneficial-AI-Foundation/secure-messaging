@@ -28,7 +28,7 @@ queries in these terms.
 
 open OracleComp
 
-namespace MLKEMBraid
+namespace Braid
 
 variable {P : Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
@@ -464,4 +464,4 @@ theorem oracleRecv_run_cases {s : GameState P AuthState} (party : Bool) {n : ℕ
   · simpa only [oracleRecv, Bool.not_true, Bool.false_eq_true, ↓reduceIte, GameState.messagesAt,
       GameState.stateAt, recvUpdate] using oracleRecvA_run_cases auth irl sampleInitKey hz
 
-end MLKEMBraid
+end Braid

@@ -12,6 +12,7 @@ public import Mathlib.Data.Finset.Attr
 public import Mathlib.LinearAlgebra.Matrix.Defs
 public import Mathlib.Tactic.Bound.Init
 public import Mathlib.Tactic.SetLike
+public import ToVCVio.Data.Vector.Split
 
 /-!
 # Matrices as bit strings
@@ -35,6 +36,7 @@ here:
 
 * `matrixToBitsWith`, `bitsToMatrixWith`: the layout and the reading back.
 * `Bits`, `splitBits`, `reverseOctets`: fixed-length strings, splitting and octet reversal.
+* `splitBitsEquiv`: `splitBits` as an equivalence, inverse to concatenation.
 
 ## Main results
 
@@ -90,8 +92,11 @@ abbrev Bits (n : ℕ) := Vector Bool n
 
 /-- Split a bit string of length a + b into its first a bits and remaining b bits. -/
 def splitBits {a b : ℕ} (v : Bits (a + b)) : Bits a × Bits b :=
-  (Vector.ofFn fun i : Fin a => v[Fin.castAdd b i],
-   Vector.ofFn fun i : Fin b => v[Fin.natAdd a i])
+  Vector.splitAt v
+
+/-- `splitBits` as an equivalence, with concatenation as its inverse. -/
+def splitBitsEquiv (a b : ℕ) : Bits (a + b) ≃ Bits a × Bits b :=
+  Vector.splitAtEquiv a b
 
 /-- Reversing the position of a bit inside its octet keeps its index
 within a bit string whose length is a multiple of 8. -/

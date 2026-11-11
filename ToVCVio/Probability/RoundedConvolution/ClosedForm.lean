@@ -1,0 +1,175 @@
+/-
+Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Beneficial AI Foundation
+-/
+
+module
+
+public import ToVCVio.Probability.RoundedConvolution
+
+/-!
+# Closed forms for kernel evaluation of rounded-convolution certificates
+
+`certificateValues` is defined with long folds: the window mask and the failure weights each
+have thousands of terms. The kernel keeps every intermediate value of such a fold, and this
+uses gigabytes of memory. This file proves that the folds equal short geometric-series formulas.
+`certificateValues_eq_closedValues` applies when the failure weight is `1` at both ends of the
+extended window and `0` in the middle. Then a concrete certificate is one `decide +kernel` command
+with no precomputed values.
+-/
+
+@[expose] public section
+
+namespace ToVCVio.RoundedConvolution
+
+/-- `productPack` with each `radix ^ k` written as a shift. -/
+def shiftedProductPack (c : Config) : ℕ :=
+  (List.range (2 * c.a + 1)).foldl (fun acc (i : ℕ) =>
+    (List.range (2 * c.a + 1)).foldl (fun acc (j : ℕ) =>
+      let x := (i : ℤ) - c.a
+      let y := (j : ℤ) - c.a
+      acc + c.weight x * c.weight y *
+        (1 <<< (bits c * (x * y + (c.a : ℤ) ^ 2).toNat))) acc) 0
+
+/-- `productPack` equals `shiftedProductPack`, which writes each power of `radix` as a shift. -/
+theorem productPack_shifted (c : Config) : productPack c = shiftedProductPack c := by
+  unfold productPack shiftedProductPack
+  apply congrArg (fun f : ℕ → ℕ → ℕ => (List.range (2 * c.a + 1)).foldl f 0)
+  funext acc i
+  apply congrArg (fun f : ℕ → ℕ → ℕ => (List.range (2 * c.a + 1)).foldl f acc)
+  funext acc j
+  simp only [radix]
+  rw [← pow_mul, ← Nat.one_shiftLeft]
+
+/-- Closed geometric form of `mask`, avoiding its Horner fold over the window. -/
+def shiftedMask (c : Config) : ℕ :=
+  ((1 <<< (c.precision + 1)) - 1) *
+    (((1 <<< (bits c * (2 * c.window + 1))) - 1) / ((1 <<< bits c) - 1))
+
+/-- The radix is at least `2`. -/
+theorem radix_ge_two (c : Config) : 2 ≤ radix c := by
+  change 2 ^ 1 ≤ 2 ^ (c.precision + 1 + 2 * c.seedBits)
+  exact Nat.pow_le_pow_right (by decide) (by omega)
+
+/-- `mask` equals its closed form `shiftedMask`. -/
+theorem mask_shifted (c : Config) : mask c = shiftedMask c := by
+  unfold mask shiftedMask
+  rw [ToVCVio.Packing.foldl_range_mul_add_one_eq_pack, Nat.geomSum_eq (radix_ge_two c)]
+  simp only [radix]
+  rw [← pow_mul]
+  simp only [← Nat.one_shiftLeft]
+
+/-- `extraPack` with each `radix ^ k` written as a shift. -/
+def shiftedExtraPack (c : Config) : ℕ :=
+  (List.range (2 * c.a + 1)).foldl (fun acc (i : ℕ) =>
+    acc + c.weight ((i : ℤ) - c.a) * (1 <<< (bits c * i))) 0
+
+/-- `extraPack` equals `shiftedExtraPack`, which writes each power of `radix` as a shift. -/
+theorem extraPack_shifted (c : Config) : extraPack c = shiftedExtraPack c := by
+  unfold extraPack shiftedExtraPack
+  apply congrArg (fun f : ℕ → ℕ → ℕ => (List.range (2 * c.a + 1)).foldl f 0)
+  funext acc i
+  simp only [radix]
+  rw [← pow_mul, ← Nat.one_shiftLeft]
+
+/-- `step` over the shifted product pack and the closed mask. -/
+def shiftedStep (c : Config) (x : ℕ) : ℕ :=
+  ((x * shiftedProductPack c) >>> (c.a ^ 2 * bits c + 2 * c.seedBits)) &&& shiftedMask c
+
+/-- `step` equals `shiftedStep`. -/
+theorem step_shifted (c : Config) : step c = shiftedStep c := by
+  funext x
+  simp only [step, shiftedStep, productPack_shifted, mask_shifted]
+
+/-- Initial scaled point mass of `runN`, as a shift. -/
+def shiftedInit (c : Config) : ℕ := 1 <<< (c.precision + bits c * c.window)
+
+/-- The start value of `runN` equals `shiftedInit`. -/
+theorem init_shifted (c : Config) :
+    2 ^ c.precision * radix c ^ c.window = shiftedInit c := by
+  unfold shiftedInit radix
+  rw [← pow_mul, ← pow_add, ← Nat.one_shiftLeft]
+
+/-- `runN` equals the same fold over `shiftedStep`, started at `shiftedInit`. -/
+theorem runN_shifted (c : Config) (k : ℕ) :
+    runN c k = (List.range k).foldl (fun x _ => shiftedStep c x) (shiftedInit c) := by
+  unfold runN
+  rw [step_shifted, init_shifted]
+
+/-- Horner fold of `f 0, …, f (n - 1)` in base `R`, starting from `acc`. -/
+def horner (R : ℕ) (f : ℕ → ℕ) (acc n : ℕ) : ℕ :=
+  (List.range n).foldl (fun acc i => acc * R + f i) acc
+
+/-- A Horner fold over `a + b` digits is the fold over the last `b` digits, started at the
+fold over the first `a` digits. -/
+theorem horner_add (R : ℕ) (f : ℕ → ℕ) (acc a b : ℕ) :
+    horner R f acc (a + b) = horner R (fun i => f (a + i)) (horner R f acc a) b := by
+  unfold horner
+  rw [List.range_add, List.foldl_append, List.foldl_map]
+
+/-- The base-`R` repunit with `n` digits. -/
+def onesPack (R n : ℕ) : ℕ := (List.range n).foldl (fun a _ => a * R + 1) 0
+
+/-- A Horner fold of `n` digits, all equal to `k`, is `acc * R ^ n + k * onesPack R n`. -/
+theorem horner_const (R : ℕ) (f : ℕ → ℕ) (k acc n : ℕ) (h : ∀ i < n, f i = k) :
+    horner R f acc n = acc * R ^ n + k * onesPack R n := by
+  induction n with
+  | zero => simp [horner, onesPack]
+  | succ n ih =>
+    have ih' := ih (fun i hi => h i (by omega))
+    simp only [horner, onesPack, List.range_succ, List.foldl_append, List.foldl_cons,
+      List.foldl_nil] at ih' ⊢
+    rw [ih', h n (by omega)]
+    ring
+
+/-- For `R ≥ 2`, the base-`R` repunit with `n` digits is `(R ^ n - 1) / (R - 1)`. -/
+theorem onesPack_closed (R n : ℕ) (hR : 2 ≤ R) : onesPack R n = (R ^ n - 1) / (R - 1) := by
+  unfold onesPack
+  rw [ToVCVio.Packing.foldl_range_mul_add_one_eq_pack, Nat.geomSum_eq hR]
+
+/-- A Horner fold of a `1`/`0`/`1` indicator collapses to two repunits. -/
+theorem horner_segments (R : ℕ) (f : ℕ → ℕ) (lo mid hi : ℕ)
+    (hlo : ∀ i < lo, f i = 1) (hmid : ∀ i < mid, f (lo + i) = 0)
+    (hhi : ∀ i < hi, f (lo + mid + i) = 1) :
+    horner R f 0 (lo + mid + hi) = onesPack R lo * R ^ mid * R ^ hi + onesPack R hi := by
+  rw [horner_add, horner_add, horner_const R f 1 0 lo hlo,
+    horner_const R (fun i => f (lo + i)) 0 _ mid hmid,
+    horner_const R (fun i => f (lo + mid + i)) 1 _ hi hhi]
+  ring
+
+/-- `certificateValues` with every long fold replaced by its closed form, for a weight that is
+`1` on the first `lo` and last `hi` offsets of the extended window and `0` on the `mid` between. -/
+def closedValues (c : Config) (lo mid hi : ℕ) : ℕ × ℕ :=
+  let M := c.window + c.a
+  let ones := fun n => ((1 <<< (bits c * n)) - 1) / ((1 <<< bits c) - 1)
+  let wp := ones lo * (1 <<< (bits c * mid)) * (1 <<< (bits c * hi)) + ones hi
+  let run := (List.range c.steps).foldl (fun x _ => shiftedStep c x) (shiftedInit c)
+  (((run * shiftedExtraPack c * wp) >>> (bits c * (2 * M))) % (1 <<< bits c),
+    (1 <<< c.precision) - run % ((1 <<< bits c) - 1))
+
+/-- Let the weight `w` be `1` on the first `lo` and the last `hi` points of the extended window,
+and `0` on the `mid` points between. Then `certificateValues` equals `closedValues`. -/
+theorem certificateValues_eq_closedValues (c : Config) (w : ℤ → ℕ) (lo mid hi : ℕ)
+    (hlen : 2 * (c.window + c.a) + 1 = lo + mid + hi)
+    (hlo : ∀ i < lo, w ((i : ℤ) - ((c.window + c.a : ℕ) : ℤ)) = 1)
+    (hmid : ∀ i < mid, w (((lo + i : ℕ) : ℤ) - ((c.window + c.a : ℕ) : ℤ)) = 0)
+    (hhi : ∀ i < hi, w (((lo + mid + i : ℕ) : ℤ) - ((c.window + c.a : ℕ) : ℤ)) = 1) :
+    certificateValues c w = closedValues c lo mid hi := by
+  have hwp :
+      (List.range (2 * (c.window + c.a) + 1)).foldl
+        (fun acc (i : ℕ) => acc * radix c + w ((i : ℤ) - ((c.window + c.a : ℕ) : ℤ))) 0 =
+        onesPack (radix c) lo * radix c ^ mid * radix c ^ hi + onesPack (radix c) hi := by
+    change horner (radix c) (fun i => w ((i : ℤ) - ((c.window + c.a : ℕ) : ℤ))) 0
+      (2 * (c.window + c.a) + 1) = _
+    rw [hlen]
+    exact horner_segments _ _ lo mid hi hlo hmid hhi
+  unfold certificateValues closedValues
+  dsimp only
+  rw [runN_shifted, extraPack_shifted, hwp, onesPack_closed _ _ (radix_ge_two c),
+    onesPack_closed _ _ (radix_ge_two c)]
+  simp only [radix]
+  simp only [← pow_mul]
+  simp only [← Nat.one_shiftLeft]
+
+end ToVCVio.RoundedConvolution

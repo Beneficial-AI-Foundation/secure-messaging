@@ -83,6 +83,7 @@ public import SecureMessaging.SCKA.MLKEMBraid.Authenticator
 public import SecureMessaging.SCKA.MLKEMBraid.Basic
 public import SecureMessaging.SCKA.MLKEMBraid.Construction
 public import SecureMessaging.SCKA.MLKEMBraid.Correctness
+public import SecureMessaging.SCKA.MLKEMBraid.Security
 public import SecureMessaging.SCKA.SPQR.Chunked
 public import SecureMessaging.SCKA.SPQR.Construction
 public import SecureMessaging.SCKA.SPQR.Correctness

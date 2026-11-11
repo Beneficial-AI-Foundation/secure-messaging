@@ -15,7 +15,7 @@ public import Mathlib.Data.Matrix.Basic
 # FrodoKEM error sampling
 
 `Sample` and `SampleMatrix` follow Sections 6.5 and 6.6 of `[LBES26]` and
-Section 3.1 of `[CiC25]`. References are listed in `Construction.lean`.
+Section 3.1 of `[CiC25]`.
 
 The three threshold tables are transcribed from Table 5 of `[LBES26]`.
 The error probabilities in its Table 4 agree with Table 3 of `[CiC25]`;
@@ -36,6 +36,15 @@ For a fixed `table : ErrorTable`, with `lenChi = 16`, the sampling maps are
   input block `k`: its bit `t` is at position `k * lenChi + t` in `r`.
 
 Both maps transform supplied bits; they generate no randomness themselves.
+
+## References
+
+* `[CiC25]`, Glabush, Longa, Naehrig, Peikert, Stebila and Virdia, *FrodoKEM: A
+  CCA-Secure Learning With Errors Key Encapsulation Mechanism*, IACR
+  Communications in Cryptology 2:3, <https://cic.iacr.org/p/2/3/25>;
+* `[LBES26]`, Longa, Bos, Ehlen and Stebila, *FrodoKEM: key encapsulation from
+  learning with errors*, draft-longa-cfrg-frodokem-03, 22 June 2026,
+  <https://datatracker.ietf.org/doc/html/draft-longa-cfrg-frodokem-03>.
 -/
 
 @[expose] public section

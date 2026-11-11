@@ -1,0 +1,28 @@
+% directive: erasureCodeInstancesFigure
+% aria-label: Erasure code definition and its instances: Reed-Solomon over a field F, Reed-Solomon over F_{2^16} with N = 2^16 points, parallel Reed-Solomon over F^16, which uses Reed-Solomon, and the SPQR erasure code over F_{2^16}^16, which uses Reed-Solomon over F_{2^16}.
+\documentclass[tikz,border=6pt]{standalone}
+\input{preamble}
+\begin{document}
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[theorybox, minimum width=4.00cm, minimum height=1.05cm] at (0,2.25) (ec)
+    {{\normalsize\bfseries Erasure code}\ \ \tagsf{definition}\\[2pt] symbol set $\Sigma$};
+  \node[instancebox, minimum width=4.30cm, minimum height=1.15cm] at (-3.80,0.15) (rs)
+    {{\normalsize\bfseries Reed--Solomon}\ \ \tagsf{instance}\\[2pt]
+     $\Sigma=F$\quad \notesf{field elements}};
+  \draw[instof] (rs.north) -- (ec.south west);
+  \node[instancebox, minimum width=4.30cm, minimum height=1.15cm] at (-3.80,-2.30) (crs)
+    {{\normalsize\bfseries Reed--Solomon over $\mathbb F_{2^{16}}$}\ \ \tagsf{instance}\\[2pt]
+     $\Sigma=F=\mathbb F_{2^{16}}$\\[1pt] \notesf{$N=2^{16}$ evaluation points}};
+  \draw[instof] (crs.north) -- (rs.south);
+  \node[instancebox, minimum width=4.30cm, minimum height=1.15cm] at (3.80,0.15) (prs)
+    {{\normalsize\bfseries Parallel Reed--Solomon}\ \ \tagsf{instance}\\[2pt]
+     $\Sigma=F^{16}$\quad \notesf{vectors of field elements}};
+  \draw[instof] (prs.north) -- (ec.south east);
+  \draw[uses] (prs.west) -- node[midway, above, lbl, signalolive] {uses} (rs.east);
+  \node[instancebox, minimum width=4.60cm, minimum height=1.15cm] at (3.80,-2.30) (cprs)
+    {{\normalsize\bfseries SPQR erasure code}\ \ \tagsf{instance}\\[2pt]
+     $\Sigma=\mathbb F_{2^{16}}^{16}$\\[1pt] \notesf{chunks of 16 field elements}};
+  \draw[instof] (cprs.north) -- (prs.south);
+  \draw[uses] (cprs.west) -- node[midway, above, lbl, signalolive] {uses} (crs.east);
+\end{tikzpicture}
+\end{document}

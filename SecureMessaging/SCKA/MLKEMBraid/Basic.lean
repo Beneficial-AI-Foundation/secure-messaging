@@ -17,7 +17,7 @@ A Lean model of Signal's *The ML-KEM Braid Protocol*
 ([specification](https://signal.org/docs/specifications/mlkembraid/)): the message fields
 and types of §2.3, the eleven states and their additional fields from §2.5, the
 per-state `Send` and `Receive` procedures of §2.5, and `InitAlice` and `InitBob` of §2.6.
-`MLKEMBraid.Construction` packages the transition system as an SCKA scheme.
+`Braid.Construction` packages the transition system as an SCKA scheme.
 
 The trace and table use the edge numbers from Figure 1 and §2.5.
 
@@ -103,7 +103,7 @@ open ErasureCodePayload.Streaming
 
 universe u
 
-namespace MLKEMBraid
+namespace Braid
 
 /-- Parameters for the transition system: an incremental KEM, pure implementations of the
 KEM operations used by `receive`, epoch-key derivation, and four erasure-coded streams. -/
@@ -542,4 +542,4 @@ def initB (P : Parameters m)
     :=
   .noHeaderReceived 1 (auth.init ik 1) P.decHdr.empty
 
-end MLKEMBraid
+end Braid

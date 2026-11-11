@@ -32,7 +32,7 @@ def mlkemBraidParameters (p : MLKEM.ParameterSet) (ring : MLKEM.NTTRingOps)
     (ecpEk : ErasureCodePayload (MLKEM.mlkemIncremental p ring prims).PKvector Sym)
     (ecpCt1 : ErasureCodePayload (MLKEM.mlkemIncremental p ring prims).C₁ Sym)
     (ecpCt2 : ErasureCodePayload
-      ((MLKEM.mlkemIncremental p ring prims).C₂ × Mac) Sym) : Parameters ProbComp
+      ((MLKEM.mlkemIncremental p ring prims).C₂ × Mac) Sym) : Braid.Parameters ProbComp
 -- ANCHOR_END: mlkemBraidParameters
     where
   K := MLKEM.SharedSecret
@@ -78,14 +78,14 @@ def mlkemBraidScheme (p : MLKEM.ParameterSet) (ring : MLKEM.NTTRingOps)
         (MLKEM.mlkemIncremental p ring prims).C₂) Mac)
     (sampleInitKey : ProbComp InitKey) :
     SCKAScheme ProbComp InitKey
-      (State (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2) AuthState)
-      (State (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2) AuthState)
-      EpochKey (Message Sym)
-      (SendRand (MLKEM.mlkemIncrementalRandLeak p ring prims).KeygenRand
+      (Braid.State (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2) AuthState)
+      (Braid.State (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2) AuthState)
+      EpochKey (Braid.Message Sym)
+      (Braid.SendRand (MLKEM.mlkemIncrementalRandLeak p ring prims).KeygenRand
         (MLKEM.mlkemIncrementalRandLeak p ring prims).Encaps1Rand)
 -- ANCHOR_END: mlkemBraidScheme
     :=
-  scheme (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2) auth
+  Braid.scheme (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2) auth
     (MLKEM.mlkemIncrementalRandLeak p ring prims) sampleInitKey
 
 end MLKEMBraid

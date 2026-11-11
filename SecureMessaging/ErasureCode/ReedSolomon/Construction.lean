@@ -88,10 +88,9 @@ recovers the message.
 An erasure code over a set of symbols `Σ`, with block length `N > 0` and message size
 `nchunk ≤ N`, consists of two algorithms:
 
-* `Encode(M, j) → c` — the symbol of message `M ∈ Σ^nchunk` at position
-  `j ∈ {0, …, N-1}`;
-* `Decode(L) → M` — recovery of a message from a chunk set `L ⊆ {0, …, N-1} × Σ`,
-  or failure `⊥`.
+* `Encode(M, j) → c` — maps a message `M ∈ Σ^nchunk` and a position `j ∈ {0, …, N-1}`
+  to a symbol `c ∈ Σ`;
+* `Decode(L) → M` — maps a chunk set `L ⊆ {0, …, N-1} × Σ` to a message `M`, or to `⊥`.
 
 A *chunk* of `M` is a pair `(j, Encode(M, j))`. Correctness: any `nchunk` chunks of
 `M` at distinct positions decode to `M`; fewer decode to `⊥`.
@@ -156,23 +155,25 @@ variable {F : Type} [Field F]
 
 namespace Parameters
 
--- ANCHOR: reedSolomon_sourcePoints
 /-- The inclusion `{0, …, k-1} ↪ {0, …, N-1}`, `i ↦ i`: a message index as a
 codeword position. -/
+-- ANCHOR: reedSolomon_sourceIndex
 def sourceIndex (params : Parameters F) (i : Fin params.k) : Fin params.N :=
   Fin.castLE params.k_le_N i
+-- ANCHOR_END: reedSolomon_sourceIndex
 
 /-- The evaluation-point mapping `point : j ↦ xⱼ` restricted to the message
 positions `{0, …, k-1}`: `i ↦ xᵢ`. -/
+-- ANCHOR: reedSolomon_sourcePoint
 def sourcePoint (params : Parameters F) (i : Fin params.k) : F :=
   params.point (params.sourceIndex i)
+-- ANCHOR_END: reedSolomon_sourcePoint
 
 /-- The points `x₀, …, x_(k-1)` are pairwise distinct: the restriction of an
 injective mapping is itself injective. -/
 theorem sourcePoint_injective (params : Parameters F) :
     Function.Injective params.sourcePoint :=
   params.point_injective.comp (Fin.castLE_injective params.k_le_N)
--- ANCHOR_END: reedSolomon_sourcePoints
 
 /-- The *encoding polynomial* `Pₘ` of a message `m`: the unique polynomial with
 `deg Pₘ < k` and `Pₘ(xᵢ) = mᵢ` for `i < k`, by Lagrange interpolation at the points

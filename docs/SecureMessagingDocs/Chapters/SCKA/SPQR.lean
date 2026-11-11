@@ -42,7 +42,7 @@ Sparse Post-Quantum Ratchet (SPQR).
 :::defTitle "spqr_parameters" "SPQR parameters"
 :::
 
-:::::::definition "spqr_parameters" (parent := "cka_protocols_spqr") (lean := "SPQR.Parameters, SPQR.Parameters.generate, SPQR.Parameters.generateRleak, SPQR.Parameters.encaps1, SPQR.Parameters.encaps1Rleak, SPQR.Parameters.encaps2, SPQR.Parameters.decaps, SPQR.Parameters.ekMatchesHeader") (tags := "gh-252") (uses := "incremental_kem_det, erasure_code_payload, stream_decoder")
+:::::::definition "spqr_parameters" (parent := "cka_protocols_spqr") (lean := "SPQR.Parameters, SPQR.Parameters.generate, SPQR.Parameters.generateRleak, SPQR.Parameters.encaps1, SPQR.Parameters.encaps1Rleak, SPQR.Parameters.encaps2, SPQR.Parameters.decaps, SPQR.Parameters.ekMatchesHeader") (tags := "gh-252") (uses := "incremental_kem_det, erasure_code_payload, erasure_code_streaming")
 An *SPQR parameter set* $`P` consists of
 
 - an {bpref "incremental_kem_det"}[incremental KEM with explicit coins]:
@@ -59,9 +59,9 @@ An *SPQR parameter set* $`P` consists of
   $`\Sigma` with their {bpref "erasure_code_streaming"}[streaming] interface:
   - $`\mathsf{Code}_H`, $`\mathsf{Code}_V`, $`\mathsf{Code}_1`, and $`\mathsf{Code}_2`, with payloads
     $`H\times T`, $`V`, $`C_1`, and $`C_2\times T` respectively;
-  - encoder algorithms $`\mathsf{Enc}_X` and $`\mathsf{Next}`;
-  - one {bpref "stream_decoder"}[stream decoder] per stream, with algorithms $`\mathsf{Empty}_X`,
-    $`\mathsf{Add}`, and $`\mathsf{Decode}`.
+  - for each $`X\in\{H,V,1,2\}`, the encoder algorithms $`\mathsf{Enc}_X` and $`\mathsf{Next}` of
+    $`\mathsf{Code}_X`, and a {bpref "erasure_code_streaming"}[stream decoder] for the payloads of
+    $`\mathsf{Code}_X`, with algorithms $`\mathsf{Empty}_X`, $`\mathsf{Add}`, and $`\mathsf{Decode}`.
 
 :::leanPillCaption "Parameters"
 :::
@@ -1214,7 +1214,7 @@ noncomputable def v1Scheme {InitKey AuthState EpochKey Mac : Type}
 :::defTitle "spqr_mlkem_braid_relation" "SPQR and ML-KEM Braid correctness games"
 :::
 
-::::definition "spqr_mlkem_braid_relation" (parent := "cka_protocols_spqr") (lean := "SPQR.Chunked.Message.toMLKEMBraid, SPQR.Chunked.PartyState.toMLKEMBraid, SPQR.RecvDivergence, SPQR.GameState.toMLKEMBraid, SPQR.Ct1AckInv, SPQR.DeliveryDivergence, SPQR.sckaCorrectnessImpl_run_toMLKEMBraid, SPQR.DeliveryDivergence.ct1Acknowledged_ek, SPQR.sckaCorrectnessImpl_run_toMLKEMBraidAck") (tags := "gh-269") (uses := "spqr_chunked_scheme, mlkem_braid_spec, scka_correctness")
+::::definition "spqr_mlkem_braid_relation" (parent := "cka_protocols_spqr") (lean := "SPQR.Chunked.Message.toBraid, SPQR.Chunked.PartyState.toBraid, SPQR.RecvDivergence, SPQR.GameState.toBraid, SPQR.Ct1AckInv, SPQR.DeliveryDivergence, SPQR.sckaCorrectnessImpl_run_toBraid, SPQR.DeliveryDivergence.ct1Acknowledged_ek, SPQR.sckaCorrectnessImpl_run_toBraidAck") (tags := "gh-269") (uses := "spqr_chunked_scheme, mlkem_braid_spec, scka_correctness")
 SPQR party states and messages translate into ML-KEM Braid ones, field for field. The
 one exception is SPQR's `Ct1Ack(true)`, which SPQR sends in `ekSentCt1Received`. In
 that state ML-KEM Braid sends an empty message, so `Ct1Ack(true)` becomes an empty
@@ -1231,14 +1231,14 @@ relabelled as an acknowledging vector chunk.
 :::
 
 ```anchor Relation_GameState_toMLKEMBraid (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness.Relation)
-def GameState.toMLKEMBraid (s : GameState P AuthState) :
-    MLKEMBraid.GameState P.toBraid AuthState where
-  stA := s.stA.toMLKEMBraid
-  stB := s.stB.toMLKEMBraid
+def GameState.toBraid (s : GameState P AuthState) :
+    Braid.GameState P.toBraid AuthState where
+  stA := s.stA.toBraid
+  stB := s.stB.toBraid
   keyA := s.keyA
   keyB := s.keyB
-  msgA := fun n => (s.msgA n).map fun e => (e.1.toMLKEMBraid, e.2)
-  msgB := fun n => (s.msgB n).map fun e => (e.1.toMLKEMBraid, e.2)
+  msgA := fun n => (s.msgA n).map fun e => (e.1.toBraid, e.2)
+  msgB := fun n => (s.msgB n).map fun e => (e.1.toBraid, e.2)
   nA := s.nA
   nB := s.nB
   tcurA := s.tcurA
@@ -1277,29 +1277,29 @@ def DeliveryDivergence (s : GameState P AuthState) :
 :::
 
 ```anchor Relation_sckaCorrectnessImpl_run_toMLKEMBraid (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness.Relation)
-theorem sckaCorrectnessImpl_run_toMLKEMBraid (s : GameState P AuthState)
+theorem sckaCorrectnessImpl_run_toBraid (s : GameState P AuthState)
     (t : (SCKAScheme.sckaCorrectnessSpec (Chunked.Message P.Sym)).Domain)
     (ht : ¬ DeliveryDivergence s t) :
-    (fun z => GameState.toMLKEMBraid z.2) <$>
+    (fun z => GameState.toBraid z.2) <$>
         (SCKAScheme.sckaCorrectnessImpl (scheme P auth sampleInitKey) t).run s =
       (fun z => z.2) <$>
         (SCKAScheme.sckaCorrectnessImpl
-          (MLKEMBraid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey) t).run
-          s.toMLKEMBraid
+          (Braid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey) t).run
+          s.toBraid
 ```
 ::::
 
 :::defTitle "spqr_protocol_correctness" "SPQR protocol correctness"
 :::
 
-::::theorem "spqr_protocol_correctness" (parent := "cka_protocols_spqr") (lean := "SPQR.correctness_error_le, SPQR.v1Scheme_correctness_error_le") (tags := "gh-269") (uses := "spqr_protocol_spec, spqr_mlkem_braid_relation, mlkem_braid_correctness, scka_correctness, erasure_code_correctness, stream_decoder, incremental_kem_scheme, incremental_kem_det")
+::::theorem "spqr_protocol_correctness" (parent := "cka_protocols_spqr") (lean := "SPQR.correctness_error_le, SPQR.v1Scheme_correctness_error_le") (tags := "gh-269") (uses := "spqr_protocol_spec, spqr_mlkem_braid_relation, mlkem_braid_correctness, scka_correctness, erasure_code_correctness, erasure_code_streaming, incremental_kem_scheme, incremental_kem_det")
 Assume that:
 
 * $`\adv` is any SCKA correctness adversary making at most $`q` send-oracle
   queries;
 * the incremental KEM has deterministic decapsulation and a deterministic
   second stage, and has correctness error at most $`\varepsilon`;
-* and the four stream decoders are sound for their erasure codes ({bpref "stream_decoder"}[]).
+* and the four stream decoders are sound for their erasure codes ({bpref "erasure_code_streaming"}[]).
 
 Then $`1-\Pr\bigl[\Exp{\textsf{cor}}{\textsf{SPQR}}(\adv)=1\bigr] \le q\varepsilon`.
 For SPQR v1, the four SPQR Reed–Solomon codes are correct, so their set-based decoders are
