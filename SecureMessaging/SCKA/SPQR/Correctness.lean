@@ -106,62 +106,23 @@ private theorem transcriptConsistent_retype {ik : InitKey}
     (hty' : ty = .ek ∨ ty = .ekCt1Ack)
     (hctl : Braid.MessageControl party (s.stateAt party) { msg with type := ty }) :
     Braid.TranscriptConsistent auth ik T
-      (if party then
-        { s with msgA := Function.update s.msgA n (some ({ msg with type := ty }, tsnd)) }
-      else
-        { s with msgB := Function.update s.msgB n (some ({ msg with type := ty }, tsnd)) }) := by
+      (s.setMessages party
+        (Function.update (s.messagesAt party) n (some ({ msg with type := ty }, tsnd)))) := by
   have hpay : Braid.MessagePayloadInv auth ik T { msg with type := ty } := by
-    have h := hT.messages party n msg tsnd (by cases party <;> exact hmsg)
+    have h := hT.messages party n msg tsnd hmsg
     rcases hty with h1 | h1 <;> rcases hty' with rfl | rfl <;>
       simpa only [Braid.MessagePayloadInv, h1] using h
   have hEK := hT.control.epochKnowledge
   have hRR := hT.control.recordedReport
   have hbound := hEK.msgs party n msg tsnd hmsg
-  have hrep := hRR.report party n msg tsnd hmsg
   have hct2 : ty ≠ .ct2 := by rcases hty' with rfl | rfl <;> simp
-  have hKP : Braid.KeyPrefixInv
-      (if party then
-        { s with msgA := Function.update s.msgA n (some ({ msg with type := ty }, tsnd)) }
-      else
-        { s with msgB := Function.update s.msgB n (some ({ msg with type := ty }, tsnd)) }) := by
-    cases party <;>
-      exact ⟨hEK.keyPrefix.posA, hEK.keyPrefix.posB, hEK.keyPrefix.prefixA,
-        hEK.keyPrefix.prefixB⟩
-  cases party
-  · simp only [Bool.false_eq_true, ↓reduceIte] at hKP ⊢
-    exact { hT with
-      control := { hT.control with
-        epochKnowledge := { hEK with
-          keyPrefix := hKP
-          msgB := forall_update_record hEK.msgB
-            ⟨hbound.1, hbound.2.1, fun h => absurd h hct2⟩ }
-        recordedReport := { hRR with msgB := forall_update_record hRR.msgB hrep }
-        roles := fun p => by
-          cases p
-          · exact ⟨(hT.control.roles false).1, (hT.control.roles false).2.1,
-              forall_update_record (hT.control.roles false).2.2 hctl⟩
-          · exact hT.control.roles true }
-      messages := fun p => by
-        cases p
-        · exact forall_update_record (hT.messages false) hpay
-        · exact hT.messages true }
-  · simp only [↓reduceIte] at hKP ⊢
-    exact { hT with
-      control := { hT.control with
-        epochKnowledge := { hEK with
-          keyPrefix := hKP
-          msgA := forall_update_record hEK.msgA
-            ⟨hbound.1, hbound.2.1, fun h => absurd h hct2⟩ }
-        recordedReport := { hRR with msgA := forall_update_record hRR.msgA hrep }
-        roles := fun p => by
-          cases p
-          · exact hT.control.roles false
-          · exact ⟨(hT.control.roles true).1, (hT.control.roles true).2.1,
-              forall_update_record (hT.control.roles true).2.2 hctl⟩ }
-      messages := fun p => by
-        cases p
-        · exact hT.messages false
-        · exact forall_update_record (hT.messages true) hpay }
+  refine Braid.TranscriptInv.setMessages (P := P.toBraid) auth hT party _ ?_
+  refine forall_update_record ?_ ?_
+  · intro k m t hk
+    exact ⟨hEK.msgs party k m t hk, hRR.report party k m t hk,
+      (hT.control.roles party).2.2 k m t hk, hT.messages party k m t hk⟩
+  · exact ⟨⟨hbound.1, hbound.2.1, fun h => absurd h hct2⟩, hRR.report party n msg tsnd hmsg, hctl,
+      hpay⟩
 
 /-- In a consistent state, the sender of a plain vector chunk recorded at the epoch of a receiver in
 `ct1Acknowledged` is in `ct1Received` at that epoch, so it allows the chunk to be an acknowledging
@@ -209,11 +170,7 @@ private theorem transcriptConsistent_toBraidAck {ik : InitKey}
   have hctl := messageControl_ekCt1Ack auth hT party hst' hmsg'
   have h := transcriptConsistent_retype auth hT (!party) n hmsg' (Or.inl rfl) .ekCt1Ack
     (Or.inr rfl) hctl
-  cases party
-  · have hraw : s.toBraid.msgA n = some (⟨core.ep, .ek, some chunk⟩, tsnd) := hmsg'
-    simpa [GameState.toBraidAck, hraw] using h
-  · have hraw : s.toBraid.msgB n = some (⟨core.ep, .ek, some chunk⟩, tsnd) := hmsg'
-    simpa [GameState.toBraidAck, hraw] using h
+  simpa [GameState.toBraidAck, hmsg'] using h
 
 /-- After a query of the relabelled translation, restoring the plain vector chunk keeps the Braid
 invariant. -/
@@ -226,21 +183,21 @@ private theorem correctnessInv_restore {ik : InitKey} (party : Bool) (n : ℕ)
     Braid.CorrectnessInv auth ik
       (if party then { z with msgB := s.toBraid.msgB }
         else { z with msgA := s.toBraid.msgA }) := by
+  have hrestore : (if party then { z with msgB := s.toBraid.msgB }
+      else { z with msgA := s.toBraid.msgA }) =
+      z.setMessages (!party) (s.toBraid.messagesAt (!party)) := by
+    cases party <;> rfl
+  rw [hrestore]
   rcases hz with hzf | ⟨T, hT⟩
-  · exact Or.inl (by cases party <;> exact hzf)
+  · exact Or.inl hzf
   refine Or.inr ⟨T, ?_⟩
   have hmsgF : s.toBraid.messagesAt (!party) n = some (⟨core.ep, .ek, some chunk⟩, tsnd) := by
     cases party <;>
       simpa [Braid.GameState.messagesAt, GameState.toBraid,
-        Chunked.Message.toBraid] using congrArg (Option.map fun e => (e.1.toBraid, e.2))
-          hmsg
+        Chunked.Message.toBraid] using congrArg (Option.map fun e => (e.1.toBraid, e.2)) hmsg
   have hmsgZ : z.messagesAt (!party) n = some (⟨core.ep, .ekCt1Ack, some chunk⟩, tsnd) := by
     rw [hmsgs]
-    cases party
-    · have hraw : s.toBraid.msgA n = some (⟨core.ep, .ek, some chunk⟩, tsnd) := hmsgF
-      simp [GameState.toBraidAck, Braid.GameState.messagesAt, hraw]
-    · have hraw : s.toBraid.msgB n = some (⟨core.ep, .ek, some chunk⟩, tsnd) := hmsgF
-      simp [GameState.toBraidAck, Braid.GameState.messagesAt, hraw]
+    simp [GameState.toBraidAck, hmsgF]
   obtain ⟨hwf, hle, hstep, hown⟩ := (hT.control.roles (!party)).2.2 n _ tsnd hmsgZ
   have hctl : Braid.MessageControl (!party) (z.stateAt (!party))
       { (⟨core.ep, .ekCt1Ack, some chunk⟩ : Braid.Message P.Sym) with type := .ek } :=
@@ -248,27 +205,11 @@ private theorem correctnessInv_restore {ik : InitKey} (party : Bool) (n : ℕ)
       by simpa [Braid.MessageOwner] using hown⟩
   have h := transcriptConsistent_retype auth hT (!party) n hmsgZ (Or.inr rfl) .ek (Or.inl rfl) hctl
   -- Restoring the record gives back the message table of the translation.
-  have hrestore : ∀ (f : ℕ → Option (Braid.Message P.Sym × ℕ)),
-      f n = some (⟨core.ep, .ek, some chunk⟩, tsnd) →
-      Function.update (Function.update f n (some (⟨core.ep, .ekCt1Ack, some chunk⟩, tsnd))) n
-        (some (⟨core.ep, .ek, some chunk⟩, tsnd)) = f := by
-    intro f hf
-    rw [Function.update_idem, ← hf, Function.update_eq_self]
-  cases party
-  · have hraw : s.toBraid.msgA n = some (⟨core.ep, .ek, some chunk⟩, tsnd) := hmsgF
-    have hz' : z.msgA = Function.update s.toBraid.msgA n
-        (some (⟨core.ep, .ekCt1Ack, some chunk⟩, tsnd)) := by
-      simpa [GameState.toBraidAck, Braid.GameState.messagesAt, hraw] using hmsgs
-    simp only [Bool.not_false, ↓reduceIte, Bool.false_eq_true] at h ⊢
-    rw [hz', hrestore _ hraw] at h
-    exact h
-  · have hraw : s.toBraid.msgB n = some (⟨core.ep, .ek, some chunk⟩, tsnd) := hmsgF
-    have hz' : z.msgB = Function.update s.toBraid.msgB n
-        (some (⟨core.ep, .ekCt1Ack, some chunk⟩, tsnd)) := by
-      simpa [GameState.toBraidAck, Braid.GameState.messagesAt, hraw] using hmsgs
-    simp only [Bool.not_true, ↓reduceIte, Bool.false_eq_true] at h ⊢
-    rw [hz', hrestore _ hraw] at h
-    exact h
+  have htable : Function.update (z.messagesAt (!party)) n
+      (some (⟨core.ep, .ek, some chunk⟩, tsnd)) = s.toBraid.messagesAt (!party) := by
+    rw [hmsgs]
+    simp [GameState.toBraidAck, hmsgF]
+  rwa [htable] at h
 
 variable [DecidableEq P.EpochKey] (sampleInitKey : ProbComp InitKey)
 

@@ -408,6 +408,52 @@ theorem TranscriptInv.of_party {ik : InitKey} {T : ℕ → EpochTranscript P}
     rw [hKeys, hcomp]
     exact hT.keys party e
 
+/-- Let `s` be consistent with `T`. Replace the messages sent by `party` by a table `msgs`. If every
+entry of `msgs` has the epoch bounds, the stored report, the control condition of `party` and the
+payload invariant that an entry of a consistent state has, then the new state is consistent with
+`T`. -/
+theorem TranscriptInv.setMessages {ik : InitKey} {T : ℕ → EpochTranscript P}
+    {s : GameState P AuthState} (hT : TranscriptInv auth D ik T s) (party : Bool)
+    (msgs : ℕ → Option (Message P.Sym × ℕ))
+    (hmsgs : ∀ n msg tsnd, msgs n = some (msg, tsnd) →
+      (msg.epoch ≤ (s.stateAt party).completedEpoch + 1 ∧
+        msg.epoch ≤ (s.stateAt (!party)).completedEpoch + 1 ∧
+        (msg.type = .ct2 → msg.epoch ≤ (s.stateAt party).completedEpoch)) ∧
+      tsnd = msg.epoch - 1 ∧ MessageControl party (s.stateAt party) msg ∧
+      MessagePayloadInv auth ik T msg) :
+    TranscriptInv auth D ik T (s.setMessages party msgs) := by
+  have hEK := hT.control.epochKnowledge
+  have hRR := hT.control.recordedReport
+  have hall : ∀ who n msg tsnd,
+      (s.setMessages party msgs).messagesAt who n = some (msg, tsnd) →
+      (msg.epoch ≤ (s.stateAt who).completedEpoch + 1 ∧
+        msg.epoch ≤ (s.stateAt (!who)).completedEpoch + 1 ∧
+        (msg.type = .ct2 → msg.epoch ≤ (s.stateAt who).completedEpoch)) ∧
+      tsnd = msg.epoch - 1 ∧ MessageControl who (s.stateAt who) msg ∧
+      MessagePayloadInv auth ik T msg := by
+    intro who n msg tsnd h
+    rw [messagesAt_setMessages] at h
+    by_cases hw : who = party
+    · subst hw
+      exact hmsgs n msg tsnd (by simpa using h)
+    · rw [ite_eq_right hw] at h
+      exact ⟨hEK.msgs who n msg tsnd h, hRR.report who n msg tsnd h,
+        (hT.control.roles who).2.2 n msg tsnd h, hT.messages who n msg tsnd h⟩
+  exact { hT with
+    control := { hT.control with
+      epochKnowledge := { hEK with
+        keyPrefix := ⟨hEK.keyPrefix.posA, hEK.keyPrefix.posB, hEK.keyPrefix.prefixA,
+          hEK.keyPrefix.prefixB⟩
+        msgA := fun n msg tsnd h => (hall true n msg tsnd h).1
+        msgB := fun n msg tsnd h => (hall false n msg tsnd h).1 }
+      recordedReport := { hRR with
+        msgA := fun n msg tsnd h => (hall true n msg tsnd h).2.1
+        msgB := fun n msg tsnd h => (hall false n msg tsnd h).2.1 }
+      roles := fun who =>
+        ⟨(hT.control.roles who).1, (hT.control.roles who).2.1,
+          fun n msg tsnd h => (hall who n msg tsnd h).2.2.1⟩ }
+    messages := fun who n msg tsnd h => (hall who n msg tsnd h).2.2.2 }
+
 /-- The invariant for `D` gives the invariant for `D'` if `D` implies `D'` on the recorded key
 pairs and encapsulations. -/
 theorem TranscriptInv.mono {ik : InitKey} {T : ℕ → EpochTranscript P} {s : GameState P AuthState}

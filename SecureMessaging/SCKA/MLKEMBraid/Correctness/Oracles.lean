@@ -74,6 +74,17 @@ def GameState.countAt (s : GameState P AuthState) (party : Bool) : ℕ :=
 def GameState.tcurAt (s : GameState P AuthState) (party : Bool) : ℕ :=
   if party then s.tcurA else s.tcurB
 
+/-- The game state with the messages sent by `party` replaced by `msgs`. -/
+def GameState.setMessages (s : GameState P AuthState) (party : Bool)
+    (msgs : ℕ → Option (Message P.Sym × ℕ)) : GameState P AuthState :=
+  { s with msgA := if party then msgs else s.msgA, msgB := if party then s.msgB else msgs }
+
+/-- `setMessages` changes the messages of `party` and no others. -/
+@[simp] theorem messagesAt_setMessages (s : GameState P AuthState) (party who : Bool)
+    (msgs : ℕ → Option (Message P.Sym × ℕ)) :
+    (s.setMessages party msgs).messagesAt who = if who = party then msgs else s.messagesAt who := by
+  cases party <;> cases who <;> rfl
+
 /-- The game state after `party` sends with result `r`, with the correctness flag of `s`. -/
 def sendSuccessor (s : GameState P AuthState) (party : Bool)
     (r : SendResult P AuthState) : GameState P AuthState :=
