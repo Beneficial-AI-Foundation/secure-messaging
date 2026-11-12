@@ -13,15 +13,20 @@ public import ToVCVio.Data.Vector.Split
 /-!
 # Correctness error of ML-KEM with explicit coins
 
-`mlkemIncrementalDet` runs ML-KEM with explicit coins: its algorithms are deterministic functions
-of random bytes that are drawn first. Key generation draws one 64-byte seed, and encapsulation draws
-one 32-byte message. `mlkemScheme` follows FIPS 203, where key generation draws
-two 32-byte seeds `d` and `z`. The first 32 bytes of the 64-byte seed take the role of `d`, and the
-last 32 bytes take the role of `z`.
+This module relates two descriptions of the key encapsulation mechanism (KEM) ML-KEM:
 
-A uniform 64-byte seed, split in two, has the distribution of two independent uniform 32-byte seeds.
-Encapsulation and decapsulation are the same computations in both KEMs. So the two KEMs have the
-same correctness error (`mlkemIncrementalDet_correctnessError`).
+* `mlkemScheme` is ML-KEM as in FIPS 203. Key generation draws two 32-byte seeds `d` and `z`, and
+  encapsulation draws a 32-byte message.
+* `mlkemIncrementalDet` is ML-KEM with explicit coins. Its algorithms are deterministic functions
+  of random bytes, which `toKEM` draws first. Key generation takes one 64-byte seed. Its first
+  32 bytes play the role of `d`, and its last 32 bytes play the role of `z`. Encapsulation takes
+  one 32-byte message.
+
+## Main result
+
+`mlkemIncrementalDet_correctnessError`: the two KEMs have the same correctness error. The
+correctness error of a KEM is the probability that decapsulation of an honestly generated
+encapsulation does not return the encapsulated key.
 -/
 
 @[expose] public section
