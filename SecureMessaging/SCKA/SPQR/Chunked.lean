@@ -11,8 +11,8 @@ public import SecureMessaging.SCKA.SPQR.Unchunked
 /-! # SPQR chunked protocol
 
 SPQR is Signal's implementation of the ML-KEM Braid key exchange. This module models its v1
-send and receive transitions at release v1.6.0 (commit `06959b47`), using the core operations in
-`SPQR.Unchunked`.
+send and receive transitions at revision `f2589fe`, using the core operations in `SPQR.Unchunked`.
+Line references are to that revision.
 
 ## One epoch
 

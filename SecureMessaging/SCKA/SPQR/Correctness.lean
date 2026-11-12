@@ -8,6 +8,7 @@ module
 
 public import SecureMessaging.ErasureCode.SPQRReedSolomon.Correctness
 public import SecureMessaging.KEM.IncrementalKEM.FromMLKEM.Equivalence
+public import SecureMessaging.SCKA.SPQR.Correctness.Relabel
 public import SecureMessaging.SCKA.SPQR.Correctness.Relation
 public import SecureMessaging.SCKA.SPQR.Instances
 
@@ -23,10 +24,10 @@ Let:
 * `ε := P.det.toKEM.correctnessError ProbCompRuntime.probComp` be the correctness error of the
   underlying KEM.
 
-The game is the SCKA correctness game of the Braid proof. The adversary chooses which party sends
-and which recorded message each party receives, so it may omit, delay, reorder, duplicate or replay
-messages. The game keeps a correctness flag, which becomes false when a receive refuses a recorded
-message or when a check on the reported epochs and the output keys fails.
+The game is the SCKA correctness game (Definition 3.1 and Figure 1 of [SCKA]). The adversary
+chooses which party sends and which recorded message each party receives, so it may omit, delay,
+reorder, duplicate or replay messages. The game keeps a correctness flag, which becomes false when a
+receive refuses a recorded message or when a check on the reported epochs and the output keys fails.
 
 ## Main results
 
@@ -37,12 +38,12 @@ If the four stream decoders of `P` are sound for their erasure codes (`StreamDec
 * `v1Scheme_correctness_error_le`: the same bound for `v1Scheme`, with `ε` the correctness error of
   ML-KEM-768. Its four SPQR Reed-Solomon codes are correct, so its set-based decoders are sound.
 
-This is the bound of `Braid.correctness_error_le`, for the SPQR scheme.
-
 ## Proof
 
-The proof translates SPQR game states into Braid game states (`GameState.toBraid`) and takes
-the invariant `CorrectnessInv` and the potential `failurePotential` of the Braid proof on the
+The proof reduces SPQR correctness to the correctness of ML-KEM Braid. The Braid proof gives the
+same bound for the Braid scheme (`Braid.correctness_error_le`) from an invariant `CorrectnessInv`
+and a potential `failurePotential` on Braid game states. Here, `GameState.toBraid` translates each
+SPQR game state into a Braid game state, and the invariant and the potential apply to the
 translated state. The SPQR invariant adds `Ct1AckInv`. Then
 `SCKAScheme.correctness_error_le_of_potential` gives the bound, once each query is shown to preserve
 the invariant and to raise the expected potential by at most `ε` for a send and not at all
@@ -55,14 +56,12 @@ otherwise:
   (`DeliveryDivergence.ct1Acknowledged_ek`), and it is the Braid query on the translation in which
   that record is an acknowledging vector chunk (`sckaCorrectnessImpl_run_toBraidAck`).
 
-The relabelling in the last case changes neither the invariant nor the potential. The Braid
-invariant sees the type of a recorded vector chunk only through the step its sender must have
-reached. The sender is in `ct1Received`, which is late enough for an acknowledging chunk. The
-potential does not read recorded messages.
+The relabelling in the last case keeps the invariant (`SPQR.Correctness.Relabel`) and the
+potential, which does not read recorded messages.
 
 ## References
 
-The protocol is Signal's SparsePostQuantumRatchet at release v1.6.0 (commit `06959b47`), which
+The protocol is Signal's SparsePostQuantumRatchet at revision `f2589fe`, which
 implements *The ML-KEM Braid Protocol* (https://signal.org/docs/specifications/mlkembraid/),
 sections 2.3 to 2.6. The correctness game follows Definition 3.1, Figure 1, and Appendix B.1 of:
 
@@ -85,168 +84,18 @@ variable {P : SPQR.Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
     P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
 
-/-! ### Relabelling a recorded vector chunk -/
-
-/-- If a property of recorded messages holds for a new entry and for every entry of a message
-table, it holds for every entry of the table updated with the new entry. -/
-private theorem forall_update_record {f : ℕ → Option (Braid.Message P.Sym × ℕ)} {n : ℕ}
-    {e : Braid.Message P.Sym × ℕ} {Q : Braid.Message P.Sym → ℕ → Prop}
-    (hold : ∀ k m t, f k = some (m, t) → Q m t) (hnew : Q e.1 e.2) :
-    ∀ k m t, Function.update f n (some e) k = some (m, t) → Q m t :=
-  (Function.forall_update_iff f (fun _ entry => ∀ m t, entry = some (m, t) → Q m t)).2
-    ⟨fun m t h => by obtain rfl := Option.some.inj h; exact hnew, fun k _ => hold k⟩
-
-/-- Changing the type of a recorded vector chunk to `ek` or `ekCt1Ack` keeps transcript
-consistency, provided the sender's state allows the new type. -/
-private theorem transcriptConsistent_retype {ik : InitKey}
-    {T : ℕ → Braid.EpochTranscript P.toBraid} {s : Braid.GameState P.toBraid AuthState}
-    (hT : Braid.TranscriptConsistent auth ik T s) (party : Bool) (n : ℕ)
-    {msg : Braid.Message P.Sym} {tsnd : ℕ} (hmsg : s.messagesAt party n = some (msg, tsnd))
-    (hty : msg.type = .ek ∨ msg.type = .ekCt1Ack) (ty : Braid.MessageType)
-    (hty' : ty = .ek ∨ ty = .ekCt1Ack)
-    (hctl : Braid.MessageControl party (s.stateAt party) { msg with type := ty }) :
-    Braid.TranscriptConsistent auth ik T
-      (s.setMessages party
-        (Function.update (s.messagesAt party) n (some ({ msg with type := ty }, tsnd)))) := by
-  have hpay : Braid.MessagePayloadInv auth ik T { msg with type := ty } := by
-    have h := hT.messages party n msg tsnd hmsg
-    rcases hty with h1 | h1 <;> rcases hty' with rfl | rfl <;>
-      simpa only [Braid.MessagePayloadInv, h1] using h
-  have hEK := hT.control.epochKnowledge
-  have hRR := hT.control.recordedReport
-  have hbound := hEK.msgs party n msg tsnd hmsg
-  have hct2 : ty ≠ .ct2 := by rcases hty' with rfl | rfl <;> simp
-  refine Braid.TranscriptInv.setMessages (P := P.toBraid) auth hT party _ ?_
-  refine forall_update_record ?_ ?_
-  · intro k m t hk
-    exact ⟨hEK.msgs party k m t hk, hRR.report party k m t hk,
-      (hT.control.roles party).2.2 k m t hk, hT.messages party k m t hk⟩
-  · exact ⟨⟨hbound.1, hbound.2.1, fun h => absurd h hct2⟩, hRR.report party n msg tsnd hmsg, hctl,
-      hpay⟩
-
-/-- In a consistent state, the sender of a plain vector chunk recorded at the epoch of a receiver in
-`ct1Acknowledged` is in `ct1Received` at that epoch, so it allows the chunk to be an acknowledging
-vector chunk. -/
-private theorem messageControl_ekCt1Ack {ik : InitKey}
-    {T : ℕ → Braid.EpochTranscript P.toBraid}
-    {s : Braid.GameState P.toBraid AuthState}
-    (hT : Braid.TranscriptConsistent auth ik T s)
-    (party : Bool) {n e : ℕ} {a : AuthState} {hdr : P.det.PKheader} {es : P.det.St}
-    {ct1 : P.det.C₁} {dec : P.decEk.D} {chunk : ℕ × P.Sym} {tsnd : ℕ}
-    (hst : s.stateAt party = .ct1Acknowledged e a hdr es ct1 dec)
-    (hmsg : s.messagesAt (!party) n = some (⟨e, .ek, some chunk⟩, tsnd)) :
-    Braid.MessageControl (!party) (s.stateAt (!party)) ⟨e, .ekCt1Ack, some chunk⟩ := by
-  obtain ⟨-, hle, -, hown⟩ := (hT.control.roles (!party)).2.2 n _ tsnd hmsg
-  obtain ⟨h, h', -, -, -, hcrossP, hroles⟩ :=
-    Braid.TranscriptInv.pairBounds (P := P.toBraid) auth hT party
-  rw [hst] at h h' hcrossP hroles
-  refine ⟨rfl, hle, fun hep => ?_, by simpa [Braid.MessageOwner] using hown⟩
-  simp only at hle hep
-  generalize s.stateAt (!party) = peer at h h' hcrossP hroles hle hep
-  cases peer <;>
-    simp_all [Braid.PairInv, Braid.AllowedStatePair, Braid.State.controlPosition,
-      Braid.State.epoch, Braid.State.completedEpoch, Braid.MessageType.sendStep]
-
-/-- If the translation of a state is consistent with a transcript, so is its relabelling at a plain
-vector chunk delivered to a party in `ct1Acknowledged`. -/
-private theorem transcriptConsistent_toBraidAck {ik : InitKey}
-    {T : ℕ → Braid.EpochTranscript P.toBraid} {s : GameState P AuthState}
-    (hT : Braid.TranscriptConsistent auth ik T s.toBraid) (party : Bool) (n : ℕ)
-    {core : CtSender.Ct1Sent P AuthState} {dec : P.decEk.D}
-    {chunk : ℕ × P.Sym} {tsnd : ℕ}
-    (hst : (if party then s.stA else s.stB) = .ct1Acknowledged core dec)
-    (hmsg : (if party then s.msgB else s.msgA) n = some (⟨core.ep, .ek chunk⟩, tsnd)) :
-    Braid.TranscriptConsistent auth ik T (s.toBraidAck party n) := by
-  have hmsg' : s.toBraid.messagesAt (!party) n =
-      some (⟨core.ep, .ek, some chunk⟩, tsnd) := by
-    cases party <;>
-      simpa [Braid.GameState.messagesAt, GameState.toBraid,
-        Chunked.Message.toBraid] using congrArg (Option.map fun e => (e.1.toBraid, e.2))
-          hmsg
-  have hst' :
-      s.toBraid.stateAt party = PartyState.toBraid (.ct1Acknowledged core dec) := by
-    cases party <;>
-      exact congrArg PartyState.toBraid (by simpa using hst)
-  have hctl := messageControl_ekCt1Ack auth hT party hst' hmsg'
-  have h := transcriptConsistent_retype auth hT (!party) n hmsg' (Or.inl rfl) .ekCt1Ack
-    (Or.inr rfl) hctl
-  simpa [GameState.toBraidAck, hmsg'] using h
-
-/-- After a query of the relabelled translation, restoring the plain vector chunk keeps the Braid
-invariant. -/
-private theorem correctnessInv_restore {ik : InitKey} (party : Bool) (n : ℕ)
-    {s : GameState P AuthState} {core : CtSender.Ct1Sent P AuthState} {chunk : ℕ × P.Sym}
-    {tsnd : ℕ} (hmsg : (if party then s.msgB else s.msgA) n = some (⟨core.ep, .ek chunk⟩, tsnd))
-    {z : Braid.GameState P.toBraid AuthState}
-    (hmsgs : z.messagesAt (!party) = (s.toBraidAck party n).messagesAt (!party))
-    (hz : Braid.CorrectnessInv auth ik z) :
-    Braid.CorrectnessInv auth ik
-      (if party then { z with msgB := s.toBraid.msgB }
-        else { z with msgA := s.toBraid.msgA }) := by
-  have hrestore : (if party then { z with msgB := s.toBraid.msgB }
-      else { z with msgA := s.toBraid.msgA }) =
-      z.setMessages (!party) (s.toBraid.messagesAt (!party)) := by
-    cases party <;> rfl
-  rw [hrestore]
-  rcases hz with hzf | ⟨T, hT⟩
-  · exact Or.inl hzf
-  refine Or.inr ⟨T, ?_⟩
-  have hmsgF : s.toBraid.messagesAt (!party) n = some (⟨core.ep, .ek, some chunk⟩, tsnd) := by
-    cases party <;>
-      simpa [Braid.GameState.messagesAt, GameState.toBraid,
-        Chunked.Message.toBraid] using congrArg (Option.map fun e => (e.1.toBraid, e.2)) hmsg
-  have hmsgZ : z.messagesAt (!party) n = some (⟨core.ep, .ekCt1Ack, some chunk⟩, tsnd) := by
-    rw [hmsgs]
-    simp [GameState.toBraidAck, hmsgF]
-  obtain ⟨hwf, hle, hstep, hown⟩ := (hT.control.roles (!party)).2.2 n _ tsnd hmsgZ
-  have hctl : Braid.MessageControl (!party) (z.stateAt (!party))
-      { (⟨core.ep, .ekCt1Ack, some chunk⟩ : Braid.Message P.Sym) with type := .ek } :=
-    ⟨rfl, hle, fun h => (hstep h).trans' (by simp [Braid.MessageType.sendStep]),
-      by simpa [Braid.MessageOwner] using hown⟩
-  have h := transcriptConsistent_retype auth hT (!party) n hmsgZ (Or.inr rfl) .ek (Or.inl rfl) hctl
-  -- Restoring the record gives back the message table of the translation.
-  have htable : Function.update (z.messagesAt (!party)) n
-      (some (⟨core.ep, .ek, some chunk⟩, tsnd)) = s.toBraid.messagesAt (!party) := by
-    rw [hmsgs]
-    simp [GameState.toBraidAck, hmsgF]
-  rwa [htable] at h
-
 variable [DecidableEq P.EpochKey] (sampleInitKey : ProbComp InitKey)
-
-/-- A receive query of the Braid game keeps both message tables. -/
-private theorem messagesAt_of_mem_support_recv {s : Braid.GameState P.toBraid AuthState}
-    (party : Bool) (n : ℕ)
-    {z : (SCKAScheme.sckaCorrectnessSpec (Braid.Message P.Sym)).Range
-        (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
-          else SCKAScheme.sckaCorrectnessSpec.ORecvB n) × Braid.GameState P.toBraid AuthState}
-    (hz : z ∈ support ((SCKAScheme.sckaCorrectnessImpl
-      (Braid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey)
-      (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
-        else SCKAScheme.sckaCorrectnessSpec.ORecvB n)).run s))
-    (who : Bool) : z.2.messagesAt who = s.messagesAt who := by
-  suffices h : ∀ z' : Option (ℕ × Option ℕ) × Braid.GameState P.toBraid AuthState,
-      z' ∈ support ((Braid.oracleRecv auth P.det.toRandLeak sampleInitKey party n).run s) →
-        z'.2.messagesAt who = s.messagesAt who by
-    cases party <;> exact h z hz
-  intro z' hz'
-  rcases Braid.oracleRecv_run_cases (P := P.toBraid) auth P.det.toRandLeak sampleInitKey party
-      hz' with ⟨-, rfl⟩ | ⟨-, -, -, -, -, rfl⟩ | ⟨-, -, -, -, -, rfl⟩
-  · rfl
-  · cases who <;> rfl
-  · simp
 
 /-! ### Preservation and drift -/
 
 /-- With sound stream decoders, every query of the SPQR correctness game preserves the Braid
 invariant on the translated state together with `Ct1AckInv`. -/
--- ANCHOR: SPQR_correctnessImpl_preserves_correctnessInv
 theorem correctnessImpl_preserves_correctnessInv
     (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound P.ecpEk)
     (hCt1Sound : P.decCt1.Sound P.ecpCt1) (hCt2Sound : P.decCt2.Sound P.ecpCt2) (ik : InitKey) :
     QueryImpl.PreservesInv (SCKAScheme.sckaCorrectnessImpl (scheme P auth sampleInitKey))
       (fun s : GameState P AuthState =>
         Braid.CorrectnessInv auth ik s.toBraid ∧ Ct1AckInv s)
--- ANCHOR_END: SPQR_correctnessImpl_preserves_correctnessInv
     := by
   intro t s ⟨hs, hack⟩ z hz
   refine ⟨?_, sckaCorrectnessImpl_preserves_ct1AckInv auth sampleInitKey t s hack z hz⟩
@@ -269,8 +118,9 @@ theorem correctnessImpl_preserves_correctnessInv
     have hAck := hbraid _ _
       (Or.inr ⟨T, transcriptConsistent_toBraidAck auth hT party n hst hmsg⟩) z' hz'
     rw [← hzz]
-    exact correctnessInv_restore auth party n hmsg
-      (messagesAt_of_mem_support_recv auth sampleInitKey party n hz' (!party)) hAck
+    refine correctnessInv_restore auth party n hmsg ?_ hAck
+    exact Braid.messagesAt_of_mem_support_recv (P := P.toBraid) auth P.det.toRandLeak
+      sampleInitKey party n hz' _
   · have hmem : GameState.toBraid z.2 ∈ support ((fun z => GameState.toBraid z.2) <$>
         (SCKAScheme.sckaCorrectnessImpl (scheme P auth sampleInitKey) t).run s) := by
       rw [support_map]
@@ -284,7 +134,6 @@ theorem correctnessImpl_preserves_correctnessInv
 invariant `CorrectnessInv` and that satisfies `Ct1AckInv`, one query of the SPQR correctness game
 raises the expected failure potential of the translated state by at most the KEM correctness error
 for a send query, and not at all for other queries. -/
--- ANCHOR: SPQR_wp_failurePotential_query_le
 theorem wp_failurePotential_query_le [DecidableEq P.K]
     (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound P.ecpEk)
     (hCt1Sound : P.decCt1.Sound P.ecpCt1) (hCt2Sound : P.decCt2.Sound P.ecpCt2) (ik : InitKey)
@@ -296,7 +145,6 @@ theorem wp_failurePotential_query_le [DecidableEq P.K]
       Braid.failurePotential s.toBraid +
         if SCKAScheme.isSendQuery (Rho := Chunked.Message P.Sym) t
         then P.det.toKEM.correctnessError ProbCompRuntime.probComp else 0
--- ANCHOR_END: SPQR_wp_failurePotential_query_le
     := by
   have hbraid := Braid.wp_failurePotential_query_le (P := P.toBraid) auth P.det.toRandLeak
     sampleInitKey hHdrSound hEkSound hCt1Sound hCt2Sound ik
@@ -399,7 +247,7 @@ theorem correctness_error_le
     refine ⟨⟨Or.inr ⟨_, Braid.transcriptConsistent_initGameState (P := P.toBraid) auth ik⟩,
       ?_⟩, ?_⟩
     · intro party n msg tsnd h
-      cases party <;> simp [SCKAScheme.initGameState] at h
+      cases party <;> simp [SCKAScheme.initGameState, GameState.messagesAt] at h
     · change Braid.failurePotential
         (SCKAScheme.initGameState (Braid.initA P.toBraid auth ik)
           (Braid.initB P.toBraid auth ik)) = 0

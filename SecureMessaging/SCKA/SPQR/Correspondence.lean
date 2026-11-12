@@ -93,6 +93,17 @@ def SendResult.toBraid (r : SendResult P AuthState) :
   ⟨r.msg.toBraid, r.sendingEpoch, r.outputKey, r.state.toBraid⟩
 -- ANCHOR_END: Correspondence_SendResult_toMLKEMBraid
 
+/-- Translating a message keeps its epoch. -/
+@[simp] theorem Message.toBraid_epoch {Sym : Type} (msg : Message Sym) :
+    msg.toBraid.epoch = msg.epoch := by
+  obtain ⟨e, payload⟩ := msg
+  cases payload <;> rfl
+
+/-- Translating a state keeps its epoch. -/
+@[simp] theorem PartyState.toBraid_epoch (st : PartyState P AuthState) :
+    st.toBraid.epoch = st.epoch := by
+  cases st <;> rfl
+
 /-- Both models start direction A2B in the same state. -/
 -- ANCHOR: Correspondence_toMLKEMBraid_initA
 theorem toBraid_initA (P : SPQR.Parameters m)
@@ -224,13 +235,10 @@ theorem recvSCKA_toBraid (P : SPQR.Parameters m)
       Braid.recvSCKA P.toBraid auth st.toBraid msg.toBraid
 -- ANCHOR_END: Correspondence_recvSCKA_toMLKEMBraid
     := by
-  have hepoch : msg.toBraid.epoch = msg.epoch := by
-    obtain ⟨e, payload⟩ := msg
-    cases payload <;> rfl
   rcases lt_trichotomy msg.epoch st.epoch with hlt | heq | hgt
   · have hS : recv P auth st msg = .ok ⟨msg.epoch - 1, none, st⟩ := by
       simp [Chunked.recv, hlt]
-    simp [recvSCKA, Braid.recvSCKA, hS, receive_toBraid_of_lt auth st msg hlt, hepoch]
+    simp [recvSCKA, Braid.recvSCKA, hS, receive_toBraid_of_lt auth st msg hlt]
   · exact recvSCKA_toBraid_of_epoch_eq auth st msg heq h
   · -- A future epoch outside `RecvDivergence` is the successor epoch of `ct2Sampled`.
     obtain ⟨⟨core, enc, rfl⟩, hsucc⟩ : (∃ core enc, st = .ct2Sampled core enc) ∧
@@ -247,7 +255,6 @@ theorem recvSCKA_toBraid (P : SPQR.Parameters m)
 
 /-- In `ct1Acknowledged`, SPQR receives a plain vector chunk as `Braid` receives the same
 chunk sent as an acknowledging vector chunk (`states.rs:487`). -/
--- ANCHOR: Correspondence_recvSCKA_ct1Acknowledged_ek_toMLKEMBraid
 theorem recvSCKA_ct1Acknowledged_ek_toBraid (P : SPQR.Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
@@ -257,7 +264,6 @@ theorem recvSCKA_ct1Acknowledged_ek_toBraid (P : SPQR.Parameters m)
         (fun (keyOpt, trcv, st') => (keyOpt, trcv, st'.toBraid)) =
       Braid.recvSCKA P.toBraid auth (PartyState.toBraid (.ct1Acknowledged core dec))
         ⟨core.ep, .ekCt1Ack, some chunk⟩
--- ANCHOR_END: Correspondence_recvSCKA_ct1Acknowledged_ek_toMLKEMBraid
     := by
   simp only [recvSCKA, Chunked.recv, Braid.recvSCKA, Braid.receive,
     Chunked.PartyState.toBraid, Chunked.PartyState.epoch, Braid.Message.wellFormed,

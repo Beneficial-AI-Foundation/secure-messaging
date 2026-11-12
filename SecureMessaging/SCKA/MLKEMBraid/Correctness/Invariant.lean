@@ -454,6 +454,64 @@ theorem TranscriptInv.setMessages {ik : InitKey} {T : ℕ → EpochTranscript P}
           fun n msg tsnd h => (hall who n msg tsnd h).2.2.1⟩ }
     messages := fun who n msg tsnd h => (hall who n msg tsnd h).2.2.2 }
 
+/-! ### Relabelling a recorded vector chunk -/
+
+/-- If a property of recorded messages holds for a new entry and for every entry of a message
+table, it holds for every entry of the table updated with the new entry. -/
+private theorem forall_update_record {f : ℕ → Option (Message P.Sym × ℕ)} {n : ℕ}
+    {e : Message P.Sym × ℕ} {Q : Message P.Sym → ℕ → Prop}
+    (hold : ∀ k m t, f k = some (m, t) → Q m t) (hnew : Q e.1 e.2) :
+    ∀ k m t, Function.update f n (some e) k = some (m, t) → Q m t :=
+  (Function.forall_update_iff f (fun _ entry => ∀ m t, entry = some (m, t) → Q m t)).2
+    ⟨fun m t h => by obtain rfl := Option.some.inj h; exact hnew, fun k _ => hold k⟩
+
+/-- In a consistent state, the sender of a plain vector chunk recorded at the epoch of a receiver in
+`ct1Acknowledged` is in `ct1Received` at that epoch, so it allows the chunk to be an acknowledging
+vector chunk. -/
+theorem TranscriptInv.messageControl_ekCt1Ack {ik : InitKey} {T : ℕ → EpochTranscript P}
+    {s : GameState P AuthState} (hT : TranscriptInv auth D ik T s)
+    (party : Bool) {n e : ℕ} {a : AuthState} {hdr : P.inc.PKheader} {es : P.inc.St}
+    {ct1 : P.inc.C₁} {dec : P.decEk.D} {chunk : ℕ × P.Sym} {tsnd : ℕ}
+    (hst : s.stateAt party = .ct1Acknowledged e a hdr es ct1 dec)
+    (hmsg : s.messagesAt (!party) n = some (⟨e, .ek, some chunk⟩, tsnd)) :
+    MessageControl (!party) (s.stateAt (!party)) ⟨e, .ekCt1Ack, some chunk⟩ := by
+  obtain ⟨-, hle, -, hown⟩ := (hT.control.roles (!party)).2.2 n _ tsnd hmsg
+  obtain ⟨h, h', -, -, -, hcrossP, hroles⟩ := hT.pairBounds auth party
+  rw [hst] at h h' hcrossP hroles
+  refine ⟨rfl, hle, fun hep => ?_, by simpa [MessageOwner] using hown⟩
+  simp only at hle hep
+  generalize s.stateAt (!party) = peer at h h' hcrossP hroles hle hep
+  cases peer <;>
+    simp_all [PairInv, AllowedStatePair, State.controlPosition, State.epoch,
+      State.completedEpoch, MessageType.sendStep]
+
+/-- Changing the type of a recorded vector chunk to `ek` or `ekCt1Ack` keeps transcript
+consistency, provided the sender's state allows the new type. -/
+theorem TranscriptInv.retype {ik : InitKey} {T : ℕ → EpochTranscript P}
+    {s : GameState P AuthState} (hT : TranscriptInv auth D ik T s) (party : Bool) (n : ℕ)
+    {msg : Message P.Sym} {tsnd : ℕ} (hmsg : s.messagesAt party n = some (msg, tsnd))
+    (hty : msg.type = .ek ∨ msg.type = .ekCt1Ack) (ty : MessageType)
+    (hty' : ty = .ek ∨ ty = .ekCt1Ack)
+    (hctl : MessageControl party (s.stateAt party) { msg with type := ty }) :
+    TranscriptInv auth D ik T
+      (s.setMessages party
+        (Function.update (s.messagesAt party) n (some ({ msg with type := ty }, tsnd)))) := by
+  have hpay : MessagePayloadInv auth ik T { msg with type := ty } := by
+    have h := hT.messages party n msg tsnd hmsg
+    rcases hty with h1 | h1 <;> rcases hty' with rfl | rfl <;>
+      simpa only [MessagePayloadInv, h1] using h
+  have hEK := hT.control.epochKnowledge
+  have hRR := hT.control.recordedReport
+  have hbound := hEK.msgs party n msg tsnd hmsg
+  have hct2 : ty ≠ .ct2 := by rcases hty' with rfl | rfl <;> simp
+  refine hT.setMessages auth party _ ?_
+  refine forall_update_record ?_ ?_
+  · intro k m t hk
+    exact ⟨hEK.msgs party k m t hk, hRR.report party k m t hk,
+      (hT.control.roles party).2.2 k m t hk, hT.messages party k m t hk⟩
+  · exact ⟨⟨hbound.1, hbound.2.1, fun h => absurd h hct2⟩, hRR.report party n msg tsnd hmsg, hctl,
+      hpay⟩
+
 /-- The invariant for `D` gives the invariant for `D'` if `D` implies `D'` on the recorded key
 pairs and encapsulations. -/
 theorem TranscriptInv.mono {ik : InitKey} {T : ℕ → EpochTranscript P} {s : GameState P AuthState}

@@ -482,4 +482,24 @@ theorem oracleRecv_run_cases {s : GameState P AuthState} (party : Bool) {n : ℕ
   · simpa only [oracleRecv, Bool.not_true, Bool.false_eq_true, ↓reduceIte, GameState.messagesAt,
       GameState.stateAt, recvUpdate] using oracleRecvA_run_cases auth irl sampleInitKey hz
 
+/-- A receive query of the correctness game keeps both message tables. -/
+theorem messagesAt_of_mem_support_recv {s : GameState P AuthState} (party : Bool) (n : ℕ)
+    {z : (SCKAScheme.sckaCorrectnessSpec (Message P.Sym)).Range
+        (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
+          else SCKAScheme.sckaCorrectnessSpec.ORecvB n) × GameState P AuthState}
+    (hz : z ∈ support ((SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey)
+      (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
+        else SCKAScheme.sckaCorrectnessSpec.ORecvB n)).run s))
+    (who : Bool) : z.2.messagesAt who = s.messagesAt who := by
+  suffices h : ∀ z' : Option (ℕ × Option ℕ) × GameState P AuthState,
+      z' ∈ support ((oracleRecv auth irl sampleInitKey party n).run s) →
+        z'.2.messagesAt who = s.messagesAt who by
+    cases party <;> exact h z hz
+  intro z' hz'
+  rcases oracleRecv_run_cases auth irl sampleInitKey party hz' with
+    ⟨-, rfl⟩ | ⟨-, -, -, -, -, rfl⟩ | ⟨-, -, -, -, -, rfl⟩
+  · rfl
+  · cases who <;> rfl
+  · simp
+
 end Braid

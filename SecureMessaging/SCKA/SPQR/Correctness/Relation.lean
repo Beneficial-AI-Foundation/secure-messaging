@@ -13,10 +13,15 @@ public import SecureMessaging.SCKA.MLKEMBraid.Correctness
 # The SPQR and ML-KEM Braid correctness games
 
 `SPQR.Correspondence` compares single transitions of `SPQR.Chunked` and `Braid`. This module
-compares the two SCKA correctness games. A game state records both party states, both key tables
-and the messages that each party has sent. `GameState.toBraid` translates an SPQR game state
-into a Braid game state: the party states by `PartyState.toBraid`, the recorded messages by
-`Message.toBraid`, and every other field unchanged.
+compares the two SCKA correctness games, one for each protocol:
+
+* `SPQR.GameState` is the state of the game played by two SPQR parties;
+* `Braid.GameState` is the state of the game played by two Braid parties.
+
+In both, a game state records both party states, both key tables and the messages that each party
+has sent. `GameState.toBraid` translates the first into the second. It translates the party states
+by `PartyState.toBraid` and the recorded messages by `Message.toBraid`, and it keeps every other
+field.
 
 ## Main results
 
@@ -106,15 +111,19 @@ def GameState.toBraid (s : GameState P AuthState) :
   correct := s.correct
 -- ANCHOR_END: Relation_GameState_toMLKEMBraid
 
-/-- Every `ct1Ack` recorded by a party has an epoch below the party's epoch, or the party is still
-in `ekSentCt1Received` at that epoch. -/
+/-- Every `ct1Ack` among the messages `msgs` recorded by a party in state `st` has an epoch below
+the epoch of `st`, or `st` is still in `ekSentCt1Received` at that epoch. -/
+-- ANCHOR: Relation_PartyCt1Ack
+def PartyCt1Ack (st : PartyState P AuthState)
+    (msgs : ℕ → Option (Chunked.Message P.Sym × ℕ)) : Prop :=
+  ∀ n msg tsnd, msgs n = some (msg, tsnd) → msg.payload = .ct1Ack →
+    msg.epoch < st.epoch ∨ ∃ core dec, st = .ekSentCt1Received core dec ∧ core.ep = msg.epoch
+-- ANCHOR_END: Relation_PartyCt1Ack
+
+/-- Both parties satisfy `PartyCt1Ack` for their state and their recorded messages. -/
 -- ANCHOR: Relation_Ct1AckInv
 def Ct1AckInv (s : GameState P AuthState) : Prop :=
-  ∀ (party : Bool) (n : ℕ) (msg : Chunked.Message P.Sym) (tsnd : ℕ),
-    (if party then s.msgA else s.msgB) n = some (msg, tsnd) → msg.payload = .ct1Ack →
-      msg.epoch < (if party then s.stA else s.stB).epoch ∨
-        ∃ core dec, (if party then s.stA else s.stB) = .ekSentCt1Received core dec ∧
-          core.ep = msg.epoch
+  ∀ party, PartyCt1Ack (s.stateAt party) (s.messagesAt party)
 -- ANCHOR_END: Relation_Ct1AckInv
 
 /-- Query `t` delivers a recorded message in `RecvDivergence` for the receiver's state. -/
@@ -141,11 +150,13 @@ def GameState.toBraidAck (s : GameState P AuthState) (party : Bool) (n : ℕ) :
 
 /-! ### Translated game updates -/
 
-@[simp] private theorem toBraid_stateAt (s : GameState P AuthState) (party : Bool) :
+/-- Translating a game state translates the state of each party. -/
+@[simp] theorem GameState.toBraid_stateAt (s : GameState P AuthState) (party : Bool) :
     s.toBraid.stateAt party = (s.stateAt party).toBraid := by
   cases party <;> rfl
 
-@[simp] private theorem toBraid_messagesAt (s : GameState P AuthState) (party : Bool) (n : ℕ) :
+/-- Translating a game state translates each recorded message and keeps its report. -/
+@[simp] theorem GameState.toBraid_messagesAt (s : GameState P AuthState) (party : Bool) (n : ℕ) :
     s.toBraid.messagesAt party n =
       (s.messagesAt party n).map fun (msg, tsnd) => (msg.toBraid, tsnd) := by
   cases party <;> rfl
@@ -231,7 +242,7 @@ private theorem run_toBraid_recv [DecidableEq P.EpochKey] (party : Bool) (n : �
     simp
   · have hmsg' : s.toBraid.messagesAt (!party) n = some (ρ.toBraid, tsnd) := by simp [hmsg]
     have hrecv := recvSCKA_toBraid P auth (s.stateAt party) ρ fun h => ht ⟨ρ, tsnd, hmsg, h⟩
-    rw [← toBraid_stateAt] at hrecv
+    rw [← GameState.toBraid_stateAt] at hrecv
     rcases hS : recvSCKA P auth (s.stateAt party) ρ with _ | ⟨keyOpt, trcv, st'⟩
     · rw [hS] at hrecv
       rw [SCKAScheme.oracleRecv_run_eq_of_refuse _ _ rfl hmsg hS,
@@ -265,15 +276,9 @@ theorem sckaCorrectnessImpl_run_toBraid [DecidableEq P.EpochKey] (s : GameState 
 
 /-! ### Recorded acknowledgements -/
 
-/-- The condition of `Ct1AckInv` for one party with state `st` and recorded messages `msgs`. -/
-private def PartyCt1Ack (st : PartyState P AuthState)
-    (msgs : ℕ → Option (Chunked.Message P.Sym × ℕ)) : Prop :=
-  ∀ n msg tsnd, msgs n = some (msg, tsnd) → msg.payload = .ct1Ack →
-    msg.epoch < st.epoch ∨ ∃ core dec, st = .ekSentCt1Received core dec ∧ core.ep = msg.epoch
-
 /-- Let `s` satisfy `Ct1AckInv`. A state `U` satisfies `Ct1AckInv` if it has the state and messages
 of `s` for the peer of `party` and satisfies the condition of `Ct1AckInv` for `party`. -/
-private theorem ct1AckInv_of_update {s U : GameState P AuthState} (party : Bool)
+theorem ct1AckInv_of_update {s U : GameState P AuthState} (party : Bool)
     (hs : Ct1AckInv s) (hst : U.stateAt (!party) = s.stateAt (!party))
     (hmsg : U.messagesAt (!party) = s.messagesAt (!party))
     (h : PartyCt1Ack (U.stateAt party) (U.messagesAt party)) : Ct1AckInv U := by
@@ -288,7 +293,7 @@ private theorem ct1AckInv_of_update {s U : GameState P AuthState} (party : Bool)
 
 /-- A send keeps the epoch and stamps the message with it. It sends `ct1Ack` only from
 `ekSentCt1Received`, which it keeps. -/
-private theorem send_ct1Ack {st : PartyState P AuthState} {r : SendResult P AuthState}
+theorem send_ct1Ack {st : PartyState P AuthState} {r : SendResult P AuthState}
     (hr : r ∈ support (send P auth st)) :
     r.state.epoch = st.epoch ∧ r.msg.epoch = st.epoch ∧
       (r.msg.payload = .ct1Ack → ∃ core dec, st = .ekSentCt1Received core dec) ∧
@@ -324,7 +329,7 @@ private theorem recvCt2_ep {core : EkSender.EkSentCt1Received P AuthState} {c2 :
 
 /-- A receive never lowers the epoch. From `ekSentCt1Received` it stays in `ekSentCt1Received` at
 the same epoch or moves to a later epoch. -/
-private theorem recv_ct1Ack {st : PartyState P AuthState} {msg : Chunked.Message P.Sym}
+theorem recv_ct1Ack {st : PartyState P AuthState} {msg : Chunked.Message P.Sym}
     {r : RecvResult P AuthState} (hr : recv P auth st msg = .ok r) :
     st.epoch ≤ r.state.epoch ∧
       ∀ core dec, st = .ekSentCt1Received core dec →
@@ -360,7 +365,9 @@ private theorem recv_ct1Ack {st : PartyState P AuthState} {msg : Chunked.Message
       | (simp only [Option.some.injEq] at *; subst_vars; simp_all [PartyState.epoch]; done)
       | simp_all [PartyState.epoch, recvCt2_ep auth (by assumption)]
 
-private theorem partyCt1Ack_send {st : PartyState P AuthState}
+/-- A send keeps `PartyCt1Ack` for the new state of the sender and its message table extended by
+the sent message. -/
+theorem partyCt1Ack_send {st : PartyState P AuthState}
     {msgs : ℕ → Option (Chunked.Message P.Sym × ℕ)} (h : PartyCt1Ack st msgs)
     {r : SendResult P AuthState} (hr : r ∈ support (send P auth st)) (k tsnd : ℕ) :
     PartyCt1Ack r.state (Function.update msgs k (some (r.msg, tsnd))) := by
@@ -379,7 +386,8 @@ private theorem partyCt1Ack_send {st : PartyState P AuthState}
     · exact Or.inl (hep ▸ hlt)
     · exact Or.inr ⟨core, dec, (hkeep core dec hst).trans hst, hep'⟩
 
-private theorem partyCt1Ack_recv {st : PartyState P AuthState}
+/-- A receive that `recv` accepts keeps `PartyCt1Ack`. -/
+theorem partyCt1Ack_recv {st : PartyState P AuthState}
     {msgs : ℕ → Option (Chunked.Message P.Sym × ℕ)} (h : PartyCt1Ack st msgs)
     {msg : Chunked.Message P.Sym} {r : RecvResult P AuthState}
     (hr : recv P auth st msg = .ok r) : PartyCt1Ack r.state msgs := by
@@ -391,7 +399,8 @@ private theorem partyCt1Ack_recv {st : PartyState P AuthState}
     · exact Or.inr ⟨core', dec', hst', hep'.trans hep⟩
     · exact Or.inl (hep ▸ hlt)
 
-private theorem partyCt1Ack_recvSCKA {st : PartyState P AuthState}
+/-- A receive that `recvSCKA` accepts keeps `PartyCt1Ack`. -/
+theorem partyCt1Ack_recvSCKA {st : PartyState P AuthState}
     {msgs : ℕ → Option (Chunked.Message P.Sym × ℕ)} (h : PartyCt1Ack st msgs)
     {msg : Chunked.Message P.Sym} {keyOpt : Option (ℕ × P.EpochKey)} {trcv : ℕ}
     {st' : PartyState P AuthState}
@@ -404,11 +413,9 @@ private theorem partyCt1Ack_recvSCKA {st : PartyState P AuthState}
     exact partyCt1Ack_recv auth h hrecv
 
 /-- Every query of the SPQR correctness game preserves `Ct1AckInv`. -/
--- ANCHOR: Relation_sckaCorrectnessImpl_preserves_ct1AckInv
 theorem sckaCorrectnessImpl_preserves_ct1AckInv [DecidableEq P.EpochKey] :
     QueryImpl.PreservesInv (SCKAScheme.sckaCorrectnessImpl (scheme P auth sampleInitKey))
       (Ct1AckInv (P := P) (AuthState := AuthState))
--- ANCHOR_END: Relation_sckaCorrectnessImpl_preserves_ct1AckInv
     := by
   have hsend : ∀ party : Bool, QueryImpl.PreservesInv
       (SCKAScheme.oracleSend (scheme P auth sampleInitKey) party) Ct1AckInv := by
@@ -442,20 +449,11 @@ theorem sckaCorrectnessImpl_preserves_ct1AckInv [DecidableEq P.EpochKey] :
 
 /-! ### The divergent deliveries under the invariants -/
 
-private theorem toBraid_epoch (st : PartyState P AuthState) :
-    st.toBraid.epoch = st.epoch := by
-  cases st <;> rfl
-
-private theorem message_toBraid_epoch (msg : Chunked.Message P.Sym) :
-    msg.toBraid.epoch = msg.epoch := by
-  obtain ⟨e, payload⟩ := msg
-  cases payload <;> rfl
-
 /-- Let `msg` be recorded by the peer of a receiver in state `st`. Assume the Braid pair
 invariants and epoch bounds, and the `ct1Ack` condition `hack` below. Then a delivery in
 `RecvDivergence` is a plain vector chunk of the epoch of `st`, and `st` is in
 `ct1Acknowledged`. -/
-private theorem recvDivergence_ct1Acknowledged_ek {st peer : PartyState P AuthState}
+theorem recvDivergence_ct1Acknowledged_ek {st peer : PartyState P AuthState}
     {msg : Chunked.Message P.Sym}
     (hpair : Braid.PairInv st.toBraid peer.toBraid)
     (hpair' : Braid.PairInv peer.toBraid st.toBraid)
@@ -466,11 +464,11 @@ private theorem recvDivergence_ct1Acknowledged_ek {st peer : PartyState P AuthSt
     (h : RecvDivergence st msg) :
     ∃ core dec chunk, st = .ct1Acknowledged core dec ∧ msg = ⟨core.ep, .ek chunk⟩ := by
   have hcomp := Braid.State.completedEpoch_le_epoch st.toBraid
-  rw [toBraid_epoch] at hpeer hcomp
+  rw [PartyState.toBraid_epoch] at hpeer hcomp
   rcases h with ⟨hlt, hnot⟩ | ⟨heq, ⟨core, enc, rfl⟩, hpay⟩ | ⟨heq, ⟨core, dec, rfl⟩, chunk, hpay⟩
   · -- A future message reaches a receiver one epoch behind its sender, which is in `ct2Sampled`.
     have hsucc : msg.epoch = st.epoch + 1 := by omega
-    have hpos := (hpair.2 (by rw [toBraid_epoch, toBraid_epoch]; omega)).1
+    have hpos := (hpair.2 (by rw [PartyState.toBraid_epoch, PartyState.toBraid_epoch]; omega)).1
     exact absurd ⟨by cases st <;> simp_all [PartyState.toBraid,
       Braid.State.controlPosition], hsucc⟩ hnot
   · -- The sender of a `ct1Ack` has received a chunk of `ct₂`, so the receiver is in `ct2Sampled`.
@@ -481,7 +479,7 @@ private theorem recvDivergence_ct1Acknowledged_ek {st peer : PartyState P AuthSt
     rw [hepE] at heq
     rw [hcompE] at hpeer
     rcases hack hpay with hlt | ⟨core', dec', rfl, hep⟩
-    · have := (hpair.2 (by rw [toBraid_epoch, toBraid_epoch, hepE]; omega)).1
+    · have := (hpair.2 (by rw [PartyState.toBraid_epoch, PartyState.toBraid_epoch, hepE]; omega)).1
       simp [PartyState.toBraid, Braid.State.controlPosition] at this
     · have := hpair'.1 (by simp [PartyState.toBraid, Braid.State.epoch]; omega)
         (by simp [PartyState.toBraid, Braid.State.controlPosition])
@@ -504,8 +502,8 @@ theorem DeliveryDivergence.ct1Acknowledged_ek {s : GameState P AuthState}
       (dec : P.decEk.D) (chunk : ℕ × P.Sym) (tsnd : ℕ),
       t = (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
         else SCKAScheme.sckaCorrectnessSpec.ORecvB n) ∧
-      (if party then s.stA else s.stB) = .ct1Acknowledged core dec ∧
-      (if party then s.msgB else s.msgA) n = some (⟨core.ep, .ek chunk⟩, tsnd)
+      s.stateAt party = .ct1Acknowledged core dec ∧
+      s.messagesAt (!party) n = some (⟨core.ep, .ek chunk⟩, tsnd)
 -- ANCHOR_END: Relation_DeliveryDivergence_ct1Acknowledged_ek
     := by
   suffices key : ∀ (party : Bool) (n : ℕ),
@@ -529,8 +527,8 @@ theorem DeliveryDivergence.ct1Acknowledged_ek {s : GameState P AuthState}
     (st := s.stateAt party) (peer := s.stateAt (!party))
     (by simpa using hP.pair party) (by simpa using hP.pair (!party))
     (by simpa using hC.epochKnowledge.epoch_le (!party))
-    (by simpa [message_toBraid_epoch, toBraid_epoch] using hctl.2.1)
-    (hack (!party) n msg tsnd (by cases party <;> exact hmsg)) hdiv
+    (by simpa using hctl.2.1)
+    (hack (!party) n msg tsnd hmsg) hdiv
   exact ⟨core, dec, chunk, tsnd, hst, hmsg⟩
 
 /-- For a plain vector chunk delivered to a party in `ct1Acknowledged`, the translated SPQR
@@ -541,8 +539,8 @@ theorem sckaCorrectnessImpl_run_toBraidAck [DecidableEq P.EpochKey] (s : GameSta
     (party : Bool)
     (n : ℕ) (core : CtSender.Ct1Sent P AuthState) (dec : P.decEk.D)
     (chunk : ℕ × P.Sym) (tsnd : ℕ)
-    (hst : (if party then s.stA else s.stB) = .ct1Acknowledged core dec)
-    (hmsg : (if party then s.msgB else s.msgA) n = some (⟨core.ep, .ek chunk⟩, tsnd)) :
+    (hst : s.stateAt party = .ct1Acknowledged core dec)
+    (hmsg : s.messagesAt (!party) n = some (⟨core.ep, .ek chunk⟩, tsnd)) :
     (fun z => GameState.toBraid z.2) <$>
         (SCKAScheme.sckaCorrectnessImpl (scheme P auth sampleInitKey)
           (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
@@ -562,25 +560,22 @@ theorem sckaCorrectnessImpl_run_toBraidAck [DecidableEq P.EpochKey] (s : GameSta
         (SCKAScheme.oracleRecv (Braid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey)
           party n).run (s.toBraidAck party n) by
     cases party <;> exact h
-  have hst' : s.stateAt party = .ct1Acknowledged core dec := hst
-  have hmsg' : s.messagesAt (!party) n = some (⟨core.ep, .ek chunk⟩, tsnd) := by
-    cases party <;> exact hmsg
   have hmsgAck : (s.toBraidAck party n).messagesAt (!party) n =
       some (⟨core.ep, .ekCt1Ack, some chunk⟩, tsnd) := by
-    simp [GameState.toBraidAck, hmsg', Chunked.Message.toBraid]
+    simp [GameState.toBraidAck, hmsg, Chunked.Message.toBraid]
   have hstAck : (if party then (s.toBraidAck party n).stA else (s.toBraidAck party n).stB) =
       (s.stateAt party).toBraid :=
-    toBraid_stateAt s party
+    GameState.toBraid_stateAt s party
   have hrecv := recvSCKA_ct1Acknowledged_ek_toBraid P auth core dec chunk
-  rw [← hst'] at hrecv
+  rw [← hst] at hrecv
   rcases hS : recvSCKA P auth (s.stateAt party) ⟨core.ep, .ek chunk⟩ with
     _ | ⟨keyOpt, trcv, st'⟩
   · rw [hS] at hrecv
-    rw [SCKAScheme.oracleRecv_run_eq_of_refuse _ _ rfl hmsg' hS,
+    rw [SCKAScheme.oracleRecv_run_eq_of_refuse _ _ rfl hmsg hS,
       SCKAScheme.oracleRecv_run_eq_of_refuse _ _ rfl hmsgAck (by rw [hstAck]; exact hrecv.symm)]
     cases party <;> simp [GameState.toBraid, GameState.toBraidAck, Braid.GameState.setMessages]
   · rw [hS] at hrecv
-    rw [SCKAScheme.oracleRecv_run_eq_of_accept _ _ rfl hmsg' hS,
+    rw [SCKAScheme.oracleRecv_run_eq_of_accept _ _ rfl hmsg hS,
       SCKAScheme.oracleRecv_run_eq_of_accept _ _ rfl hmsgAck (by rw [hstAck]; exact hrecv.symm)]
     simp only [map_pure, toBraid_recvUpdate]
     cases party <;> rcases keyOpt with _ | ⟨tI, key⟩ <;>
