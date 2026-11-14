@@ -56,6 +56,7 @@ public import SecureMessaging.KEM.IncrementalKEM.Correctness
 public import SecureMessaging.KEM.IncrementalKEM.Defs
 public import SecureMessaging.KEM.IncrementalKEM.Derandomized
 public import SecureMessaging.KEM.IncrementalKEM.FromMLKEM
+public import SecureMessaging.KEM.IncrementalKEM.FromMLKEM.Equivalence
 public import SecureMessaging.KEM.MLKEM.Construction
 public import SecureMessaging.KEM.MLKEM.Correctness
 public import SecureMessaging.KEM.MLKEM.Correctness.EasyCryptBoundary
@@ -85,6 +86,9 @@ public import SecureMessaging.SCKA.MLKEMBraid.Correctness
 public import SecureMessaging.SCKA.MLKEMBraid.Security
 public import SecureMessaging.SCKA.SPQR.Chunked
 public import SecureMessaging.SCKA.SPQR.Construction
+public import SecureMessaging.SCKA.SPQR.Correctness
+public import SecureMessaging.SCKA.SPQR.Correctness.Relabel
+public import SecureMessaging.SCKA.SPQR.Correctness.Relation
 public import SecureMessaging.SCKA.SPQR.Correspondence
 public import SecureMessaging.SCKA.SPQR.Instances
 public import SecureMessaging.SCKA.SPQR.Params

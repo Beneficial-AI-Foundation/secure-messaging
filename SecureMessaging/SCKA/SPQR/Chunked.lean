@@ -12,6 +12,7 @@ public import SecureMessaging.SCKA.SPQR.Unchunked
 
 SPQR is Signal's implementation of the ML-KEM Braid key exchange. This module models its v1
 send and receive transitions at revision `f2589fe`, using the core operations in `SPQR.Unchunked`.
+Line references are to that revision.
 
 ## One epoch
 
@@ -87,6 +88,7 @@ error except for the `ct2Sampled` successor case. These cases differ from the pa
 
 `SPQR.Construction` packages this model as an SCKA scheme. `SPQR.Correspondence` translates states
 and messages into `Braid` and states the hypotheses under which their transitions agree.
+`SPQR.Correctness` uses this translation to transport the `Braid` correctness bound to SPQR.
 -/
 
 @[expose] public section

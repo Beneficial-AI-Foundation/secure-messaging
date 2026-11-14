@@ -9,6 +9,7 @@ import SecureMessaging.SCKA.SPQR.Params
 import SecureMessaging.SCKA.SPQR.Unchunked
 import SecureMessaging.SCKA.SPQR.Chunked
 import SecureMessaging.SCKA.SPQR.Construction
+import SecureMessaging.SCKA.SPQR.Correctness
 import SecureMessaging.SCKA.SPQR.Instances
 
 /-! # Blueprint chapter: SPQR -/
@@ -1210,14 +1211,296 @@ noncomputable def v1Scheme {InitKey AuthState EpochKey Mac : Type}
 ```
 :::::::
 
+:::defTitle "spqr_mlkem_braid_translation" "Translation of SPQR into ML-KEM Braid"
+:::
+
+::::definition "spqr_mlkem_braid_translation" (parent := "cka_protocols_spqr") (lean := "SPQR.Chunked.Message.toBraid, SPQR.Chunked.PartyState.toBraid, SPQR.GameState.toBraid, SPQR.RecvDivergence, SPQR.PartyCt1Ack, SPQR.Ct1AckInv, SPQR.DeliveryDivergence, SPQR.GameState.toBraidAck") (tags := "gh-269") (uses := "spqr_chunked_scheme, mlkem_braid_spec, scka_correctness")
+The correctness game of SPQR and the correctness game of ML-KEM Braid have the same form. The
+translation takes each object of the first game to the object of the second game that has the same
+role:
+
+:::table +header (align := left)
+*
+  * SPQR
+  * ML-KEM Braid
+*
+  * party state
+  * party state of the same name, with the stored encapsulation key replaced by its vector
+*
+  * message with a payload other than `Ct1Ack(true)`
+  * message of the type of the same name
+*
+  * message with payload `Ct1Ack(true)`, which SPQR sends in `ekSentCt1Received`
+  * empty message, which ML-KEM Braid sends in `ekSentCt1Received`
+*
+  * game state
+  * game state with the party states and the recorded messages translated and every other field unchanged
+:::
+
+:::leanPillCaption "the translation of messages"
+:::
+
+```anchor Correspondence_Message_toMLKEMBraid (project := ".") (module := SecureMessaging.SCKA.SPQR.Correspondence)
+def Message.toBraid {Sym : Type} (msg : Message Sym) : Braid.Message Sym :=
+  match msg.payload with
+  | .none => ⟨msg.epoch, .none, none⟩
+  | .hdr chunk => ⟨msg.epoch, .hdr, some chunk⟩
+  | .ek chunk => ⟨msg.epoch, .ek, some chunk⟩
+  | .ekCt1Ack chunk => ⟨msg.epoch, .ekCt1Ack, some chunk⟩
+  | .ct1Ack => ⟨msg.epoch, .none, none⟩
+  | .ct1 chunk => ⟨msg.epoch, .ct1, some chunk⟩
+  | .ct2 chunk => ⟨msg.epoch, .ct2, some chunk⟩
+```
+
+:::leanPillCaption "the translation of game states"
+:::
+
+```anchor Relation_GameState_toMLKEMBraid (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness.Relation)
+def GameState.toBraid (s : GameState P AuthState) :
+    Braid.GameState P.toBraid AuthState where
+  stA := s.stA.toBraid
+  stB := s.stB.toBraid
+  keyA := s.keyA
+  keyB := s.keyB
+  msgA := fun n => (s.msgA n).map fun (msg, tsnd) => (msg.toBraid, tsnd)
+  msgB := fun n => (s.msgB n).map fun (msg, tsnd) => (msg.toBraid, tsnd)
+  nA := s.nA
+  nB := s.nB
+  tcurA := s.tcurA
+  tcurB := s.tcurB
+  exposed := s.exposed
+  challenged := s.challenged
+  correct := s.correct
+```
+
+The two receives agree on every delivery except those of `RecvDivergence`, which has three cases:
+
+:::table +header (align := left)
+*
+  * Delivery
+  * SPQR
+  * ML-KEM Braid
+*
+  * a message of a future epoch, other than the successor epoch in `ct2Sampled`
+  * refuses it
+  * ignores it
+*
+  * a standalone `Ct1Ack` in `ekReceivedCt1Sampled`
+  * completes `ct₂`
+  * ignores it
+*
+  * a plain `Ek` chunk in `ct1Acknowledged`
+  * adds the chunk to the vector decoder
+  * ignores it
+:::
+
+:::leanPillCaption "the divergent deliveries"
+:::
+
+```anchor Correspondence_RecvDivergence (project := ".") (module := SecureMessaging.SCKA.SPQR.Correspondence)
+def RecvDivergence (st : PartyState P AuthState) (msg : Message P.Sym) : Prop :=
+  (st.epoch < msg.epoch ∧ ¬ ((∃ core enc, st = .ct2Sampled core enc) ∧ msg.epoch = st.epoch + 1)) ∨
+    (msg.epoch = st.epoch ∧ (∃ core enc, st = .ekReceivedCt1Sampled core enc) ∧
+      msg.payload = .ct1Ack) ∨
+    (msg.epoch = st.epoch ∧ (∃ core dec, st = .ct1Acknowledged core dec) ∧
+      ∃ chunk, msg.payload = .ek chunk)
+```
+
+A query of the correctness game delivers a divergent message if it receives a recorded message in
+`RecvDivergence`.
+
+:::leanPillCaption "divergent deliveries in the correctness game"
+:::
+
+```anchor Relation_DeliveryDivergence (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness.Relation)
+def DeliveryDivergence (s : GameState P AuthState) :
+    (SCKAScheme.sckaCorrectnessSpec (Chunked.Message P.Sym)).Domain → Prop
+  | SCKAScheme.sckaCorrectnessSpec.ORecvA n =>
+      ∃ msg tsnd, s.msgB n = some (msg, tsnd) ∧ RecvDivergence s.stA msg
+  | SCKAScheme.sckaCorrectnessSpec.ORecvB n =>
+      ∃ msg tsnd, s.msgA n = some (msg, tsnd) ∧ RecvDivergence s.stB msg
+  | _ => False
+```
+
+SPQR sends `Ct1Ack` only from `ekSentCt1Received`, and the translation turns every recorded
+`Ct1Ack` into an empty message. `Ct1AckInv` keeps this information. For one party, the condition
+says that each `Ct1Ack` among the party's recorded messages has an epoch below the epoch of the
+party's state, or that the party is still in `ekSentCt1Received` at that epoch.
+
+:::leanPillCaption "the condition for one party"
+:::
+
+```anchor Relation_PartyCt1Ack (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness.Relation)
+def PartyCt1Ack (st : PartyState P AuthState)
+    (msgs : ℕ → Option (Chunked.Message P.Sym × ℕ)) : Prop :=
+  ∀ n msg tsnd, msgs n = some (msg, tsnd) → msg.payload = .ct1Ack →
+    msg.epoch < st.epoch ∨ ∃ core dec, st = .ekSentCt1Received core dec ∧ core.ep = msg.epoch
+```
+
+:::leanPillCaption "the acknowledgement invariant"
+:::
+
+```anchor Relation_Ct1AckInv (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness.Relation)
+def Ct1AckInv (s : GameState P AuthState) : Prop :=
+  ∀ party, PartyCt1Ack (s.stateAt party) (s.messagesAt party)
+```
+
+In the third case of `RecvDivergence`, the sender of the plain vector chunk is in `ct1Received`, so
+it could have sent the same chunk as an acknowledging vector chunk. The translation in which one
+record is such a chunk is `GameState.toBraidAck`.
+
+:::leanPillCaption "the translation with an acknowledging vector chunk"
+:::
+
+```anchor Relation_GameState_toMLKEMBraidAck (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness.Relation)
+def GameState.toBraidAck (s : GameState P AuthState) (party : Bool) (n : ℕ) :
+    Braid.GameState P.toBraid AuthState :=
+  s.toBraid.setMessages (!party)
+    (Function.update (s.toBraid.messagesAt (!party)) n
+      ((s.toBraid.messagesAt (!party) n).map fun (msg, tsnd) =>
+        ({ msg with type := .ekCt1Ack }, tsnd)))
+```
+::::
+
+:::defTitle "spqr_mlkem_braid_relation" "SPQR and ML-KEM Braid correctness games"
+:::
+
+::::lemma_ "spqr_mlkem_braid_relation" (parent := "cka_protocols_spqr") (lean := "SPQR.sckaCorrectnessImpl_run_toBraid, SPQR.DeliveryDivergence.ct1Acknowledged_ek, SPQR.sckaCorrectnessImpl_run_toBraidAck") (uses := "spqr_mlkem_braid_translation, mlkem_braid_spec, scka_correctness")
+Three statements relate the two games. In each, a query of the SPQR correctness game runs on a
+game state $`s`, and the same query of the ML-KEM Braid correctness game runs on its translation.
+
+If the query does not deliver a message in `RecvDivergence`, the translated SPQR successor state
+and the ML-KEM Braid successor state have the same distribution.
+
+:::leanPillCaption "agreeing queries"
+:::
+
+```anchor Relation_sckaCorrectnessImpl_run_toMLKEMBraid (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness.Relation)
+theorem sckaCorrectnessImpl_run_toBraid [DecidableEq P.EpochKey] (s : GameState P AuthState)
+    (t : (SCKAScheme.sckaCorrectnessSpec (Chunked.Message P.Sym)).Domain)
+    (ht : ¬ DeliveryDivergence s t) :
+    (fun z => GameState.toBraid z.2) <$>
+        (SCKAScheme.sckaCorrectnessImpl (scheme P auth sampleInitKey) t).run s =
+      (fun z => z.2) <$>
+        (SCKAScheme.sckaCorrectnessImpl
+          (Braid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey) t).run
+          s.toBraid
+```
+
+Suppose that the translation of $`s` satisfies the ML-KEM Braid invariants `ControlInv` and
+`StatePairInv`, and that $`s` satisfies `Ct1AckInv`. Then a query that delivers a message in
+`RecvDivergence` delivers a plain vector chunk to a party in `ct1Acknowledged`.
+
+:::leanPillCaption "the divergent delivery"
+:::
+
+```anchor Relation_DeliveryDivergence_ct1Acknowledged_ek (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness.Relation)
+theorem DeliveryDivergence.ct1Acknowledged_ek {s : GameState P AuthState}
+    {t : (SCKAScheme.sckaCorrectnessSpec (Chunked.Message P.Sym)).Domain}
+    (hC : Braid.ControlInv s.toBraid) (hP : Braid.StatePairInv s.toBraid)
+    (hack : Ct1AckInv s) (h : DeliveryDivergence s t) :
+    ∃ (party : Bool) (n : ℕ) (core : CtSender.Ct1Sent P AuthState)
+      (dec : P.decEk.D) (chunk : ℕ × P.Sym) (tsnd : ℕ),
+      t = (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
+        else SCKAScheme.sckaCorrectnessSpec.ORecvB n) ∧
+      s.stateAt party = .ct1Acknowledged core dec ∧
+      s.messagesAt (!party) n = some (⟨core.ep, .ek chunk⟩, tsnd)
+```
+
+For such a delivery, the translated SPQR successor state has the distribution of the ML-KEM Braid
+successor state of the translation with an acknowledging vector chunk, once the original record is
+restored.
+
+:::leanPillCaption "the divergent delivery in ML-KEM Braid"
+:::
+
+```anchor Relation_sckaCorrectnessImpl_run_toMLKEMBraidAck (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness.Relation)
+theorem sckaCorrectnessImpl_run_toBraidAck [DecidableEq P.EpochKey] (s : GameState P AuthState)
+    (party : Bool)
+    (n : ℕ) (core : CtSender.Ct1Sent P AuthState) (dec : P.decEk.D)
+    (chunk : ℕ × P.Sym) (tsnd : ℕ)
+    (hst : s.stateAt party = .ct1Acknowledged core dec)
+    (hmsg : s.messagesAt (!party) n = some (⟨core.ep, .ek chunk⟩, tsnd)) :
+    (fun z => GameState.toBraid z.2) <$>
+        (SCKAScheme.sckaCorrectnessImpl (scheme P auth sampleInitKey)
+          (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
+            else SCKAScheme.sckaCorrectnessSpec.ORecvB n)).run s =
+      (fun z => if party then { z.2 with msgB := s.toBraid.msgB }
+          else { z.2 with msgA := s.toBraid.msgA }) <$>
+        (SCKAScheme.sckaCorrectnessImpl
+          (Braid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey)
+          (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
+            else SCKAScheme.sckaCorrectnessSpec.ORecvB n)).run (s.toBraidAck party n)
+```
+::::
+
 :::defTitle "spqr_protocol_correctness" "SPQR protocol correctness"
 :::
 
-::::theorem "spqr_protocol_correctness" (parent := "cka_protocols_spqr") (tags := "gh-269") (uses := "spqr_protocol_spec, scka_correctness, erasure_code_correctness")
-$`\todo`
+::::theorem "spqr_protocol_correctness" (parent := "cka_protocols_spqr") (lean := "SPQR.correctness_error_le, SPQR.v1Scheme_correctness_error_le") (tags := "gh-269") (uses := "spqr_protocol_spec, spqr_mlkem_braid_translation, spqr_mlkem_braid_relation, mlkem_braid_correctness, scka_correctness, erasure_code_correctness, erasure_code_streaming, incremental_kem_scheme, incremental_kem_det")
+Assume that:
 
-:::leanPill "missing"
+* $`\adv` is any SCKA correctness adversary making at most $`q` send-oracle
+  queries;
+* the incremental KEM has deterministic decapsulation and a deterministic
+  second stage, and has correctness error at most $`\varepsilon`;
+* and the four stream decoders are sound for their erasure codes ({bpref "erasure_code_streaming"}[]).
+
+Then $`1-\Pr\bigl[\Exp{\textsf{cor}}{\textsf{SPQR}}(\adv)=1\bigr] \le q\varepsilon`.
+For SPQR v1, the four SPQR Reed–Solomon codes are correct, so their set-based decoders are
+sound, and $`\varepsilon` is the correctness error of ML-KEM-768.
+
+:::leanPillCaption "Correctness error bound"
 :::
+
+```anchor SPQR_correctness_error_le (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness)
+theorem correctness_error_le
+    (P : SPQR.Parameters ProbComp) [DecidableEq P.K]
+    [DecidableEq P.EpochKey]
+    {InitKey AuthState : Type}
+    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
+      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
+    (sampleInitKey : ProbComp InitKey)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr)
+    (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1)
+    (hCt2Sound : P.decCt2.Sound P.ecpCt2)
+    (adv : SCKAScheme.SCKACorrectnessAdversary (Chunked.Message P.Sym))
+    (q : ℕ) (hq : SCKAScheme.SendQueryBound adv q) :
+    1 - Pr{let x ← SCKAScheme.correctnessExp (scheme P auth sampleInitKey) adv}[x = true] ≤
+      (q : ℝ≥0∞) * P.det.toKEM.correctnessError ProbCompRuntime.probComp
+```
+
+:::leanPillCaption "Correctness error bound for SPQR v1"
+:::
+
+```anchor SPQR_v1Scheme_correctness_error_le (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness)
+theorem v1Scheme_correctness_error_le {InitKey AuthState EpochKey Mac : Type}
+    [DecidableEq EpochKey]
+    (kdfOK : MLKEM.SharedSecret → ℕ → EpochKey)
+    (serializeHdr : v1Incremental.PKheader × Mac → Fin 3 → Chunk GF16)
+    (parseHdr : (Fin 3 → Chunk GF16) → Option (v1Incremental.PKheader × Mac))
+    (parseHdr_serializeHdr : ∀ payload, parseHdr (serializeHdr payload) = some payload)
+    (serializeEk : v1Incremental.PKvector → Fin 36 → Chunk GF16)
+    (parseEk : (Fin 36 → Chunk GF16) → Option v1Incremental.PKvector)
+    (parseEk_serializeEk : ∀ payload, parseEk (serializeEk payload) = some payload)
+    (serializeCt1 : v1Incremental.C₁ → Fin 30 → Chunk GF16)
+    (parseCt1 : (Fin 30 → Chunk GF16) → Option v1Incremental.C₁)
+    (parseCt1_serializeCt1 : ∀ payload, parseCt1 (serializeCt1 payload) = some payload)
+    (serializeCt2 : v1Incremental.C₂ × Mac → Fin 5 → Chunk GF16)
+    (parseCt2 : (Fin 5 → Chunk GF16) → Option (v1Incremental.C₂ × Mac))
+    (parseCt2_serializeCt2 : ∀ payload, parseCt2 (serializeCt2 payload) = some payload)
+    (auth : RatchetedAuthenticator InitKey EpochKey AuthState
+      v1Incremental.PKheader (v1Incremental.C₁ × v1Incremental.C₂) Mac)
+    (sampleInitKey : ProbComp InitKey)
+    (adv : SCKAScheme.SCKACorrectnessAdversary (Chunked.Message (Chunk GF16)))
+    (q : ℕ) (hq : SCKAScheme.SendQueryBound adv q) :
+    1 - Pr{let x ← (SCKAScheme.correctnessExp
+        (v1Scheme kdfOK serializeHdr parseHdr parseHdr_serializeHdr serializeEk parseEk
+          parseEk_serializeEk serializeCt1 parseCt1 parseCt1_serializeCt1 serializeCt2 parseCt2
+          parseCt2_serializeCt2 auth sampleInitKey) adv)}[x = true] ≤
+      (q : ℝ≥0∞) * MLKEM.mlkem768Scheme.correctnessError ProbCompRuntime.probComp
+```
 ::::
 
 :::defTitle "spqr_protocol_security" "SPQR protocol security"

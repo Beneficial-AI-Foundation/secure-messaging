@@ -300,6 +300,116 @@ theorem mem_support_oracleRecvB_run_iff (n : ℕ)
     · simp [oracleRecvB_run_eq_of_refuse scka s hmsg hrecv, hrecv]
     · simp [oracleRecvB_run_eq_of_accept scka s hmsg hrecv, hrecv]
 
+/-! #### Both parties with the same algorithms
+
+For a scheme whose two parties have the same state type and the same algorithms, the A and B
+versions of an oracle lemma give one lemma for the party that issues the query. The send query
+of `party` reads the state of `party`, and the receive query of `party` reads the message recorded
+by its peer. -/
+
+section Symmetric
+
+variable {St : Type} (scka : SCKAScheme ProbComp IK St St I Rho Rand) (s : GameState St St I Rho)
+
+/-- The send query of `party`; `true` denotes A and `false` denotes B. -/
+abbrev oracleSend (party : Bool) :=
+  if party then oracleSendA scka else oracleSendB scka
+
+/-- The receive query of `party`; `true` denotes A and `false` denotes B. -/
+abbrev oracleRecv (party : Bool) :=
+  if party then oracleRecvA scka else oracleRecvB scka
+
+/-- The version of `oracleSendA_run_eq` for `party`, when A and B send in the same way. -/
+theorem oracleSend_run_eq (hsend : scka.sendB = scka.sendA) (party : Bool) :
+    (oracleSend scka party ()).run s =
+      (fun out => match out with
+        | none => (none, s)
+        | some (keyOpt, ρ, tsnd, st') =>
+            (some (tsnd, keyOpt.map Prod.fst, ρ),
+              if party then sendAUpdate s keyOpt ρ tsnd st'
+              else sendBUpdate s keyOpt ρ tsnd st')) <$>
+        scka.sendA (if party then s.stA else s.stB) := by
+  cases party
+  · change (oracleSendB scka ()).run s = _
+    rw [oracleSendB_run_eq, hsend]
+    congr 1
+    funext out
+    rcases out with _ | ⟨keyOpt, ρ, tsnd, st'⟩ <;> rfl
+  · change (oracleSendA scka ()).run s = _
+    rw [oracleSendA_run_eq]
+    congr 1
+    funext out
+    rcases out with _ | ⟨keyOpt, ρ, tsnd, st'⟩ <;> rfl
+
+/-- The version of `mem_support_oracleSendA_run_iff` for `party`, when A and B send in the same
+way. -/
+theorem mem_support_oracleSend_run_iff (hsend : scka.sendB = scka.sendA) (party : Bool)
+    (z : Option (ℕ × Option ℕ × Rho) × GameState St St I Rho) :
+    z ∈ support ((oracleSend scka party ()).run s) ↔
+      ∃ out ∈ support (scka.sendA (if party then s.stA else s.stB)),
+        z = match out with
+          | none => (none, s)
+          | some (keyOpt, ρ, tsnd, st') =>
+              (some (tsnd, keyOpt.map Prod.fst, ρ),
+                if party then sendAUpdate s keyOpt ρ tsnd st'
+                else sendBUpdate s keyOpt ρ tsnd st') := by
+  rw [oracleSend_run_eq scka s hsend, support_map, Set.mem_image]
+  exact exists_congr fun out => and_congr_right fun _ => eq_comm
+
+/-- The version of `oracleRecvA_run_eq_of_none` for `party`. -/
+theorem oracleRecv_run_eq_of_none {party : Bool} {n : ℕ}
+    (h : (if !party then s.msgA else s.msgB) n = none) :
+    (oracleRecv scka party n).run s = pure (none, s) := by
+  cases party
+  · exact oracleRecvB_run_eq_of_none scka s h
+  · exact oracleRecvA_run_eq_of_none scka s h
+
+/-- The version of `oracleRecvA_run_eq_of_refuse` for `party`, when A and B receive in the same
+way. -/
+theorem oracleRecv_run_eq_of_refuse (hrecv : scka.recvB = scka.recvA) {party : Bool} {n tsnd : ℕ}
+    {ρ : Rho} (h : (if !party then s.msgA else s.msgB) n = some (ρ, tsnd))
+    (hr : scka.recvA (if party then s.stA else s.stB) ρ = none) :
+    (oracleRecv scka party n).run s = pure (none, { s with correct := false }) := by
+  cases party
+  · exact oracleRecvB_run_eq_of_refuse scka s h (hrecv ▸ hr)
+  · exact oracleRecvA_run_eq_of_refuse scka s h hr
+
+/-- The version of `oracleRecvA_run_eq_of_accept` for `party`, when A and B receive in the same
+way. -/
+theorem oracleRecv_run_eq_of_accept (hrecv : scka.recvB = scka.recvA) {party : Bool}
+    {n tsnd trcv : ℕ} {ρ : Rho} {keyOpt : Option (ℕ × I)} {st' : St}
+    (h : (if !party then s.msgA else s.msgB) n = some (ρ, tsnd))
+    (hr : scka.recvA (if party then s.stA else s.stB) ρ = some (keyOpt, trcv, st')) :
+    (oracleRecv scka party n).run s =
+      pure (some (trcv, keyOpt.map Prod.fst),
+        if party then recvAUpdate s tsnd keyOpt trcv st'
+        else recvBUpdate s tsnd keyOpt trcv st') := by
+  cases party
+  · exact oracleRecvB_run_eq_of_accept scka s h (hrecv ▸ hr)
+  · exact oracleRecvA_run_eq_of_accept scka s h hr
+
+/-- The version of `mem_support_oracleRecvA_run_iff` for `party`, when A and B receive in the same
+way. -/
+theorem mem_support_oracleRecv_run_iff (hrecv : scka.recvB = scka.recvA) (party : Bool) (n : ℕ)
+    (z : Option (ℕ × Option ℕ) × GameState St St I Rho) :
+    z ∈ support ((oracleRecv scka party n).run s) ↔
+      ((if !party then s.msgA else s.msgB) n = none ∧ z = (none, s)) ∨
+      (∃ ρ tsnd, (if !party then s.msgA else s.msgB) n = some (ρ, tsnd) ∧
+        scka.recvA (if party then s.stA else s.stB) ρ = none ∧
+        z = (none, { s with correct := false })) ∨
+      ∃ ρ tsnd keyOpt trcv st', (if !party then s.msgA else s.msgB) n = some (ρ, tsnd) ∧
+        scka.recvA (if party then s.stA else s.stB) ρ = some (keyOpt, trcv, st') ∧
+        z = (some (trcv, keyOpt.map Prod.fst),
+          if party then recvAUpdate s tsnd keyOpt trcv st'
+          else recvBUpdate s tsnd keyOpt trcv st') := by
+  cases party
+  · have h := mem_support_oracleRecvB_run_iff scka s n z
+    rw [hrecv] at h
+    exact h
+  · exact mem_support_oracleRecvA_run_iff scka s n z
+
+end Symmetric
+
 end Oracles
 
 /-- Every receive outcome preserves exposure, challenges and both send counters. -/
@@ -361,6 +471,30 @@ theorem sckaCorrectnessImpl_preservesInv [DecidableEq I]
     (hRecvB : QueryImpl.PreservesInv (oracleRecvB scka) Inv) :
     QueryImpl.PreservesInv (sckaCorrectnessImpl scka) Inv :=
   ((((oracleUnif_preservesInv Inv).add hSendA).add hSendB).add hRecvA).add hRecvB
+
+/-- No query of the correctness game sets a false correctness flag back to true. -/
+theorem sckaCorrectnessImpl_preserves_correct_eq_false [DecidableEq I] :
+    QueryImpl.PreservesInv (sckaCorrectnessImpl scka)
+      (fun s : GameState StA StB I Rho => s.correct = false) := by
+  refine sckaCorrectnessImpl_preservesInv scka ?_ ?_ ?_ ?_
+  · intro _ s hs z hz
+    obtain ⟨out, -, rfl⟩ := (mem_support_oracleSendA_run_iff scka s z).1 hz
+    rcases out with _ | ⟨_ | ⟨tI, key⟩, ρ, tsnd, stA'⟩ <;> simp [sendAUpdate, hs]
+  · intro _ s hs z hz
+    obtain ⟨out, -, rfl⟩ := (mem_support_oracleSendB_run_iff scka s z).1 hz
+    rcases out with _ | ⟨_ | ⟨tI, key⟩, ρ, tsnd, stB'⟩ <;> simp [sendBUpdate, hs]
+  · intro n s hs z hz
+    rcases (mem_support_oracleRecvA_run_iff scka s n z).1 hz with
+      ⟨-, rfl⟩ | ⟨-, -, -, -, rfl⟩ | ⟨-, -, keyOpt, -, -, -, -, rfl⟩
+    · exact hs
+    · rfl
+    · rcases keyOpt with _ | ⟨tI, key⟩ <;> simp [recvAUpdate, hs]
+  · intro n s hs z hz
+    rcases (mem_support_oracleRecvB_run_iff scka s n z).1 hz with
+      ⟨-, rfl⟩ | ⟨-, -, -, -, rfl⟩ | ⟨-, -, keyOpt, -, -, -, -, rfl⟩
+    · exact hs
+    · rfl
+    · rcases keyOpt with _ | ⟨tI, key⟩ <;> simp [recvBUpdate, hs]
 
 /-- The known-prefix check holds exactly when every positive epoch through `n` has a key. -/
 theorem knownPrefix_eq_true_iff {key : ℕ → Option I} {n : ℕ} :

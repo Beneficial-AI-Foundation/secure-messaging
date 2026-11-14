@@ -74,6 +74,17 @@ def GameState.countAt (s : GameState P AuthState) (party : Bool) : ℕ :=
 def GameState.tcurAt (s : GameState P AuthState) (party : Bool) : ℕ :=
   if party then s.tcurA else s.tcurB
 
+/-- The game state with the messages sent by `party` replaced by `msgs`. -/
+def GameState.setMessages (s : GameState P AuthState) (party : Bool)
+    (msgs : ℕ → Option (Message P.Sym × ℕ)) : GameState P AuthState :=
+  { s with msgA := if party then msgs else s.msgA, msgB := if party then s.msgB else msgs }
+
+/-- `setMessages` changes the messages of `party` and no others. -/
+@[simp] theorem messagesAt_setMessages (s : GameState P AuthState) (party who : Bool)
+    (msgs : ℕ → Option (Message P.Sym × ℕ)) :
+    (s.setMessages party msgs).messagesAt who = if who = party then msgs else s.messagesAt who := by
+  cases party <;> cases who <;> rfl
+
 /-- The game state after `party` sends with result `r`, with the correctness flag of `s`. -/
 def sendSuccessor (s : GameState P AuthState) (party : Bool)
     (r : SendResult P AuthState) : GameState P AuthState :=
@@ -275,6 +286,13 @@ theorem recvUpdate_correct (s : GameState P AuthState) (party : Bool) (tsnd : �
   cases party <;> cases who <;> rcases hkey : r.outputKey with _ | ⟨e, key⟩ <;>
     simp [recvUpdate, SCKAScheme.recvAUpdate, SCKAScheme.recvBUpdate, hkey, GameState.stateAt]
 
+/-- The receive oracle keeps both message tables. -/
+@[simp] theorem messagesAt_recvUpdate (s : GameState P AuthState) (party who : Bool) (tsnd : ℕ)
+    (r : RecvResult P AuthState) (trcv : ℕ) :
+    (recvUpdate s party tsnd r trcv).messagesAt who = s.messagesAt who := by
+  cases party <;> cases who <;> rcases hkey : r.outputKey with _ | ⟨e, key⟩ <;>
+    simp [recvUpdate, SCKAScheme.recvAUpdate, SCKAScheme.recvBUpdate, hkey, GameState.messagesAt]
+
 /-- If `s` and `recvUpdate s party tsnd r trcv` both have a true correctness flag, then the update
 equals `recvSuccessor s party r trcv`. -/
 theorem recvUpdate_eq_successor_of_correct (s : GameState P AuthState) (party : Bool) (tsnd : ℕ)
@@ -463,5 +481,25 @@ theorem oracleRecv_run_cases {s : GameState P AuthState} (party : Bool) {n : ℕ
       GameState.stateAt, recvUpdate] using oracleRecvB_run_cases auth irl sampleInitKey hz
   · simpa only [oracleRecv, Bool.not_true, Bool.false_eq_true, ↓reduceIte, GameState.messagesAt,
       GameState.stateAt, recvUpdate] using oracleRecvA_run_cases auth irl sampleInitKey hz
+
+/-- A receive query of the correctness game keeps both message tables. -/
+theorem messagesAt_of_mem_support_recv {s : GameState P AuthState} (party : Bool) (n : ℕ)
+    {z : (SCKAScheme.sckaCorrectnessSpec (Message P.Sym)).Range
+        (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
+          else SCKAScheme.sckaCorrectnessSpec.ORecvB n) × GameState P AuthState}
+    (hz : z ∈ support ((SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey)
+      (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
+        else SCKAScheme.sckaCorrectnessSpec.ORecvB n)).run s))
+    (who : Bool) : z.2.messagesAt who = s.messagesAt who := by
+  suffices h : ∀ z' : Option (ℕ × Option ℕ) × GameState P AuthState,
+      z' ∈ support ((oracleRecv auth irl sampleInitKey party n).run s) →
+        z'.2.messagesAt who = s.messagesAt who by
+    cases party <;> exact h z hz
+  intro z' hz'
+  rcases oracleRecv_run_cases auth irl sampleInitKey party hz' with
+    ⟨-, rfl⟩ | ⟨-, -, -, -, -, rfl⟩ | ⟨-, -, -, -, -, rfl⟩
+  · rfl
+  · cases who <;> rfl
+  · simp
 
 end Braid
