@@ -12,11 +12,11 @@ import SecureMessaging.FSAEAD.FromAEADPRG.Construction
 
 Correctness of the FS-AEAD construction of [ACD19, Figure 6]. Let the AEAD scheme be
 correct. Then:
-- `fromAEADPRG_noFirstDeliverWin`: the construction is perfectly correct
-  (`NoFirstDeliverWin`). In the game of Figure 5, `O-Deliver-B` never changes `win` from
-  false to true. With `securityExp_eq_noDeliverWin`, this
-  removes the `win` of `O-Deliver-B` from the real game `H0`, before the PRG step. ACD19
-  removes it in the step from `H1` to `H2`, where the keys are uniform.
+- `fromAEADPRG_correct`: the construction is perfectly correct (`FSAEADScheme.Correct`).
+  In the game of Figure 5, `O-Deliver-B` never changes `win` from false to true. With
+  `securityExp_eq_noDeliverWin`, this removes the `win` of `O-Deliver-B` from the real game
+  `H0`, before the PRG step. ACD19 removes it in the step from `H1` to `H2`, where the keys
+  are uniform.
 - `rcvAll_honest_initR`: without an adversary, B outputs `(j, m)` for every
   `(j, Enc(K_j, (j, a), m))` with `j ≥ 1`, in any order and each `j` at most once. By
   `sendAll_eq`, A's `j`-th ciphertext has this form.
@@ -654,15 +654,14 @@ end FromAEADPRG
 
 open FromAEADPRG
 
-/-- Let `ae` be a correct AEAD scheme. Then `fromAEADPRG ae prg` is perfectly correct
-(`NoFirstDeliverWin`): in the FS-AEAD game, `O-Deliver-B` never changes `win` from false to
-true. -/
--- ANCHOR: fromAEADPRG_noFirstDeliverWin
-theorem fromAEADPRG_noFirstDeliverWin {Cae AD M : Type} [DecidableEq AD] [DecidableEq M]
+/-- Let `ae` be a correct AEAD scheme. Then `fromAEADPRG ae prg` is perfectly correct: in
+the FS-AEAD game, `O-Deliver-B` never changes `win` from false to true. -/
+-- ANCHOR: fromAEADPRG_correct
+theorem fromAEADPRG_correct {Cae AD M : Type} [DecidableEq AD] [DecidableEq M]
     [DecidableEq Cae] (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae)
     (prg : PRGScheme W (W × Kae)) (hae : ae.Correct) (len : M → ℕ) :
-    (fromAEADPRG ae prg).NoFirstDeliverWin len
--- ANCHOR_END: fromAEADPRG_noFirstDeliverWin
+    (fromAEADPRG ae prg).Correct len
+-- ANCHOR_END: fromAEADPRG_correct
   := fun _ _ _ hst hw _ _ hz => deliver_win_false hae (gameInv_of_reachable hst) hw _ hz
 
 namespace FromAEADPRG.Toy

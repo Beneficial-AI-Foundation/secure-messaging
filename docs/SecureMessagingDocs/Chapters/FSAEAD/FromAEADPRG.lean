@@ -240,7 +240,7 @@ first, so B runs $`\mathsf{skip}(3)` and keeps $`K_1` and $`K_2` in $`D` for mes
 :::defTitle "fs_aead_from_aead_prg_correctness" "FS-AEAD from AEAD and PRG correctness"
 :::
 
-::::theorem "fs_aead_from_aead_prg_correctness" (parent := "fs_aead_fs_aead_from_aead_prg") (lean := "FSAEADScheme.fromAEADPRG_noFirstDeliverWin, FSAEADScheme.FromAEADPRG.sendAll_eq, FSAEADScheme.FromAEADPRG.rcvAll_honest_initR") (tags := "gh-29") (uses := "fs_aead_from_aead_prg_spec, fs_aead_scheme, fs_aead_correctness, aead_correctness, prg")
+::::theorem "fs_aead_from_aead_prg_correctness" (parent := "fs_aead_fs_aead_from_aead_prg") (lean := "FSAEADScheme.fromAEADPRG_correct, FSAEADScheme.FromAEADPRG.sendAll_eq, FSAEADScheme.FromAEADPRG.rcvAll_honest_initR") (tags := "gh-29") (uses := "fs_aead_from_aead_prg_spec, fs_aead_scheme, fs_aead_correctness, aead_correctness, prg")
 Adapted from {Informal.citet ACD19}[], proof of Theorem 5 (step from $`H_1` to $`H_2`).
 
 Let $`\mathsf{AE}` be a correct AEAD scheme and $`G` a PRG. Then:
@@ -254,11 +254,11 @@ Let $`\mathsf{AE}` be a correct AEAD scheme and $`G` a PRG. Then:
 :::leanPillCaption "correctness"
 :::
 
-```anchor fromAEADPRG_noFirstDeliverWin (project := ".") (module := SecureMessaging.FSAEAD.FromAEADPRG.Correctness)
-theorem fromAEADPRG_noFirstDeliverWin {Cae AD M : Type} [DecidableEq AD] [DecidableEq M]
+```anchor fromAEADPRG_correct (project := ".") (module := SecureMessaging.FSAEAD.FromAEADPRG.Correctness)
+theorem fromAEADPRG_correct {Cae AD M : Type} [DecidableEq AD] [DecidableEq M]
     [DecidableEq Cae] (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae)
     (prg : PRGScheme W (W × Kae)) (hae : ae.Correct) (len : M → ℕ) :
-    (fromAEADPRG ae prg).NoFirstDeliverWin len
+    (fromAEADPRG ae prg).Correct len
 ```
 
 :::leanPillCaption "honest delivery in any order"

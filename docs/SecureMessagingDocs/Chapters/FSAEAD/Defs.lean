@@ -425,7 +425,7 @@ noncomputable def advantage [SampleableType K] [DecidableEq AD] [DecidableEq M]
 :::defTitle "fs_aead_correctness" "FS-AEAD correctness"
 :::
 
-::::definition "fs_aead_correctness" (parent := "fs_aead") (lean := "FSAEADScheme.Reachable, FSAEADScheme.NoFirstDeliverWin") (tags := "gh-29") (uses := "fs_aead_security")
+::::definition "fs_aead_correctness" (parent := "fs_aead") (lean := "FSAEADScheme.Reachable, FSAEADScheme.Correct") (tags := "gh-29") (uses := "fs_aead_security")
 Adapted from {Informal.citet ACD19}[], §4.2.1.
 
 The paper builds correctness into the game of the
@@ -461,8 +461,8 @@ inductive Reachable (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : 
 :::leanPillCaption "correctness"
 :::
 
-```anchor NoFirstDeliverWin (project := ".") (module := SecureMessaging.FSAEAD.Correctness)
-def NoFirstDeliverWin (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) : Prop :=
+```anchor Correct (project := ".") (module := SecureMessaging.FSAEAD.Correctness)
+def Correct (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) : Prop :=
   ∀ (b : Bool) (k : K) (st : GameState StS StR AD M C), Reachable fs len b k st →
     st.win = false → ∀ (q : AD × C), ∀ z ∈ support ((oracleDeliverB fs q).run st),
       z.2.win = false
@@ -596,7 +596,7 @@ as probabilistic computations. In particular, $`\Pr\bigl[\Exp{\textsf{fs-aead}}{
 
 ```anchor securityExp_eq_noDeliverWin (project := ".") (module := SecureMessaging.FSAEAD.Correctness)
 theorem securityExp_eq_noDeliverWin [SampleableType K] (fs : FSAEADScheme K StS StR AD M C)
-    (len : M → ℕ) (h : fs.NoFirstDeliverWin len) (adversary : FSAEADAdversary StS StR AD M C) :
+    (len : M → ℕ) (h : fs.Correct len) (adversary : FSAEADAdversary StS StR AD M C) :
     securityExp fs len adversary = securityExpNoDeliverWin fs len adversary
 ```
 ::::

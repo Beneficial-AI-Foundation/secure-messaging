@@ -14,15 +14,15 @@ import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 `win` if B rejects an honest ciphertext or outputs a wrong index or message. The proof of
 Theorem 5 removes this `win` in the step from `H1` to `H2`.
 
-`NoFirstDeliverWin fs len` is the perfect correctness of `fs`: `O-Deliver-B` never changes
-`win` from false to true, in every game state that the oracles reach. A forgery that B
+`fs.Correct len` is the perfect correctness of `fs`: `O-Deliver-B` never changes `win`
+from false to true, in every game state that the oracles reach. A forgery that B
 accepts at an index that is not compromised already sets `win` in `O-Inject-B`, so a later
 delivery failure does not change the result of the experiment.
 
 The game `fs-aead-nd` ("no delivery check") is the game of Figure 5 with
 `O-Deliver-B^nd` (`oracleDeliverBNoWin`) for `O-Deliver-B`. It is a hybrid game for
-proofs, not a security notion. `securityExp_eq_noDeliverWin` states that for a scheme with
-`NoFirstDeliverWin`, its experiment `securityExpNoDeliverWin` equals `securityExp`.
+proofs, not a security notion. `securityExp_eq_noDeliverWin` states that for a correct
+scheme, its experiment `securityExpNoDeliverWin` equals `securityExp`.
 
 - [ACD19] Alwen, Coretti, Dodis.
   *The Double Ratchet: Security Notions, Proofs, and Modularization for the
@@ -58,12 +58,12 @@ inductive Reachable (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : 
 /-- Perfect correctness of an FS-AEAD scheme [ACD19, §4.2.1]: `O-Deliver-B` never changes
 `win` from false to true. In every reachable state with `win = false`, every outcome of
 `O-Deliver-B` has `win = false`. -/
--- ANCHOR: NoFirstDeliverWin
-def NoFirstDeliverWin (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) : Prop :=
+-- ANCHOR: Correct
+def Correct (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) : Prop :=
   ∀ (b : Bool) (k : K) (st : GameState StS StR AD M C), Reachable fs len b k st →
     st.win = false → ∀ (q : AD × C), ∀ z ∈ support ((oracleDeliverB fs q).run st),
       z.2.win = false
--- ANCHOR_END: NoFirstDeliverWin
+-- ANCHOR_END: Correct
 
 omit [DecidableEq M] in
 /-- `O-Deliver-B^nd`, the oracle of `fs-aead-nd`: `O-Deliver-B` without its two assignments
@@ -147,11 +147,11 @@ theorem oracleDeliverB_run_eq_noWin_of_win_true (fs : FSAEADScheme K StS StR AD 
   · simp only [hwin, Bool.not_and, Bool.true_or, bind_pure_comp, StateT.run_map, StateT.run_set,
         map_pure]
 
-/-- Let `fs` satisfy `NoFirstDeliverWin len`. Then for every adversary, `securityExp` equals
-the experiment of `fs-aead-nd`. -/
+/-- Let `fs` be correct for `len`. Then for every adversary, `securityExp` equals the
+experiment of `fs-aead-nd`. -/
 -- ANCHOR: securityExp_eq_noDeliverWin
 theorem securityExp_eq_noDeliverWin [SampleableType K] (fs : FSAEADScheme K StS StR AD M C)
-    (len : M → ℕ) (h : fs.NoFirstDeliverWin len) (adversary : FSAEADAdversary StS StR AD M C) :
+    (len : M → ℕ) (h : fs.Correct len) (adversary : FSAEADAdversary StS StR AD M C) :
     securityExp fs len adversary = securityExpNoDeliverWin fs len adversary
 -- ANCHOR_END: securityExp_eq_noDeliverWin
   := by
