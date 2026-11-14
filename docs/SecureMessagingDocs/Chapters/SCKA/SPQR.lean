@@ -10,6 +10,7 @@ import SecureMessaging.SCKA.SPQR.Unchunked
 import SecureMessaging.SCKA.SPQR.Chunked
 import SecureMessaging.SCKA.SPQR.Construction
 import SecureMessaging.SCKA.SPQR.Correctness
+import SecureMessaging.SCKA.SPQR.Security
 import SecureMessaging.SCKA.SPQR.Instances
 
 /-! # Blueprint chapter: SPQR -/
@@ -1503,14 +1504,157 @@ theorem v1Scheme_correctness_error_le {InitKey AuthState EpochKey Mac : Type}
 ```
 ::::
 
+:::defTitle "spqr_vulnerable_epochs" "Vulnerable epochs of SPQR"
+:::
+
+::::definition "spqr_vulnerable_epochs" (parent := "cka_protocols_spqr") (lean := "SPQR.vuln, SPQR.Chunked.PartyState.authEpoch, SPQR.Chunked.PartyState.authUpdated, SPQR.Chunked.PartyState.holdsSecret") (uses := "spqr_chunked_scheme, scka_oracles")
+The security game of {bpref "scka_oracles"}[] for
+$`\mathsf{SPQR}(P,\mathsf{Auth},\Init\text{-}\KeyGen)` uses the following exposure functions for
+both parties. Let $`\mathsf{st}` be a party state with epoch $`\mathsf{ep}` and authenticator state
+$`\mathsf{auth}`, and $`r` the randomness of a send. The update of epoch
+$`\mathsf{authEpoch}(\mathsf{st})` consumes $`\mathsf{auth}`: $`\mathsf{ep}+1` in
+$`\mathsf{ct1Sampled}`, $`\mathsf{ekReceivedCt1Sampled}`, $`\mathsf{ct1Acknowledged}` and
+$`\mathsf{ct2Sampled}`, whose $`\mathsf{auth}` already includes the epoch key of $`\mathsf{ep}`,
+and $`\mathsf{ep}` otherwise. Then
+
+$$`\mathsf{vuln}^{\mathsf{corr}}(\mathsf{st})=\{\mathsf{authEpoch}(\mathsf{st})\}\cup\begin{cases}
+\{\mathsf{ep},\mathsf{ep}+1\} & \mathsf{st}\text{ holds }\mathsf{sk}\text{ or }\mathsf{encapsSt},\\
+\emptyset & \text{otherwise},\end{cases}`
+
+$$`\mathsf{vuln}^{\mathsf{rleak}}(\mathsf{st},r)=\begin{cases}
+\{\mathsf{ep},\mathsf{ep}+1\} & r=\mathsf{keygen}(\cdot)\text{ or }r=\mathsf{encaps}_1(\cdot),\\
+\emptyset & r=\mathsf{none}.\end{cases}`
+
+The epoch $`\mathsf{ep}+1` is exposed together with $`\mathsf{ep}` because the epoch key of
+$`\mathsf{ep}` updates the authenticator state entering $`\mathsf{ep}` into the one entering
+$`\mathsf{ep}+1`.
+
+:::leanPillCaption "vuln"
+:::
+
+```anchor SPQR_vuln (project := ".") (module := SecureMessaging.SCKA.SPQR.Security.Basic)
+def vuln (P : SPQR.Parameters ProbComp) (AuthState : Type) :
+    SCKAScheme.VulnerableEpochs (PartyState P AuthState)
+      (Braid.SendRand P.det.KeygenRand P.det.Encaps1Rand) where
+  corrupt st := insert st.authEpoch (if st.holdsSecret then {st.epoch, st.epoch + 1} else ∅)
+  rleak st rand := match rand with
+    | .none => ∅
+    | .keygen _ => {st.epoch, st.epoch + 1}
+    | .encaps1 _ => {st.epoch, st.epoch + 1}
+```
+::::
+
 :::defTitle "spqr_protocol_security" "SPQR protocol security"
 :::
 
-::::theorem "spqr_protocol_security" (parent := "cka_protocols_spqr") (tags := "gh-270") (uses := "spqr_protocol_spec, scka_security, erasure_code_scheme")
-$`\todo`
+::::theorem "spqr_protocol_security" (parent := "cka_protocols_spqr") (lean := "SPQR.security, SPQR.kemReduction, SPQR.kdfReduction, SPQR.authReduction") (tags := "gh-270") (uses := "spqr_chunked_scheme, spqr_vulnerable_epochs, mlkem_braid_auth_key_hiding, scka_security, scka_oracles, incremental_kem_det, erasure_code_streaming, kdf_context_game")
+Let $`\Pi=\mathsf{SPQR}(P,\mathsf{Auth},\Init\text{-}\KeyGen)` ({bpref "spqr_chunked_scheme"}[])
+and $`\Gamma` the KEM of $`P` ({bpref "incremental_kem_det"}[]). Assume that the decoders of the
+four streams of $`P` are sound for their erasure codes ({bpref "erasure_code_streaming"}[]).
 
-:::leanPill "missing"
+Then for every SCKA adversary $`\mathcal A` against $`\Pi` making at most $`q` ordinary or
+leaking sends in total ({bpref "scka_oracles"}[]), the IND-CPA adversary
+$`\mathcal B_{\mathsf{KEM}}` against $`\Gamma`, the key-derivation adversary
+$`\mathcal B_{\mathsf{KDF}}`, and the key-hiding adversary $`\mathcal B_{\mathsf{Auth}}` against
+$`\mathsf{Auth}`, all constructed from $`\mathcal A` and $`q`, satisfy
+
+$$`\Adv{\mathsf{guess}}{\mathsf{SCKA},\Pi}(\mathcal A)
+\le 2q\left(\Adv{\mathsf{IND\text{-}CPA}}{\mathsf{KEM},\Gamma}(\mathcal B_{\mathsf{KEM}})
++\Adv{\mathsf{KDF}}{\mathsf{KDF}_{\mathsf{OK}}}(\mathcal B_{\mathsf{KDF}})\right)
++\frac q2\Adv{\mathsf{hide}}{\mathsf{Auth}}(\mathcal B_{\mathsf{Auth}})+q\varepsilon,`
+
+where:
+
+* $`\Adv{\mathsf{guess}}{\mathsf{SCKA},\Pi}` is the guessing advantage of
+  {bpref "scka_security"}[] with the exposure functions of {bpref "spqr_vulnerable_epochs"}[];
+* $`\Adv{\mathsf{IND\text{-}CPA}}{\mathsf{KEM},\Gamma}(\mathcal B)` is the advantage of
+  $`\mathcal B` against $`\Gamma` in the KEM IND-CPA security game, and $`\varepsilon` is the
+  correctness error of $`\Gamma`;
+* $`\Adv{\mathsf{KDF}}{\mathsf{KDF}_{\mathsf{OK}}}` is the advantage in the
+  {bpref "kdf_context_game"}[key-derivation game with an adversarially chosen label], and
+  $`\Adv{\mathsf{hide}}{\mathsf{Auth}}` the advantage in the
+  {bpref "mlkem_braid_auth_key_hiding"}[key-hiding game] of $`\mathsf{Auth}` with the
+  initial-key generator $`\Init\text{-}\KeyGen`;
+* the three adversaries draw an epoch $`e\leftarrow\mathsf{epochChoice}(q)`, uniform on
+  $`\{1,\dots,q\}` for $`q>0` and $`1` for $`q=0`, and run $`\mathcal A` against a simulation of
+  the security game that answers the challenges of epochs before $`e` with uniform keys and of
+  epochs after $`e` with their real keys, and stops with output $`0` once epoch $`e` is exposed.
+  $`\mathcal B_{\mathsf{KEM}}` places its challenge public key and ciphertext in epoch $`e` or
+  $`e-1`, chosen uniformly, with the epoch key that $`\mathsf{KDF}_{\mathsf{OK}}` derives from its
+  challenge key; $`\mathcal B_{\mathsf{KDF}}` places a fresh key pair and ciphertext there, with
+  its challenge key as the epoch key. When they place it in epoch $`e`, the authenticator update of
+  epoch $`e-1` uses an independent uniform epoch key; for $`e=1`, the choice $`e-1` outputs $`0`.
+  Both answer the challenge of epoch $`e` with the key recorded for $`e` or with a uniform key,
+  chosen uniformly, and negate their output in the second case. $`\mathcal B_{\mathsf{Auth}}`
+  places a fresh key pair and ciphertext in epoch $`e`, with its challenge key as the key of
+  epoch $`e`, and uses its hidden operations in place of the authenticator state entering $`e`.
+
+:::leanPillCaption "security"
 :::
+
+```anchor security (project := ".") (module := SecureMessaging.SCKA.SPQR.Security)
+theorem security (P : SPQR.Parameters ProbComp) [DecidableEq P.K] [DecidableEq P.EpochKey]
+    [SampleableType P.K] [SampleableType P.EpochKey]
+    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
+      P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac) (sampleInitKey : ProbComp InitKey)
+    (hHdrSound : P.decHdr.Sound P.ecpHdr) (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1) (hCt2Sound : P.decCt2.Sound P.ecpCt2)
+    (adv : SecurityAdversary P AuthState) (q : ℕ)
+    (hq : SCKAScheme.SecuritySendQueryBound adv q) :
+    let scka := scheme P auth sampleInitKey
+    let V := vuln P AuthState
+    let 𝓑_KEM := kemReduction auth sampleInitKey adv q
+    let 𝓑_KDF := kdfReduction auth sampleInitKey adv q
+    let 𝓑_Auth := authReduction auth sampleInitKey adv q
+    let ε := (P.det.toKEM.correctnessError ProbCompRuntime.probComp).toReal
+    SCKAScheme.sckaGuessAdvantage scka adv V V ≤
+      2 * q * (P.det.toKEM.IND_CPA_Advantage ProbCompRuntime.probComp 𝓑_KEM).toReal +
+        2 * q * Braid.kdfAdvantage P.kdfOK 𝓑_KDF +
+        (q / 2 : ℝ) * Braid.authHideAdvantage auth sampleInitKey 𝓑_Auth + q * ε
+```
+
+:::leanPillCaption "kemReduction"
+:::
+
+```anchor kemReduction (project := ".") (module := SecureMessaging.SCKA.SPQR.Security.Reduction.Reductions)
+def kemReduction : P.det.toKEM.IND_CPA_Adversary where
+  State := Step P InitKey × P.PK
+  preChallenge pk := do
+    let s ← sampleStep sampleInitKey q
+    pure (s, pk)
+  postChallenge st c k := stepOutput auth sampleInitKey adv st.1 st.2 c (P.kdfOK k st.1.epoch)
+```
+
+:::leanPillCaption "kdfReduction"
+:::
+
+```anchor kdfReduction (project := ".") (module := SecureMessaging.SCKA.SPQR.Security.Reduction.Reductions)
+def kdfReduction : Braid.KDFContextAdversary P.EpochKey where
+  State := Step P InitKey × P.PK × P.C
+  context := do
+    let s ← sampleStep sampleInitKey q
+    let (pk, _) ← P.det.toKEM.keygen
+    let (c, _) ← P.det.toKEM.encaps pk
+    pure (s.epoch, (s, pk, c))
+  guess st y := stepOutput auth sampleInitKey adv st.1 st.2.1 st.2.2 y
+```
+
+:::leanPillCaption "authReduction"
+:::
+
+```anchor authReduction (project := ".") (module := SecureMessaging.SCKA.SPQR.Security.Reduction.Reductions)
+def authReduction : Braid.AuthHideAdversary P.EpochKey AuthState P.det.PKheader
+    (P.det.C₁ × P.det.C₂) P.Mac where
+  State := Context P InitKey × P.PK × P.C
+  context := do
+    let ctx ← sampleContext sampleInitKey q
+    let (pk, _) ← P.det.toKEM.keygen
+    let (c, _) ← P.det.toKEM.encaps pk
+    pure (ctx.e, (ctx, pk, c))
+  guess st y h :=
+    simRun (withHidden auth h st.1.e) sampleInitKey adv st.1.e st.1.d st.1.ik st.2.1
+      (P.det.splitC st.2.2).1 (P.det.splitC st.2.2).2 y y
+```
 ::::
 
 *References:*
