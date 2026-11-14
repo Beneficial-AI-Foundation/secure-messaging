@@ -20,20 +20,39 @@ SCKA security game `fixed S irl A b` of `scheme P S irl` under E⁺; the real tr
 `run` with the empty table, the real rules, the challenge modes `Modes.fixedBit b` and the real
 receive; and the repaired trace game, the same run with the repaired receive.
 
-The trace invariant `TraceInv` holds in the repaired game, and in the real game until the bad flag
-is set. In the real game it also says that decapsulating every recorded encapsulation with its
-recorded key pair gives the epoch key derived from the recorded KEM key. The exposed and
-challenged epochs stay disjoint. Every oracle keeps `TraceInv`.
+In the repaired game, the trace invariant `TraceInv` states that the game state agrees with the
+records, whether or not the bad flag is set. In the real game, when the bad flag is false, it
+states two facts: the game state agrees with the records, and decapsulating every recorded
+encapsulation with its recorded key pair gives the epoch key derived from the recorded KEM key.
+When the bad flag is set in the real game, `TraceInv` states neither fact. In both games, whether
+or not the bad flag is set, it also states that the exposed and challenged epochs are disjoint.
 
-While the bad flag is false, the real and the repaired trace games answer every query in the same
-way, and no query clears the bad flag. Forgetting the records and the bad flag of the real trace
-game gives the security game (`run_erase`); this needs no hypothesis on the stream decoders.
+`Parameters` contains the four stream decoders but no proof that they are sound. Several results
+below take their soundness as four hypotheses: `hHdrSound : P.decHdr.Sound P.ecpHdr`,
+`hEkSound : P.decEk.Sound P.ecpEk`, `hCt1Sound : P.decCt1.Sound P.ecpCt1` and
+`hCt2Sound : P.decCt2.Sound P.ecpCt2`. They state that the header, encapsulation-key, `ct₁` and
+`ct₂` decoders are sound for their erasure codes: a decoder that received only chunks of a payload
+`p`, at least one, decodes to `none` or to `some p` (`StreamDecoder.Sound`). A decoder that is not
+sound may output a payload other than the one sent, and the correctness error of the KEM does not
+cover that case.
+
+In both trace games, the uniform-randomness, send, challenge and corruption oracles keep
+`TraceInv` with no hypothesis on the stream decoders. Under the four soundness hypotheses, a
+receive keeps `TraceInv` in the repaired game (`traceReceive_preservesInv`) and in the real game
+(`traceReceive_real_preservesInv`). Hence, under these hypotheses, every query of the real trace
+game keeps `TraceInv` of the real game (`traceImpl_real_preservesInv`).
+
+Under the four soundness hypotheses, at a state that satisfies `TraceInv` of the real game and has
+the bad flag false, the real and the repaired trace games answer every query in the same way
+(`traceImpl_real_eq_repaired`). No query clears the bad flag (`traceImpl_bad_mono`). Forgetting
+the records and the bad flag of the real trace game gives the security game (`run_erase`); this
+needs no hypothesis on the stream decoders.
 
 Both games first draw a uniform initial key `ik`. The trace game records the initial
 authenticator value `S.F 1 S.initRoot ik`; the security game starts both parties from it. The
-comparison is proved for each initial key and then averaged over the draw:
-`fixed_repaired_gap_le` bounds the distance between the security game and the repaired game by
-the probability of the bad event in the real game.
+comparison is proved for each initial key and then averaged over the draw. Under the four
+soundness hypotheses, `fixed_repaired_gap_le` bounds the distance between the security game and
+the repaired game by the probability that the real trace game sets the bad flag.
 -/
 
 @[expose] public section
@@ -54,10 +73,13 @@ def Modes.fixedBit (b : Bool) : Modes :=
   { Modes.real with chal := fun _ => if b then .uniform else .real }
 
 /-- The invariant of a trace game for the scheduled authenticator `S`, the table `tbl`, the modes
-`modes` and the initial key `ik`. In the repaired game, and in the real game before the bad event,
-the game state agrees with the records (`RepairInv`); in the real game, decapsulating every
-recorded encapsulation with its recorded key pair also gives the epoch key derived from the
-recorded KEM key (`Braid.NoAuth.DecapsGood`). The exposed and challenged epochs are disjoint. -/
+`modes` and the initial key `ik`. In the repaired game (`repair = true`), it states that the game
+state agrees with the records (`RepairInv`), whether or not the bad flag is set. In the real game
+(`repair = false`), when the bad flag is false, it states two facts: the game state agrees with
+the records, and decapsulating every recorded encapsulation with its recorded key pair gives the
+epoch key derived from the recorded KEM key (`Braid.NoAuth.DecapsGood`). When the bad flag is set
+in the real game, it states neither fact. In both games, whether or not the bad flag is set, it
+also states that the exposed and challenged epochs are disjoint. -/
 def TraceInv [DecidableEq P.Mac] {irl : P.kem.IncrementalRandLeak P.inc}
     (S : ScheduledAuthenticator P Root MacKey) (tbl : Installed P irl (Root × MacKey))
     (modes : Modes) (ik : P.EpochKey) (repair : Bool) (s : TraceState P (Root × MacKey)) : Prop :=

@@ -15,17 +15,27 @@ public import ToVCVio.OracleComp.SimSemantics.StateT.WPBound
 # The bad-event bound of the real trace game
 
 The real trace game sets its bad flag at a first-stage encapsulation whose decapsulation with the
-recorded key pair would not give the derived epoch key. This module bounds the probability of
-this event by `qS · ε`, where `qS` bounds the number of sends and `ε` is the correctness error of
-the KEM (`badEvent_le`).
+recorded key pair would not give the derived epoch key. `Parameters` contains the four stream
+decoders but no proof that they are sound. Let the four decoders be sound for their erasure codes,
+that is, assume `hHdrSound : P.decHdr.Sound P.ecpHdr`, `hEkSound : P.decEk.Sound P.ecpEk`,
+`hCt1Sound : P.decCt1.Sound P.ecpCt1` and `hCt2Sound : P.decCt2.Sound P.ecpCt2`. Then this module
+bounds the probability that the real trace game sets its bad flag by `qS · ε`, where `qS` bounds
+the number of sends and `ε` is the correctness error of the KEM (`badEvent_le`).
 
 The proof uses a score. After the bad event the score `badScore` is one. Before it, the score is
 the pending risk of the records: for each epoch with a recorded key pair and no recorded
-encapsulation, the decapsulation-failure probability of that key pair. A key-generation send adds,
-in expectation, the mean failure probability of a fresh key pair, which is `ε`. A first-stage
-encapsulation removes the conditional risk of the retained key pair, and that risk bounds the
-probability that the send sets the bad flag. The argument never replaces the conditional risk of
-a retained key pair by the mean over fresh key pairs. Every other query leaves the score unchanged.
+encapsulation, the decapsulation-failure probability of that key pair. At every state that
+satisfies `TraceInv` of the real game, one query raises the expected score by at most `ε` if it
+is a send, and does not raise it otherwise (`traceImpl_payoff`). When the bad flag is false, a
+key-generation send that the game accepts adds, in expectation, the mean failure probability of a
+fresh key pair, which is `ε`. A first-stage encapsulation removes the conditional risk of the
+retained key pair, and that risk bounds the probability that the send sets the bad flag. A leaking
+send that would expose a challenged epoch is refused, and the score keeps its value. The argument
+never replaces the conditional risk of a retained key pair by the mean over fresh key pairs.
+
+The proof uses the soundness hypotheses only to show that the receives of the run keep `TraceInv`
+(`traceImpl_real_preservesInv`). The correctness error `ε` of the KEM does not cover a decoder
+that outputs a payload other than the one sent.
 -/
 
 @[expose] public section
