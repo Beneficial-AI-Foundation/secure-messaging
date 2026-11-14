@@ -12,10 +12,13 @@ public import SecureMessaging.SCKA.MLKEMBraid.Correctness.EpochSafety.StatePair
 # The transcript invariant of the Braid correctness game
 
 An `EpochTranscript` records the key pair and the first-stage encapsulation sampled in an epoch.
-`TranscriptConsistent T s` states that the game state `s` agrees with the transcript `T`: the
-party states and recorded messages carry the recorded samples, decapsulation in a completed epoch
-gives the recorded key, and the output keys are the transcript keys. `CorrectnessInv s` states
-that the correctness flag is false or that `s` is consistent with some transcript.
+For a condition `D` on recorded samples, `TranscriptInv D T s` states that `s` has a true
+correctness flag, satisfies the control and state-pair invariants, and agrees with the transcript
+`T`: the party states and recorded messages carry the recorded samples, the output keys are the
+transcript keys, and every recorded encapsulation of an epoch that its generator has completed
+satisfies `D`. `TranscriptConsistent` takes for `D` that decapsulation gives the recorded key;
+`CorrectnessInv s` states that the correctness flag is false or that `s` satisfies
+`TranscriptConsistent` for some transcript.
 -/
 
 @[expose] public section
@@ -255,14 +258,23 @@ theorem TranscriptInv.local {ik : InitKey} {T : ℕ → EpochTranscript P}
     LocalPayloadInv auth ik T (s.stateAt party) := by
   cases party; exacts [hT.localB, hT.localA]
 
+variable {auth} in
+/-- `TranscriptInv D` reads neither the exposed nor the challenged epochs. -/
+theorem TranscriptInv.setFlags {ik : InitKey} {T : ℕ → EpochTranscript P}
+    {s : GameState P AuthState} (h : TranscriptInv auth D ik T s) (X Y : Finset ℕ) :
+    TranscriptInv auth D ik T { s with exposed := X, challenged := Y } :=
+  ⟨h.correct, h.control.setFlags s.correct X Y, h.statePair, h.keypair_zero, h.encaps_zero,
+    h.keypair, h.encaps, h.localA, h.localB, h.messages, h.keys⟩
+
 /-- Either the correctness flag is already false, or some transcript is consistent with the game
 state. -/
 def CorrectnessInv (ik : InitKey) (s : GameState P AuthState) : Prop :=
   s.correct = false ∨ ∃ T : ℕ → EpochTranscript P, TranscriptConsistent auth ik T s
 
-/-- The initial game state is consistent with the empty transcript. -/
-theorem transcriptConsistent_initGameState (ik : InitKey) :
-    TranscriptConsistent auth ik (fun _ => { keypair := none, encaps1 := none })
+/-- The initial game state satisfies `TranscriptInv D` for the empty transcript, for every
+condition `D`. -/
+theorem transcriptInv_initGameState (ik : InitKey) :
+    TranscriptInv auth D ik (fun _ => { keypair := none, encaps1 := none })
       (SCKAScheme.initGameState (initA P auth ik) (initB P auth ik)) := by
   have hControl : ControlInv
       (SCKAScheme.initGameState (I := P.EpochKey) (Rho := Message P.Sym)
@@ -286,6 +298,12 @@ theorem transcriptConsistent_initGameState (ik : InitKey) :
   · intro party e
     cases party <;>
       simp [SCKAScheme.initGameState, initA, initB, State.completedEpoch, State.epoch]
+
+/-- The initial game state is consistent with the empty transcript. -/
+theorem transcriptConsistent_initGameState (ik : InitKey) :
+    TranscriptConsistent auth ik (fun _ => { keypair := none, encaps1 := none })
+      (SCKAScheme.initGameState (initA P auth ik) (initB P auth ik)) :=
+  transcriptInv_initGameState auth ik
 
 /-! ### The peer of a sampling party -/
 

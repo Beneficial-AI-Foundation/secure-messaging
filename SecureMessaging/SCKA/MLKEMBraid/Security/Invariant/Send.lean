@@ -47,18 +47,10 @@ theorem traceSend_preserves (party leaking : Bool) (s : TraceState P)
     exact ⟨h, fun hg _ => hg⟩
   rw [hz]
   dsimp only
-  have hCPgen : ∀ r', r' ∈ support (send P (auth P hMac) (s.game.stateAt party)) →
-      ControlInv (sendUpdate s.game party r') ∧ StatePairInv (sendUpdate s.game party r') := by
-    intro r' hr'
-    cases party
-    · exact correctnessImpl_preserves_controlInv_statePairInv (auth P hMac) irl (pure ())
-        (OSendB (Rho := Message P.Sym)) s.game ⟨h.control, h.statePair⟩ _
-        ((mem_support_oracleSend_run_iff (auth P hMac) irl (pure ()) s.game false _).2
-          ⟨r', hr', rfl⟩)
-    · exact correctnessImpl_preserves_controlInv_statePairInv (auth P hMac) irl (pure ())
-        (OSendA (Rho := Message P.Sym)) s.game ⟨h.control, h.statePair⟩ _
-        ((mem_support_oracleSend_run_iff (auth P hMac) irl (pure ()) s.game true _).2
-          ⟨r', hr', rfl⟩)
+  have hCPgen : ∀ r', SendEdge (auth P hMac) (s.game.stateAt party) r' →
+      ControlInv (sendUpdate s.game party r') ∧ StatePairInv (sendUpdate s.game party r') :=
+    fun _ hedge => controlInv_statePairInv_sendUpdate (auth P hMac) ⟨h.control, h.statePair⟩
+      party hedge
   obtain ⟨htcur, hkeys⟩ := h.control.send_prefix party
   cases hst : s.game.stateAt party with
   | keysUnsampled e a =>
@@ -69,9 +61,8 @@ theorem traceSend_preserves (party leaking : Bool) (s : TraceState P)
       have hkg : (pk, sk) ∈ support P.kem.keygen := by
         rw [keygen_eq_map irl, support_map]
         exact ⟨_, hkr, rfl⟩
-      have hr : keygenStep P hMac e a pk sk ∈
-          support (send P (auth P hMac) (s.game.stateAt party)) := by
-        rw [hst, mem_support_send_iff]
+      have hr : SendEdge (auth P hMac) (s.game.stateAt party) (keygenStep P hMac e a pk sk) := by
+        rw [hst]
         exact .keygen e a pk sk hkg
       rw [hst] at htcur hkeys
       simp only [State.epoch] at htcur hkeys
@@ -82,8 +73,8 @@ theorem traceSend_preserves (party leaking : Bool) (s : TraceState P)
       have hsucc := sendUpdate_eq_successor_of_correct s.game party _ h.correct hflag
       have hCP := hCPgen _ hr
       rw [hsucc] at hCP ⊢
-      refine ⟨RepairInv.setFlags
-        (send_keysUnsampled_transcript (auth P hMac) h party hst pk sk hCP) _ _, fun hg _ => ?_⟩
+      refine ⟨(send_keysUnsampled_transcript (auth P hMac) h party hst pk sk hCP).setFlags _ _,
+        fun hg _ => ?_⟩
       have hc0 : (s.transcript e).encaps1 = none := by
         have hL := h.local _ party
         rw [hst] at hL
@@ -102,9 +93,9 @@ theorem traceSend_preserves (party leaking : Bool) (s : TraceState P)
       have hek : (es, ct1, k) ∈ support (P.inc.encaps1 hdr) := by
         rw [encaps1_eq_map irl, support_map]
         exact ⟨_, hkr, rfl⟩
-      have hr : encaps1Step P hMac e a hdr dec es ct1 k ∈
-          support (send P (auth P hMac) (s.game.stateAt party)) := by
-        rw [hst, mem_support_send_iff]
+      have hr : SendEdge (auth P hMac) (s.game.stateAt party)
+          (encaps1Step P hMac e a hdr dec es ct1 k) := by
+        rw [hst]
         exact .encaps1 e a hdr dec es ct1 k hek
       obtain ⟨pk, sk, b, enc, hkpT, hpeer, hhdr⟩ := peer_keysSampled_of_headerReceived _ h party hst
       rw [hst] at htcur hkeys
@@ -130,8 +121,7 @@ theorem traceSend_preserves (party leaking : Bool) (s : TraceState P)
       have hsucc := sendUpdate_eq_successor_of_correct s.game party _ h.correct hflag
       have hCP := hCPgen _ hr
       rw [hsucc] at hCP ⊢
-      refine ⟨RepairInv.setFlags
-        (send_headerReceived_transcript (auth P hMac) h party hst es ct1 k hCP) _ _,
+      refine ⟨(send_headerReceived_transcript (auth P hMac) h party hst es ct1 k hCP).setFlags _ _,
         fun hg hbad => ?_⟩
       simp only [encaps1Bad, hkpT, Bool.or_eq_false_iff, decide_eq_false_iff_not, not_not] at hbad
       obtain ⟨-, hdk⟩ := hbad
@@ -165,9 +155,9 @@ theorem traceSend_preserves (party leaking : Bool) (s : TraceState P)
         simp only [Bool.and_eq_true, decide_eq_true_eq]
         exact ⟨⟨h.correct, htcur⟩, SCKAScheme.knownPrefix_eq_true hkeys⟩
       have hsucc := sendUpdate_eq_successor_of_correct s.game party _ h.correct hflag
-      have hCP := hCPgen _ hr
+      have hCP := hCPgen _ hedge
       rw [hsucc] at hCP ⊢
-      exact ⟨RepairInv.setFlags
-        (send_existing_transcript (auth P hMac) h party hr hsteady hCP) _ _, fun hg _ => hg⟩
+      exact ⟨(send_existing_transcript (auth P hMac) h party hedge hsteady hCP).setFlags _ _,
+        fun hg _ => hg⟩
 
 end Braid.NoAuth

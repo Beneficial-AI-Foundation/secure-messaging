@@ -12,9 +12,9 @@ public import SecureMessaging.SCKA.MLKEMBraid.Correctness.Oracles
 # Reports of recorded messages
 
 The correctness game stores each sent message with the epoch that the send reports, and checks
-that the receive of the message reports the same epoch. A Braid send of `msg` reports
+that the receive of the message reports the same epoch. A send edge with message `msg` reports
 `msg.epoch - 1`. `RecordedReportInv` states that every recorded message is stored with this
-report, and every oracle of the correctness game preserves it.
+report. Every send edge and every receive of either party preserves it.
 -/
 
 @[expose] public section
@@ -48,35 +48,17 @@ theorem recordedReportInv_initGameState {StA StB I Sym : Type} (stA : StA) (stB 
     RecordedReportInv (SCKAScheme.initGameState (I := I) (Rho := Message Sym) stA stB) := by
   constructor <;> intro n msg tsnd h <;> simp [SCKAScheme.initGameState] at h
 
-/-- Every oracle of the correctness game preserves `RecordedReportInv`. -/
-theorem correctnessImpl_preserves_recordedReportInv
-    [DecidableEq P.EpochKey]
-    (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey) :
-    QueryImpl.PreservesInv
-      (SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey)) RecordedReportInv := by
-  refine SCKAScheme.sckaCorrectnessImpl_preservesInv _ ?_ ?_ ?_ ?_
-  -- Sends record one message with the report `msg.epoch - 1`.
-  · intro _ s hs z hz
-    obtain ⟨r, hr, rfl⟩ := (mem_support_oracleSendA_run_iff auth irl sampleInitKey s z).mp hz
-    have hedge := (mem_support_send_iff auth).mp hr
-    have hreport : r.sendingEpoch = r.msg.epoch - 1 := by
-      rw [hedge.sendingEpoch_eq, hedge.epoch_eq.2]
-    rcases hkey : r.outputKey with _ | ⟨tI, key⟩
-    all_goals
-      refine ⟨fun n msg tsnd hn => ?_, hs.msgB⟩
-      simp only [SCKAScheme.sendAUpdate] at hn
-      by_cases hnew : n = s.nA + 1
-      · subst hnew
-        rw [Function.update_self] at hn
-        obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hn)
-        exact hreport
-      · rw [Function.update_of_ne hnew] at hn
-        exact hs.msgA n msg tsnd hn
-  · intro _ s hs z hz
-    obtain ⟨r, hr, rfl⟩ := (mem_support_oracleSendB_run_iff auth irl sampleInitKey s z).mp hz
-    have hedge := (mem_support_send_iff auth).mp hr
-    have hreport : r.sendingEpoch = r.msg.epoch - 1 := by
-      rw [hedge.sendingEpoch_eq, hedge.epoch_eq.2]
+variable [DecidableEq P.EpochKey]
+
+/-- A send edge from the state of `party` records its message with the report `msg.epoch - 1`, so
+`RecordedReportInv` is preserved. -/
+theorem recordedReportInv_sendUpdate {s : GameState P AuthState} (hs : RecordedReportInv s)
+    (party : Bool) {r : SendResult P AuthState} (hedge : SendEdge auth (s.stateAt party) r) :
+    RecordedReportInv (sendUpdate s party r) := by
+  have hreport : r.sendingEpoch = r.msg.epoch - 1 := by
+    rw [hedge.sendingEpoch_eq, hedge.epoch_eq.2]
+  cases party
+  · simp only [sendUpdate, Bool.false_eq_true, ↓reduceIte]
     rcases hkey : r.outputKey with _ | ⟨tI, key⟩
     all_goals
       refine ⟨hs.msgA, fun n msg tsnd hn => ?_⟩
@@ -88,18 +70,24 @@ theorem correctnessImpl_preserves_recordedReportInv
         exact hreport
       · rw [Function.update_of_ne hnew] at hn
         exact hs.msgB n msg tsnd hn
-  -- Receives leave the recorded messages unchanged.
-  · intro n s hs z hz
-    rcases oracleRecvA_run_cases auth irl sampleInitKey hz with
-      ⟨-, rfl⟩ | ⟨msg, tsnd, err, -, -, rfl⟩ | ⟨msg, tsnd, r, -, -, rfl⟩
-    · exact hs
-    · exact ⟨hs.msgA, hs.msgB⟩
-    · rcases r.outputKey with _ | ⟨tI, key⟩ <;> exact ⟨hs.msgA, hs.msgB⟩
-  · intro n s hs z hz
-    rcases oracleRecvB_run_cases auth irl sampleInitKey hz with
-      ⟨-, rfl⟩ | ⟨msg, tsnd, err, -, -, rfl⟩ | ⟨msg, tsnd, r, -, -, rfl⟩
-    · exact hs
-    · exact ⟨hs.msgA, hs.msgB⟩
-    · rcases r.outputKey with _ | ⟨tI, key⟩ <;> exact ⟨hs.msgA, hs.msgB⟩
+  · simp only [sendUpdate, ↓reduceIte]
+    rcases hkey : r.outputKey with _ | ⟨tI, key⟩
+    all_goals
+      refine ⟨fun n msg tsnd hn => ?_, hs.msgB⟩
+      simp only [SCKAScheme.sendAUpdate] at hn
+      by_cases hnew : n = s.nA + 1
+      · subst hnew
+        rw [Function.update_self] at hn
+        obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hn)
+        exact hreport
+      · rw [Function.update_of_ne hnew] at hn
+        exact hs.msgA n msg tsnd hn
+
+/-- A receive leaves the recorded messages unchanged, so `RecordedReportInv` is preserved. -/
+theorem recordedReportInv_recvUpdate {s : GameState P AuthState} (hs : RecordedReportInv s)
+    (party : Bool) (tsnd : ℕ) (r : RecvResult P AuthState) (trcv : ℕ) :
+    RecordedReportInv (recvUpdate s party tsnd r trcv) := by
+  cases party <;> simp only [recvUpdate, Bool.false_eq_true, ↓reduceIte] <;>
+    rcases r.outputKey with _ | ⟨tI, key⟩ <;> exact ⟨hs.msgA, hs.msgB⟩
 
 end Braid
