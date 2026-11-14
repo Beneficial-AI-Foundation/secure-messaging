@@ -76,6 +76,9 @@ structure FSAEADScheme (K StS StR AD M C : Type) where
 :::::::definition "fs_aead_security" (parent := "fs_aead") (lean := "FSAEADScheme.GameState, FSAEADScheme.securityExp, FSAEADScheme.fsaeadSecurityImpl, FSAEADScheme.advantage") (tags := "gh-187") (uses := "fs_aead_scheme")
 Adapted from {Informal.citet ACD19}[], Figure 5 and Definition 15.
 
+The game has a parameter: a length function $`|\cdot|` on messages. $`\OChallA` requires
+$`|m_0| = |m_1|`.
+
 ::::::gameGrid
 :::::gameCell "\\textsf{Game state and notation}" (kind := "scheme-notation")
 The game state consists of:
@@ -419,26 +422,26 @@ noncomputable def advantage [SampleableType K] [DecidableEq AD] [DecidableEq M]
 ```
 :::::::
 
-:::defTitle "fs_aead_delivery_correctness" "FS-AEAD delivery correctness"
+:::defTitle "fs_aead_correctness" "FS-AEAD correctness"
 :::
 
-::::definition "fs_aead_delivery_correctness" (parent := "fs_aead") (lean := "FSAEADScheme.Reachable, FSAEADScheme.NoFirstDeliverWin") (tags := "gh-29") (uses := "fs_aead_security")
-{Informal.citet ACD19}[], §4.2.1, builds correctness into the game of the
-{bpref "fs_aead_security"}[FS-AEAD security definition]: $`\ODeliverB` sets $`\mathsf{win}`
-if B rejects an honest ciphertext or outputs a wrong index or message.
+::::definition "fs_aead_correctness" (parent := "fs_aead") (lean := "FSAEADScheme.Reachable, FSAEADScheme.NoFirstDeliverWin") (tags := "gh-29") (uses := "fs_aead_security")
+Adapted from {Informal.citet ACD19}[], §4.2.1.
 
-Fix a length function $`|\cdot|` on messages. For a key $`k` and a challenge bit $`b`, a
-game state is reachable if the oracles of the
-{bpref "fs_aead_security"}[FS-AEAD security game] reach it from the initial state for
-$`k`, with challenge bit $`b`. An FS-AEAD scheme is delivery-correct if for every key
+The paper builds correctness into the game of the
+{bpref "fs_aead_security"}[FS-AEAD security definition]: $`\ODeliverB` sets $`\mathsf{win}`
+if B rejects an honest ciphertext or outputs a wrong index or message. This definition
+states that condition on its own.
+
+For a key $`k` and a challenge bit $`b`, a game state is reachable if the oracles of the
+FS-AEAD security game with length function $`|\cdot|` reach it from the initial state for
+$`k`, with challenge bit $`b`. An FS-AEAD scheme is correct for $`|\cdot|` if for every key
 $`k`, every challenge bit $`b`, every reachable state with $`\mathsf{win} = \mathsf{false}`
 and every query $`(a, e)`, every outcome of $`\ODeliverB(a, e)` has
 $`\mathsf{win} = \mathsf{false}`.
 
-The definition does not require that $`\ODeliverB` never sets $`\mathsf{win}`. A forgery
-that B accepts at an index outside $`\mathsf{comp}` can make a later delivery fail, but it
-sets $`\mathsf{win}` in $`\OInjectB` first. Delivery correctness is not the correctness
-notion of Theorem 7 of {Informal.citet ACD19}[], because here $`\OCorrB` ends the game.
+This is perfect correctness, as in the proof of Theorem 5 of {Informal.citet ACD19}[]: no
+honest delivery fails while $`\mathsf{win} = \mathsf{false}`.
 
 :::leanPillCaption "reachable game states"
 :::
@@ -455,7 +458,7 @@ inductive Reachable (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : 
       Reachable fs len b k z.2
 ```
 
-:::leanPillCaption "delivery correctness"
+:::leanPillCaption "correctness"
 :::
 
 ```anchor NoFirstDeliverWin (project := ".") (module := SecureMessaging.FSAEAD.Correctness)
@@ -477,8 +480,9 @@ $`\ODeliverB` without its two assignments $`\mathsf{win} \gets \mathsf{true}`. T
 initialization, the other oracles and the output are those of the FS-AEAD security game.
 
 $`\textsf{fs-aead-nd}` is a hybrid game for proofs, not a security notion. A bound in
-$`\textsf{fs-aead-nd}` is a bound in the FS-AEAD security game only for a delivery-correct
-scheme, by {bpref "fs_aead_delivery_correctness_hop"}[the equality of the two experiments].
+$`\textsf{fs-aead-nd}` is a bound in the FS-AEAD security game only for a
+{bpref "fs_aead_correctness"}[correct] scheme, by
+{bpref "fs_aead_no_delivery_check_hop"}[the equality of the two experiments].
 
 ::::::gameGrid
 :::::gameCell "\\ODeliverB(a, e)" (kind := "compact")
@@ -576,11 +580,11 @@ def securityExpNoDeliverWin [SampleableType K] (fs : FSAEADScheme K StS StR AD M
 ::::::
 :::::::
 
-:::defTitle "fs_aead_delivery_correctness_hop" "Removing the delivery check"
+:::defTitle "fs_aead_no_delivery_check_hop" "Removing the delivery check"
 :::
 
-::::theorem "fs_aead_delivery_correctness_hop" (parent := "fs_aead") (lean := "FSAEADScheme.securityExp_eq_noDeliverWin") (tags := "gh-29") (uses := "fs_aead_delivery_correctness, fs_aead_no_delivery_check_game, fs_aead_security")
-Let an FS-AEAD scheme be {bpref "fs_aead_delivery_correctness"}[delivery-correct] for the
+::::theorem "fs_aead_no_delivery_check_hop" (parent := "fs_aead") (lean := "FSAEADScheme.securityExp_eq_noDeliverWin") (tags := "gh-29") (uses := "fs_aead_correctness, fs_aead_no_delivery_check_game, fs_aead_security")
+Let an FS-AEAD scheme be {bpref "fs_aead_correctness"}[correct] for the
 length function $`|\cdot|`. Then for every adversary $`\adv`,
 
 $$`\Exp{\textsf{fs-aead}}{\textsf{FS-AEAD}}(\adv) = \Exp{\textsf{fs-aead-nd}}{\textsf{FS-AEAD}}(\adv)`
@@ -589,8 +593,8 @@ as probabilistic computations. In particular, $`\Pr\bigl[\Exp{\textsf{fs-aead}}{
 
 Proof idea: the two games differ only in $`\ODeliverB`. In a reachable state with
 $`\mathsf{win} = \mathsf{true}`, the assignments $`\mathsf{win} \gets \mathsf{true}` change
-nothing. In a reachable state with $`\mathsf{win} = \mathsf{false}`, delivery correctness
-says that they do not run. So the two oracles agree on every reachable state.
+nothing. In a reachable state with $`\mathsf{win} = \mathsf{false}`, correctness says that
+they do not run. So the two oracles agree on every reachable state.
 
 :::leanPillCaption "equality of experiments"
 :::

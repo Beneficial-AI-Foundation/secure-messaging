@@ -8,16 +8,16 @@ import SecureMessaging.FSAEAD.Defs
 import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 
 /-!
-# FS-AEAD — Correctness of delivery
+# FS-AEAD — Correctness
 
 [ACD19, §4.2.1] builds correctness into the security game of Figure 5: `O-Deliver-B` sets
 `win` if B rejects an honest ciphertext or outputs a wrong index or message. The proof of
 Theorem 5 removes this `win` in the step from `H1` to `H2`.
 
-`NoFirstDeliverWin fs len` states that `O-Deliver-B` never changes `win` from false to true,
-in every game state that the oracles reach. A forgery that B accepts at an index that is
-not compromised already sets `win` in `O-Inject-B`, so a later delivery failure does not
-change the result of the experiment.
+`NoFirstDeliverWin fs len` is the perfect correctness of `fs`: `O-Deliver-B` never changes
+`win` from false to true, in every game state that the oracles reach. A forgery that B
+accepts at an index that is not compromised already sets `win` in `O-Inject-B`, so a later
+delivery failure does not change the result of the experiment.
 
 The game `fs-aead-nd` ("no delivery check") is the game of Figure 5 with
 `O-Deliver-B^nd` (`oracleDeliverBNoWin`) for `O-Deliver-B`. It is a hybrid game for
@@ -29,9 +29,6 @@ proofs, not a security notion. `securityExp_eq_noDeliverWin` states that for a s
   Signal Protocol.*
   EUROCRYPT 2019, https://eprint.iacr.org/2018/1037.pdf
   — §4.2.1, Figure 5, proof of Theorem 5.
-
-`NoFirstDeliverWin` is not the correctness notion that Theorem 7 uses: here `O-Corr-B` ends
-the game.
 -/
 
 open OracleSpec OracleComp
@@ -58,8 +55,9 @@ inductive Reachable (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : 
       Reachable fs len b k z.2
 -- ANCHOR_END: Reachable
 
-/-- `O-Deliver-B` never changes `win` from false to true: in every reachable state with
-`win = false`, every outcome of `O-Deliver-B` has `win = false`. -/
+/-- Perfect correctness of an FS-AEAD scheme [ACD19, §4.2.1]: `O-Deliver-B` never changes
+`win` from false to true. In every reachable state with `win = false`, every outcome of
+`O-Deliver-B` has `win = false`. -/
 -- ANCHOR: NoFirstDeliverWin
 def NoFirstDeliverWin (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) : Prop :=
   ∀ (b : Bool) (k : K) (st : GameState StS StR AD M C), Reachable fs len b k st →

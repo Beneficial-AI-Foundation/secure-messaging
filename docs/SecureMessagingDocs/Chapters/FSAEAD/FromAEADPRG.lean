@@ -240,12 +240,12 @@ first, so B runs $`\mathsf{skip}(3)` and keeps $`K_1` and $`K_2` in $`D` for mes
 :::defTitle "fs_aead_from_aead_prg_correctness" "FS-AEAD from AEAD and PRG correctness"
 :::
 
-::::theorem "fs_aead_from_aead_prg_correctness" (parent := "fs_aead_fs_aead_from_aead_prg") (lean := "FSAEADScheme.fromAEADPRG_noFirstDeliverWin, FSAEADScheme.FromAEADPRG.sendAll_eq, FSAEADScheme.FromAEADPRG.rcvAll_honest_initR") (tags := "gh-29") (uses := "fs_aead_from_aead_prg_spec, fs_aead_scheme, fs_aead_delivery_correctness, aead_correctness, prg")
+::::theorem "fs_aead_from_aead_prg_correctness" (parent := "fs_aead_fs_aead_from_aead_prg") (lean := "FSAEADScheme.fromAEADPRG_noFirstDeliverWin, FSAEADScheme.FromAEADPRG.sendAll_eq, FSAEADScheme.FromAEADPRG.rcvAll_honest_initR") (tags := "gh-29") (uses := "fs_aead_from_aead_prg_spec, fs_aead_scheme, fs_aead_correctness, aead_correctness, prg")
 Adapted from {Informal.citet ACD19}[], proof of Theorem 5 (step from $`H_1` to $`H_2`).
 
 Let $`\mathsf{AE}` be a correct AEAD scheme and $`G` a PRG. Then:
 1. The FS-AEAD scheme from $`\mathsf{AE}` and $`G` is
-   {bpref "fs_aead_delivery_correctness"}[delivery-correct].
+   {bpref "fs_aead_correctness"}[correct].
 2. Let B start from $`\mathsf{Init\text{-}B}(k)` and receive ciphertexts
    $`(j, \Enc(K_j, (j, a), m))` with associated data $`a`, for distinct indices
    $`j \geq 1`, in any order. Then B outputs $`(j, m)` for each of them. A's $`j`-th
@@ -256,8 +256,11 @@ $`\mathsf{win}` is false, B keeps the key of every ciphertext in transit: its in
 above $`i_B`, or its key is in $`D`. After $`\OCorrA`, an injection that consumes an index
 before A sends it removes that index from $`\mathsf{comp}`, so $`\mathsf{record}` does not
 add A's later ciphertext at that index.
+The invariant needs $`\mathsf{win} = \mathsf{false}`: a forgery that B accepts at an
+index outside $`\mathsf{comp}` can make a later delivery fail, but it sets $`\mathsf{win}`
+in $`\OInjectB` first.
 
-:::leanPillCaption "delivery correctness"
+:::leanPillCaption "correctness"
 :::
 
 ```anchor fromAEADPRG_noFirstDeliverWin (project := ".") (module := SecureMessaging.FSAEAD.FromAEADPRG.Correctness)

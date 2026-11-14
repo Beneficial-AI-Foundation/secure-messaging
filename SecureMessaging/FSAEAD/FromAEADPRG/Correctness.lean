@@ -12,8 +12,9 @@ import SecureMessaging.FSAEAD.FromAEADPRG.Construction
 
 Correctness of the FS-AEAD construction of [ACD19, Figure 6]. Let the AEAD scheme be
 correct. Then:
-- `fromAEADPRG_noFirstDeliverWin`: in the game of Figure 5, `O-Deliver-B` never changes
-  `win` from false to true (`NoFirstDeliverWin`). With `securityExp_eq_noDeliverWin`, this
+- `fromAEADPRG_noFirstDeliverWin`: the construction is perfectly correct
+  (`NoFirstDeliverWin`). In the game of Figure 5, `O-Deliver-B` never changes `win` from
+  false to true. With `securityExp_eq_noDeliverWin`, this
   removes the `win` of `O-Deliver-B` from the real game `H0`, before the PRG step. ACD19
   removes it in the step from `H1` to `H2`, where the keys are uniform.
 - `rcvAll_honest_initR`: without an adversary, B outputs `(j, m)` for every
@@ -653,8 +654,8 @@ end FromAEADPRG
 
 open FromAEADPRG
 
-/-- Let `ae` be a correct AEAD scheme. Then `fromAEADPRG ae prg` satisfies
-`NoFirstDeliverWin`: in the FS-AEAD game, `O-Deliver-B` never changes `win` from false to
+/-- Let `ae` be a correct AEAD scheme. Then `fromAEADPRG ae prg` is perfectly correct
+(`NoFirstDeliverWin`): in the FS-AEAD game, `O-Deliver-B` never changes `win` from false to
 true. -/
 -- ANCHOR: fromAEADPRG_noFirstDeliverWin
 theorem fromAEADPRG_noFirstDeliverWin {Cae AD M : Type} [DecidableEq AD] [DecidableEq M]
