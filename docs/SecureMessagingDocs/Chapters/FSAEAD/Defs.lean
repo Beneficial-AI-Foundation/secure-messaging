@@ -591,11 +591,6 @@ $$`\Exp{\textsf{fs-aead}}{\textsf{FS-AEAD}}(\adv) = \Exp{\textsf{fs-aead-nd}}{\t
 
 as probabilistic computations. In particular, $`\Pr\bigl[\Exp{\textsf{fs-aead}}{\textsf{FS-AEAD}}(\adv) = 1\bigr] = \Pr\bigl[\Exp{\textsf{fs-aead-nd}}{\textsf{FS-AEAD}}(\adv) = 1\bigr]`.
 
-Proof idea: the two games differ only in $`\ODeliverB`. In a reachable state with
-$`\mathsf{win} = \mathsf{true}`, the assignments $`\mathsf{win} \gets \mathsf{true}` change
-nothing. In a reachable state with $`\mathsf{win} = \mathsf{false}`, correctness says that
-they do not run. So the two oracles agree on every reachable state.
-
 :::leanPillCaption "equality of experiments"
 :::
 
