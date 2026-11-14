@@ -8,6 +8,7 @@ import SecureMessaging.SCKA.MLKEMBraid.Authenticator
 import SecureMessaging.SCKA.MLKEMBraid.Basic
 import SecureMessaging.SCKA.MLKEMBraid.Construction
 import SecureMessaging.SCKA.MLKEMBraid.Correctness
+import SecureMessaging.SCKA.MLKEMBraid.Security.KeyHiding
 import SecureMessaging.SCKA.MLKEMBraid.Security
 
 /-! # Blueprint chapter: ML-KEM Braid -/
@@ -97,6 +98,72 @@ structure RatchetedAuthenticator
       verifyCiphertext s ep c (macCiphertext s ep c) = true
 ```
 ::::
+
+:::defTitle "mlkem_braid_auth_key_hiding" "Key hiding of a ratcheted authenticator"
+:::
+
+:::::::definition "mlkem_braid_auth_key_hiding" (parent := "cka_protocols_mlkem_braid") (lean := "Braid.HiddenAuth, Braid.hiddenState, Braid.hiddenAuth, Braid.AuthHideAdversary, Braid.authHideExp, Braid.authHideAdvantage") (uses := "mlkem_braid_ratcheted_authenticator")
+Let $`\mathsf{Auth}` be a {bpref "mlkem_braid_ratcheted_authenticator"}[ratcheted authenticator]
+with initial-key space $`\mathcal I_{\mathsf{CKA}}`, epoch-key space $`E`, and state space
+$`\mathcal S_{\mathsf{Auth}}`, and let $`\mathsf{InitKeyGen}` be an algorithm that samples its
+initial keys. For an epoch $`e`, an initial key $`I_{\mathsf{CKA}}\in\mathcal I_{\mathsf{CKA}}`,
+and an epoch key $`\kappa\in E`, the authenticator state $`\bar a` *entering* $`e`, computed from
+a state $`a\in\mathcal S_{\mathsf{Auth}}`, is $`\bar a=\mathsf{Init}(I_{\mathsf{CKA}},1)` if
+$`e=1` and $`\bar a=\mathsf{Update}(a,e-1,\kappa)` otherwise, where $`e-1` is truncated at $`0`.
+For an epoch key $`u\in E`, the *hidden operations* $`h_{e,I_{\mathsf{CKA}},\kappa,u}` map $`a` to
+the operations that a party performs with $`\bar a`: the header tag
+$`\mathsf{Mac}_H(\bar a,e,\cdot)` and its verification $`\mathsf{Verify}_H(\bar a,e,\cdot,\cdot)`,
+the ciphertext tag $`\mathsf{Mac}_C(\bar a,e-1,\cdot)` and its verification
+$`\mathsf{Verify}_C(\bar a,e-1,\cdot,\cdot)`, and the update $`\mathsf{Update}(\bar a,e,u)`.
+
+A *key-hiding adversary* $`\mathcal B` chooses an epoch $`e` and keeps a state $`\sigma`; it then
+receives an epoch key and the hidden operations, and outputs a bit. Its advantage is
+
+$$`\Adv{\mathsf{hide}}{\mathsf{Auth}}(\mathcal B)
+=\left|\Pr[\mathsf{Hide}^{\mathsf{real}}_{\mathsf{Auth}}(\mathcal B)=1]
+-\Pr[\mathsf{Hide}^{\mathsf{ideal}}_{\mathsf{Auth}}(\mathcal B)=1]\right|`
+
+for the experiments below, which give $`\mathcal B` the key $`u` of the hidden update or an
+independent key $`u'`.
+
+::::::gameGrid
+:::::gameCell "\\mathsf{Hide}^{\\mathsf{real}}_{\\mathsf{Auth}}(\\mathcal B)" (kind := "compact")
+$`\begin{array}{l}
+(e,\sigma)\sample\mathcal B.\mathsf{context}();\\
+I_{\mathsf{CKA}}\sample\mathsf{InitKeyGen}();\quad u,\kappa\sample E;\\
+\Return\mathcal B.\mathsf{guess}(\sigma,u,h_{e,I_{\mathsf{CKA}},\kappa,u})
+\end{array}`
+:::::
+:::::gameCell "\\mathsf{Hide}^{\\mathsf{ideal}}_{\\mathsf{Auth}}(\\mathcal B)" (kind := "compact")
+$`\begin{array}{l}
+(e,\sigma)\sample\mathcal B.\mathsf{context}();\\
+I_{\mathsf{CKA}}\sample\mathsf{InitKeyGen}();\quad u,u',\kappa\sample E;\\
+\Return\mathcal B.\mathsf{guess}(\sigma,u',h_{e,I_{\mathsf{CKA}},\kappa,u})
+\end{array}`
+:::::
+::::::
+
+*Remark.* The advantage is $`0` when $`\mathsf{Update}` ignores its key, as for the
+{bpref "mlkem_braid_noauth_spec"}[trivial authenticator]. Signal's authenticator updates a root key
+by HKDF and computes tags by HMAC; with both modeled as random oracles, telling $`u` from $`u'`
+requires a query on the hidden root key, which is derived from $`\kappa`, or from
+$`I_{\mathsf{CKA}}` if $`e=1`.
+
+:::leanPillCaption "authHideExp"
+:::
+
+```anchor authHideExp (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security.KeyHiding)
+def authHideExp [SampleableType EpochKey] (sampleInitKey : ProbComp InitKey)
+    (adv : AuthHideAdversary EpochKey AuthState Header Ciphertext Mac) (real : Bool) :
+    ProbComp Bool := do
+  let (e, st) ← adv.context
+  let ik ← sampleInitKey
+  let u ← ($ᵗ EpochKey : ProbComp EpochKey)
+  let u' ← ($ᵗ EpochKey : ProbComp EpochKey)
+  let κ ← ($ᵗ EpochKey : ProbComp EpochKey)
+  adv.guess st (if real then u else u') (hiddenAuth auth (hiddenState auth e ik κ) e u)
+```
+:::::::
 
 :::group "mlkem_braid_protocol"
 ML-KEM Braid.

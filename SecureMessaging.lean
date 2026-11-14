@@ -92,6 +92,7 @@ public import SecureMessaging.SCKA.SPQR.Correctness.Relabel
 public import SecureMessaging.SCKA.SPQR.Correctness.Relation
 public import SecureMessaging.SCKA.SPQR.Correspondence
 public import SecureMessaging.SCKA.SPQR.Instances
+public import SecureMessaging.SCKA.SPQR.Security
 public import SecureMessaging.SCKA.SPQR.Params
 public import SecureMessaging.SCKA.SPQR.Unchunked
 public import SecureMessaging.SCKA.OppUniKEM.Construction

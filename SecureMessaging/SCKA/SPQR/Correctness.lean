@@ -116,7 +116,7 @@ theorem correctnessImpl_preserves_correctnessInv
       tsnd hst hmsg, support_map] at hmem
     obtain ⟨z', hz', hzz⟩ := hmem
     have hAck := hbraid _ _
-      (Or.inr ⟨T, transcriptConsistent_toBraidAck auth hT party n hst hmsg⟩) z' hz'
+      (Or.inr ⟨T, transcriptInv_toBraidAck auth hT party n hst hmsg⟩) z' hz'
     rw [← hzz]
     refine correctnessInv_restore auth party n hmsg ?_ hAck
     exact Braid.messagesAt_of_mem_support_recv (P := P.toBraid) auth P.det.toRandLeak
@@ -161,7 +161,7 @@ theorem wp_failurePotential_query_le [DecidableEq P.K]
   · obtain ⟨party, n, core, dec, chunk, tsnd, rfl, hst, hmsg⟩ :=
       DeliveryDivergence.ct1Acknowledged_ek hT.control hT.statePair hack hdiv
     have hAck : Braid.CorrectnessInv auth ik (s.toBraidAck party n) :=
-      Or.inr ⟨T, transcriptConsistent_toBraidAck auth hT party n hst hmsg⟩
+      Or.inr ⟨T, transcriptInv_toBraidAck auth hT party n hst hmsg⟩
     calc wp ((SCKAScheme.sckaCorrectnessImpl (scheme P auth sampleInitKey)
             (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
               else SCKAScheme.sckaCorrectnessSpec.ORecvB n)).run s)
