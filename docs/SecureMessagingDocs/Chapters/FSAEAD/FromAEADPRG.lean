@@ -251,15 +251,6 @@ Let $`\mathsf{AE}` be a correct AEAD scheme and $`G` a PRG. Then:
    $`j \geq 1`, in any order. Then B outputs $`(j, m)` for each of them. A's $`j`-th
    ciphertext from $`\mathsf{Init\text{-}A}(k)` has this form.
 
-The proof follows the states of A and B along the chain from $`k`. While
-$`\mathsf{win}` is false, B keeps the key of every ciphertext in transit: its index is
-above $`i_B`, or its key is in $`D`. After $`\OCorrA`, an injection that consumes an index
-before A sends it removes that index from $`\mathsf{comp}`, so $`\mathsf{record}` does not
-add A's later ciphertext at that index.
-The invariant needs $`\mathsf{win} = \mathsf{false}`: a forgery that B accepts at an
-index outside $`\mathsf{comp}` can make a later delivery fail, but it sets $`\mathsf{win}`
-in $`\OInjectB` first.
-
 :::leanPillCaption "correctness"
 :::
 
