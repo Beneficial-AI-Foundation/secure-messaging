@@ -15,7 +15,8 @@ public import SecureMessaging.SCKA.MLKEMBraid.Correctness.RecordedPayload.Genera
 `receive_recorded_payload` combines the key-generator and encapsulator cases. A successful
 receive of a recorded message keeps `LocalPayloadInv` when any output key agrees with the peer's
 recorded key for that epoch. It succeeds whenever decapsulation at the receiver's epoch derives
-the recorded key.
+the recorded key. A recorded message other than a `ct₂` chunk of the current epoch for a receiver
+in `ekSentCt1Received` is accepted without output key (`receive_recorded_noKey`).
 -/
 
 @[expose] public section
@@ -29,35 +30,27 @@ namespace Braid
 variable {P : Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
     P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
+  {D : ℕ → P.PK → P.SK → P.inc.St → P.inc.C₁ → P.K → Prop}
 
-/-- A successful receive of a recorded message preserves `LocalPayloadInv` when its output key
-agrees with the peer's. Correct decapsulation ensures acceptance with this agreement. -/
-theorem receive_recorded_payload
+/-- Assuming sound header, vector and `ct₁` decoders, in a state satisfying `TranscriptInv D`, a
+message recorded by the peer of `party` that is not a `ct₂` chunk of the current epoch for a
+receiver in `ekSentCt1Received` is accepted by `receive` without output key, and the receiver's
+new state agrees with the transcript. -/
+theorem receive_recorded_noKey
     (hHdrSound : P.decHdr.Sound P.ecpHdr)
     (hEkSound : P.decEk.Sound P.ecpEk)
     (hCt1Sound : P.decCt1.Sound P.ecpCt1)
-    (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     {ik : InitKey} {T : ℕ → EpochTranscript P}
-    {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
-    (party : Bool) (n : ℕ) (msg : Message P.Sym) (tsnd : ℕ)
-    (hmsg : s.messagesAt (!party) n = some (msg, tsnd)) :
-    let st := s.stateAt party
-    let peerKeys := s.keysAt (!party)
-    let outputsAgree := fun r : RecvResult P AuthState =>
-      ∀ e key, r.outputKey = some (e, key) → peerKeys e = some key
-    (∀ r, receive P auth st msg = .ok r →
-      outputsAgree r → LocalPayloadInv auth ik T r.state) ∧
-    ((∀ pk sk encapsState ct1 key,
-      (T st.epoch).keypair = some (pk, sk) →
-      (T st.epoch).encaps1 = some (encapsState, ct1, key) →
-      decapsEpochKey st.epoch pk sk encapsState ct1 = some (P.kdfOK key st.epoch)) →
-      ∃ r, receive P auth st msg = .ok r ∧ outputsAgree r) := by
-  have hpeer := generator_peer_key auth hT party
-  dsimp only at hpeer ⊢
+    {s : GameState P AuthState} (hT : TranscriptInv auth D ik T s)
+    (party : Bool) {n : ℕ} {msg : Message P.Sym} {tsnd : ℕ}
+    (hmsg : s.messagesAt (!party) n = some (msg, tsnd))
+    (hcell : ∀ e a sk ct1 dec chunk, s.stateAt party = .ekSentCt1Received e a sk ct1 dec →
+      msg ≠ ⟨e, .ct2, some chunk⟩) :
+    ∃ r, receive P auth (s.stateAt party) msg = .ok r ∧ r.outputKey = none ∧
+      LocalPayloadInv auth ik T r.state := by
   have hRole := hT.control.role party
   have hLocal := hT.local auth party
   have hPayload := hT.messages (!party) n msg tsnd hmsg
-  have hpos := hT.control.epochKnowledge.keyPrefix.pos party
   -- An encapsulator at epoch `t` also generates epoch `t + 1`, so the parity expressions for
   -- the encapsulator of `t` and the generator of `t + 1` both select the receiver's state.
   have hF : (s.stateAt party).controlPosition.isGenerator = false →
@@ -77,53 +70,31 @@ theorem receive_recorded_payload
       rw [ite_eq_right (by omega), ite_eq_left (by omega)]
       exact ⟨rfl, rfl⟩
   -- Case on the receiver's state; each case applies the matching lemma of `Generator` or
-  -- `Encapsulator`. Only `ekSentCt1Received` can output a key.
+  -- `Encapsulator`.
   obtain ⟨st, hst⟩ : ∃ st, s.stateAt party = st := ⟨_, rfl⟩
-  obtain ⟨peerKeys, hpk⟩ : ∃ k, s.keysAt (!party) = k := ⟨_, rfl⟩
-  rw [hst] at hLocal hpos hpeer hF ⊢
-  rw [hpk] at hpeer ⊢
-  have hnoKey : ∀ r, receive P auth st msg = .ok r → r.outputKey = none →
-      LocalPayloadInv auth ik T r.state →
-      (∀ r', receive P auth st msg = .ok r' →
-        (∀ e key, r'.outputKey = some (e, key) → peerKeys e = some key) →
-        LocalPayloadInv auth ik T r'.state) ∧
-      ((∀ pk sk encapsState ct1 key,
-        (T st.epoch).keypair = some (pk, sk) →
-        (T st.epoch).encaps1 = some (encapsState, ct1, key) →
-        decapsEpochKey st.epoch pk sk encapsState ct1 = some (P.kdfOK key st.epoch)) →
-        ∃ r', receive P auth st msg = .ok r' ∧
-          ∀ e key, r'.outputKey = some (e, key) → peerKeys e = some key) := by
-    intro r hr hnone hinv
-    refine ⟨fun r' hr' _ => ?_, fun _ => ⟨r, hr, fun e key h => ?_⟩⟩
-    · rw [hr] at hr'
-      cases hr'
-      exact hinv
-    · rw [hnone] at h
-      cases h
+  rw [hst] at hLocal hF hcell ⊢
   cases st
   case keysUnsampled e a =>
-    have hsame : receive P auth (.keysUnsampled e a) msg =
-        .ok ⟨e - 1, none, .keysUnsampled e a⟩ := by
-      rcases msg with ⟨me, mt, md⟩
-      cases mt <;> cases md <;> rfl
-    exact hnoKey _ hsame rfl hLocal
+    refine ⟨⟨e - 1, none, .keysUnsampled e a⟩, ?_, rfl, hLocal⟩
+    rcases msg with ⟨me, mt, md⟩
+    cases mt <;> cases md <;> rfl
   case keysSampled e a sk vec enc =>
-    obtain ⟨r, hr, hnone, hinv⟩ :=
-      receive_keysSampled_payload auth ik T e a sk vec enc msg hLocal hPayload
-    exact hnoKey r hr hnone hinv
+    exact receive_keysSampled_payload auth ik T e a sk vec enc msg hLocal hPayload
   case headerSent e a sk dec enc =>
-    obtain ⟨r, hr, hnone, hinv⟩ :=
-      receive_headerSent_payload auth hCt1Sound ik T e a sk dec enc msg hLocal hPayload
-    exact hnoKey r hr hnone hinv
+    exact receive_headerSent_payload auth hCt1Sound ik T e a sk dec enc msg hLocal hPayload
   case ct1Received e a sk ct1 enc =>
-    obtain ⟨r, hr, hnone, hinv⟩ :=
-      receive_ct1Received_payload auth ik T e a sk ct1 enc msg hLocal hPayload
-    exact hnoKey r hr hnone hinv
+    exact receive_ct1Received_payload auth ik T e a sk ct1 enc msg hLocal hPayload
   case ekSentCt1Received e a sk ct1 dec =>
-    obtain ⟨h1, h2, -⟩ := receive_ekSentCt1Received_payload auth hCt2Sound ik T e a sk
-      ct1 dec peerKeys msg hLocal hPayload hpos
-      (fun encapsState key hc => hpeer rfl encapsState ct1 key hc)
-    exact ⟨h1, fun h6 => h2 fun pk encapsState key hkp hc => h6 pk sk encapsState ct1 key hkp hc⟩
+    -- Only a `ct₂` chunk of the current epoch is processed; every other message is ignored.
+    refine ⟨⟨e - 1, none, .ekSentCt1Received e a sk ct1 dec⟩, ?_, rfl, hLocal⟩
+    rcases msg with ⟨me, mt, md⟩
+    cases mt <;> cases md <;>
+      simp only [receive, Message.wellFormed, Option.isNone_none, Option.isNone_some,
+        Option.isSome_none, Option.isSome_some, Bool.not_true, Bool.not_false, Bool.false_eq_true,
+        ↓reduceIte, State.epoch]
+    case ct2.some chunk =>
+      have hne : me ≠ e := fun hme => hcell e a sk ct1 dec chunk rfl (by rw [hme])
+      rw [ite_eq_right hne]
   case noHeaderReceived e a dec =>
     -- The receiver has not completed epoch `e`, so the transcript has no encapsulation there.
     have hNoEncaps : (T e).encaps1 = none := by
@@ -135,24 +106,18 @@ theorem receive_recorded_payload
           have hcomp : (State.noHeaderReceived e a dec : State P AuthState).completedEpoch =
               e - 1 := rfl
           omega
-    obtain ⟨r, hr, hnone, hinv⟩ :=
-      receive_noHeaderReceived_payload auth ik T hHdrSound e a dec msg hLocal hPayload hNoEncaps
-    exact hnoKey r hr hnone hinv
+    exact receive_noHeaderReceived_payload auth ik T hHdrSound e a dec msg hLocal hPayload
+      hNoEncaps
   case headerReceived e a hdr dec =>
-    exact hnoKey ⟨e - 1, none, .headerReceived e a hdr dec⟩ (by simp [receive, State.epoch])
-      rfl hLocal
+    exact ⟨⟨e - 1, none, .headerReceived e a hdr dec⟩, by simp [receive, State.epoch], rfl, hLocal⟩
   case ct1Sampled e a hdr encapsState ct1 enc dec =>
-    obtain ⟨r, hr, hnone, hinv⟩ := receive_ct1Sampled_payload auth ik T hEkSound e a hdr
-      encapsState ct1 enc dec msg hLocal hPayload
-    exact hnoKey r hr hnone hinv
+    exact receive_ct1Sampled_payload auth ik T hEkSound e a hdr encapsState ct1 enc dec msg
+      hLocal hPayload
   case ekReceivedCt1Sampled e a encapsState ct1 hdr vec enc =>
-    obtain ⟨r, hr, hnone, hinv⟩ := receive_ekReceivedCt1Sampled_payload auth ik T e a
-      encapsState ct1 hdr vec enc msg hLocal
-    exact hnoKey r hr hnone hinv
+    exact receive_ekReceivedCt1Sampled_payload auth ik T e a encapsState ct1 hdr vec enc msg hLocal
   case ct1Acknowledged e a hdr encapsState ct1 dec =>
-    obtain ⟨r, hr, hnone, hinv⟩ := receive_ct1Acknowledged_payload auth ik T hEkSound e a
-      hdr encapsState ct1 dec msg hLocal hPayload
-    exact hnoKey r hr hnone hinv
+    exact receive_ct1Acknowledged_payload auth ik T hEkSound e a hdr encapsState ct1 dec msg
+      hLocal hPayload
   case ct2Sampled e a enc =>
     -- The receiver generates epoch `e + 1` but has not sampled its keys yet.
     have hkp : (T (e + 1)).keypair = none := by
@@ -170,8 +135,49 @@ theorem receive_recorded_payload
           obtain ⟨-, -, pk, sk, hkp', -⟩ := hT.encaps (e + 1) c.1 c.2.1 c.2.2 hc
           rw [hkp] at hkp'
           cases hkp'
-    obtain ⟨r, hr, hnone, hinv⟩ :=
-      receive_ct2Sampled_payload auth ik T e a enc msg hLocal ⟨hkp, hce⟩
-    exact hnoKey r hr hnone hinv
+    exact receive_ct2Sampled_payload auth ik T e a enc msg hLocal ⟨hkp, hce⟩
+
+/-- A successful receive of a recorded message preserves `LocalPayloadInv` when its output key
+agrees with the peer's. Correct decapsulation ensures acceptance with this agreement. -/
+theorem receive_recorded_payload
+    (hHdrSound : P.decHdr.Sound P.ecpHdr)
+    (hEkSound : P.decEk.Sound P.ecpEk)
+    (hCt1Sound : P.decCt1.Sound P.ecpCt1)
+    (hCt2Sound : P.decCt2.Sound P.ecpCt2)
+    {ik : InitKey} {T : ℕ → EpochTranscript P}
+    {s : GameState P AuthState} (hT : TranscriptInv auth D ik T s)
+    (party : Bool) (n : ℕ) (msg : Message P.Sym) (tsnd : ℕ)
+    (hmsg : s.messagesAt (!party) n = some (msg, tsnd)) :
+    let st := s.stateAt party
+    let peerKeys := s.keysAt (!party)
+    let outputsAgree := fun r : RecvResult P AuthState =>
+      ∀ e key, r.outputKey = some (e, key) → peerKeys e = some key
+    (∀ r, receive P auth st msg = .ok r →
+      outputsAgree r → LocalPayloadInv auth ik T r.state) ∧
+    ((∀ pk sk encapsState ct1 key,
+      (T st.epoch).keypair = some (pk, sk) →
+      (T st.epoch).encaps1 = some (encapsState, ct1, key) →
+      decapsEpochKey st.epoch pk sk encapsState ct1 = some (P.kdfOK key st.epoch)) →
+      ∃ r, receive P auth st msg = .ok r ∧ outputsAgree r) := by
+  have hpeer := generator_peer_key auth hT party
+  dsimp only at hpeer ⊢
+  by_cases hcell : ∃ e a sk ct1 dec, s.stateAt party = .ekSentCt1Received e a sk ct1 dec
+  · -- Only `ekSentCt1Received` can output a key; `receive_ekSentCt1Received_payload` covers it.
+    obtain ⟨e, a, sk, ct1, dec, hst⟩ := hcell
+    have hLocal := hT.local auth party
+    have hpos := hT.control.epochKnowledge.keyPrefix.pos party
+    rw [hst] at hLocal hpos hpeer ⊢
+    obtain ⟨h1, h2, -⟩ := receive_ekSentCt1Received_payload auth hCt2Sound ik T e a sk
+      ct1 dec (s.keysAt (!party)) msg hLocal (hT.messages (!party) n msg tsnd hmsg) hpos
+      (fun encapsState key hc => hpeer rfl encapsState ct1 key hc)
+    exact ⟨h1, fun h6 => h2 fun pk encapsState key hkp hc => h6 pk sk encapsState ct1 key hkp hc⟩
+  · obtain ⟨r, hr, hnone, hinv⟩ := receive_recorded_noKey auth hHdrSound hEkSound hCt1Sound hT
+      party hmsg fun e a sk ct1 dec _ h => absurd ⟨e, a, sk, ct1, dec, h⟩ hcell
+    refine ⟨fun r' hr' _ => ?_, fun _ => ⟨r, hr, fun e key h => ?_⟩⟩
+    · rw [hr] at hr'
+      cases hr'
+      exact hinv
+    · rw [hnone] at h
+      cases h
 
 end Braid

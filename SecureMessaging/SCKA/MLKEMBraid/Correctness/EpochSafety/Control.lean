@@ -15,8 +15,10 @@ public import SecureMessaging.SCKA.MLKEMBraid.Correctness.MessageReports
 In each epoch one party generates the key pair and the other encapsulates; A generates the key
 pairs of the odd epochs. `State.controlPosition` records the role of a state and its step within
 the epoch. `ControlInv` states that each party's role matches the parity of its epoch and that
-every recorded message fits its sender's role and step (`MessageControl`). This module proves
-that every send and receive oracle preserves `ControlInv`.
+every recorded message fits its sender's role and step (`MessageControl`). Every send edge
+preserves `ControlInv`, and so does every receive edge on a message recorded by the peer after
+which the receiver's epoch is at least the message epoch; a recorded message that `receive` accepts
+meets this condition (`receive_msg_epoch_le`).
 -/
 
 @[expose] public section
@@ -146,13 +148,14 @@ theorem partyControl_send (party : Bool) {st peer : State P AuthState}
       obtain ⟨hwf, hle, hcur, howner⟩ := hmsgs n msg tsnd hn
       exact ⟨hwf, by omega, fun h => (hcur (by omega)).trans hstep, howner⟩
 
-/-- Accepting a message recorded by the peer preserves the `ct2Sampled` conditions of both parties
-and the receiver's role and `MessageControl` conditions, and the receiver's new current game epoch
-`max tcur (msg.epoch - 1)` is at most its new epoch minus one. -/
+/-- A receive edge on a message recorded by the peer, with `msg.epoch ≤ r.state.epoch`, preserves
+the `ct2Sampled` conditions of both parties and the receiver's role and `MessageControl` conditions,
+and the receiver's new current game epoch `max tcur (msg.epoch - 1)` is at most its new epoch minus
+one. -/
 theorem partyControl_receive (party : Bool) {st peer : State P AuthState}
     {messages : ℕ → Option (Message P.Sym × ℕ)} {msg : Message P.Sym}
     {r : RecvResult P AuthState} {tcur : ℕ}
-    (hraw : receive P auth st msg = .ok r)
+    (hedge : ReceiveEdge auth st msg r) (hmsgEpoch : msg.epoch ≤ r.state.epoch)
     (hrole : st.controlPosition.isGenerator = decide (st.epoch % 2 = if party then 1 else 0))
     (hroleP : peer.controlPosition.isGenerator =
       decide (peer.epoch % 2 = if party then 0 else 1))
@@ -167,27 +170,11 @@ theorem partyControl_receive (party : Bool) {st peer : State P AuthState}
       (∀ n m t, messages n = some (m, t) → MessageControl party r.state m) ∧
       (r.state.epoch = peer.epoch + 1 → peer.controlPosition = ⟨false, 4⟩) ∧
       max tcur (msg.epoch - 1) ≤ r.state.epoch - 1 := by
-  have hedge := ReceiveEdge.of_eq_ok auth hraw
-  obtain ⟨hwf, hle, hstepP, howner⟩ := hdelivered
+  obtain ⟨-, hle, hstepP, -⟩ := hdelivered
   obtain ⟨hepLe, hepLe'⟩ := hedge.epoch_le
   have hcomp := st.completedEpoch_le_epoch
   have hρ : (if party then 1 else 0 : ℕ) ≤ 1 := by cases party <;> simp
   have hρ' : (if party then 0 else 1 : ℕ) = 1 - if party then 1 else 0 := by cases party <;> simp
-  -- The delivered message is at most at the receiver's new epoch: a message of the next epoch
-  -- means the peer is ahead, so the receiver is in `ct2Sampled` and advances.
-  have hmsgEpoch : msg.epoch ≤ r.state.epoch := by
-    by_cases h : msg.epoch ≤ st.epoch
-    · exact h.trans hepLe
-    · have hnext : msg.epoch = st.epoch + 1 := by omega
-      obtain ⟨a, enc, hst⟩ := st.eq_ct2Sampled_of_controlPosition (hlag (by omega))
-      obtain ⟨e, he⟩ : ∃ e, st.epoch = e := ⟨_, rfl⟩
-      rw [he] at hst
-      subst hst
-      simp only [State.epoch] at hnext
-      rw [receive_ct2Sampled_of_epoch_succ auth hwf hnext] at hraw
-      cases hraw
-      simp only [State.epoch]
-      omega
   rcases hedge.epoch_eq_or_succ with ⟨-, heq⟩ | hsucc
   · -- The receiver stays in its epoch: the role is unchanged and the step does not decrease.
     obtain ⟨hgen, hstep⟩ := hedge.controlPosition_of_epoch_eq heq
@@ -235,24 +222,52 @@ theorem partyControl_receive (party : Bool) {st peer : State P AuthState}
         exact ControlPosition.ext hgenP (le_antisymm peer.controlPosition_step_le hstep4)
     · omega
 
-variable [DecidableEq P.EpochKey]
-  (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey)
+/-- In a state satisfying `ControlInv`, a message recorded by the peer of `party` that `receive`
+accepts has epoch at most the receiver's new epoch. -/
+theorem receive_msg_epoch_le {s : GameState P AuthState} (hC : ControlInv s) (party : Bool)
+    {n : ℕ} {msg : Message P.Sym} {tsnd : ℕ} {r : RecvResult P AuthState}
+    (hentry : s.messagesAt (!party) n = some (msg, tsnd))
+    (hraw : receive P auth (s.stateAt party) msg = .ok r) :
+    msg.epoch ≤ r.state.epoch := by
+  obtain ⟨-, hlag, -⟩ := hC.roles party
+  have hPeer := hC.roles (!party)
+  simp only [PartyControl, Bool.not_not] at hPeer
+  obtain ⟨-, -, hmsgP⟩ := hPeer
+  obtain ⟨hwf, hle, -, -⟩ := hmsgP n msg tsnd hentry
+  have hcrossP := hC.epochKnowledge.epoch_le (!party)
+  simp only [Bool.not_not] at hcrossP
+  have hcomp := (s.stateAt party).completedEpoch_le_epoch
+  -- A message of the next epoch finds the receiver in `ct2Sampled`, which advances.
+  by_cases h : msg.epoch ≤ (s.stateAt party).epoch
+  · exact h.trans (ReceiveEdge.of_eq_ok auth hraw).epoch_le.1
+  · have hnext : msg.epoch = (s.stateAt party).epoch + 1 := by omega
+    obtain ⟨a, enc, hst⟩ := (s.stateAt party).eq_ct2Sampled_of_controlPosition (hlag (by omega))
+    obtain ⟨e, he⟩ : ∃ e, (s.stateAt party).epoch = e := ⟨_, rfl⟩
+    rw [he] at hst
+    rw [hst] at hraw
+    rw [he] at hnext
+    rw [receive_ct2Sampled_of_epoch_succ auth hwf hnext] at hraw
+    cases hraw
+    simp only [State.epoch]
+    omega
 
-/-- The send oracle of either party preserves `ControlInv`. -/
-theorem oracleSend_preserves_controlInv (party : Bool) :
-    QueryImpl.PreservesInv (oracleSend auth irl sampleInitKey party) ControlInv := by
-  rintro t (s : GameState P AuthState) hs z hz
-  cases t
-  have hEpoch := oracleSend_preserves_epochKnowledgeInv auth irl sampleInitKey party
-    () s hs.epochKnowledge z hz
-  have hReports : RecordedReportInv z.2 := by
-    cases party
-    · exact correctnessImpl_preserves_recordedReportInv auth irl sampleInitKey
-        (OSendB (Rho := Message P.Sym)) s hs.recordedReport z hz
-    · exact correctnessImpl_preserves_recordedReportInv auth irl sampleInitKey
-        (OSendA (Rho := Message P.Sym)) s hs.recordedReport z hz
-  obtain ⟨r, hr, rfl⟩ := (mem_support_oracleSend_run_iff auth irl sampleInitKey s party z).mp hz
-  have hedge := (mem_support_send_iff auth).mp hr
+/-- `ControlInv` reads neither the correctness flag nor the exposed and challenged epochs. -/
+theorem ControlInv.setFlags {s : GameState P AuthState} (h : ControlInv s) (c : Bool)
+    (X Y : Finset ℕ) : ControlInv { s with correct := c, exposed := X, challenged := Y } :=
+  have hE := h.epochKnowledge
+  ⟨⟨⟨hE.keyPrefix.posA, hE.keyPrefix.posB, hE.keyPrefix.prefixA, hE.keyPrefix.prefixB⟩,
+      hE.epochA_le, hE.epochB_le, hE.tcurA_le, hE.tcurB_le, hE.msgA, hE.msgB⟩,
+    ⟨h.recordedReport.msgA, h.recordedReport.msgB⟩, h.tcurA_le_sub_one,
+    h.tcurB_le_sub_one, h.roles⟩
+
+variable [DecidableEq P.EpochKey]
+
+/-- A send edge from the state of `party` preserves `ControlInv`. -/
+theorem controlInv_sendUpdate {s : GameState P AuthState} (hs : ControlInv s) (party : Bool)
+    {r : SendResult P AuthState} (hedge : SendEdge auth (s.stateAt party) r) :
+    ControlInv (sendUpdate s party r) := by
+  have hEpoch := epochKnowledgeInv_sendUpdate auth hs.epochKnowledge party hedge
+  have hReports := recordedReportInv_sendUpdate auth hs.recordedReport party hedge
   obtain ⟨hrole, hlag, hmsg⟩ := hs.roles party
   have hPeer := hs.roles (!party)
   simp only [PartyControl, Bool.not_not] at hPeer
@@ -273,29 +288,22 @@ theorem oracleSend_preserves_controlInv (party : Bool) :
     | exact ⟨hEpoch, hReports, ht, htP, fun who => by
         cases who; exacts [⟨hroleP, hlagP', hmsgP⟩, ⟨hgen, hlag, hmsgs⟩]⟩
 
-/-- The receive oracle of either party preserves `ControlInv`. -/
-theorem oracleRecv_preserves_controlInv (party : Bool) :
-    QueryImpl.PreservesInv (oracleRecv auth irl sampleInitKey party) ControlInv := by
-  rintro n (s : GameState P AuthState) hs z hz
-  have hEpoch := oracleRecv_preserves_epochKnowledgeInv auth irl sampleInitKey party
-    n s hs.epochKnowledge z hz
-  have hReports : RecordedReportInv z.2 := by
-    cases party
-    · exact correctnessImpl_preserves_recordedReportInv auth irl sampleInitKey
-        (ORecvB (Rho := Message P.Sym) n) s hs.recordedReport z hz
-    · exact correctnessImpl_preserves_recordedReportInv auth irl sampleInitKey
-        (ORecvA (Rho := Message P.Sym) n) s hs.recordedReport z hz
-  rcases oracleRecv_run_cases auth irl sampleInitKey party hz with
-    ⟨-, rfl⟩ | ⟨msg, tsnd, err, -, -, rfl⟩ | ⟨msg, tsnd, r, hentry, hraw, rfl⟩
-  · exact hs
-  · exact ⟨hEpoch, hReports, hs.tcurA_le_sub_one, hs.tcurB_le_sub_one, hs.roles⟩
+/-- A receive edge from the state of `party`, on the message recorded by the peer at index `n` and
+with `msg.epoch ≤ r.state.epoch`, preserves `ControlInv`. -/
+theorem controlInv_recvUpdate {s : GameState P AuthState} (hs : ControlInv s)
+    (party : Bool) {n : ℕ} {msg : Message P.Sym} {tsnd : ℕ} {r : RecvResult P AuthState}
+    (hentry : s.messagesAt (!party) n = some (msg, tsnd))
+    (hedge : ReceiveEdge auth (s.stateAt party) msg r) (hmsgEpoch : msg.epoch ≤ r.state.epoch) :
+    ControlInv (recvUpdate s party tsnd r (msg.epoch - 1)) := by
+  have hEpoch := epochKnowledgeInv_recvUpdate auth hs.epochKnowledge party hentry hedge
+  have hReports := recordedReportInv_recvUpdate hs.recordedReport party tsnd r (msg.epoch - 1)
   obtain ⟨hrole, hlag, hmsg⟩ := hs.roles party
   have hPeer := hs.roles (!party)
   simp only [PartyControl, Bool.not_not] at hPeer
   obtain ⟨hroleP, hlagP, hmsgP⟩ := hPeer
   have hcrossP := hs.epochKnowledge.epoch_le (!party)
   simp only [Bool.not_not] at hcrossP
-  obtain ⟨hgen, hlag, hmsgs, hlagP, ht⟩ := partyControl_receive auth party hraw hrole
+  obtain ⟨hgen, hlag, hmsgs, hlagP, ht⟩ := partyControl_receive auth party hedge hmsgEpoch hrole
     (by cases party <;> exact hroleP) hlag hlagP hmsg (hmsgP n msg tsnd hentry)
     (hs.epochKnowledge.keyPrefix.pos party) hcrossP (hs.tcur_le_sub_one party)
   have htP := hs.tcur_le_sub_one (!party)
@@ -307,15 +315,5 @@ theorem oracleRecv_preserves_controlInv (party : Bool) :
         cases who; exacts [⟨hgen, hlag, hmsgs⟩, ⟨hroleP, hlagP, hmsgP⟩]⟩
     | exact ⟨hEpoch, hReports, ht, htP, fun who => by
         cases who; exacts [⟨hroleP, hlagP, hmsgP⟩, ⟨hgen, hlag, hmsgs⟩]⟩
-
-/-- Every oracle of the correctness game preserves `ControlInv`. -/
-theorem correctnessImpl_preserves_controlInv :
-    QueryImpl.PreservesInv (SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey))
-      ControlInv :=
-  SCKAScheme.sckaCorrectnessImpl_preservesInv _
-    (oracleSend_preserves_controlInv auth irl sampleInitKey true)
-    (oracleSend_preserves_controlInv auth irl sampleInitKey false)
-    (oracleRecv_preserves_controlInv auth irl sampleInitKey true)
-    (oracleRecv_preserves_controlInv auth irl sampleInitKey false)
 
 end Braid

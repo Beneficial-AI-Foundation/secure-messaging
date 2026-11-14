@@ -14,8 +14,8 @@ public import SecureMessaging.SCKA.MLKEMBraid.Correctness.Oracles
 `State.completedEpoch` is the last epoch whose key a party has computed. A send or a successful
 receive either keeps it, or outputs the key of the next epoch and completes that epoch.
 `KeyPrefixInv` states that both epochs are positive and that each party has output keys for
-exactly the epochs from `1` through its completed epoch. Every oracle of the correctness game
-preserves it.
+exactly the epochs from `1` through its completed epoch. Every send edge and every receive edge of
+either party preserves it.
 -/
 
 @[expose] public section
@@ -61,60 +61,56 @@ theorem keyPrefixInv_initGameState (ik : InitKey) :
     State.epoch, State.completedEpoch]
   all_goals omega
 
-/-- Every oracle of the correctness game preserves `KeyPrefixInv`. -/
-theorem correctnessImpl_preserves_keyPrefixInv
-    [DecidableEq P.EpochKey]
-    (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey) :
-    QueryImpl.PreservesInv
-      (SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey)) KeyPrefixInv := by
-  refine SCKAScheme.sckaCorrectnessImpl_preservesInv _ ?_ ?_ ?_ ?_
-  -- Sends: the sender's completed epoch and key table change together.
-  · intro _ s hs z hz
-    obtain ⟨r, hr, rfl⟩ := (mem_support_oracleSendA_run_iff auth irl sampleInitKey s z).mp hz
-    have hedge := (mem_support_send_iff auth).mp hr
-    have hpos : 0 < r.state.epoch := hedge.epoch_eq.1 ▸ hs.posA
-    have hstep := hedge.completedEpoch hs.posA
-    rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;> simp only [hkey] at hstep
-    · refine ⟨hpos, hs.posB, ?_, hs.prefixB⟩
-      simpa [SCKAScheme.sendAUpdate, hstep] using hs.prefixA
-    · refine ⟨hpos, hs.posB, ?_, hs.prefixB⟩
-      simpa [SCKAScheme.sendAUpdate, hstep.1, hstep.2] using
-        SCKAScheme.update_succ_ne_none_iff hs.prefixA key
-  · intro _ s hs z hz
-    obtain ⟨r, hr, rfl⟩ := (mem_support_oracleSendB_run_iff auth irl sampleInitKey s z).mp hz
-    have hedge := (mem_support_send_iff auth).mp hr
-    have hpos : 0 < r.state.epoch := hedge.epoch_eq.1 ▸ hs.posB
-    have hstep := hedge.completedEpoch hs.posB
+variable [DecidableEq P.EpochKey]
+
+/-- A send edge from the state of `party` preserves `KeyPrefixInv`: the sender's completed epoch and
+key table change together. -/
+theorem keyPrefixInv_sendUpdate {s : GameState P AuthState} (hs : KeyPrefixInv s) (party : Bool)
+    {r : SendResult P AuthState} (hedge : SendEdge auth (s.stateAt party) r) :
+    KeyPrefixInv (sendUpdate s party r) := by
+  have hpos : 0 < r.state.epoch := hedge.epoch_eq.1 ▸ hs.pos party
+  have hstep := hedge.completedEpoch (hs.pos party)
+  cases party
+  · simp only [GameState.stateAt, Bool.false_eq_true, ↓reduceIte] at hstep
+    simp only [sendUpdate, Bool.false_eq_true, ↓reduceIte]
     rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;> simp only [hkey] at hstep
     · refine ⟨hs.posA, hpos, hs.prefixA, ?_⟩
       simpa [SCKAScheme.sendBUpdate, hstep] using hs.prefixB
     · refine ⟨hs.posA, hpos, hs.prefixA, ?_⟩
       simpa [SCKAScheme.sendBUpdate, hstep.1, hstep.2] using
         SCKAScheme.update_succ_ne_none_iff hs.prefixB key
-  -- Receives: a missing record or a refusal leaves both tables unchanged.
-  · intro n s hs z hz
-    rcases oracleRecvA_run_cases auth irl sampleInitKey hz with
-      ⟨-, rfl⟩ | ⟨msg, tsnd, err, -, -, rfl⟩ | ⟨msg, tsnd, r, -, hraw, rfl⟩
-    · exact hs
-    · exact ⟨hs.posA, hs.posB, hs.prefixA, hs.prefixB⟩
-    have hstep := (ReceiveEdge.of_eq_ok auth hraw).completedEpoch hs.posA
+  · simp only [GameState.stateAt, ↓reduceIte] at hstep
+    simp only [sendUpdate, ↓reduceIte]
     rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;> simp only [hkey] at hstep
-    · refine ⟨hstep.1, hs.posB, ?_, hs.prefixB⟩
-      simpa [SCKAScheme.recvAUpdate, hstep.2] using hs.prefixA
-    · refine ⟨hstep.1, hs.posB, ?_, hs.prefixB⟩
-      simpa [SCKAScheme.recvAUpdate, hstep.2.1, hstep.2.2] using
+    · refine ⟨hpos, hs.posB, ?_, hs.prefixB⟩
+      simpa [SCKAScheme.sendAUpdate, hstep] using hs.prefixA
+    · refine ⟨hpos, hs.posB, ?_, hs.prefixB⟩
+      simpa [SCKAScheme.sendAUpdate, hstep.1, hstep.2] using
         SCKAScheme.update_succ_ne_none_iff hs.prefixA key
-  · intro n s hs z hz
-    rcases oracleRecvB_run_cases auth irl sampleInitKey hz with
-      ⟨-, rfl⟩ | ⟨msg, tsnd, err, -, -, rfl⟩ | ⟨msg, tsnd, r, -, hraw, rfl⟩
-    · exact hs
-    · exact ⟨hs.posA, hs.posB, hs.prefixA, hs.prefixB⟩
-    have hstep := (ReceiveEdge.of_eq_ok auth hraw).completedEpoch hs.posB
+
+/-- A receive edge from the state of `party` preserves `KeyPrefixInv`, for any stored report `tsnd`
+and receive report `trcv`. -/
+theorem keyPrefixInv_recvUpdate {s : GameState P AuthState}
+    (hs : KeyPrefixInv s) (party : Bool) {msg : Message P.Sym} {r : RecvResult P AuthState}
+    (hedge : ReceiveEdge auth (s.stateAt party) msg r) (tsnd trcv : ℕ) :
+    KeyPrefixInv (recvUpdate s party tsnd r trcv) := by
+  have hstep := hedge.completedEpoch (hs.pos party)
+  cases party
+  · simp only [GameState.stateAt, Bool.false_eq_true, ↓reduceIte] at hstep
+    simp only [recvUpdate, Bool.false_eq_true, ↓reduceIte]
     rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;> simp only [hkey] at hstep
     · refine ⟨hs.posA, hstep.1, hs.prefixA, ?_⟩
       simpa [SCKAScheme.recvBUpdate, hstep.2] using hs.prefixB
     · refine ⟨hs.posA, hstep.1, hs.prefixA, ?_⟩
       simpa [SCKAScheme.recvBUpdate, hstep.2.1, hstep.2.2] using
         SCKAScheme.update_succ_ne_none_iff hs.prefixB key
+  · simp only [GameState.stateAt, ↓reduceIte] at hstep
+    simp only [recvUpdate, ↓reduceIte]
+    rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;> simp only [hkey] at hstep
+    · refine ⟨hstep.1, hs.posB, ?_, hs.prefixB⟩
+      simpa [SCKAScheme.recvAUpdate, hstep.2] using hs.prefixA
+    · refine ⟨hstep.1, hs.posB, ?_, hs.prefixB⟩
+      simpa [SCKAScheme.recvAUpdate, hstep.2.1, hstep.2.2] using
+        SCKAScheme.update_succ_ne_none_iff hs.prefixA key
 
 end Braid
