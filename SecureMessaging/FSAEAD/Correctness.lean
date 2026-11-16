@@ -16,10 +16,11 @@ public import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 `win` if B rejects an honest ciphertext or outputs a wrong index or message. The proof of
 Theorem 5 removes this `win` in the step from `H1` to `H2`.
 
-`fs.Correct` is the perfect correctness of `fs`: for every length function, `O-Deliver-B`
-never changes `win` from false to true, in every game state that the oracles reach. A forgery that B
-accepts at an index that is not compromised already sets `win` in `O-Inject-B`, so a later
-delivery failure does not change the result of the experiment.
+`fs.Correct` is the perfect correctness of `fs`: in every game state that the oracles reach
+with `win = false`, B receives every record in `trans` with the recorded index and message.
+So `O-Deliver-B` never changes `win` from false to true (`Correct.deliverB_win_false`). A
+forgery that B accepts at an index that is not compromised already sets `win` in
+`O-Inject-B`, so a later delivery failure does not change the result of the experiment.
 
 The game `fs-aead-nd` ("no delivery check") is the game of Figure 5 with
 `O-Deliver-B^nd` (`oracleDeliverBNoWin`) for `O-Deliver-B`. It is a hybrid game for
@@ -59,15 +60,42 @@ inductive Reachable (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : 
       Reachable fs len b k z.2
 -- ANCHOR_END: Reachable
 
-/-- Perfect correctness of an FS-AEAD scheme [ACD19, §4.2.1]: `O-Deliver-B` never changes
-`win` from false to true. For every length function `len`, in every reachable state with
-`win = false`, every outcome of `O-Deliver-B` has `win = false`. -/
+/-- Perfect correctness of an FS-AEAD scheme [ACD19, §4.2.1]. Let `st` be a reachable game
+state, for any length function, key and challenge bit, with `win = false` and `end = false`.
+Let `(i, a, m, e)` be the record that `findTrans a e` returns: the record in `trans` with
+associated data `a`, ciphertext `e` and the smallest index. Then `FS-Rcv(v_B, a, e)` outputs
+index `i` and message `m`. -/
 -- ANCHOR: Correct
 def Correct (fs : FSAEADScheme K StS StR AD M C) : Prop :=
   ∀ (len : M → ℕ) (b : Bool) (k : K) (st : GameState StS StR AD M C), Reachable fs len b k st →
-    st.win = false → ∀ (q : AD × C), ∀ z ∈ support ((oracleDeliverB fs q).run st),
-      z.2.win = false
+    st.win = false → st.end_ = false → ∀ (i : ℕ) (a : AD) (m : M) (e : C),
+      st.findTrans a e = some (i, a, m, e) → ∃ vB, fs.rcv st.vB a e = some (vB, i, m)
 -- ANCHOR_END: Correct
+
+/-- Let `fs` be correct, and let `st` be a reachable state with `win = false`. Then every
+outcome of `O-Deliver-B` from `st` has `win = false`. -/
+theorem Correct.deliverB_win_false {fs : FSAEADScheme K StS StR AD M C} (h : fs.Correct)
+    {len : M → ℕ} {b : Bool} {k : K} {st : GameState StS StR AD M C}
+    (hst : Reachable fs len b k st) (hw : st.win = false) (q : AD × C) :
+    ∀ z ∈ support ((oracleDeliverB fs q).run st), z.2.win = false := by
+  intro z hz
+  obtain ⟨a, e⟩ := q
+  simp only [oracleDeliverB, StateT.run_bind, StateT.run_get, pure_bind] at hz
+  split_ifs at hz with hend
+  · simp only [StateT.run_pure, support_pure, Set.mem_singleton_iff] at hz
+    subst hz
+    exact hw
+  rcases hf : st.findTrans a e with _ | ⟨i, a', m, e'⟩
+  · simp only [hf, StateT.run_pure, support_pure, Set.mem_singleton_iff] at hz
+    subst hz
+    exact hw
+  obtain ⟨-, rfl, rfl⟩ := GameState.findTrans_spec hf
+  obtain ⟨vB, hr⟩ := h len b k st hst hw (by simpa using hend) _ _ _ _ hf
+  simp only [hf, hr, StateT.run_bind, StateT.run_set, StateT.run_pure, pure_bind,
+    support_pure, Set.mem_singleton_iff] at hz
+  subst hz
+  simp only [GameState.delete, hw, decide_true, Bool.and_self, Bool.not_true, Bool.or_self,
+    ne_eq, decide_not]
 
 omit [DecidableEq M] in
 /-- `O-Deliver-B^nd`, the oracle of `fs-aead-nd`: `O-Deliver-B` without its two assignments
@@ -171,7 +199,7 @@ theorem securityExp_eq_noDeliverWin [SampleableType K] (fs : FSAEADScheme K StS 
     rcases t with ((((((n | am) | amm) | u) | u) | q) | q)
     all_goals try rfl
     cases hw : st.win
-    · exact oracleDeliverB_run_eq_noWin_of_win_false fs q st hw (h len b k st hst hw q)
+    · exact oracleDeliverB_run_eq_noWin_of_win_false fs q st hw (h.deliverB_win_false hst hw q)
     · exact oracleDeliverB_run_eq_noWin_of_win_true fs q st hw
 
 end Correctness

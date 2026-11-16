@@ -425,23 +425,22 @@ noncomputable def advantage [SampleableType K] [DecidableEq AD] [DecidableEq M]
 :::defTitle "fs_aead_correctness" "FS-AEAD correctness"
 :::
 
-::::definition "fs_aead_correctness" (parent := "fs_aead") (lean := "FSAEADScheme.Reachable, FSAEADScheme.Correct") (tags := "gh-29") (uses := "fs_aead_security")
+::::definition "fs_aead_correctness" (parent := "fs_aead") (lean := "FSAEADScheme.Reachable, FSAEADScheme.Correct") (tags := "gh-366") (uses := "fs_aead_security")
 Adapted from {Informal.citet ACD19}[], §4.2.1.
 
 The paper builds correctness into the game of the
 {bpref "fs_aead_security"}[FS-AEAD security definition]: $`\ODeliverB` sets $`\mathsf{win}`
 if B rejects an honest ciphertext or outputs a wrong index or message. This definition
-states that condition on its own.
+states that condition on its own, as perfect correctness: no honest delivery fails.
 
 For a length function $`|\cdot|`, a key $`k` and a challenge bit $`b`, a game state is
 reachable if the oracles of the FS-AEAD security game with $`|\cdot|` and $`b` reach it from
-the initial state for $`k`. An FS-AEAD scheme is correct if for every length function
-$`|\cdot|`, every key $`k`, every challenge bit $`b`, every reachable state with $`\mathsf{win} = \mathsf{false}`
-and every query $`(a, e)`, every outcome of $`\ODeliverB(a, e)` has
-$`\mathsf{win} = \mathsf{false}`.
-
-This is perfect correctness, as in the proof of Theorem 5 of {Informal.citet ACD19}[]: no
-honest delivery fails while $`\mathsf{win} = \mathsf{false}`.
+the initial state for $`k`. An FS-AEAD scheme is correct if the following holds for every
+length function, key, challenge bit, and reachable state with
+$`\mathsf{win} = \mathsf{end} = \mathsf{false}`. Let $`(i, a, m, e)` be the record in
+$`\mathsf{trans}` with associated data $`a`, ciphertext $`e` and the smallest index $`i`.
+Then $`\mathsf{FS\text{-}Rcv}(v_\B, a, e)` outputs $`(v_\B', i, m)` for some $`v_\B'`. So
+$`\ODeliverB(a, e)` leaves $`\mathsf{win} = \mathsf{false}`.
 
 :::leanPillCaption "reachable game states"
 :::
@@ -464,7 +463,7 @@ inductive Reachable (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : 
 ```anchor Correct (project := ".") (module := SecureMessaging.FSAEAD.Correctness)
 def Correct (fs : FSAEADScheme K StS StR AD M C) : Prop :=
   ∀ (len : M → ℕ) (b : Bool) (k : K) (st : GameState StS StR AD M C), Reachable fs len b k st →
-    st.win = false → ∀ (q : AD × C), ∀ z ∈ support ((oracleDeliverB fs q).run st),
-      z.2.win = false
+    st.win = false → st.end_ = false → ∀ (i : ℕ) (a : AD) (m : M) (e : C),
+      st.findTrans a e = some (i, a, m, e) → ∃ vB, fs.rcv st.vB a e = some (vB, i, m)
 ```
 ::::
