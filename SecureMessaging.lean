@@ -52,6 +52,7 @@ public import SecureMessaging.ErasureCode.SPQRReedSolomon.Construction
 public import SecureMessaging.ErasureCode.SPQRReedSolomon.Correctness
 public import SecureMessaging.ErasureCode.Streaming
 public import SecureMessaging.FSAEAD.FromAEADPRG.Construction
+public import SecureMessaging.FSAEAD.FromAEADPRG.Correctness
 public import SecureMessaging.KEM.IncrementalKEM.Correctness
 public import SecureMessaging.KEM.IncrementalKEM.Defs
 public import SecureMessaging.KEM.IncrementalKEM.Derandomized
