@@ -105,16 +105,25 @@ structure RatchetedAuthenticator
 :::::::definition "mlkem_braid_auth_key_hiding" (parent := "cka_protocols_mlkem_braid") (lean := "Braid.HiddenAuth, Braid.hiddenState, Braid.hiddenAuth, Braid.AuthHideAdversary, Braid.authHideExp, Braid.authHideAdvantage") (uses := "mlkem_braid_ratcheted_authenticator")
 Let $`\mathsf{Auth}` be a {bpref "mlkem_braid_ratcheted_authenticator"}[ratcheted authenticator]
 with initial-key space $`\mathcal I_{\mathsf{CKA}}`, epoch-key space $`E`, and state space
-$`\mathcal S_{\mathsf{Auth}}`, and let $`\mathsf{InitKeyGen}` be an algorithm that samples its
+$`\mathcal S_{\mathsf{Auth}}`, and let
+$`\Init\text{-}\KeyGen\to I_{\mathsf{CKA}}\in\mathcal I_{\mathsf{CKA}}` be a generator of its
 initial keys. For an epoch $`e`, an initial key $`I_{\mathsf{CKA}}\in\mathcal I_{\mathsf{CKA}}`,
-and an epoch key $`\kappa\in E`, the authenticator state $`\bar a` *entering* $`e`, computed from
-a state $`a\in\mathcal S_{\mathsf{Auth}}`, is $`\bar a=\mathsf{Init}(I_{\mathsf{CKA}},1)` if
-$`e=1` and $`\bar a=\mathsf{Update}(a,e-1,\kappa)` otherwise, where $`e-1` is truncated at $`0`.
-For an epoch key $`u\in E`, the *hidden operations* $`h_{e,I_{\mathsf{CKA}},\kappa,u}` map $`a` to
-the operations that a party performs with $`\bar a`: the header tag
-$`\mathsf{Mac}_H(\bar a,e,\cdot)` and its verification $`\mathsf{Verify}_H(\bar a,e,\cdot,\cdot)`,
-the ciphertext tag $`\mathsf{Mac}_C(\bar a,e-1,\cdot)` and its verification
-$`\mathsf{Verify}_C(\bar a,e-1,\cdot,\cdot)`, and the update $`\mathsf{Update}(\bar a,e,u)`.
+and an epoch key $`\kappa\in E`, the authenticator state *entering* $`e` from a state
+$`a\in\mathcal S_{\mathsf{Auth}}` is
+
+$$`\bar a = \begin{cases}
+\mathsf{Init}(I_{\mathsf{CKA}},1) & e=1,\\
+\mathsf{Update}(a,e-1,\kappa) & \text{otherwise},
+\end{cases}`
+
+with $`e-1` truncated at $`0`. For an epoch key $`u\in E`, the *hidden operations*
+$`h_{e,I_{\mathsf{CKA}},\kappa,u}` map each $`a\in\mathcal S_{\mathsf{Auth}}` to:
+
+- $`\mathsf{Mac}_H(\bar a,e,\cdot)` and $`\mathsf{Verify}_H(\bar a,e,\cdot,\cdot)` on headers at
+  epoch $`e`;
+- $`\mathsf{Mac}_C(\bar a,e-1,\cdot)` and $`\mathsf{Verify}_C(\bar a,e-1,\cdot,\cdot)` on
+  ciphertexts at epoch $`e-1` (unused by the protocol when $`e=1`);
+- $`\mathsf{Update}(\bar a,e,u)`, the updated state after epoch $`e`.
 
 A *key-hiding adversary* $`\mathcal B` chooses an epoch $`e` and keeps a state $`\sigma`; it then
 receives an epoch key and the hidden operations, and outputs a bit. Its advantage is
@@ -130,14 +139,14 @@ independent key $`u'`.
 :::::gameCell "\\mathsf{Hide}^{\\mathsf{real}}_{\\mathsf{Auth}}(\\mathcal B)" (kind := "compact")
 $`\begin{array}{l}
 (e,\sigma)\sample\mathcal B.\mathsf{context}();\\
-I_{\mathsf{CKA}}\sample\mathsf{InitKeyGen}();\quad u,\kappa\sample E;\\
+I_{\mathsf{CKA}}\sample\Init\text{-}\KeyGen();\quad u,\kappa\sample E;\\
 \Return\mathcal B.\mathsf{guess}(\sigma,u,h_{e,I_{\mathsf{CKA}},\kappa,u})
 \end{array}`
 :::::
 :::::gameCell "\\mathsf{Hide}^{\\mathsf{ideal}}_{\\mathsf{Auth}}(\\mathcal B)" (kind := "compact")
 $`\begin{array}{l}
 (e,\sigma)\sample\mathcal B.\mathsf{context}();\\
-I_{\mathsf{CKA}}\sample\mathsf{InitKeyGen}();\quad u,u',\kappa\sample E;\\
+I_{\mathsf{CKA}}\sample\Init\text{-}\KeyGen();\quad u,u',\kappa\sample E;\\
 \Return\mathcal B.\mathsf{guess}(\sigma,u',h_{e,I_{\mathsf{CKA}},\kappa,u})
 \end{array}`
 :::::
