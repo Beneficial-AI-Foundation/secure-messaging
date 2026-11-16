@@ -72,8 +72,9 @@ theorem failurePotential_le_one (s : GameState P AuthState) :
         | exact hrisk _ _ _
         | (split <;> first | exact zero_le_one | exact hderived _ _ _ _ _))
 
-/-- When `currentEpochFailure s ≠ 1`, the recorded samples at either party's epoch decapsulate to
-the recorded derived key. -/
+/-- For a state `s` consistent with a transcript `T` (`TranscriptConsistent`), if
+`currentEpochFailure s ≠ 1`, then decapsulation of the samples recorded in `T` at either party's
+epoch derives the transcript key of that epoch. -/
 theorem decaps_eq_of_currentEpochFailure_ne_one
     {ik : InitKey} {T : ℕ → EpochTranscript P} {s : GameState P AuthState}
     (hT : TranscriptConsistent auth ik T s)

@@ -32,10 +32,11 @@ S_e^real   := H_{e-1} stopped at e               -- real key at e
 S_e^random := H_e     stopped at e               -- uniform key at e
 ```
 
-The modes `μ_i` (`hybridMode i`) and the hybrid argument are generic (`SCKA.Security.Hybrids`).
-They apply because the ideal security oracles under `μ` are the state-dependent security oracles
-over the *ideal instance* `idealSchemeOf s`, Opp-UniKEM in which A's receive outputs B's recorded
-key for A's current epoch (`idealSecurityImpl_eq_modeImpl`).
+The modes `μ_i` (`hybridMode i`), the endpoint identities for `H_0` and `H_q`, and the stopping
+identity are generic (`SCKA.Security.Hybrids`). They apply because, for every challenge mode `μ`,
+the ideal security oracles under `μ` are `SCKAScheme.modeImpl … μ`, the state-dependent security
+oracles for the assignment that maps each game state `s` to the *ideal instance*: Opp-UniKEM in
+which A's receive replaces decapsulation by B's recorded key `s.keyB s.stA.t` for A's current epoch.
 
 Let `AdvGuess_SCKA(scka, adv) := |Pr[b' = b] - 1/2|` be the advantage of `adv` in guessing the
 challenge bit `b` of the SCKA security game, and `ε` the KEM correctness error
@@ -44,8 +45,8 @@ key.
 
 **Results.**
 
-- If `adv` makes at most `q` ordinary and leaking sends on every oracle-response path
-  (`SecuritySendQueryBound adv q`), then (`security_guess_le_hybrid_gap`)
+- If `adv` makes at most `q` ordinary or leaking sends of A and B together, on every response path
+  (`SCKAScheme.SecuritySendQueryBound adv q`), then (`security_guess_le_hybrid_gap`)
   `AdvGuess_SCKA(scka, adv) ≤ |Pr[H_0 = true] - Pr[H_q = true]| / 2 + q · ε`.
 - Stopping at the first exposure of `e` preserves the difference between adjacent hybrids
   (`idealEpochHybrid_signed_gap_stop_eq`, stated for `e = i + 1`):
@@ -178,9 +179,10 @@ theorem idealEpochHybridExp_zero
   simp only [idealEpochHybridExp, SCKAScheme.hybridMode_zero]
 
 include hEk hCt0 hCt1 in
-/-- Assuming the erasure codes are correct and `SecuritySendQueryBound adv q`, the final hybrid
-`idealEpochHybridExp … q` (`H_q`) has the same acceptance probability as the random-key ideal game
-`idealSecurityExp … (fun _ => true) adv` (`I_true`): `Pr[H_q = true] = Pr[I_true = true]`. -/
+/-- Assuming the erasure codes are correct and `SCKAScheme.SecuritySendQueryBound adv q`, the final
+hybrid `idealEpochHybridExp … q` (`H_q`) has the same acceptance probability as the random-key
+ideal game `idealSecurityExp … (fun _ => true) adv` (`I_true`):
+`Pr[H_q = true] = Pr[I_true = true]`. -/
 theorem idealEpochHybridExp_last
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SCKAScheme.SecuritySendQueryBound adv q) :
     Pr{let x ← idealEpochHybridExp kem onoff hDet ecEk ecCt0 ecCt1 leak adv q}[x = true] =
@@ -201,8 +203,8 @@ theorem idealEpochHybridExp_last
       res hres⟩
 
 include hEk hCt0 hCt1 in
-/-- Assuming the erasure codes are correct and `SecuritySendQueryBound adv q`, the SCKA guessing
-advantage of `adv` is bounded by half the distance between the endpoint ideal hybrids
+/-- Assuming the erasure codes are correct and `SCKAScheme.SecuritySendQueryBound adv q`, the SCKA
+guessing advantage of `adv` is bounded by half the distance between the endpoint ideal hybrids
 `H_0 := idealEpochHybridExp … 0` and `H_q := idealEpochHybridExp … q`, plus `q` times the KEM
 correctness error `ε`:
 `AdvGuess_SCKA(scka, adv) ≤ |Pr[H_0 = true] - Pr[H_q = true]| / 2 + q · ε`. -/

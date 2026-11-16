@@ -17,8 +17,10 @@ Edge numbers refer to Figure 1 of the ML-KEM Braid specification.
   (`mem_support_send_iff`).
 * `ReceiveEdge auth st msg r` holds whenever `receive P auth st msg` accepts with result `r`
   (`ReceiveEdge.of_eq_ok`). The converse fails: `ignore` and `nextEpoch` omit the guards of
-  `receive`, and `ct2Done` does not constrain the output key, so lemmas stated over edges also
-  cover receives that output a recorded key instead of decapsulating.
+  `receive`, and `ct2Done` admits every epoch key `key` such that the `ct₂` tag verifies under
+  the authenticator updated with `key`, not only the key derived from the decapsulated KEM key.
+  So lemmas stated over edges also cover receives that output another key, such as the key
+  recorded by the peer.
 
 Sends keep the epoch; receives keep it or increase it by one. From a positive epoch, a transition
 that outputs the key of epoch `t` moves the completed epoch (`State.completedEpoch`) from `t - 1`
@@ -277,7 +279,8 @@ end SendEdge
 
 /-- `ReceiveEdge auth st msg r` holds whenever `receive P auth st msg` accepts with result `r`
 (`ReceiveEdge.of_eq_ok`). The converse fails: `ignore` and `nextEpoch` omit the guards of
-`receive`, and `ct2Done` does not constrain the output key. -/
+`receive`, and `ct2Done` admits every epoch key `key` such that the `ct₂` tag verifies under the
+authenticator updated with `key`, not only the key derived from the decapsulated KEM key. -/
 inductive ReceiveEdge : State P AuthState → Message P.Sym → RecvResult P AuthState → Prop
   /-- Any message leaves the state unchanged and reports `st.epoch - 1`. -/
   | ignore (st : State P AuthState) (msg : Message P.Sym) :

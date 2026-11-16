@@ -11,13 +11,14 @@ public import SecureMessaging.SCKA.SPQR.Security.Ideal
 /-!
 # Pinned KEM material
 
-Let `e` be the epoch at which the reductions embed their challenge. The *KEM material*
-`kemMat : KEMMaterial P` of an epoch records the outputs and coins of its two sampling phases,
-key generation (`kemMat.kg`) and first-stage encapsulation (`kemMat.enc`). It is drawn by
-`sampleMaterial`: `kg ← P.det.toRandLeak.keygenRleak`, then `enc ← P.det.toRandLeak.encaps1Rleak
-(toHeader pk)` for the public key `pk` of `kg`. Its components are `kemMat.pk`, `kemMat.sk`,
-`kemMat.es`, `kemMat.ct1` and `kemMat.key`; `kemMat.ct2` completes the ciphertext from `kemMat.es`
-at `kemMat.pk`, and the epoch key derived at `e` is `kemMat.epochKey e := P.kdfOK kemMat.key e`.
+Let `e` be the simulated epoch: the challenge epoch drawn by the reductions or the epoch before it.
+The *KEM material* `kemMat : KEMMaterial P` of an epoch records the outputs and coins of its two
+sampling phases, key generation (`kemMat.kg`) and first-stage encapsulation (`kemMat.enc`). It is
+drawn by `sampleMaterial`: `kg ← P.det.toRandLeak.keygenRleak`, then
+`enc ← P.det.toRandLeak.encaps1Rleak (toHeader pk)` for the public key `pk` of `kg`. Its components
+are `kemMat.pk`, `kemMat.sk`, `kemMat.es`, `kemMat.ct1` and `kemMat.key`; `kemMat.ct2` completes
+the ciphertext from `kemMat.es` at `kemMat.pk`, and the epoch key derived at `e` is
+`kemMat.epochKey e := P.kdfOK kemMat.key e`.
 
 - A sampling phase of `e` is *pinned* when it returns a value fixed in advance. The operations
   `pinOps kg? enc? e` pin the key generation of `e` to `kg` if `kg? = some kg` and its first
@@ -252,8 +253,8 @@ def PinnedTranscript (kg? : Option (P.PK × P.SK)) (enc? : Option (P.det.St × P
   (∀ es₀ ct1₀ k₀, enc? = some (es₀, ct1₀, k₀) → ∀ es ct1 k, (T e).encaps1 = some (es, ct1, k) →
     es = es₀ ∧ ct1 = ct1₀ ∧ P.kdfOK k e = P.kdfOK k₀ e)
 
-/-- `s.toBraid` satisfies the transcript invariant without decapsulation clause for some initial
-key and a pinned transcript, and `s` satisfies `Ct1AckInv`. -/
+/-- `s` is sample-consistent (`Security.Invariant`) with some initial key and a pinned transcript
+`T` (`PinnedTranscript kg? enc? e T`). -/
 def PinnedInv (kg? : Option (P.PK × P.SK)) (enc? : Option (P.det.St × P.det.C₁ × P.K)) (e : ℕ)
     (s : GameState P AuthState) : Prop :=
   (∃ (ik : InitKey) (T : ℕ → Braid.EpochTranscript P.toBraid),

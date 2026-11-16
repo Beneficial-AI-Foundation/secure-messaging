@@ -12,11 +12,12 @@ public import SecureMessaging.SCKA.Security.Hybrids
 /-!
 # The simulation theorem
 
-Let `adv` be an SCKA adversary against SPQR, `e` the epoch at which the reductions embed their
-challenge, `kemMat` a possible KEM material of `e` (`Reduction.Pinned`), `d` dummies
-(`Reduction.Relation`), and `ik` an initial key. For a candidate key `kStar`, the pinned challenge
-`pinnedChallenge e kStar` (`SCKA.Security.Hybrids`) answers an eligible challenge at `t`
-with a uniform key if `0 < t < e`, `kStar` if `t = e`, and the recorded key otherwise.
+Let `adv` be an SCKA adversary against SPQR, `e` the simulated epoch (the challenge epoch drawn by
+the reductions or the epoch before it), `kemMat` a possible KEM material of `e`
+(`Reduction.Pinned`), `d` dummies (`Reduction.Relation`), and `ik` an initial key. For a candidate
+key `kStar`, the pinned challenge `pinnedChallenge e kStar` (`SCKA.Security.Hybrids`) answers an
+eligible challenge at `t` with a uniform key if `0 < t < e`, `kStar` if `t = e`, and the recorded
+key otherwise.
 
 Consider two games that run `adv` from `initState auth ik` against the security oracles with this
 challenge oracle, return `false` at the first query that exposes `e`, and otherwise return the
@@ -46,11 +47,11 @@ with `μ e = true` and stops at `e + 1`.
 (`Reduction.Relation`).
 
 - From a state `s` satisfying the pinned invariant of `kemMat`, the stopped simulated query from
-  `hideState e d τ s` has the joint answer/state distribution of the stopped honest query from `s`
+  `hideState e d τ s` has the joint response/state distribution of the stopped honest query from `s`
   with its successor hidden. The answers differ only on stopped paths: a corruption of the party
   holding a secret of `e`, and the coins of a leaking send sampling at `e` (`oracle_sim_hide`).
 - The game-state updates of the sends and receives commute with hiding when, for some epoch key
-  `k₀`, every key recorded for the peer at `e` and the key output at `e` are `k₀`
+  `k₀`, every key recorded by the peer at `e` and the key output at `e` are `k₀`
   (`sendUpdate_hideState`, `recvUpdate_hideState`).
 -/
 
@@ -119,8 +120,8 @@ private theorem keysAt_recvUpdate_self (s : GameState P AuthState) (party : Bool
   cases party <;>
     simp [recvUpdate, SCKAScheme.recvAUpdate, SCKAScheme.recvBUpdate, GameState.keysAt, hk]
 
-/-- The send update commutes with hiding, when every key recorded at `e` for the peer and the
-key output at `e` are `k₀`. -/
+/-- The send update commutes with hiding, when every key recorded by the peer at `e` and the key
+output at `e` are `k₀`. -/
 theorem sendUpdate_hideState (s : GameState P AuthState) (party : Bool)
     (r : SendResult P AuthState) (k₀ : P.EpochKey)
     (hkeys : ∀ k, s.keysAt (!party) e = some k → k = k₀)
@@ -140,8 +141,8 @@ theorem sendUpdate_hideState (s : GameState P AuthState) (party : Bool)
       simp [sendUpdate, SCKAScheme.sendAUpdate, hideSendRes, hideState, hideKey, hk,
         hideKeys_update, hb, knownPrefix_update_hideKeys e τ s.keyA tI key]
 
-/-- The receive update commutes with hiding, when every key recorded at `e` for the peer and
-the key output at `e` are `k₀`. -/
+/-- The receive update commutes with hiding, when every key recorded by the peer at `e` and the
+key output at `e` are `k₀`. -/
 theorem recvUpdate_hideState (s : GameState P AuthState) (party : Bool) (tsnd : ℕ)
     (r : RecvResult P AuthState) (trcv : ℕ) (k₀ : P.EpochKey)
     (hkeys : ∀ k, s.keysAt (!party) e = some k → k = k₀)

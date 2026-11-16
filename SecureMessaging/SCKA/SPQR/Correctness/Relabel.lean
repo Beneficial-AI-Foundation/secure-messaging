@@ -13,14 +13,15 @@ public import SecureMessaging.SCKA.SPQR.Correctness.Relation
 
 Let `s` be an SPQR game state in which `party` is in `ct1Acknowledged` and its peer has recorded a
 plain vector chunk `n` of that epoch. `s.toBraidAck party n` is the translation of `s` in which the
-record `n` is an acknowledging vector chunk (`SPQR.Correctness.Relation`). The two lemmas of this
+record `n` is an acknowledging vector chunk (`SPQR.Correctness.Relation`). The lemmas of this
 module show that the relabelling keeps the transcript invariant `Braid.TranscriptInv D` for every
 condition `D`, and so the invariant of the Braid correctness proof:
 
 * `transcriptInv_toBraidAck`: if the translation of `s` satisfies `TranscriptInv D` for a
   transcript, so does `s.toBraidAck party n`;
-* `transcriptInv_restore`: after a Braid step from `s.toBraidAck party n` that keeps the recorded
-  messages of the peer, restoring the plain vector chunk keeps `TranscriptInv D`;
+* `transcriptInv_restore`: if a Braid game state `z` satisfies `TranscriptInv D` for a transcript
+  and has the peer message table of `s.toBraidAck party n` (as after a receive by `party`), so does
+  `z` with the plain vector chunk restored;
   `correctnessInv_restore` is the same statement for `Braid.CorrectnessInv`.
 
 The Braid invariant sees the type of a recorded vector chunk only through the step its sender must
@@ -59,8 +60,9 @@ theorem transcriptInv_toBraidAck {ik : InitKey}
     (Or.inr rfl) hctl
   simpa [GameState.toBraidAck, hmsg'] using h
 
-/-- After a Braid step from the relabelled translation that keeps the recorded messages of the peer,
-restoring the plain vector chunk keeps `TranscriptInv D`. -/
+/-- Let `z` be a Braid game state that satisfies `TranscriptInv D` for a transcript `T` and whose
+peer message table is that of `s.toBraidAck party n` (as after a receive by `party`). Restoring
+the plain vector chunk in `z` keeps `TranscriptInv D` for `T`. -/
 theorem transcriptInv_restore {ik : InitKey} {T : ℕ → Braid.EpochTranscript P.toBraid}
     (party : Bool) (n : ℕ) {s : GameState P AuthState} {core : CtSender.Ct1Sent P AuthState}
     {chunk : ℕ × P.Sym} {tsnd : ℕ}
@@ -87,8 +89,7 @@ theorem transcriptInv_restore {ik : InitKey} {T : ℕ → Braid.EpochTranscript 
     simp [GameState.toBraidAck, hmsgF]
   rwa [htable] at h
 
-/-- After a query of the relabelled translation, restoring the plain vector chunk keeps the Braid
-invariant. -/
+/-- The version of `transcriptInv_restore` for `Braid.CorrectnessInv`. -/
 theorem correctnessInv_restore {ik : InitKey} (party : Bool) (n : ℕ)
     {s : GameState P AuthState} {core : CtSender.Ct1Sent P AuthState} {chunk : ℕ × P.Sym}
     {tsnd : ℕ} (hmsg : s.messagesAt (!party) n = some (⟨core.ep, .ek chunk⟩, tsnd))

@@ -214,7 +214,8 @@ theorem sendB_fresh_eq [DecidableEq Sym]
   rw [scheme_sendB_eq_map_sendBrleak, scheme_sendB_eq_map_sendBrleak,
     sendBrleak_fresh_eq kem onoff hDet ecEk ecCt0 ecCt1 leak kemMat e s stB]
 
-/-- The fully fresh stage is the ideal game of mode `adjacentMode e b` (`SCKA.Security.Hybrids`):
+/-- The fully fresh stage oracle is the ideal security oracle under the challenge mode
+`adjacentMode e b` (`SCKA.Security.Hybrids`):
 `stageOracle .fresh kemMat e b = idealSecurityImpl (adjacentMode e b)`. -/
 theorem stageOracle_fresh_eq_ideal [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool) :

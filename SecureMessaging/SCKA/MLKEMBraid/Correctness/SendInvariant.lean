@@ -14,10 +14,10 @@ public import SecureMessaging.SCKA.MLKEMBraid.Correctness.SendPayload
 A send edge samples a key pair, encapsulates against a received header, sends the next chunk of a
 recorded stream, or emits an empty message. From a state satisfying `TranscriptInv D`, the
 successor satisfies `TranscriptInv D` for the transcript extended by the new sample, if any,
-whenever it satisfies the control and pair invariants (`send_preserves_transcript`). Thus every
-send edge preserves `CorrectnessInv` (`correctnessInv_sendUpdate`), and so does every send oracle.
-A send edge from such a state keeps the correctness flag true
-(`sendUpdate_correct_of_transcriptInv`).
+whenever it satisfies the control and pair invariants (`send_keysUnsampled_transcript`,
+`send_headerReceived_transcript`, `send_existing_transcript`). Thus every send edge preserves
+`CorrectnessInv`, and so does every send oracle (`oracleSend_preserves_correctnessInv`). A send
+edge from such a state keeps the correctness flag true (`sendUpdate_correct_of_transcriptInv`).
 -/
 
 @[expose] public section
@@ -48,8 +48,9 @@ private theorem messagePayloads_update {ik : InitKey} {T : ℕ → EpochTranscri
   cases h
   exact hNew
 
-/-- A send from `keysUnsampled` records its sampled key pair and leaves the successor consistent
-with the extended transcript. -/
+/-- A send from `keysUnsampled` records its sampled key pair: its successor satisfies
+`TranscriptInv D` for the transcript extended by that key pair, provided it satisfies the control
+and pair invariants. -/
 theorem send_keysUnsampled_transcript {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptInv auth D ik T s)
     (party : Bool) {e : ℕ} {a : AuthState} (hst : (s.stateAt party) = .keysUnsampled e a)
@@ -202,7 +203,8 @@ theorem send_keysUnsampled_transcript {ik : InitKey} {T : ℕ → EpochTranscrip
     exact hKeys who e'
 
 /-- A send from `headerReceived` records its first-stage encapsulation and outputs the derived epoch
-key; the successor is consistent with the extended transcript. -/
+key: its successor satisfies `TranscriptInv D` for the transcript extended by that encapsulation,
+provided it satisfies the control and pair invariants. -/
 theorem send_headerReceived_transcript {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptInv auth D ik T s)
     (party : Bool) {e : ℕ} {a : AuthState} {hdr : P.inc.PKheader}
@@ -400,8 +402,8 @@ theorem send_headerReceived_transcript {ik : InitKey} {T : ℕ → EpochTranscri
         simp [show ¬ (0 < e ∧ e ≤ e - 1) by omega]
       · rw [hTc e' he]
 
-/-- A send edge that samples nothing keeps the game state consistent with the same transcript,
-provided its successor satisfies the control and pair invariants. -/
+/-- A send edge that samples nothing keeps `TranscriptInv D` for the same transcript, provided its
+successor satisfies the control and pair invariants. -/
 theorem send_existing_transcript {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptInv auth D ik T s)
     (party : Bool) {r : SendResult P AuthState}

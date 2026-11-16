@@ -22,8 +22,8 @@ sampled context.
 
 A *step* `s ← sampleStep q` adds to a context a uniform version `x ∈ {real, random}` (`false`,
 `true`) and a uniform bit `prev`, which selects the epoch `s.epoch` at which the step embeds its
-challenge: `e - 1` if `prev`, `e` otherwise. On a key pair `pk` and a ciphertext `c`, the *step
-game* `stepGame s pk c w` embeds the key `w` at `s.epoch`:
+challenge: `e - 1` if `prev`, `e` otherwise. On a public key `pk` and a ciphertext `c`, the
+*step game* `stepGame s pk c w` embeds the key `w` at `s.epoch`:
 
 - for `prev = false`, it runs the simulated game of `e` over `hybridAuth auth e ik κ` for
   `κ ←$ P.EpochKey`, with the update of `e` keyed by `w` and the challenge key `w` in `real` and a

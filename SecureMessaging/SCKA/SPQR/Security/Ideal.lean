@@ -44,8 +44,8 @@ challenge bit `b` of the SCKA security game, and `ε` the KEM correctness error
 (`P.det.toKEM.correctnessError`): the probability that an honest encapsulation does not
 decapsulate to its key.
 
-**Results.** Assume that `adv` makes at most `q` ordinary and leaking sends on every response path
-(`SecuritySendQueryBound adv q`).
+**Results.** Assume that `adv` makes at most `q` ordinary or leaking sends of A and B together, on
+every response path (`SCKAScheme.SecuritySendQueryBound adv q`).
 
 - The real and ideal games differ in acceptance probability by at most the KEM correctness error
   accumulated over `q` sends: `|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`
@@ -58,10 +58,11 @@ decapsulate to its key.
   oracles of `G_b` from `initState auth ik` ends with a false correctness flag with probability at
   most `q · ε` (`correctness_failure_le_security`).
 
-Every query of the ideal game preserves consistency with a protocol transcript (`Inv auth`,
-`idealImpl_preservesInv`). In particular, no reachable state performs the authenticator update of
-epoch `0`, so for every `U` the ideal game over `authAt auth 0 U` accepts as often as over `auth`,
-for every stopping predicate (`prEvent_stoppedRun_idealImpl_authAt_zero`).
+Every query of the ideal game preserves `Inv auth` (`idealImpl_preservesInv`): sample-consistency
+and the bound of the epochs by the send counters (`Security.Invariant`). In particular, no
+reachable state performs the authenticator update of epoch `0`, so for every `U` the ideal game
+over `authAt auth 0 U` accepts as often as over `auth`, for every stopping predicate
+(`prEvent_stoppedRun_idealImpl_authAt_zero`).
 -/
 
 @[expose] public section
@@ -224,14 +225,14 @@ end UpdateAt
 section Games
 
 /-- The ideal instance at the game state `s`: the samplers of `scheme P auth sampleInitKey`,
-with the second-stage receive at epoch `t` outputting the key recorded for the peer at `t`. -/
+with the second-stage receive at epoch `t` outputting the key recorded by the peer at `t`. -/
 abbrev idealSchemeOf (s : GameState P AuthState) :=
   schemeWith auth (idealOps (Ops.real P) s) sampleInitKey
 
 variable [DecidableEq P.EpochKey] [SampleableType P.EpochKey]
 
-/-- The oracles of `G_b`: the state-dependent family with the constant instance
-`scheme P auth sampleInitKey` and the challenge mode `fun _ => b`. -/
+/-- The oracles of `G_b`: the state-dependent security oracles of the constant assignment
+`fun _ => scheme P auth sampleInitKey`, with the challenge mode `fun _ => b`. -/
 abbrev realImpl (b : Bool) :=
   SCKAScheme.modeImpl (fun _ : GameState P AuthState => scheme P auth sampleInitKey)
     (vuln P AuthState) (vuln P AuthState) (fun _ => b)
@@ -294,8 +295,8 @@ private theorem realImpl_preserves_correctnessInv (ik : InitKey) (b : Bool) :
       hHdrSound hEkSound hCt1Sound hCt2Sound ik t s hs res hres)
 
 include hHdrSound hEkSound hCt1Sound hCt2Sound in
-/-- Assuming sound stream decoders, every ideal security query preserves consistency with a
-protocol transcript and the bound of the epochs by the send counters (`Inv auth`). -/
+/-- Assuming sound stream decoders, every ideal security query preserves sample-consistency and
+the bound of the epochs by the send counters (`Inv auth`). -/
 theorem idealImpl_preservesInv (mode : ℕ → Bool) :
     QueryImpl.PreservesInv (idealImpl auth sampleInitKey mode) (Inv auth) :=
   SCKAScheme.securityImplAt_preservesInv _ _ _ _ (Inv auth)
@@ -344,9 +345,9 @@ theorem prEvent_stoppedRun_idealImpl_authAt_zero (U : AuthState → AuthState) (
     (Inv_initGameState auth ik)
 
 include hHdrSound hEkSound hCt1Sound hCt2Sound in
-/-- Assuming sound stream decoders and `SecuritySendQueryBound adv q`, the last ideal hybrid
-`H_q := idealExp (hybridMode q) adv` has the acceptance probability of the uniform-key ideal game
-`I_true := idealExp (fun _ => true) adv`. -/
+/-- Assuming sound stream decoders and `SCKAScheme.SecuritySendQueryBound adv q`, the last ideal
+hybrid `H_q := idealExp (hybridMode q) adv` has the acceptance probability of the uniform-key
+ideal game `I_true := idealExp (fun _ => true) adv`. -/
 theorem prEvent_idealExp_hybrid_last (adv : SecurityAdversary P AuthState) (q : ℕ)
     (hq : SCKAScheme.SecuritySendQueryBound adv q) :
     Pr{let x ← idealExp auth sampleInitKey (SCKAScheme.hybridMode q) adv}[x = true] =
@@ -480,9 +481,9 @@ private theorem tracked_realImpl_score_step_le (ik : InitKey) (b : Bool)
       (fun u E h => (failurePotential_exposed u E).trans h) u p.1 rfl res hres
 
 include hHdrSound hEkSound hCt1Sound hCt2Sound in
-/-- Assuming sound stream decoders and `SecuritySendQueryBound adv q`, the tracked execution of
-`realImpl b` from `(initState auth ik, false)` ends with the flag set with probability at most
-`q · ε`. -/
+/-- Assuming sound stream decoders and `SCKAScheme.SecuritySendQueryBound adv q`, the tracked
+execution of `realImpl b` from `(initState auth ik, false)` ends with the flag set with
+probability at most `q · ε`. -/
 private theorem tracked_realImpl_bad_le (ik : InitKey) (b : Bool)
     (adv : SecurityAdversary P AuthState) (q : ℕ)
     (hq : SCKAScheme.SecuritySendQueryBound adv q) :
@@ -504,10 +505,10 @@ private theorem tracked_realImpl_bad_le (ik : InitKey) (b : Bool)
 
 include hHdrSound hEkSound hCt1Sound hCt2Sound in
 /-- Correctness for the full security interface. Assume sound stream decoders and an adversary
-`adv` making at most `q` ordinary or leaking sends in total (`SecuritySendQueryBound adv q`). For
-either fixed challenge bit `b` and every initial key `ik`, the run of `adv` against the security
-oracles of `G_b` from `initState auth ik` ends with a false correctness flag with probability at
-most `q · ε`. -/
+`adv` making at most `q` ordinary or leaking sends of A and B together, on every response path
+(`SCKAScheme.SecuritySendQueryBound adv q`). For either fixed challenge bit `b` and every initial
+key `ik`, the run of `adv` against the security oracles of `G_b` from `initState auth ik` ends
+with a false correctness flag with probability at most `q · ε`. -/
 theorem correctness_failure_le_security (b : Bool) (adv : SecurityAdversary P AuthState)
     (q : ℕ) (hq : SCKAScheme.SecuritySendQueryBound adv q) (ik : InitKey) :
     Pr{let res ← (simulateQ (SCKAScheme.sckaSecurityImpl b (vuln P AuthState)
@@ -529,9 +530,9 @@ theorem correctness_failure_le_security (b : Bool) (adv : SecurityAdversary P Au
   · exact (tracked_initState_inv auth ik).imp_right fun h => ⟨⟨h.1, rfl⟩, h.2⟩
 
 include hHdrSound hEkSound hCt1Sound hCt2Sound in
-/-- Assuming sound stream decoders and `SecuritySendQueryBound adv q`, for every initial key `ik`,
-the acceptance probabilities of `realImpl b` and `idealImpl (fun _ => b)` from `initState auth ik`
-are within `q · ε` of each other. -/
+/-- Assuming sound stream decoders and `SCKAScheme.SecuritySendQueryBound adv q`, for every
+initial key `ik`, the acceptance probabilities of `realImpl b` and `idealImpl (fun _ => b)` from
+`initState auth ik` are within `q · ε` of each other. -/
 private theorem security_correctness_endpoint_le_at (b : Bool)
     (adv : SecurityAdversary P AuthState)
     (q : ℕ) (hq : SCKAScheme.SecuritySendQueryBound adv q) (ik : InitKey) :
@@ -556,7 +557,7 @@ private theorem security_correctness_endpoint_le_at (b : Bool)
   exact ⟨h.1.trans (add_le_add le_rfl hbad), h.2.trans (add_le_add le_rfl hbad)⟩
 
 include hHdrSound hEkSound hCt1Sound hCt2Sound in
-/-- Assuming sound stream decoders and `SecuritySendQueryBound adv q`, the real game
+/-- Assuming sound stream decoders and `SCKAScheme.SecuritySendQueryBound adv q`, the real game
 `G_b := securityExpFixedBit scka adv b V V` of the SPQR scheme `scka` under its exposure policy `V`
 and the ideal game `I_b := idealExp (fun _ => b) adv` differ in acceptance probability by at most
 `q` times the KEM correctness error `ε`: `|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`. -/
@@ -577,10 +578,10 @@ theorem security_correctness_endpoint_le (b : Bool) (adv : SecurityAdversary P A
   simpa only [ENNReal.toReal_mul, ENNReal.toReal_natCast] using h
 
 include hHdrSound hEkSound hCt1Sound hCt2Sound in
-/-- Assuming sound stream decoders and `SecuritySendQueryBound adv q`, the guessing advantage of
-`adv` against the SPQR scheme `scka` under its exposure policy `V` is at most half the distance
-between the ideal hybrids `H_0` and `H_q` (`H_i := idealExp (hybridMode i) adv`), plus `q` times
-the KEM correctness error `ε`:
+/-- Assuming sound stream decoders and `SCKAScheme.SecuritySendQueryBound adv q`, the guessing
+advantage of `adv` against the SPQR scheme `scka` under its exposure policy `V` is at most half
+the distance between the ideal hybrids `H_0` and `H_q` (`H_i := idealExp (hybridMode i) adv`),
+plus `q` times the KEM correctness error `ε`:
 `sckaGuessAdvantage scka adv V V ≤ |Pr[H_0 = true] - Pr[H_q = true]| / 2 + q · ε`. -/
 theorem security_guess_le_hybrid_gap (adv : SecurityAdversary P AuthState) (q : ℕ)
     (hq : SCKAScheme.SecuritySendQueryBound adv q) :

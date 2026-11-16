@@ -20,8 +20,8 @@ public import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
 - the Opp-UniKEM protocol `scka := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` over a KEM `kem`
   with deterministic decapsulation `hDet`, on/off factorization `onoff`, leakage witness `leak`,
   and correct erasure codes `ecEk`, `ecCt0`, `ecCt1`;
-- an SCKA adversary `adv : SecurityAdversary leak Sym` making at most `q` ordinary and leaking
-  sends on every oracle-response path (`SecuritySendQueryBound adv q`);
+- an SCKA adversary `adv : SecurityAdversary leak Sym` making at most `q` ordinary or leaking
+  sends of A and B together, on every response path (`SCKAScheme.SecuritySendQueryBound adv q`);
 - the IND-CPA adversary `𝓑 := Security.Embedding.securityReduction … adv q` against `kem`
   constructed from `adv`, which draws a *challenge epoch* `e` uniformly from `1, …, q`, embeds the
   KEM challenge in the key generation and encapsulation of epoch `e`, and runs `adv`.
@@ -91,12 +91,12 @@ Pr[S_e^real = true] - Pr[S_e^random = true] = p_{e-1} - p_e      (step 4)
    (`security_guess_le_hybrid_gap`).
 
 2. *Reduction and simulation* (`Reduction/{Simulator,Relation,Game,Simulation,HybridGame}`).
-   - On public key `pk*` and challenge `(ct*, k*)`, the reduction `𝓑` runs `adv` against
+   - On public key `pkStar` and challenge `(ctStar, kStar)`, the reduction `𝓑` runs `adv` against
      simulated oracles (`simOracle`):
-     - key generation at `e` returns `pk*` and encapsulation at `e` returns `ct*`, with *hidden*
-       secret key, offline state, shared key, and coins; other epochs sample honestly;
-     - a challenge at `t` returns a uniform key if `t < e`, `k*` if `t = e`, and the recorded
-       key if `t > e`;
+     - key generation at `e` returns `pkStar` and encapsulation at `e` returns `ctStar`, with
+       *hidden* secret key, offline state, shared key, and coins; other epochs sample honestly;
+     - an eligible challenge at `t` returns a uniform key if `0 < t < e`, `kStar` if `t = e`, and
+       the recorded key otherwise;
      - a permitted corruption or leaking send that would reveal a hidden value stops the run
        with output `false`.
 
@@ -238,8 +238,9 @@ section
 
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- Assume correct erasure codes and an adversary making at most `q` ordinary or leaking sends
-in total (`SecuritySendQueryBound adv q`). For `𝓑 := securityReduction … adv q`,
+/-- Assume correct erasure codes and an SCKA adversary `adv` making at most `q` ordinary or leaking
+sends of A and B together, on every response path (`SCKAScheme.SecuritySendQueryBound adv q`).
+For `𝓑 := securityReduction … adv q`,
 `AdvGuess_SCKA(scka, adv) ≤ (q / 2) · AdvINDCPA_KEM(kem, 𝓑) + q · ε`. -/
 -- ANCHOR: security
 theorem security
