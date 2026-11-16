@@ -76,9 +76,6 @@ structure FSAEADScheme (K StS StR AD M C : Type) where
 :::::::definition "fs_aead_security" (parent := "fs_aead") (lean := "FSAEADScheme.GameState, FSAEADScheme.securityExp, FSAEADScheme.fsaeadSecurityImpl, FSAEADScheme.advantage") (tags := "gh-187") (uses := "fs_aead_scheme")
 Adapted from {Informal.citet ACD19}[], Figure 5 and Definition 15.
 
-The game has a parameter: a length function $`|\cdot|` on messages. $`\OChallA` requires
-$`|m_0| = |m_1|`.
-
 ::::::gameGrid
 :::::gameCell "\\textsf{Game state and notation}" (kind := "scheme-notation")
 The game state consists of:
@@ -104,6 +101,8 @@ The game state consists of:
 In the oracles, $`\req\varphi` means: if $`\varphi` is false, the oracle returns
 $`\bot` and the game state does not change. $`\mathsf{end}` disables all oracles: after
 it, every oracle returns $`\bot`.
+
+The game has a parameter: a length function $`|\cdot|` on messages.
 
 :::leanPillCaption "Game state"
 :::
