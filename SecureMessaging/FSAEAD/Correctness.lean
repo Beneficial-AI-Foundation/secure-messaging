@@ -141,7 +141,7 @@ def securityExpNoDeliverWin [SampleableType K] (fs : FSAEADScheme K StS StR AD M
 
 /-- Let `st` be a state with `win = false`, and let every outcome of `O-Deliver-B(q)` from
 `st` have `win = false`. Then `O-Deliver-B(q)` and `oracleDeliverBNoWin` agree on `st`. -/
-theorem oracleDeliverB_run_eq_noWin_of_win_false (fs : FSAEADScheme K StS StR AD M C)
+private theorem oracleDeliverB_run_eq_noWin_of_win_false (fs : FSAEADScheme K StS StR AD M C)
     (q : AD × C) (st : GameState StS StR AD M C) (hwin : st.win = false)
     (h : ∀ z ∈ support ((oracleDeliverB fs q).run st), z.2.win = false) :
     (oracleDeliverB fs q).run st = (oracleDeliverBNoWin fs q).run st := by
@@ -163,7 +163,7 @@ theorem oracleDeliverB_run_eq_noWin_of_win_false (fs : FSAEADScheme K StS StR AD
 
 /-- Let `st` be a state with `win = true`. Then `O-Deliver-B` and `oracleDeliverBNoWin`
 agree on `st`. -/
-theorem oracleDeliverB_run_eq_noWin_of_win_true (fs : FSAEADScheme K StS StR AD M C)
+private theorem oracleDeliverB_run_eq_noWin_of_win_true (fs : FSAEADScheme K StS StR AD M C)
     (q : AD × C) (st : GameState StS StR AD M C) (hwin : st.win = true) :
     (oracleDeliverB fs q).run st = (oracleDeliverBNoWin fs q).run st := by
   obtain ⟨a, e⟩ := q
