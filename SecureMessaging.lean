@@ -64,6 +64,7 @@ public import SecureMessaging.KEM.OnOffKEM.CorrectnessError
 public import SecureMessaging.KEM.OnOffKEM.Defs
 public import SecureMessaging.KEM.OnOffKEM.FromKPKE
 public import SecureMessaging.KEM.CorrectnessError
+public import SecureMessaging.FSAEAD.Correctness
 public import SecureMessaging.FSAEAD.Defs
 public import SecureMessaging.PRFPRNG.Defs
 public import SecureMessaging.RKEM.Defs
