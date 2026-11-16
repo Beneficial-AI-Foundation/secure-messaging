@@ -433,10 +433,10 @@ The paper builds correctness into the game of the
 if B rejects an honest ciphertext or outputs a wrong index or message. This definition
 states that condition on its own.
 
-For a key $`k` and a challenge bit $`b`, a game state is reachable if the oracles of the
-FS-AEAD security game with length function $`|\cdot|` reach it from the initial state for
-$`k`, with challenge bit $`b`. An FS-AEAD scheme is correct for $`|\cdot|` if for every key
-$`k`, every challenge bit $`b`, every reachable state with $`\mathsf{win} = \mathsf{false}`
+For a length function $`|\cdot|`, a key $`k` and a challenge bit $`b`, a game state is
+reachable if the oracles of the FS-AEAD security game with $`|\cdot|` and $`b` reach it from
+the initial state for $`k`. An FS-AEAD scheme is correct if for every length function
+$`|\cdot|`, every key $`k`, every challenge bit $`b`, every reachable state with $`\mathsf{win} = \mathsf{false}`
 and every query $`(a, e)`, every outcome of $`\ODeliverB(a, e)` has
 $`\mathsf{win} = \mathsf{false}`.
 
@@ -462,8 +462,8 @@ inductive Reachable (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : 
 :::
 
 ```anchor Correct (project := ".") (module := SecureMessaging.FSAEAD.Correctness)
-def Correct (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) : Prop :=
-  ∀ (b : Bool) (k : K) (st : GameState StS StR AD M C), Reachable fs len b k st →
+def Correct (fs : FSAEADScheme K StS StR AD M C) : Prop :=
+  ∀ (len : M → ℕ) (b : Bool) (k : K) (st : GameState StS StR AD M C), Reachable fs len b k st →
     st.win = false → ∀ (q : AD × C), ∀ z ∈ support ((oracleDeliverB fs q).run st),
       z.2.win = false
 ```
@@ -584,8 +584,8 @@ def securityExpNoDeliverWin [SampleableType K] (fs : FSAEADScheme K StS StR AD M
 :::
 
 ::::theorem "fs_aead_no_delivery_check_hop" (parent := "fs_aead") (lean := "FSAEADScheme.securityExp_eq_noDeliverWin") (tags := "gh-29") (uses := "fs_aead_correctness, fs_aead_no_delivery_check_game, fs_aead_security")
-Let an FS-AEAD scheme be {bpref "fs_aead_correctness"}[correct] for the
-length function $`|\cdot|`. Then for every adversary $`\adv`,
+Let an FS-AEAD scheme be {bpref "fs_aead_correctness"}[correct]. Then for every length
+function $`|\cdot|` and every adversary $`\adv`,
 
 $$`\Exp{\textsf{fs-aead}}{\textsf{FS-AEAD}}(\adv) = \Exp{\textsf{fs-aead-nd}}{\textsf{FS-AEAD}}(\adv)`
 
@@ -596,7 +596,7 @@ as probabilistic computations. In particular, $`\Pr\bigl[\Exp{\textsf{fs-aead}}{
 
 ```anchor securityExp_eq_noDeliverWin (project := ".") (module := SecureMessaging.FSAEAD.Correctness)
 theorem securityExp_eq_noDeliverWin [SampleableType K] (fs : FSAEADScheme K StS StR AD M C)
-    (len : M → ℕ) (h : fs.Correct len) (adversary : FSAEADAdversary StS StR AD M C) :
+    (len : M → ℕ) (h : fs.Correct) (adversary : FSAEADAdversary StS StR AD M C) :
     securityExp fs len adversary = securityExpNoDeliverWin fs len adversary
 ```
 ::::

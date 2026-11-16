@@ -16,8 +16,8 @@ public import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 `win` if B rejects an honest ciphertext or outputs a wrong index or message. The proof of
 Theorem 5 removes this `win` in the step from `H1` to `H2`.
 
-`fs.Correct len` is the perfect correctness of `fs`: `O-Deliver-B` never changes `win`
-from false to true, in every game state that the oracles reach. A forgery that B
+`fs.Correct` is the perfect correctness of `fs`: for every length function, `O-Deliver-B`
+never changes `win` from false to true, in every game state that the oracles reach. A forgery that B
 accepts at an index that is not compromised already sets `win` in `O-Inject-B`, so a later
 delivery failure does not change the result of the experiment.
 
@@ -60,11 +60,11 @@ inductive Reachable (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : 
 -- ANCHOR_END: Reachable
 
 /-- Perfect correctness of an FS-AEAD scheme [ACD19, §4.2.1]: `O-Deliver-B` never changes
-`win` from false to true. In every reachable state with `win = false`, every outcome of
-`O-Deliver-B` has `win = false`. -/
+`win` from false to true. For every length function `len`, in every reachable state with
+`win = false`, every outcome of `O-Deliver-B` has `win = false`. -/
 -- ANCHOR: Correct
-def Correct (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) : Prop :=
-  ∀ (b : Bool) (k : K) (st : GameState StS StR AD M C), Reachable fs len b k st →
+def Correct (fs : FSAEADScheme K StS StR AD M C) : Prop :=
+  ∀ (len : M → ℕ) (b : Bool) (k : K) (st : GameState StS StR AD M C), Reachable fs len b k st →
     st.win = false → ∀ (q : AD × C), ∀ z ∈ support ((oracleDeliverB fs q).run st),
       z.2.win = false
 -- ANCHOR_END: Correct
@@ -151,11 +151,11 @@ theorem oracleDeliverB_run_eq_noWin_of_win_true (fs : FSAEADScheme K StS StR AD 
   · simp only [hwin, Bool.not_and, Bool.true_or, bind_pure_comp, StateT.run_map, StateT.run_set,
         map_pure]
 
-/-- Let `fs` be correct for `len`. Then for every adversary, `securityExp` equals the
-experiment of `fs-aead-nd`. -/
+/-- Let `fs` be correct. Then for every length function `len` and every adversary,
+`securityExp` equals the experiment of `fs-aead-nd`. -/
 -- ANCHOR: securityExp_eq_noDeliverWin
 theorem securityExp_eq_noDeliverWin [SampleableType K] (fs : FSAEADScheme K StS StR AD M C)
-    (len : M → ℕ) (h : fs.Correct len) (adversary : FSAEADAdversary StS StR AD M C) :
+    (len : M → ℕ) (h : fs.Correct) (adversary : FSAEADAdversary StS StR AD M C) :
     securityExp fs len adversary = securityExpNoDeliverWin fs len adversary
 -- ANCHOR_END: securityExp_eq_noDeliverWin
   := by
@@ -171,7 +171,7 @@ theorem securityExp_eq_noDeliverWin [SampleableType K] (fs : FSAEADScheme K StS 
     rcases t with ((((((n | am) | amm) | u) | u) | q) | q)
     all_goals try rfl
     cases hw : st.win
-    · exact oracleDeliverB_run_eq_noWin_of_win_false fs q st hw (h b k st hst hw q)
+    · exact oracleDeliverB_run_eq_noWin_of_win_false fs q st hw (h len b k st hst hw q)
     · exact oracleDeliverB_run_eq_noWin_of_win_true fs q st hw
 
 end Correctness
