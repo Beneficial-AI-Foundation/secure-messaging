@@ -433,14 +433,20 @@ The paper builds correctness into the game of the
 if B rejects an honest ciphertext or outputs a wrong index or message. This definition
 states that condition on its own, as perfect correctness: no honest delivery fails.
 
-For a length function $`|\cdot|`, a key $`k` and a challenge bit $`b`, a game state is
-reachable if the oracles of the FS-AEAD security game with $`|\cdot|` and $`b` reach it from
-the initial state for $`k`. An FS-AEAD scheme is correct if the following holds for every
-length function, key, challenge bit, and reachable state with
-$`\mathsf{win} = \mathsf{end} = \mathsf{false}`. Let $`(i, a, m, e)` be the record in
-$`\mathsf{trans}` with associated data $`a`, ciphertext $`e` and the smallest index $`i`.
-Then $`\mathsf{FS\text{-}Rcv}(v_\B, a, e)` outputs $`(v_\B', i, m)` for some $`v_\B'`. So
-$`\ODeliverB(a, e)` leaves $`\mathsf{win} = \mathsf{false}`.
+Let $`|\cdot|` be a length function, $`k` a key and $`b` a challenge bit. A game state
+$`\mathit{st}` is _reachable_ for $`|\cdot|`, $`k` and $`b` if the oracles of the FS-AEAD
+security game with $`|\cdot|` and $`b` reach $`\mathit{st}` from the initial state for $`k`.
+
+An FS-AEAD scheme is _correct_ if the following holds for every length function
+$`|\cdot|`, key $`k`, challenge bit $`b`, game state $`\mathit{st}` that is reachable for
+$`|\cdot|`, $`k` and $`b`, index $`i`, associated data $`a`, message $`m` and ciphertext
+$`e`. If
+
+* $`\mathit{st}.\mathsf{win} = \mathsf{false} \land \mathit{st}.\mathsf{end} = \mathsf{false}`, and
+* $`(i, a, m, e)` is the record in $`\mathit{st}.\mathsf{trans}` with associated data $`a`,
+  ciphertext $`e` and the smallest index,
+
+then $`\mathsf{FS\text{-}Rcv}(\mathit{st}.v_\B, a, e) = (v_\B', i, m)` for some $`v_\B'`.
 
 :::leanPillCaption "reachable game states"
 :::
