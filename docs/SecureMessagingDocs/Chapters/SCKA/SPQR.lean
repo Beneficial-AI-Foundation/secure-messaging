@@ -104,45 +104,6 @@ structure Parameters (m : Type → Type u) [Monad m] where
   /-- `ct₂`-stream decoder. -/
   decCt2 : ErasureCodePayload.Streaming.StreamDecoder (det.C₂ × Mac) Sym
 ```
-
-:::leanPillCaption "KEM operations"
-:::
-
-```anchor SPQR_kemOperations (project := ".") (module := SecureMessaging.SCKA.SPQR.Params)
-/-- Draws key-generation coins and generates a key pair from them. -/
-def generate : m (P.PK × P.SK) := do
-  let r ← P.det.sampleKeygen
-  pure (P.det.keygenDet r)
-
-/-- `generate`, also returning the drawn coins. -/
-def generateRleak : m ((P.PK × P.SK) × P.det.KeygenRand) := do
-  let r ← P.det.sampleKeygen
-  pure (P.det.keygenDet r, r)
-
-/-- Draws first-stage coins and runs the first encapsulation stage on a header. -/
-def encaps1 (hdr : P.det.PKheader) : m (P.det.St × P.det.C₁ × P.K) := do
-  let r ← P.det.sampleEncaps1
-  pure (P.det.encaps1Det hdr r)
-
-/-- `encaps1`, also returning the drawn coins. -/
-def encaps1Rleak (hdr : P.det.PKheader) :
-    m ((P.det.St × P.det.C₁ × P.K) × P.det.Encaps1Rand) := do
-  let r ← P.det.sampleEncaps1
-  pure (P.det.encaps1Det hdr r, r)
-
-/-- The second encapsulation stage on the vector `ek` and the first-stage state `es`; the header
-is an argument of the generic second stage. -/
-def encaps2 (ek : P.det.PKvector) (es : P.det.St) (hdr : P.det.PKheader) : P.det.C₂ :=
-  P.det.encaps2Det es hdr ek
-
-/-- Decapsulates the ciphertext with components `ct1` and `ct2`. -/
-def decaps (dk : P.SK) (ct1 : P.det.C₁) (ct2 : P.det.C₂) : Option P.K :=
-  P.det.decapsDet dk (P.det.splitC.symm (ct1, ct2))
-
-/-- Whether the vector `ek` and the header form a public key. -/
-def ekMatchesHeader (ek : P.det.PKvector) (hdr : P.det.PKheader) : Bool :=
-  P.det.validPK hdr ek
-```
 :::::::
 
 :::defTitle "spqr_chunked_scheme" "SPQR protocol"
@@ -163,8 +124,8 @@ $`\mathcal I_{\mathsf{CKA}}`, state space $`\mathcal S_{\mathsf{Auth}}`, and alg
   $`\mathsf{Verify}_C:\mathcal S_{\mathsf{Auth}}\times\mathbb N\times(C_1\times C_2)\times T\to\{\mathsf{true},\mathsf{false}\}`
   on ciphertexts,
 
-and $`\Init\text{-}\KeyGen\to I_{\mathsf{CKA}}\in\mathcal I_{\mathsf{CKA}}` a generator of its
-initial keys. $`\mathsf{SPQR}(P,\mathsf{Auth},\Init\text{-}\KeyGen)`, Signal's implementation of
+and let $`\Init\text{-}\KeyGen\to I_{\mathsf{CKA}}\in\mathcal I_{\mathsf{CKA}}` be a generator of
+its initial keys. $`\mathsf{SPQR}(P,\mathsf{Auth},\Init\text{-}\KeyGen)`, Signal's implementation of
 {bpref "mlkem_braid_spec"}[ML-KEM Braid], is the {bpref "scka_scheme"}[SCKA scheme] with
 initial-key generator $`\Init\text{-}\KeyGen` and the algorithms below.
 
@@ -228,7 +189,7 @@ and $`\mathsf{encapsSt}` for $`\mathsf{Encaps}_2`. The values of a state:
   * the current epoch
 *
   * $`\mathsf{auth}\in\mathcal S_{\mathsf{Auth}}`
-  * the authenticator state, ratcheted with the epoch key at $`\mathsf{SendCt1}` and $`\mathsf{RecvCt2}`
+  * the authenticator state, updated with the epoch key in $`\mathsf{SendCt1}` and $`\mathsf{RecvCt2}`
 *
   * $`\mathsf{pk}=(\mathsf{hdr},\mathsf{ek})`, $`\mathsf{sk}`
   * the key pair of the encapsulation-key sender, with header $`\mathsf{hdr}\in H` and vector $`\mathsf{ek}\in V`
@@ -1037,8 +998,8 @@ def sendCt2 (P : Parameters m)
 The *v1 parameter set* $`P_{\mathsf{v1}}` uses
 {bpref "incremental_kem_from_ml_kem_spec"}[ML-KEM-768 with explicit coins] and the
 {bpref "spqr_reed_solomon_code"}[SPQR Reed–Solomon codes] over 32-byte symbols;
-$`\mathsf{KDF}_{\mathsf{OK}}`, $`T`, the serializations, $`\mathsf{Auth}`, and
-$`\Init\text{-}\KeyGen` remain parameters.
+$`\mathsf{KDF}_{\mathsf{OK}}`, $`T`, the maps $`\mathsf{Serialize}` and $`\mathsf{Parse}` of the
+four payloads, $`\mathsf{Auth}`, and $`\Init\text{-}\KeyGen` remain parameters.
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Coin samplers}" (kind := "game")
@@ -1212,246 +1173,21 @@ noncomputable def v1Scheme {InitKey AuthState EpochKey Mac : Type}
 ```
 :::::::
 
-:::defTitle "spqr_mlkem_braid_translation" "Translation of SPQR into ML-KEM Braid"
-:::
-
-::::definition "spqr_mlkem_braid_translation" (parent := "cka_protocols_spqr") (lean := "SPQR.Chunked.Message.toBraid, SPQR.Chunked.PartyState.toBraid, SPQR.GameState.toBraid, SPQR.RecvDivergence, SPQR.PartyCt1Ack, SPQR.Ct1AckInv, SPQR.DeliveryDivergence, SPQR.GameState.toBraidAck") (tags := "gh-269") (uses := "spqr_chunked_scheme, mlkem_braid_spec, scka_correctness")
-The correctness game of SPQR and the correctness game of ML-KEM Braid have the same form. The
-translation takes each object of the first game to the object of the second game that has the same
-role:
-
-:::table +header (align := left)
-*
-  * SPQR
-  * ML-KEM Braid
-*
-  * party state
-  * party state of the same name, with the stored encapsulation key replaced by its vector
-*
-  * message with a payload other than `Ct1Ack(true)`
-  * message of the type of the same name
-*
-  * message with payload `Ct1Ack(true)`, which SPQR sends in `ekSentCt1Received`
-  * empty message, which ML-KEM Braid sends in `ekSentCt1Received`
-*
-  * game state
-  * game state with the party states and the recorded messages translated and every other field unchanged
-:::
-
-:::leanPillCaption "the translation of messages"
-:::
-
-```anchor Correspondence_Message_toMLKEMBraid (project := ".") (module := SecureMessaging.SCKA.SPQR.Correspondence)
-def Message.toBraid {Sym : Type} (msg : Message Sym) : Braid.Message Sym :=
-  match msg.payload with
-  | .none => ⟨msg.epoch, .none, none⟩
-  | .hdr chunk => ⟨msg.epoch, .hdr, some chunk⟩
-  | .ek chunk => ⟨msg.epoch, .ek, some chunk⟩
-  | .ekCt1Ack chunk => ⟨msg.epoch, .ekCt1Ack, some chunk⟩
-  | .ct1Ack => ⟨msg.epoch, .none, none⟩
-  | .ct1 chunk => ⟨msg.epoch, .ct1, some chunk⟩
-  | .ct2 chunk => ⟨msg.epoch, .ct2, some chunk⟩
-```
-
-:::leanPillCaption "the translation of game states"
-:::
-
-```anchor Relation_GameState_toMLKEMBraid (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness.Relation)
-def GameState.toBraid (s : GameState P AuthState) :
-    Braid.GameState P.toBraid AuthState where
-  stA := s.stA.toBraid
-  stB := s.stB.toBraid
-  keyA := s.keyA
-  keyB := s.keyB
-  msgA := fun n => (s.msgA n).map fun (msg, tsnd) => (msg.toBraid, tsnd)
-  msgB := fun n => (s.msgB n).map fun (msg, tsnd) => (msg.toBraid, tsnd)
-  nA := s.nA
-  nB := s.nB
-  tcurA := s.tcurA
-  tcurB := s.tcurB
-  exposed := s.exposed
-  challenged := s.challenged
-  correct := s.correct
-```
-
-The two receives agree on every delivery except those of `RecvDivergence`, which has three cases:
-
-:::table +header (align := left)
-*
-  * Delivery
-  * SPQR
-  * ML-KEM Braid
-*
-  * a message of a future epoch, other than the successor epoch in `ct2Sampled`
-  * refuses it
-  * ignores it
-*
-  * a standalone `Ct1Ack` in `ekReceivedCt1Sampled`
-  * completes `ct₂`
-  * ignores it
-*
-  * a plain `Ek` chunk in `ct1Acknowledged`
-  * adds the chunk to the vector decoder
-  * ignores it
-:::
-
-:::leanPillCaption "the divergent deliveries"
-:::
-
-```anchor Correspondence_RecvDivergence (project := ".") (module := SecureMessaging.SCKA.SPQR.Correspondence)
-def RecvDivergence (st : PartyState P AuthState) (msg : Message P.Sym) : Prop :=
-  (st.epoch < msg.epoch ∧ ¬ ((∃ core enc, st = .ct2Sampled core enc) ∧ msg.epoch = st.epoch + 1)) ∨
-    (msg.epoch = st.epoch ∧ (∃ core enc, st = .ekReceivedCt1Sampled core enc) ∧
-      msg.payload = .ct1Ack) ∨
-    (msg.epoch = st.epoch ∧ (∃ core dec, st = .ct1Acknowledged core dec) ∧
-      ∃ chunk, msg.payload = .ek chunk)
-```
-
-A query of the correctness game delivers a divergent message if it receives a recorded message in
-`RecvDivergence`.
-
-:::leanPillCaption "divergent deliveries in the correctness game"
-:::
-
-```anchor Relation_DeliveryDivergence (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness.Relation)
-def DeliveryDivergence (s : GameState P AuthState) :
-    (SCKAScheme.sckaCorrectnessSpec (Chunked.Message P.Sym)).Domain → Prop
-  | SCKAScheme.sckaCorrectnessSpec.ORecvA n =>
-      ∃ msg tsnd, s.msgB n = some (msg, tsnd) ∧ RecvDivergence s.stA msg
-  | SCKAScheme.sckaCorrectnessSpec.ORecvB n =>
-      ∃ msg tsnd, s.msgA n = some (msg, tsnd) ∧ RecvDivergence s.stB msg
-  | _ => False
-```
-
-SPQR sends `Ct1Ack` only from `ekSentCt1Received`, and the translation turns every recorded
-`Ct1Ack` into an empty message. `Ct1AckInv` keeps this information. For one party, the condition
-says that each `Ct1Ack` among the party's recorded messages has an epoch below the epoch of the
-party's state, or that the party is still in `ekSentCt1Received` at that epoch.
-
-:::leanPillCaption "the condition for one party"
-:::
-
-```anchor Relation_PartyCt1Ack (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness.Relation)
-def PartyCt1Ack (st : PartyState P AuthState)
-    (msgs : ℕ → Option (Chunked.Message P.Sym × ℕ)) : Prop :=
-  ∀ n msg tsnd, msgs n = some (msg, tsnd) → msg.payload = .ct1Ack →
-    msg.epoch < st.epoch ∨ ∃ core dec, st = .ekSentCt1Received core dec ∧ core.ep = msg.epoch
-```
-
-:::leanPillCaption "the acknowledgement invariant"
-:::
-
-```anchor Relation_Ct1AckInv (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness.Relation)
-def Ct1AckInv (s : GameState P AuthState) : Prop :=
-  ∀ party, PartyCt1Ack (s.stateAt party) (s.messagesAt party)
-```
-
-In the third case of `RecvDivergence`, the sender of the plain vector chunk is in `ct1Received`, so
-it could have sent the same chunk as an acknowledging vector chunk. The translation in which one
-record is such a chunk is `GameState.toBraidAck`.
-
-:::leanPillCaption "the translation with an acknowledging vector chunk"
-:::
-
-```anchor Relation_GameState_toMLKEMBraidAck (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness.Relation)
-def GameState.toBraidAck (s : GameState P AuthState) (party : Bool) (n : ℕ) :
-    Braid.GameState P.toBraid AuthState :=
-  s.toBraid.setMessages (!party)
-    (Function.update (s.toBraid.messagesAt (!party)) n
-      ((s.toBraid.messagesAt (!party) n).map fun (msg, tsnd) =>
-        ({ msg with type := .ekCt1Ack }, tsnd)))
-```
-::::
-
-:::defTitle "spqr_mlkem_braid_relation" "SPQR and ML-KEM Braid correctness games"
-:::
-
-::::lemma_ "spqr_mlkem_braid_relation" (parent := "cka_protocols_spqr") (lean := "SPQR.sckaCorrectnessImpl_run_toBraid, SPQR.DeliveryDivergence.ct1Acknowledged_ek, SPQR.sckaCorrectnessImpl_run_toBraidAck") (uses := "spqr_mlkem_braid_translation, mlkem_braid_spec, scka_correctness")
-Three statements relate the two games. In each, a query of the SPQR correctness game runs on a
-game state $`s`, and the same query of the ML-KEM Braid correctness game runs on its translation.
-
-If the query does not deliver a message in `RecvDivergence`, the translated SPQR successor state
-and the ML-KEM Braid successor state have the same distribution.
-
-:::leanPillCaption "agreeing queries"
-:::
-
-```anchor Relation_sckaCorrectnessImpl_run_toMLKEMBraid (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness.Relation)
-theorem sckaCorrectnessImpl_run_toBraid [DecidableEq P.EpochKey] (s : GameState P AuthState)
-    (t : (SCKAScheme.sckaCorrectnessSpec (Chunked.Message P.Sym)).Domain)
-    (ht : ¬ DeliveryDivergence s t) :
-    (fun z => GameState.toBraid z.2) <$>
-        (SCKAScheme.sckaCorrectnessImpl (scheme P auth sampleInitKey) t).run s =
-      (fun z => z.2) <$>
-        (SCKAScheme.sckaCorrectnessImpl
-          (Braid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey) t).run
-          s.toBraid
-```
-
-Suppose that the translation of $`s` satisfies the ML-KEM Braid invariants `ControlInv` and
-`StatePairInv`, and that $`s` satisfies `Ct1AckInv`. Then a query that delivers a message in
-`RecvDivergence` delivers a plain vector chunk to a party in `ct1Acknowledged`.
-
-:::leanPillCaption "the divergent delivery"
-:::
-
-```anchor Relation_DeliveryDivergence_ct1Acknowledged_ek (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness.Relation)
-theorem DeliveryDivergence.ct1Acknowledged_ek {s : GameState P AuthState}
-    {t : (SCKAScheme.sckaCorrectnessSpec (Chunked.Message P.Sym)).Domain}
-    (hC : Braid.ControlInv s.toBraid) (hP : Braid.StatePairInv s.toBraid)
-    (hack : Ct1AckInv s) (h : DeliveryDivergence s t) :
-    ∃ (party : Bool) (n : ℕ) (core : CtSender.Ct1Sent P AuthState)
-      (dec : P.decEk.D) (chunk : ℕ × P.Sym) (tsnd : ℕ),
-      t = (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
-        else SCKAScheme.sckaCorrectnessSpec.ORecvB n) ∧
-      s.stateAt party = .ct1Acknowledged core dec ∧
-      s.messagesAt (!party) n = some (⟨core.ep, .ek chunk⟩, tsnd)
-```
-
-For such a delivery, the translated SPQR successor state has the distribution of the ML-KEM Braid
-successor state of the translation with an acknowledging vector chunk, once the original record is
-restored.
-
-:::leanPillCaption "the divergent delivery in ML-KEM Braid"
-:::
-
-```anchor Relation_sckaCorrectnessImpl_run_toMLKEMBraidAck (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness.Relation)
-theorem sckaCorrectnessImpl_run_toBraidAck [DecidableEq P.EpochKey] (s : GameState P AuthState)
-    (party : Bool)
-    (n : ℕ) (core : CtSender.Ct1Sent P AuthState) (dec : P.decEk.D)
-    (chunk : ℕ × P.Sym) (tsnd : ℕ)
-    (hst : s.stateAt party = .ct1Acknowledged core dec)
-    (hmsg : s.messagesAt (!party) n = some (⟨core.ep, .ek chunk⟩, tsnd)) :
-    (fun z => GameState.toBraid z.2) <$>
-        (SCKAScheme.sckaCorrectnessImpl (scheme P auth sampleInitKey)
-          (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
-            else SCKAScheme.sckaCorrectnessSpec.ORecvB n)).run s =
-      (fun z => if party then { z.2 with msgB := s.toBraid.msgB }
-          else { z.2 with msgA := s.toBraid.msgA }) <$>
-        (SCKAScheme.sckaCorrectnessImpl
-          (Braid.scheme P.toBraid auth P.det.toRandLeak sampleInitKey)
-          (if party then SCKAScheme.sckaCorrectnessSpec.ORecvA n
-            else SCKAScheme.sckaCorrectnessSpec.ORecvB n)).run (s.toBraidAck party n)
-```
-::::
-
 :::defTitle "spqr_protocol_correctness" "SPQR protocol correctness"
 :::
 
-::::theorem "spqr_protocol_correctness" (parent := "cka_protocols_spqr") (lean := "SPQR.correctness_error_le, SPQR.v1Scheme_correctness_error_le") (tags := "gh-269") (uses := "spqr_protocol_spec, spqr_mlkem_braid_translation, spqr_mlkem_braid_relation, mlkem_braid_correctness, scka_correctness, erasure_code_correctness, erasure_code_streaming, incremental_kem_scheme, incremental_kem_det")
-Assume that:
+::::theorem "spqr_protocol_correctness" (parent := "cka_protocols_spqr") (lean := "SPQR.correctness_error_le, SPQR.v1Scheme_correctness_error_le") (tags := "gh-269") (uses := "spqr_chunked_scheme, spqr_protocol_spec, scka_correctness, erasure_code_correctness, erasure_code_streaming, incremental_kem_det")
+Let $`\Pi=\mathsf{SPQR}(P,\mathsf{Auth},\Init\text{-}\KeyGen)` ({bpref "spqr_chunked_scheme"}[]) and
+$`\varepsilon` the correctness error of the KEM of $`P`. Assume that the decoders of the four
+streams of $`P` are sound for their erasure codes ({bpref "erasure_code_streaming"}[]). Then for
+every SCKA correctness adversary $`\adv` making at most $`q` send queries in total,
 
-* $`\adv` is any SCKA correctness adversary making at most $`q` send-oracle
-  queries;
-* the incremental KEM has deterministic decapsulation and a deterministic
-  second stage, and has correctness error at most $`\varepsilon`;
-* and the four stream decoders are sound for their erasure codes ({bpref "erasure_code_streaming"}[]).
+$$`1-\Pr\bigl[\Exp{\textsf{cor}}{\Pi}(\adv)=1\bigr]\le q\varepsilon.`
 
-Then $`1-\Pr\bigl[\Exp{\textsf{cor}}{\textsf{SPQR}}(\adv)=1\bigr] \le q\varepsilon`.
-For SPQR v1, the four SPQR Reed–Solomon codes are correct, so their set-based decoders are
-sound, and $`\varepsilon` is the correctness error of ML-KEM-768.
+For SPQR v1 ({bpref "spqr_protocol_spec"}[]), the decoders are sound because the SPQR
+Reed–Solomon codes are correct, and $`\varepsilon` is the correctness error of ML-KEM-768.
 
-:::leanPillCaption "Correctness error bound"
+:::leanPillCaption "correctness_error_le"
 :::
 
 ```anchor SPQR_correctness_error_le (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness)
@@ -1472,7 +1208,7 @@ theorem correctness_error_le
       (q : ℝ≥0∞) * P.det.toKEM.correctnessError ProbCompRuntime.probComp
 ```
 
-:::leanPillCaption "Correctness error bound for SPQR v1"
+:::leanPillCaption "v1Scheme_correctness_error_le"
 :::
 
 ```anchor SPQR_v1Scheme_correctness_error_le (project := ".") (module := SecureMessaging.SCKA.SPQR.Correctness)
@@ -1504,30 +1240,53 @@ theorem v1Scheme_correctness_error_le {InitKey AuthState EpochKey Mac : Type}
 ```
 ::::
 
-:::defTitle "spqr_vulnerable_epochs" "Vulnerable epochs of SPQR"
+:::defTitle "spqr_vulnerable_epochs" "SPQR vulnerable epochs"
 :::
 
-::::definition "spqr_vulnerable_epochs" (parent := "cka_protocols_spqr") (lean := "SPQR.vuln, SPQR.Chunked.PartyState.authEpoch, SPQR.Chunked.PartyState.authUpdated, SPQR.Chunked.PartyState.holdsSecret") (uses := "spqr_chunked_scheme, scka_oracles")
-The security game of {bpref "scka_oracles"}[] for
-$`\mathsf{SPQR}(P,\mathsf{Auth},\Init\text{-}\KeyGen)` uses the following exposure functions for
-both parties. Let $`\mathsf{st}` be a party state with epoch $`\mathsf{ep}` and authenticator state
-$`\mathsf{auth}`, and $`r` the randomness of a send. The update of epoch
-$`\mathsf{authEpoch}(\mathsf{st})` consumes $`\mathsf{auth}`: $`\mathsf{ep}+1` in
-$`\mathsf{ct1Sampled}`, $`\mathsf{ekReceivedCt1Sampled}`, $`\mathsf{ct1Acknowledged}` and
-$`\mathsf{ct2Sampled}`, whose $`\mathsf{auth}` already includes the epoch key of $`\mathsf{ep}`,
-and $`\mathsf{ep}` otherwise. Then
+:::::::definition "spqr_vulnerable_epochs" (parent := "cka_protocols_spqr") (lean := "SPQR.vuln, SPQR.Chunked.PartyState.holdsSecret, SPQR.Chunked.PartyState.authUpdated, SPQR.Chunked.PartyState.authEpoch") (uses := "spqr_chunked_scheme, scka_oracles")
+Recall the party states from {bpref "spqr_chunked_scheme"}[]: every state $`\mathsf{st}` holds its
+epoch $`\mathsf{ep}` and an authenticator state $`\mathsf{auth}`, and
 
-$$`\mathsf{vuln}^{\mathsf{corr}}(\mathsf{st})=\{\mathsf{authEpoch}(\mathsf{st})\}\cup\begin{cases}
+$$`\begin{aligned}
+&\mathsf{keysSampled},\ \mathsf{headerSent},\ \mathsf{ct1Received},\ \mathsf{ekSentCt1Received}
+&&\text{hold }\mathsf{sk},\\
+&\mathsf{ct1Sampled},\ \mathsf{ekReceivedCt1Sampled},\ \mathsf{ct1Acknowledged}
+&&\text{hold }\mathsf{encapsSt}.
+\end{aligned}`
+
+The randomness output $`r` of $`\mathsf{Send}\text{-}\mathsf{rleak}` is the coins $`r_K` of
+$`\mathsf{KeyGen}` from $`\mathsf{keysUnsampled}`, the coins $`r_1` of $`\mathsf{Encaps}_1` from
+$`\mathsf{headerReceived}`, and $`\bot` from every other state, which calls neither algorithm.
+
+Let $`\mathsf{St}` be the state space of both parties and $`R` the space of randomness outputs of
+their leaking send. We define the functions
+$`\mathsf{vuln}^{\mathsf{corr}}:\mathsf{St}\to\mathcal P_{\mathrm{fin}}(\mathbb N)` and
+$`\mathsf{vuln}^{\mathsf{rleak}}:\mathsf{St}\times R\to\mathcal P_{\mathrm{fin}}(\mathbb N)`,
+which parametrise the security game of {bpref "scka_oracles"}[], as follows.
+
+::::::gameGrid
+:::::gameCell "\\mathsf{vuln}^{\\mathsf{corr}}" (kind := "compact")
+$$`\mathsf{vuln}^{\mathsf{corr}}(\mathsf{st})=\begin{cases}
 \{\mathsf{ep},\mathsf{ep}+1\} & \mathsf{st}\text{ holds }\mathsf{sk}\text{ or }\mathsf{encapsSt},\\
-\emptyset & \text{otherwise},\end{cases}`
+\{\mathsf{ep}+1\} & \mathsf{st}\in\mathsf{ct2Sampled},\\
+\{\mathsf{ep}\} & \text{otherwise}.\end{cases}`
 
+$$`\mathsf{vuln}^{\mathsf{corr}}_\A=\mathsf{vuln}^{\mathsf{corr}}_\B=\mathsf{vuln}^{\mathsf{corr}}`
+:::::
+
+:::::gameCell "\\mathsf{vuln}^{\\mathsf{rleak}}" (kind := "compact")
 $$`\mathsf{vuln}^{\mathsf{rleak}}(\mathsf{st},r)=\begin{cases}
-\{\mathsf{ep},\mathsf{ep}+1\} & r=\mathsf{keygen}(\cdot)\text{ or }r=\mathsf{encaps}_1(\cdot),\\
-\emptyset & r=\mathsf{none}.\end{cases}`
+\{\mathsf{ep},\mathsf{ep}+1\} & r\ne\bot,\\ \emptyset & \text{otherwise}.\end{cases}`
 
-The epoch $`\mathsf{ep}+1` is exposed together with $`\mathsf{ep}` because the epoch key of
-$`\mathsf{ep}` updates the authenticator state entering $`\mathsf{ep}` into the one entering
-$`\mathsf{ep}+1`.
+$$`\mathsf{vuln}^{\mathsf{rleak}}_\A=\mathsf{vuln}^{\mathsf{rleak}}_\B
+=\mathsf{vuln}^{\mathsf{rleak}}`
+:::::
+::::::
+
+Corrupting a state without $`\mathsf{sk}` or $`\mathsf{encapsSt}` exposes the epoch whose
+authenticator update consumes its authenticator state; revealing a secret of $`\mathsf{ep}` also
+exposes $`\mathsf{ep}+1`, since the update with the key of $`\mathsf{ep}` yields the authenticator
+state entering $`\mathsf{ep}+1`.
 
 :::leanPillCaption "vuln"
 :::
@@ -1542,21 +1301,22 @@ def vuln (P : SPQR.Parameters ProbComp) (AuthState : Type) :
     | .keygen _ => {st.epoch, st.epoch + 1}
     | .encaps1 _ => {st.epoch, st.epoch + 1}
 ```
-::::
+:::::::
 
 :::defTitle "spqr_protocol_security" "SPQR protocol security"
 :::
 
 ::::theorem "spqr_protocol_security" (parent := "cka_protocols_spqr") (lean := "SPQR.security, SPQR.kemReduction, SPQR.kdfReduction, SPQR.authReduction") (tags := "gh-270") (uses := "spqr_chunked_scheme, spqr_vulnerable_epochs, mlkem_braid_auth_key_hiding, scka_security, scka_oracles, incremental_kem_det, erasure_code_streaming, kdf_context_game")
-Let $`\Pi=\mathsf{SPQR}(P,\mathsf{Auth},\Init\text{-}\KeyGen)` ({bpref "spqr_chunked_scheme"}[])
-and $`\Gamma` the KEM of $`P` ({bpref "incremental_kem_det"}[]). Assume that the decoders of the
-four streams of $`P` are sound for their erasure codes ({bpref "erasure_code_streaming"}[]).
+Let $`\Pi=\mathsf{SPQR}(P,\mathsf{Auth},\Init\text{-}\KeyGen)` be the SPQR protocol
+({bpref "spqr_chunked_scheme"}[]), with $`\Gamma` the KEM of $`P` ({bpref "incremental_kem_det"}[]),
+such that the decoders of the four streams of $`P` are sound for their erasure codes
+({bpref "erasure_code_streaming"}[]).
 
 Then for every SCKA adversary $`\mathcal A` against $`\Pi` making at most $`q` ordinary or
 leaking sends in total ({bpref "scka_oracles"}[]), the IND-CPA adversary
 $`\mathcal B_{\mathsf{KEM}}` against $`\Gamma`, the key-derivation adversary
-$`\mathcal B_{\mathsf{KDF}}`, and the key-hiding adversary $`\mathcal B_{\mathsf{Auth}}` against
-$`\mathsf{Auth}`, all constructed from $`\mathcal A` and $`q`, satisfy
+$`\mathcal B_{\mathsf{KDF}}` against $`\mathsf{KDF}_{\mathsf{OK}}`, and the key-hiding adversary
+$`\mathcal B_{\mathsf{Auth}}` against $`\mathsf{Auth}`, constructed from $`\mathcal A`, satisfy
 
 $$`\Adv{\mathsf{guess}}{\mathsf{SCKA},\Pi}(\mathcal A)
 \le 2q\left(\Adv{\mathsf{IND\text{-}CPA}}{\mathsf{KEM},\Gamma}(\mathcal B_{\mathsf{KEM}})
@@ -1568,26 +1328,13 @@ where:
 * $`\Adv{\mathsf{guess}}{\mathsf{SCKA},\Pi}` is the guessing advantage of
   {bpref "scka_security"}[] with the exposure functions of {bpref "spqr_vulnerable_epochs"}[];
 * $`\Adv{\mathsf{IND\text{-}CPA}}{\mathsf{KEM},\Gamma}(\mathcal B)` is the advantage of
-  $`\mathcal B` against $`\Gamma` in the KEM IND-CPA security game, and $`\varepsilon` is the
-  correctness error of $`\Gamma`;
-* $`\Adv{\mathsf{KDF}}{\mathsf{KDF}_{\mathsf{OK}}}` is the advantage in the
-  {bpref "kdf_context_game"}[key-derivation game with an adversarially chosen label], and
-  $`\Adv{\mathsf{hide}}{\mathsf{Auth}}` the advantage in the
-  {bpref "mlkem_braid_auth_key_hiding"}[key-hiding game] of $`\mathsf{Auth}` with the
-  initial-key generator $`\Init\text{-}\KeyGen`;
-* the three adversaries draw an epoch $`e\leftarrow\mathsf{epochChoice}(q)`, uniform on
-  $`\{1,\dots,q\}` for $`q>0` and $`1` for $`q=0`, and run $`\mathcal A` against a simulation of
-  the security game that answers the challenges of epochs before $`e` with uniform keys and of
-  epochs after $`e` with their real keys, and stops with output $`0` once epoch $`e` is exposed.
-  $`\mathcal B_{\mathsf{KEM}}` places its challenge public key and ciphertext in epoch $`e` or
-  $`e-1`, chosen uniformly, with the epoch key that $`\mathsf{KDF}_{\mathsf{OK}}` derives from its
-  challenge key; $`\mathcal B_{\mathsf{KDF}}` places a fresh key pair and ciphertext there, with
-  its challenge key as the epoch key. When they place it in epoch $`e`, the authenticator update of
-  epoch $`e-1` uses an independent uniform epoch key; for $`e=1`, the choice $`e-1` outputs $`0`.
-  Both answer the challenge of epoch $`e` with the key recorded for $`e` or with a uniform key,
-  chosen uniformly, and negate their output in the second case. $`\mathcal B_{\mathsf{Auth}}`
-  places a fresh key pair and ciphertext in epoch $`e`, with its challenge key as the key of
-  epoch $`e`, and uses its hidden operations in place of the authenticator state entering $`e`.
+  $`\mathcal B` against $`\Gamma` in the KEM IND-CPA security game;
+* $`\Adv{\mathsf{KDF}}{\mathsf{KDF}_{\mathsf{OK}}}(\mathcal B)` is the advantage of $`\mathcal B` in
+  the {bpref "kdf_context_game"}[key-derivation game with an adversarially chosen label];
+* $`\Adv{\mathsf{hide}}{\mathsf{Auth}}(\mathcal B)` is the advantage of $`\mathcal B` in the
+  {bpref "mlkem_braid_auth_key_hiding"}[key-hiding game] of $`\mathsf{Auth}` with initial keys
+  from $`\Init\text{-}\KeyGen`;
+* $`\varepsilon` is the correctness error of $`\Gamma`.
 
 :::leanPillCaption "security"
 :::
