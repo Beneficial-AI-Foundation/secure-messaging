@@ -12,28 +12,25 @@ public import SecureMessaging.FSAEAD.FromAEADPRG.Construction
 /-!
 # FS-AEAD from AEAD and PRG — Correctness
 
-Correctness of the FS-AEAD construction of [ACD19, Figure 6]. Let the AEAD scheme be
-correct. Then:
-- `fromAEADPRG_correct`: the construction is perfectly correct (`FSAEADScheme.Correct`).
-  In every reachable game state with `win = false`, B receives every record in `trans`
-  with the recorded index and message, so `O-Deliver-B` never sets `win`. With
-  `securityExp_eq_noDeliverWin`, this removes the `win` of `O-Deliver-B` from the real game
-  `H0`, before the PRG step. ACD19 removes it in the step from `H1` to `H2`, where the keys
-  are uniform.
+Correctness of the FS-AEAD construction of [ACD19, Figure 6], built from an AEAD scheme
+`ae` and a PRG `G : W → W × K`. A and B derive their keys from the PRG chain that starts at
+the shared key `k`:
+```text
+w_0 = k,   (w_j, K_j) = G(w_{j-1})   for j ≥ 1
+```
+A's `j`-th ciphertext for associated data `a` and message `m` is `(j, Enc(K_j, (j, a), m))`
+(`sendAll_eq`).
+
+Let the AEAD scheme be correct. Then:
+- `fromAEADPRG_correct`: the construction is correct (`FSAEADScheme.Correct`).
 - `rcvAll_honest_initR`: without an adversary, B outputs `(j, m)` for every
-  `(j, Enc(K_j, (j, a), m))` with `j ≥ 1`, in any order and each `j` at most once. By
-  `sendAll_eq`, A's `j`-th ciphertext has this form.
+  `(j, Enc(K_j, (j, a), m))` with `j ≥ 1`, in any order and each `j` at most once.
 
 - [ACD19] Alwen, Coretti, Dodis.
   *The Double Ratchet: Security Notions, Proofs, and Modularization for the
   Signal Protocol.*
   EUROCRYPT 2019, https://eprint.iacr.org/2018/1037.pdf
-  — §4.2.2, Figure 6, proof of Theorem 5 (step from H1 to H2).
-
-The proof follows B's state along the PRG chain `w_0 = k`, `(w_j, K_j) = G(w_{j-1})`.
-`GameInv` is the invariant of the game: A and B are on the chain, every record in `trans`
-is A's honest ciphertext, and while `win` is false, B still has the key of every record.
-Every oracle keeps `GameInv`, so every reachable state satisfies it.
+  — §4.2.2, Figure 6.
 -/
 
 @[expose] public section
@@ -334,8 +331,8 @@ theorem gameInv_init : GameInv ae prg k (.init (fromAEADPRG ae prg) k) where
   trans_key := fun _ _ h => (nomatch h)
   future_key := fun _ _ h₁ h₂ => absurd (Nat.lt_of_lt_of_le h₁ h₂) (Nat.lt_irrefl 0)
 
-/-- A sends. `record` stores the ciphertext unless A is corrupted and its index is not in
-`comp`. -/
+/-- A sends `(a, m)`, and the game increments `i_A` and runs `record`. Then the invariant
+holds after the step. -/
 theorem gameInv_send (hinv : GameInv ae prg k st) (isChall : Bool) (a : AD) (m : M) :
     GameInv ae prg k ({ st with vA := (send ae prg st.vA a m).1, iA := st.iA + 1 }.record
       isChall a m (send ae prg st.vA a m).2) := by
