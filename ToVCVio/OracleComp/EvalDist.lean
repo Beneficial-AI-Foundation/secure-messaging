@@ -20,7 +20,8 @@ between event probabilities for every possible output `x` of `mx`. The relation 
 the draw `x ← mx` for:
 
 - an equality of event probabilities (`OracleComp.prEvent_bind_congr_of_support'`);
-- a sum of two event probabilities (`ToVCVio.prEvent_bind_congr_eq_add`);
+- an equality between an event probability and the sum of two others
+  (`ToVCVio.prEvent_bind_congr_eq_add`);
 - two-sided additive bounds by `ε ≠ ∞`, which give a bound on the absolute difference of the real
   probabilities (`OracleComp.abs_toReal_prEvent_bind_sub_le`);
 - an equality of two differences of real probabilities
@@ -82,7 +83,7 @@ theorem prEvent_swap3 {α β γ : Type} (mx : ProbComp α) (my : α → ProbComp
 
 /-- If `Pr{let z ← my x}[p z] = Pr{let z ← oc x}[p z]` for every `x ∈ support mx`, then
 `Pr{let x ← mx >>= my}[p x] = Pr{let x ← mx >>= oc}[p x]`. Upstream
-`prEvent_bind_congr_of_support` states this for the event after `map_bind`. -/
+`prEvent_bind_congr_of_support` states this for `Prop`-valued continuations. -/
 theorem prEvent_bind_congr_of_support' {α β : Type} (mx : ProbComp α) {my oc : α → ProbComp β}
     (p : β → Prop) (h : ∀ x ∈ support mx, Pr{let z ← my x}[p z] = Pr{let z ← oc x}[p z]) :
     Pr{let x ← mx >>= my}[p x] = Pr{let x ← mx >>= oc}[p x] := by
@@ -90,8 +91,9 @@ theorem prEvent_bind_congr_of_support' {α β : Type} (mx : ProbComp α) {my oc 
   exact prEvent_bind_congr_of_support mx _ _ h
 
 /-- A two-sided bound that holds for every possible output of a common draw holds after the draw:
-if `Pr[q | my x]` and `Pr[q | oc x]` are within `ε ≠ ∞` of each other for every `x ∈ support mx`,
-then the real probabilities of `q` after `mx >>= my` and `mx >>= oc` are within `ε.toReal`. -/
+if `Pr{let z ← my x}[q z]` and `Pr{let z ← oc x}[q z]` are within `ε ≠ ∞` of each other for every
+`x ∈ support mx`, then the real probabilities of `q` after `mx >>= my` and `mx >>= oc` are within
+`ε.toReal`. -/
 theorem abs_toReal_prEvent_bind_sub_le {α β : Type} (mx : ProbComp α) (my oc : α → ProbComp β)
     (q : β → Prop) (ε : ℝ≥0∞) (hε : ε ≠ ∞)
     (h₁ : ∀ x ∈ support mx, Pr{let z ← my x}[q z] ≤ Pr{let z ← oc x}[q z] + ε)
@@ -111,9 +113,9 @@ theorem abs_toReal_prEvent_bind_sub_le {α β : Type} (mx : ProbComp α) (my oc 
   exact abs_sub_le_iff.mpr ⟨by linarith, by linarith⟩
 
 /-- An equality of differences of real event probabilities that holds for every possible output of
-a common draw holds after the draw: if `Pr[q | my x] - Pr[q | oc x] = Pr[q | my' x] - Pr[q | oc' x]`
-for every `x ∈ support mx`, the same holds for `mx >>= my`, `mx >>= oc`, `mx >>= my'` and
-`mx >>= oc'`. -/
+a common draw holds after the draw: if `Pr{let z ← my x}[q z] - Pr{let z ← oc x}[q z]` equals
+`Pr{let z ← my' x}[q z] - Pr{let z ← oc' x}[q z]` for every `x ∈ support mx`, the same holds for
+`mx >>= my`, `mx >>= oc`, `mx >>= my'` and `mx >>= oc'`. -/
 theorem toReal_prEvent_bind_sub_eq_of_forall {α β : Type} (mx : ProbComp α)
     (my oc my' oc' : α → ProbComp β) (q : β → Prop)
     (h : ∀ x ∈ support mx, (Pr{let z ← my x}[q z]).toReal - (Pr{let z ← oc x}[q z]).toReal =
@@ -141,8 +143,8 @@ theorem toReal_prEvent_bind_sub_eq_of_forall {α β : Type} (mx : ProbComp α)
     ENNReal.toReal_add (prEvent_ne_top _) (prEvent_ne_top _)] at h'
   linarith
 
-/-- For a uniform draw from a finite type `α`, the real probability of an event after
-`a ←$ α; f a` is the average `|α|⁻¹ · ∑ₐ Pr[p | f a]`. -/
+/-- For a uniform draw from a finite type `α`, the real probability of an event `p` after
+`a ←$ α; f a` is the average `|α|⁻¹ · ∑ₐ Pr{let y ← f a}[p y]`. -/
 theorem prEvent_uniform_bind_toReal {α β : Type} [SampleableType α] [Fintype α]
     (f : α → ProbComp β) (p : β → Prop) :
     (Pr{let y ← (do let a ← ($ᵗ α : ProbComp α); f a)}[p y]).toReal =

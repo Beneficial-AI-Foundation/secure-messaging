@@ -15,9 +15,9 @@ public import SecureMessaging.SCKA.SPQR.Correctness.Relabel
 **Setting.** Let `auth` be a ratcheted authenticator and `s.toBraid` the translation of an SPQR
 game state `s` into ML-KEM Braid (`SPQR.Correctness.Relation`). A game state `s` is
 *sample-consistent* if `s.toBraid` satisfies the Braid transcript invariant `Braid.TranscriptInv`
-(`MLKEMBraid.Correctness.Invariant`) with the trivial condition for some initial key and
-transcript, and `s` satisfies `Ct1AckInv`; the proof games use it because their receivers output
-recorded keys instead of decapsulating.
+(`MLKEMBraid.Correctness.Invariant`) with the trivial decapsulation condition `True` for some
+initial key and transcript, and `s` satisfies `Ct1AckInv`; the proof games use it because their
+receivers output recorded keys instead of decapsulating.
 
 **Definitions.**
 
@@ -32,9 +32,10 @@ recorded keys instead of decapsulating.
 
 **Main results.** Assume that the four stream decoders of `P` are sound for their erasure codes.
 
-- `recvWith_ideal_outcome`: from a sample-consistent state `s`, delivering a recorded message to a
-  party through `recvWith auth (idealOps ops s)` succeeds, reports the message epoch minus one,
-  keeps the transcript, and outputs only the peer's recorded key. After translation it is a Braid
+- `recvWith_ideal_outcome`: for `ops` whose second stage is that of `P`, delivering a recorded
+  message to a party from a sample-consistent state `s` through `recvWith auth (idealOps ops s)`
+  succeeds, reports the message epoch minus one, keeps the transcript, and outputs only the key
+  recorded by the peer. After translation, its output key and new state are those of a Braid
   receive edge on the delivered message, except that a plain vector chunk delivered in
   `ct1Acknowledged` is received as the same chunk with the acknowledging type (`DeliveryEdge`).
 - `idealCorrectness_preserves_at`: for `ops` with `OpsPossible P ops`, every correctness query of
@@ -43,9 +44,10 @@ recorded keys instead of decapsulating.
   (`schemeWith_correctness_preserves`).
 - `Inv.keys_le_sends`: under `Inv auth s`, every epoch with a recorded key is positive and at most
   `s.nA + s.nB`.
-- `recvWith_idealOps_eq_recv`: if the samples recorded at the receiver's epoch decapsulate to the
-  recorded derived key, the receive through `idealOps ops s` of a recorded message is that of
-  `recv`.
+- `recvWith_idealOps_eq_recv`: for `ops` whose second stage is that of `P`, if `s.toBraid`
+  satisfies `TranscriptInv D` for a condition `D` and a transcript `T`, and decapsulation of the
+  samples recorded in `T` at the receiver's epoch derives the transcript key, then the receive
+  through `idealOps ops s` of a recorded message is that of `recv`.
 -/
 
 @[expose] public section
@@ -105,9 +107,9 @@ def SendCountInv (s : GameState P AuthState) : Prop :=
   ∀ party, (s.toBraid.stateAt party).epoch - 1 +
     (s.toBraid.stateAt party).sentInEpoch ≤ s.countAt party
 
-/-- The translated game state satisfies the transcript invariant without decapsulation clause for
-some initial key and transcript, `s` satisfies `Ct1AckInv`, and the send counters bound the
-epochs. -/
+/-- `s` is sample-consistent (for some initial key and transcript, the translated game state
+satisfies the transcript invariant with the trivial decapsulation condition, and `s` satisfies
+`Ct1AckInv`), and the send counters bound the epochs (`SendCountInv s`). -/
 def Inv (s : GameState P AuthState) : Prop :=
   (∃ (ik : InitKey) (T : ℕ → Braid.EpochTranscript P.toBraid),
     Braid.TranscriptInv (P := P.toBraid) auth (fun _ _ _ _ _ _ => True) ik T s.toBraid) ∧
@@ -332,10 +334,10 @@ private theorem partyCt1Ack_of_step {st st' : PartyState P AuthState}
 
 include hHdrSound hEkSound hCt1Sound in
 /-- Let `s.toBraid` satisfy `TranscriptInv D` for a transcript `T`, `s` satisfy `Ct1AckInv`, and
-`msg` be recorded by the peer of `party`
-at index `n`, other than a `ct₂` chunk of the current epoch in `ekSentCt1Received`. Then `recv`
-accepts `msg` without a key, reporting `msg.epoch - 1`; the new state agrees with `T`, has epoch
-at least `msg.epoch`, and its translation is the result of a `DeliveryEdge`. -/
+`msg` be recorded by the peer of `party` at index `n`, other than a `ct₂` chunk of the current
+epoch in `ekSentCt1Received`. Then `recv` accepts `msg` without a key, reporting `msg.epoch - 1`;
+the new state agrees with `T`, has epoch at least `msg.epoch`, and its translation is the new
+state of a `DeliveryEdge` without output key. -/
 private theorem recv_recorded_outcome {ik : InitKey} {T : ℕ → Braid.EpochTranscript P.toBraid}
     {s : GameState P AuthState} (hT : Braid.TranscriptInv (P := P.toBraid) auth D ik T s.toBraid)
     (hack : Ct1AckInv s) (party : Bool) {n : ℕ} {msg : Message P.Sym} {tsnd : ℕ}
@@ -424,11 +426,12 @@ private theorem recv_recorded_outcome {ik : InitKey} {T : ℕ → Braid.EpochTra
 
 include hHdrSound hEkSound hCt1Sound hCt2Sound in
 /-- Let `s.toBraid` satisfy `TranscriptInv D` for a transcript `T`, `s` satisfy `Ct1AckInv`, and
-the second stage of `ops` be that of `P`. Delivering the message recorded by the peer of `party` at
-index `n` through `recvWith auth (idealOps ops s)` succeeds with a result `r` that reports
-`msg.epoch - 1`, is the result of a `DeliveryEdge` after translation, keeps `party`'s state
-consistent with the transcript and `PartyCt1Ack` with its recorded messages, has epoch at least
-`msg.epoch`, and outputs only the peer's recorded key, which is the transcript key of its epoch. -/
+the second stage of `ops` be that of `P`. Delivering the message `msg` recorded by the peer of
+`party` at index `n` through `recvWith auth (idealOps ops s)` succeeds with a result `r` that
+reports `msg.epoch - 1` and outputs only the key recorded by the peer, which is the transcript key
+of its epoch. After translation, the output key and new state of `r` are those of a `DeliveryEdge`;
+the new state agrees with `T`, satisfies `PartyCt1Ack` with the messages recorded by `party`, and
+has epoch at least `msg.epoch`. -/
 theorem recvWith_ideal_outcome
     {ops : Ops P} (h2 : ∀ t, ops.encaps2 t = P.det.encaps2Det)
     {ik : InitKey} {T : ℕ → Braid.EpochTranscript P.toBraid}
@@ -545,9 +548,10 @@ theorem recvWith_ideal_outcome
       (fun e k h => by rw [hnone] at h; cases h), partyCt1Ack_recv auth (hack party) hr⟩
 
 include hCt2Sound in
-/-- Let `s` satisfy the transcript invariant and suppose the samples recorded at `party`'s epoch
-decapsulate to the recorded derived key. Then delivering a message recorded by the peer of `party`
-through `recvWith auth (idealOps ops s)` gives the result of `recv`. -/
+/-- Let `s.toBraid` satisfy `TranscriptInv D` for a transcript `T`, the second stage of `ops` be
+that of `P`, and decapsulation of the samples recorded in `T` at `party`'s epoch derive the
+transcript key. Then delivering a message recorded by the peer of `party` through
+`recvWith auth (idealOps ops s)` gives the result of `recv`. -/
 theorem recvWith_idealOps_eq_recv
     (ops : Ops P) (h2 : ∀ t, ops.encaps2 t = P.det.encaps2Det)
     {ik : InitKey} {T : ℕ → Braid.EpochTranscript P.toBraid}
@@ -652,10 +656,10 @@ private theorem Inv_sendUpdate {ops : Ops P} {s : GameState P AuthState}
 
 
 include hHdrSound hEkSound hCt1Sound hCt2Sound in
-/-- A receive by `party` of the message recorded by the peer at index `n`, through
-`recvWith auth (idealOps ops s)`, keeps the transcript invariant without decapsulation clause for
-the same transcript and `Ct1AckInv`, and its translation is a Braid receive edge from the
-translated state of `party`. -/
+/-- Let the second stage of `ops` be that of `P`. A successful receive by `party` of the message
+recorded by the peer at index `n`, through `recvWith auth (idealOps ops s)`, keeps the game state
+sample-consistent with the same initial key and transcript, and its output key and translated new
+state are those of a Braid receive edge from the translated state of `party`. -/
 theorem transcriptInv_recvUpdate_ideal
     {ops : Ops P} (h2 : ∀ t, ops.encaps2 t = P.det.encaps2Det)
     {ik : InitKey} {T : ℕ → Braid.EpochTranscript P.toBraid} {s : GameState P AuthState}
@@ -724,8 +728,8 @@ theorem transcriptInv_recvUpdate_ideal
     exact h
 
 include hHdrSound hEkSound hCt1Sound hCt2Sound in
-/-- A receive by `party` of the message recorded by the peer at index `n`, through
-`recvWith auth (idealOps ops s)`, preserves `Inv`. -/
+/-- Let the second stage of `ops` be that of `P`. A successful receive by `party` of the message
+recorded by the peer at index `n`, through `recvWith auth (idealOps ops s)`, preserves `Inv`. -/
 private theorem Inv_recvUpdate
     {ops : Ops P} (h2 : ∀ t, ops.encaps2 t = P.det.encaps2Det)
     {s : GameState P AuthState} (hs : Inv auth s) (party : Bool) {n : ℕ} {msg : Message P.Sym}

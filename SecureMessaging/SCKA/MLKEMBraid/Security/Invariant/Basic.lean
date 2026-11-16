@@ -14,8 +14,8 @@ public import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
 
 `RepairInv` is `TranscriptInv` with no condition on decapsulation: the control states, the
 payloads and the output keys agree with the transcript. `DecapsGood` is the extra condition that
-decapsulation of every recorded encapsulation gives its key. Like every `TranscriptInv`,
-`RepairInv` ignores the exposed and challenged epochs (`TranscriptInv.setFlags`).
+decapsulation of every recorded encapsulation derives the transcript key of its epoch. Like every
+`TranscriptInv`, `RepairInv` ignores the exposed and challenged epochs (`TranscriptInv.setFlags`).
 -/
 
 @[expose] public section
@@ -32,7 +32,8 @@ abbrev RepairInv (hMac : P.Mac = Unit) (T : ℕ → EpochTranscript P)
     (s : Braid.GameState P Unit) : Prop :=
   TranscriptInv (auth P hMac) (fun _ _ _ _ _ _ => True) () T s
 
-/-- Actual decapsulation of every recorded first-stage encapsulation gives its derived key. -/
+/-- Actual decapsulation of every recorded first-stage encapsulation derives the transcript key of
+its epoch. -/
 def DecapsGood (T : ℕ → EpochTranscript P) : Prop :=
   ∀ e pk sk encapsState ct1 key, (T e).keypair = some (pk, sk) →
     (T e).encaps1 = some (encapsState, ct1, key) →

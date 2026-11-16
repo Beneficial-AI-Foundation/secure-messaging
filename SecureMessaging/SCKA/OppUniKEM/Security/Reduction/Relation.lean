@@ -25,10 +25,10 @@ honest game `Q_e(kemMat, kStar)` (`Game`), which knows them.
   epoch `e`; then revelation fails (`revealA_hideA_eq`, and `revealB_hideB_eq` for B).
 - *Commutation.* On hidden states, the simulated sends and receives equal the honest ones followed
   by hiding (`sendA_hide`, `sendArleak_hide`, `sendB_hide`, `sendBrleak_hide`, `recvA_hide`,
-  `recvB_hide`). The same holds for challenges (`challenge_hide`): the honest challenge oracle
-  `pinnedChallenge e kStar` (`SCKA.Security.Hybrids`) answers an eligible challenge at `t`
-  with a uniform key if `0 < t < e`, `kStar` if `t = e`, and the recorded key otherwise, and the
-  simulator reads a hidden recorded key as `kStar`.
+  `recvB_hide`). The same holds for challenges (`challenge_hide`): the pinned challenge
+  `SCKAScheme.pinnedChallenge e kStar` (`SCKA.Security.Hybrids`), the challenge oracle of the
+  honest game, answers an eligible challenge at `t` with a uniform key if `0 < t < e`, `kStar` if
+  `t = e`, and the recorded key otherwise, and the simulator reads a hidden recorded key as `kStar`.
 -/
 
 @[expose] public section
@@ -349,7 +349,8 @@ end
 
 variable {kem} in
 /-- Running `challenge onoff e kStar t` from `hideState e s` coincides with running
-`pinnedChallenge e kStar t` from `s` and applying `hideState e` to the successor state. -/
+`SCKAScheme.pinnedChallenge e kStar t` from `s` and applying `hideState e` to the successor
+state. -/
 theorem challenge_hide [SampleableType K]
     (e : ℕ) (kStar : K) (t : ℕ)
     (s : GameState onoff Sym) :

@@ -20,7 +20,7 @@ public import ToVCVio.EvalDist.BoolDist
   ratcheted authenticator `auth` and the initial-key sampler `sampleInitKey`;
 - the exposure policy `V := vuln P AuthState` of both parties (`Security.Basic`);
 - an SCKA adversary `adv : SecurityAdversary P AuthState` making at most `q` ordinary or leaking
-  sends on every path of oracle answers (`SecuritySendQueryBound adv q`);
+  sends of A and B together, on every response path (`SCKAScheme.SecuritySendQueryBound adv q`);
 - the IND-CPA adversary `𝓑_KEM := kemReduction … adv q` against the KEM `P.det.toKEM`, the
   key-derivation adversary `𝓑_KDF := kdfReduction … adv q`, and the key-hiding adversary
   `𝓑_Auth := authReduction … adv q` against `auth` (`Reduction.Reductions`). Each draws a
@@ -32,8 +32,10 @@ public import ToVCVio.EvalDist.BoolDist
   uniform keys for `true`, recorded keys for `false` (`securityExpFixedBit`);
 - `AdvGuess_SCKA(scka, adv) := |Pr[b' = b] - 1/2| = |Pr[G_true = true] - Pr[G_false = true]| / 2`
   be the advantage of `adv` in guessing the challenge bit;
-- `AdvINDCPA_KEM(P.det.toKEM, 𝓑) := |Pr[𝓑_real = true] - Pr[𝓑_random = true]|` be the
-  advantage of an IND-CPA adversary `𝓑` (`IND_CPA_Advantage_eq_fixed_branch_dist`);
+- `AdvINDCPA_KEM(P.det.toKEM, 𝓑) := |Pr[Exp_real(𝓑) = true] - Pr[Exp_random(𝓑) = true]|` be the
+  advantage of an IND-CPA adversary `𝓑` (`IND_CPA_Advantage_eq_fixed_branch_dist`): `𝓑` receives
+  a public key, an encapsulation `c`, and the shared key of `c` in `Exp_real`
+  (`IND_CPA_Experiment … true`) or an independent uniform key in `Exp_random` (`… false`);
 - `AdvKDF(P.kdfOK, 𝓑) := Braid.kdfAdvantage P.kdfOK 𝓑` be the advantage of `𝓑` in telling
   `P.kdfOK k t`, for a uniform `k : P.K` and a label `t` of its choice, from a uniform epoch key
   (`Braid.kdfContextExp`);
@@ -56,7 +58,7 @@ In [SCKA], failed assertions are additional winning conditions; `correctness_fai
 ## Proof structure
 
 Paths are relative to `SPQR/Security/`. Every game draws `ik ← sampleInitKey`, runs `adv` from
-`initState auth ik`, and returns its output bit.
+`initState auth ik`, and returns the output bit of `adv`, or `false` once stopped.
 
 **Notation.**
 
@@ -69,30 +71,35 @@ Paths are relative to `SPQR/Security/`. Every game draws `ik ← sampleInitKey`,
 - `A_κ := hybridAuth auth e ik κ`: `auth` with its update of `e - 1` replaced by
   `Braid.hiddenState auth e ik κ`, the update keyed by `κ` for `e ≥ 2`, and for `e = 1` an update
   that no reachable state performs (`Reduction/HybridGame`).
-- The *games of the chain* (`Reduction/HybridGame`): simulated games, of `e` over `A_κ` for a
-  uniform `κ` or of `e - 1`, that hold only the public values of a fresh key pair and
-  encapsulation, with dummies for their secrets, and use there the derived key of the
-  encapsulated key, the derived key of a uniform KEM key, or a uniform epoch key.
+- The *games of the chain* (`Reduction/HybridGame`): the simulated games of `e` over `A_κ` for a
+  uniform `κ` (`realKey`, `randKey`, `randEpochKey`, `splitKeys`, `randKeyChal`, `realKeyChal`)
+  and of `e - 1` over `auth` (`prevReal x`, `prevRand x`, `prevKdf x`, with `false` for `real` and
+  `true` for `random`), stopped at the first exposure of `e`. A simulated game holds only the
+  public values of a fresh key pair and encapsulation at its *simulated epoch*, `e` or `e - 1`,
+  with dummies for the secrets.
 
 **Proof steps.**
 
 1. *Correctness error* (`Ideal`): `|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`. Since
    `H_0 = I_false` and, under the send bound, `p_q = Pr[I_true = true]`,
    `AdvGuess_SCKA(scka, adv) ≤ |p_0 - p_q| / 2 + q · ε` (`security_guess_le_hybrid_gap`).
-2. *Simulation* (`Reduction/{Pinned,Relation,Simulation}`): a game whose KEM samples at one epoch
-   are fixed in advance accepts as often as its simulation, which hides the secrets of that epoch,
-   when both stop at the first exposure of `e` or `e + 1` (`prEvent_stoppedRun_sim_eq_honest`).
-3. *Deferred sampling* (`Reduction/Deferral`): fixing the KEM samples of an epoch in advance
+2. *Simulation* (`Reduction/{Pinned,Relation,Simulation}`): a game whose KEM samples at a
+   simulated epoch `j` are fixed in advance accepts as often as its simulation, which hides the
+   secrets of `j`, when both stop at the first exposure of `j` or `j + 1`
+   (`prEvent_stoppedRun_sim_eq_honest`); it is applied at `j = e` and `j = e - 1`, stopping at `e`.
+3. *Deferred sampling* (`Reduction/Deferral`): fixing the KEM samples of `e` or `e - 1` in advance
    preserves the acceptance probability of a game stopped at the first exposure of `e`
    (`stoppedRun_material_deferred`).
 4. *Hybrid gap* (`Reduction/HybridGame`, this module): `p_{e-1} - p_e` is the difference between
    the stopped hybrids `S_e^real` and `S_e^random` (`hybridImpl_signed_gap_stop_eq`), which steps 2
    and 3 write as a signed sum of games of the chain (`idealExp_gap_eq`).
-5. *Authenticator transport* (`Reduction/AuthMap`, `Reduction/Reductions`): the experiments of
-   `𝓑_Auth`, which hold the hidden operations in place of the authenticator state entering `e`,
-   accept as often as the games of the chain `randEpochKey` and `splitKeys`
-   (`prEvent_simRun_withHidden`, by transport along an authenticator map,
-   `prEvent_stoppedRun_authMap`).
+5. *Authenticator transport* (`Reduction/AuthMap`, `Reduction/Reductions`): given the operations
+   `h` on the hidden state entering `e`, `𝓑_Auth` runs the simulated game of `e` over
+   `withHidden auth h e`, which runs `h` on a representative kept in place of that state. Its
+   real-key and random-key experiments (bits `true` and `false`) accept as often as `randEpochKey`
+   and `splitKeys`, respectively, averaged over the challenge epoch, the initial key and the
+   dummies (`authReduction_prEvent_toReal`; transport along the authenticator map `hiddenMap`,
+   `prEvent_simRun_withHidden`, `prEvent_stoppedRun_authMap`).
 6. *Averaging* (`Reduction/Reductions`, this module): the experiments of the reductions average
    games of the chain over the challenge epoch and the reductions' choices; for `q > 0`,
    telescoping gives `p_0 - p_q = q · (4 Δ_KEM + 4 Δ_KDF + Δ_Auth)`, where each `Δ` is the
@@ -171,8 +178,9 @@ variable [DecidableEq P.EpochKey] [SampleableType P.EpochKey]
   (adv : SecurityAdversary P AuthState) (q : ℕ)
 
 include hHdrSound hEkSound hCt1Sound hCt2Sound in
-/-- Assuming sound stream decoders, for every `i`, with `e := i + 1` and
-`p_i := Pr[idealExp (hybridMode i) adv = true]`,
+/-- Assuming sound stream decoders, for every `i`, with `e := i + 1`,
+`p_i := Pr[idealExp (hybridMode i) adv = true]`, and the versions `real` (`false`) and `random`
+(`true`) of `prevReal` and `prevKdf`,
 ```text
 p_i - p_{i+1} = (gameProb (prevReal real) e - gameProb (prevKdf real) e)
   + (gameProb realKey e - gameProb realKeyChal e)
@@ -311,8 +319,8 @@ private theorem security_bound_of_gaps (adv q ε p a₁ b₁ a₂ b₂ a₃ b₃
 
 /-- **SPQR SCKA security.** Let `scka := scheme P auth sampleInitKey`, `V := vuln P AuthState` its
 exposure policy, and `𝓑_KEM`, `𝓑_KDF`, `𝓑_Auth` the reductions built from `adv` and `q`. Assuming
-sound stream decoders, if `adv` makes at most `q` ordinary or leaking sends in total
-(`SecuritySendQueryBound adv q`), then
+sound stream decoders, if `adv` makes at most `q` ordinary or leaking sends of A and B together, on
+every response path (`SCKAScheme.SecuritySendQueryBound adv q`), then
 
 `AdvGuess_SCKA(scka, adv) ≤ 2q · AdvINDCPA_KEM(P.det.toKEM, 𝓑_KEM) + 2q · AdvKDF(P.kdfOK, 𝓑_KDF)
   + (q / 2) · AdvAuth(auth, 𝓑_Auth) + q · ε`. -/

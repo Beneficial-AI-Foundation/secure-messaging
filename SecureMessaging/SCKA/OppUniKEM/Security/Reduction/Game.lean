@@ -21,12 +21,13 @@ Throughout this module, we consider:
 
 The protocol instances and security oracles are defined as follows:
 
-- The *honest instance* `honestScheme kemMat e` runs Opp-UniKEM with the sampling outputs and
-  coins of epoch `e` fixed to `kemMat`. Other epochs sample honestly, and A's receive replaces
-  decapsulation by the lookup of B's recorded key for A's current epoch.
-- The *honest intermediate oracle* `honestOracle kemMat e kStar` supplies the SCKA security
-  oracles for this instance. An eligible challenge at epoch `t` returns a uniform key if
-  `0 < t < e`, `kStar` if `t = e`, and the recorded key otherwise.
+- At a game state `s`, the *honest instance* `honestScheme kemMat e s` runs Opp-UniKEM with the
+  sampling outputs and coins of epoch `e` fixed to `kemMat`. Other epochs sample honestly, and A's
+  receive replaces decapsulation by the lookup of B's recorded key in `s` for A's current epoch.
+- The *honest intermediate oracle* `honestOracle kemMat e kStar` supplies the state-dependent
+  security oracles for the assignment `honestScheme kemMat e` of these instances. An eligible
+  challenge at epoch `t` returns a uniform key if `0 < t < e`, `kStar` if `t = e`, and the
+  recorded key otherwise.
 - The *stopped honest oracle* `honestStopped kemMat e kStar` stops at the first query whose
   successor state records `e` as exposed. Running an adversary against it from the initial state
   is the *honest game* `Q_e(kemMat, kStar)`, which returns `false` on stopping and the
@@ -181,8 +182,10 @@ abbrev simScheme [DecidableEq Sym]
     (simDet kem onoff sa sb kemMat.pk kemMat.ciphertext key) ecEk ecCt0 ecCt1
     (simLeak kem onoff leak sa sb kemMat.pk kemMat.ciphertext key)
 
-/-- The oracle for the honest intermediate game:
-`SCKAScheme.securityImplAt (honestScheme kemMat e) (pinnedChallenge e kStar)`. -/
+/-- The oracles of the honest intermediate game: the state-dependent security oracles
+`SCKAScheme.securityImplAt` for the assignment `honestScheme kemMat e` of honest instances, the
+challenge oracle `SCKAScheme.pinnedChallenge e kStar`, and the exposure policies `exposureA` and
+`exposureB`. -/
 def honestOracle [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (kemMat : KEMMaterial leak) (e : ℕ) (kStar : K) :
     QueryImpl (securitySpec leak Sym)

@@ -12,12 +12,12 @@ public import SecureMessaging.SCKA.MLKEMBraid.Correctness.RecordedPayload
 # Receives preserve the correctness invariant
 
 A receive edge of a party on a message recorded by its peer keeps `TranscriptInv D` for the same
-transcript, for every condition `D`, when the receiver's epoch reaches the message epoch, its new
-state agrees with the transcript, and every output key is the peer's recorded key and the
-transcript key of a recorded encapsulation satisfying `D` (`transcriptInv_recvUpdate`). A Braid
-receive whose output key agrees with the peer's recorded key meets these conditions; a refusal or
-a key disagreement clears the correctness flag. Thus the receive oracles preserve
-`CorrectnessInv`.
+transcript, for every condition `D`, when the receiver's new epoch is at least the message epoch,
+its new state agrees with the transcript, and every output key is the key recorded by the peer and
+the transcript key of a recorded encapsulation satisfying `D` (`transcriptInv_recvUpdate`).
+Assuming sound stream decoders, a Braid receive whose output key agrees with the key recorded by
+the peer meets these conditions for `TranscriptConsistent`; a refusal or a key disagreement clears
+the correctness flag. Thus, under this assumption, the receive oracles preserve `CorrectnessInv`.
 -/
 
 @[expose] public section
@@ -141,8 +141,8 @@ private theorem transcriptInv_recvSuccessor {ik : InitKey} {T : ℕ → EpochTra
 
 variable [DecidableEq P.EpochKey]
 
-/-- Under `ControlInv` with a true flag, a receive edge on a message recorded by the peer whose
-output keys are the peer's recorded keys keeps the flag true. -/
+/-- Under `ControlInv` with a true flag, a receive edge on a message recorded by the peer keeps the
+flag true if every output key is the key recorded by the peer. -/
 private theorem recvUpdate_correct_of_peer_key {s : GameState P AuthState}
     (hC : ControlInv s) (hc : s.correct = true) (party : Bool)
     {n : ℕ} {msg : Message P.Sym} {tsnd : ℕ} {r : RecvResult P AuthState}
@@ -176,9 +176,9 @@ private theorem recvUpdate_correct_of_peer_key {s : GameState P AuthState}
       SCKAScheme.knownPrefix_update_some hknown tI key⟩
 
 /-- A receive edge of `party` on the message recorded by its peer at index `n` keeps
-`TranscriptInv D` for the same transcript, provided that the receiver's epoch reaches the message
-epoch, its new state agrees with the transcript, and every output key is the peer's recorded key
-and the transcript key of a recorded encapsulation satisfying `D`. -/
+`TranscriptInv D` for the same transcript, provided that the receiver's new epoch is at least the
+message epoch, its new state agrees with the transcript, and every output key is the key recorded
+by the peer and the transcript key of a recorded encapsulation satisfying `D`. -/
 theorem transcriptInv_recvUpdate {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptInv auth D ik T s) (party : Bool)
     {n : ℕ} {msg : Message P.Sym} {tsnd : ℕ} {r : RecvResult P AuthState}

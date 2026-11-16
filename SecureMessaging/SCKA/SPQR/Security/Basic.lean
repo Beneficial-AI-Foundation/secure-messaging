@@ -19,10 +19,10 @@ initial keys, and `scheme P auth sampleInitKey` the SPQR scheme (`SPQR.Construct
 
 - `SecurityAdversary P AuthState`: the Boolean adversaries against the SCKA security interface
   `securitySpec P AuthState` of SPQR.
-- `vuln P AuthState`: the exposure policy of both parties. Every state carries an authenticator
-  state, which the update of epoch `st.authEpoch` consumes together with the key of that epoch
-  (`PartyState.authEpoch`). Corrupting a state `st` of epoch `t` exposes `st.authEpoch`, and also
-  `t` and `t + 1` if `st` holds a decapsulation key or an encapsulation state
+- `vuln P AuthState`: the exposure policy of both parties. Every SPQR state `st` carries an
+  authenticator state, which the update of epoch `st.authEpoch` consumes together with the key of
+  that epoch (`PartyState.authEpoch`). Corrupting a state `st` of epoch `t` exposes `st.authEpoch`,
+  and also `t` and `t + 1` if `st` holds a decapsulation key or an encapsulation state
   (`PartyState.holdsSecret`). A leaking send that runs key generation or first-stage
   encapsulation at `t` exposes `t` and `t + 1`: the key of `t` turns an authenticator state
   entering `t` into the one entering `t + 1`.
@@ -30,7 +30,7 @@ initial keys, and `scheme P auth sampleInitKey` the SPQR scheme (`SPQR.Construct
 - `Ops P`: the operations that the proof games vary, namely the leaking key-generation and
   first-stage encapsulation samplers, indexed by the epoch of the sending party, the second stage,
   and the generator's key derivation at the completion of `ct₂`; `Ops.real P` are those of `P`,
-  with `P.kdfOK` after decapsulation, and `idealOps ops s` derives the key recorded by the peer in
+  with `P.kdfOK` after decapsulation, and `idealOps ops s` looks up the key recorded by the peer in
   `s`.
 - `sendRleakWith auth ops` and `sendWith auth ops`: the leaking and ordinary sends with the
   samplers of `ops`; `recvWith auth ops`: `Chunked.recv` with the second stage and the key
@@ -284,8 +284,8 @@ namespace SPQR.Chunked
 variable {P : SPQR.Parameters ProbComp} {InitKey AuthState : Type}
 
 /-- The operations of an SPQR instance varied by the proof games: the leaking samplers, indexed
-by the epoch of the sending party, and the generator's key derivation at the completion of
-`ct₂`. -/
+by the epoch of the sending party, the second-stage encapsulation, and the generator's key
+derivation at the completion of `ct₂`. -/
 structure Ops (P : SPQR.Parameters ProbComp) where
   /-- Key generation with its coins, at the given epoch. -/
   keygenRleak : ℕ → ProbComp ((P.PK × P.SK) × P.det.KeygenRand)
@@ -312,7 +312,7 @@ def Ops.real (P : SPQR.Parameters ProbComp) :
 /-- The second stage of `Ops.real P` is that of `P`. -/
 @[simp] theorem Ops.real_encaps2 (t : ℕ) : (Ops.real P).encaps2 t = P.det.encaps2Det := rfl
 
-/-- `ops` with the key derivation replaced by the lookup of the peer's recorded key in `s`. -/
+/-- `ops` with the key derivation replaced by the lookup of the key recorded by the peer in `s`. -/
 def idealOps (ops : Ops P) (s : GameState P AuthState) :
     Ops P :=
   { ops with completeKey := fun t _ _ _ => s.keysAt (!generatorOf t) t }

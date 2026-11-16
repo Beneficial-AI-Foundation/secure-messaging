@@ -12,11 +12,12 @@ public import SecureMessaging.SCKA.MLKEMBraid.Correctness.RecordedPayload.Genera
 /-!
 # Receiving a recorded message
 
-`receive_recorded_payload` combines the key-generator and encapsulator cases. A successful
-receive of a recorded message keeps `LocalPayloadInv` when any output key agrees with the peer's
-recorded key for that epoch. It succeeds whenever decapsulation at the receiver's epoch derives
-the recorded key. A recorded message other than a `ct₂` chunk of the current epoch for a receiver
-in `ekSentCt1Received` is accepted without output key (`receive_recorded_noKey`).
+Assume sound stream decoders. `receive_recorded_payload` combines the key-generator and
+encapsulator cases. A successful receive of a recorded message keeps `LocalPayloadInv` when any
+output key agrees with the key recorded by the peer for that epoch. It succeeds whenever
+decapsulation at the receiver's epoch derives the transcript key. A recorded message other than a
+`ct₂` chunk of the current epoch for a receiver in `ekSentCt1Received` is accepted without output
+key (`receive_recorded_noKey`).
 -/
 
 @[expose] public section
@@ -137,8 +138,10 @@ theorem receive_recorded_noKey
           cases hkp'
     exact receive_ct2Sampled_payload auth ik T e a enc msg hLocal ⟨hkp, hce⟩
 
-/-- A successful receive of a recorded message preserves `LocalPayloadInv` when its output key
-agrees with the peer's. Correct decapsulation ensures acceptance with this agreement. -/
+/-- Assuming sound stream decoders, in a state satisfying `TranscriptInv D`, a successful receive
+by `party` of a message recorded by its peer preserves `LocalPayloadInv` when every output key is
+the key recorded by the peer. It succeeds with this agreement whenever decapsulation at the
+receiver's epoch derives the transcript key. -/
 theorem receive_recorded_payload
     (hHdrSound : P.decHdr.Sound P.ecpHdr)
     (hEkSound : P.decEk.Sound P.ecpEk)

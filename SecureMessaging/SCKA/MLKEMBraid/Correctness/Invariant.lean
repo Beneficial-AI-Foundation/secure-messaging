@@ -16,7 +16,7 @@ For a condition `D` on recorded samples, `TranscriptInv D T s` states that `s` h
 correctness flag, satisfies the control and state-pair invariants, and agrees with the transcript
 `T`: the party states and recorded messages carry the recorded samples, the output keys are the
 transcript keys, and every recorded encapsulation of an epoch that its generator has completed
-satisfies `D`. `TranscriptConsistent` takes for `D` that decapsulation gives the recorded key;
+satisfies `D`. `TranscriptConsistent` takes for `D` that decapsulation derives the transcript key;
 `CorrectnessInv s` states that the correctness flag is false or that `s` satisfies
 `TranscriptConsistent` for some transcript.
 -/
@@ -336,9 +336,9 @@ theorem PairInv.peer_of_headerReceived {st peer : State P AuthState}
       State.completedEpoch] at * <;>
     omega
 
-/-- In a transcript-consistent state, the states `st` of `party` and `peer` of its peer satisfy
-`PairInv` in both directions, have positive epochs, each have an epoch at most the other's completed
-epoch plus one, and have opposite roles at equal epochs. -/
+/-- In a state satisfying `TranscriptInv D`, the states `st` of `party` and `peer` of its peer
+satisfy `PairInv` in both directions, have positive epochs, each have an epoch at most the other's
+completed epoch plus one, and have opposite roles at equal epochs. -/
 theorem TranscriptInv.pairBounds {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptInv auth D ik T s) (party : Bool) :
     let st := s.stateAt party
@@ -390,11 +390,11 @@ theorem peer_keysSampled_of_headerReceived {ik : InitKey} {T : ℕ → EpochTran
   obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj (hkp.symm.trans hkp'))
   exact ⟨pk, sk, b, enc, hkp, by rw [hpeer, hvec], hhdr⟩
 
-/-! ### Transcript consistency of states that agree on the relevant fields -/
+/-! ### `TranscriptInv D` for states that agree on the relevant fields -/
 
 /-- If `s'` has a true correctness flag, satisfies `ControlInv` and `StatePairInv`, has the epochs,
-completed epochs and keys of a state `s` consistent with `T`, and its party states and recorded
-messages agree with `T`, then `s'` is consistent with `T`. -/
+completed epochs and keys of a state `s` satisfying `TranscriptInv D` for `T`, and its party states
+and recorded messages agree with `T`, then `s'` satisfies `TranscriptInv D` for `T`. -/
 theorem TranscriptInv.of_party {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s s' : GameState P AuthState} (hT : TranscriptInv auth D ik T s)
     (hc : s'.correct = true) (hC : ControlInv s') (hP : StatePairInv s')
@@ -426,10 +426,10 @@ theorem TranscriptInv.of_party {ik : InitKey} {T : ℕ → EpochTranscript P}
     rw [hKeys, hcomp]
     exact hT.keys party e
 
-/-- Let `s` be consistent with `T`. Replace the messages sent by `party` by a table `msgs`. If every
-entry of `msgs` has the epoch bounds, the stored report, the control condition of `party` and the
-payload invariant that an entry of a consistent state has, then the new state is consistent with
-`T`. -/
+/-- Let `s` satisfy `TranscriptInv D` for `T`. Replace the messages sent by `party` by a table
+`msgs`. If every entry of `msgs` has the epoch bounds, the stored report, the control condition of
+`party` and the payload invariant that an entry of such a state has, then the new state satisfies
+`TranscriptInv D` for `T`. -/
 theorem TranscriptInv.setMessages {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptInv auth D ik T s) (party : Bool)
     (msgs : ℕ → Option (Message P.Sym × ℕ))
@@ -483,9 +483,9 @@ private theorem forall_update_record {f : ℕ → Option (Message P.Sym × ℕ)}
   (Function.forall_update_iff f (fun _ entry => ∀ m t, entry = some (m, t) → Q m t)).2
     ⟨fun m t h => by obtain rfl := Option.some.inj h; exact hnew, fun k _ => hold k⟩
 
-/-- In a consistent state, the sender of a plain vector chunk recorded at the epoch of a receiver in
-`ct1Acknowledged` is in `ct1Received` at that epoch, so it allows the chunk to be an acknowledging
-vector chunk. -/
+/-- In a state satisfying `TranscriptInv D`, the sender of a plain vector chunk recorded at the
+epoch of a receiver in `ct1Acknowledged` is in `ct1Received` at that epoch, so it allows the chunk
+to be an acknowledging vector chunk. -/
 theorem TranscriptInv.messageControl_ekCt1Ack {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptInv auth D ik T s)
     (party : Bool) {n e : ℕ} {a : AuthState} {hdr : P.inc.PKheader} {es : P.inc.St}
@@ -503,8 +503,8 @@ theorem TranscriptInv.messageControl_ekCt1Ack {ik : InitKey} {T : ℕ → EpochT
     simp_all [PairInv, AllowedStatePair, State.controlPosition, State.epoch,
       State.completedEpoch, MessageType.sendStep]
 
-/-- Changing the type of a recorded vector chunk to `ek` or `ekCt1Ack` keeps transcript
-consistency, provided the sender's state allows the new type. -/
+/-- Changing the type of a recorded vector chunk to `ek` or `ekCt1Ack` keeps `TranscriptInv D`,
+provided the sender's state allows the new type. -/
 theorem TranscriptInv.retype {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptInv auth D ik T s) (party : Bool) (n : ℕ)
     {msg : Message P.Sym} {tsnd : ℕ} (hmsg : s.messagesAt party n = some (msg, tsnd))

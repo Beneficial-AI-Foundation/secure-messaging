@@ -41,11 +41,12 @@ when the flag is set, or `Inv s` holds and `s` is not bad.
   satisfying `p` the flag is set with probability at most `score (s₀, false) + q · ε`;
 - `prEvent_not_good_le_tracked_bad`: if `Inv` forces `good s = true`, then the run of `impl`
   ends in a state with `good s = false` with probability at most that of the flag being set;
-- `prEvent_simulateQ_run'_bounds_of_tracked`: identical until bad with the flag. If `left` and
-  `right` answer alike from every state satisfying `Inv` in which `bad` is false, and the tracked
-  `left` preserves `trackedInv Inv bad`, then from a state `s` with `trackedInv Inv bad (s, false)`
-  the runs of a computation against `left` and `right` give every event probabilities within the
-  probability that the tracked run of `left` ends with its flag set.
+- `prEvent_simulateQ_run'_bounds_of_tracked`: identical until bad with the flag. For oracles
+  `left` and `right` of the type of `impl` that answer every query by the same computation from
+  every state that satisfies `Inv` and is not bad, if the tracked `left` preserves
+  `trackedInv Inv bad`, then from such a state `s` the probabilities of every event under the
+  runs of a computation against `left` and against `right` differ by at most the probability
+  that the tracked run of `left` from `(s, false)` ends with its flag set.
 
 With the flag, `Inv` only has to be preserved from states that are not bad, so nothing has to be
 proved about the states that follow the first bad one.

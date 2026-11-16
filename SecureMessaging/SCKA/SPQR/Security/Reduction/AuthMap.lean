@@ -12,7 +12,7 @@ public import SecureMessaging.SCKA.MLKEMBraid.Security.KeyHiding
 /-!
 # Authenticator maps
 
-Every SPQR state carries an authenticator state, which the update of epoch `st.authEpoch`
+Every SPQR state `st` carries an authenticator state, which the update of epoch `st.authEpoch`
 consumes (`Security.Basic`). An *authenticator map* `π : ℕ → AuthState → AuthState` assigns to an
 authenticator state `a` consumed by the update of epoch `t` the state `π t a`; `authMapSt π`
 applies it to the authenticator state of a party state, and `authMapState π` to both party states
@@ -27,9 +27,12 @@ the update of `A₂` on the mapped state.
 - *Naturality of the transitions.* The SPQR transitions over `A₂` from a mapped state are those
   over `A₁` followed by the map, for every choice of operations: `sendRleakWith_authMap`,
   `recv_authMap`, `recvWith_authMap`.
-- *Transport of the stopped games.* If `π t` is the identity for `t ≠ e`, the security oracles over
-  `A₂` from `authMapState π s` and over `A₁` from `s`, with a challenge oracle commuting with the
-  map, both stopped at the first exposure of `e`, accept equally often
+- *Transport of the stopped games.* Let `ops` be operations, `chall` a challenge oracle commuting
+  with the map, and `e` an epoch such that `π t` is the identity for `t ≠ e`. For every adversary
+  `adv` and game state `s`, the run of `adv` from `authMapState π s` against the state-dependent
+  security oracles of the assignment `u ↦ schemeWith A₂ (idealOps ops u) sampleInitKey` and its
+  run from `s` against those of `u ↦ schemeWith A₁ (idealOps ops u) sampleInitKey`, both with
+  challenge oracle `chall` and stopped at the first exposure of `e`, accept with equal probability
   (`prEvent_stoppedRun_authMap`). A corruption answer differs only for a state whose
   authenticator state the update of `e` consumes, and that corruption exposes `e`.
 
@@ -914,9 +917,11 @@ theorem oracle_authMap (hmap : AuthMap A₁ A₂ π) (e : ℕ) (hπ : ∀ t, t �
     exact ToVCVio.evalDistEq_of_eq (oracleCorruptB_authMap e hπ s)
 
 /-- Transport of the stopped games: if `π` maps `A₁` to `A₂`, `π t` is the identity for `t ≠ e`,
-and the challenge oracle commutes with the map, then for every adversary the security oracles
-over `A₂` from `authMapState π s₀` and over `A₁` from `s₀`, with the operations `ops`, stopped at
-the first exposure of `e`, accept equally often. -/
+and the challenge oracle `chall` commutes with the map, then for all operations `ops`, adversaries
+`adv` and game states `s₀`, the run of `adv` from `authMapState π s₀` against the state-dependent
+security oracles of the assignment `u ↦ schemeWith A₂ (idealOps ops u) sampleInitKey` and its run
+from `s₀` against those of `u ↦ schemeWith A₁ (idealOps ops u) sampleInitKey`, both with challenge
+oracle `chall` and stopped at the first exposure of `e`, accept with equal probability. -/
 theorem prEvent_stoppedRun_authMap (hmap : AuthMap A₁ A₂ π) (e : ℕ)
     (hπ : ∀ t, t ≠ e → π t = id)
     (chall : QueryImpl (ℕ →ₒ Option P.EpochKey) (StateT (GameState P AuthState) ProbComp))

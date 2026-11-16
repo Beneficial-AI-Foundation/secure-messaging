@@ -16,11 +16,12 @@ public import VCVio.ProgramLogic.Relational.SimulateQ
 /-!
 # Epoch hybrids over state-dependent security oracles
 
-Let `schemeOf` assign an SCKA scheme to each game state, `chall` be a challenge oracle on game
-states, `vulnA`, `vulnB` exposure policies, and `adv` an SCKA adversary. The security oracles
-`securityImplAt schemeOf chall vulnA vulnB` answer a query from a game state `s` by running the
-security oracles `securityImplOf` over the instance `schemeOf s` (`securityImplAt_run`), with the
-challenge oracle `chall` and the corruption oracles of the policies.
+Let `schemeOf` be an *assignment* of an SCKA scheme to each game state, `chall` a challenge oracle
+on game states, `vulnA`, `vulnB` exposure policies, and `adv` an SCKA adversary. The
+*state-dependent security oracles* `securityImplAt schemeOf chall vulnA vulnB` answer a query from
+a game state `s` by running the security oracles `securityImplOf` over the instance `schemeOf s`
+(`securityImplAt_run`), with challenges answered by `chall`, and corruptions and leaking sends
+guarded by `vulnA`, `vulnB`.
 
 A *challenge mode* `μ : ℕ → Bool` decides which epochs' challenges get random keys: the oracles
 `modeImpl μ` answer an eligible challenge at `t` with an independent uniform key if `μ t` and the
@@ -36,27 +37,30 @@ S_e^random := H_e     stopped at e    -- uniform key at e
 ```
 
 The modes of `H_{e-1}` and `H_e` are `adjacentMode e false` and `adjacentMode e true`. For an
-epoch `e` and a key `k*`, the *pinned challenge* `pinnedChallenge e k*` answers an eligible
-challenge at `t` with a uniform key if `0 < t < e`, with `k*` if `t = e`, and with the recorded
+epoch `e` and a key `kStar`, the *pinned challenge* `pinnedChallenge e kStar` answers an eligible
+challenge at `t` with a uniform key if `0 < t < e`, with `kStar` if `t = e`, and with the recorded
 key otherwise.
 
 **Results.**
 
 - *Oracles.* A predicate that ignores the exposed and challenged epochs and is preserved by the
-  correctness queries of each instance is preserved by every query, when the ordinary sends
-  forget the coins of the leaking sends and `chall` records challenges
+  correctness queries of each instance is preserved by every query, when each ordinary send of
+  every `schemeOf s` is its leaking send with the coins discarded and `chall` records challenges
   (`securityImplAt_preservesInv`); in particular, a message recorded at an index at most the
   party's send counter is kept (`securityImplAt_preserves_recordedA`,
-  `securityImplAt_preserves_recordedB`). Averaging over a sampled family of instances whose sends
-  have the distributions of those of a target instance, and whose receives agree with the
-  target's, gives the target query (`securityImplAt_sample_eq`); two families that agree on the
-  algorithm that a query runs give related queries (`securityImplAt_congr`).
+  `securityImplAt_preserves_recordedB`). If, at a state `s`, the sends of a sampled assignment,
+  averaged over the sample, have the distributions of those of a target assignment, and every
+  sampled receive equals the target's, then every query from `s`, averaged over the sample, has
+  the joint response/state distribution of the target's query (`securityImplAt_sample_eq`). For a
+  reflexive relation `R` on computations, two assignments give `R`-related queries `t` from `s` if
+  their instances at `s` agree on the ordinary send or the receive that `t` runs and, if `t` is a
+  leaking send, their leaking-send queries from `s` are `R`-related (`securityImplAt_congr`).
 - *Endpoints.* `H_0` is the real-key game: `μ_0` randomizes no epoch (`hybridMode_zero`). Let `adv`
-  make at most `q` ordinary and leaking sends on every response path
-  (`SecuritySendQueryBound adv q`, `SCKA.Defs`). If an invariant preserved by every mode places
-  every epoch with a recorded key in `1, …, nA + nB`, then `H_q` and the uniform-key game (mode
-  `fun _ => true`) accept equally often from an initial state that satisfies the invariant and has
-  no sends (`prEvent_hybridImpl_last_eq`).
+  make at most `q` ordinary or leaking sends of A and B together, on every response path
+  (`SecuritySendQueryBound adv q`, `SCKA.Defs`). If an invariant `Inv` preserved by every mode
+  places every epoch with a recorded key in `1, …, nA + nB`, then `H_q` and the uniform-key game
+  (mode `fun _ => true`) accept equally often from every state `s₀` with `Inv s₀` and
+  `s₀.nA + s₀.nB = 0` (`prEvent_hybridImpl_last_eq`).
 - *Stopping.* From a state with `Disjoint exposed challenged`, stopping at the first exposure of
   `e` preserves the difference between adjacent hybrids (`hybridImpl_signed_gap_stop_eq`, stated
   for `e = i + 1`):
@@ -65,10 +69,11 @@ key otherwise.
   Pr[S_e^random = true] - Pr[S_e^real = true] = Pr[H_e = true] - Pr[H_{e-1} = true]
   ```
 
-- *Pinned challenge.* From a state whose keys recorded at `e` equal `k*`, the pinned challenge
-  answers as the oracles of `H_{e-1}` (`securityImplAt_pinnedChallenge_eq_recorded`). For `e > 0`,
-  drawing `k*` uniformly and stopping at the first exposure of `e` gives `S_e^random`
-  (`stoppedRun_pinnedChallenge_sample_eq`).
+- *Pinned challenge.* From a state whose keys recorded at `e` all equal `kStar`, every query of
+  the oracles with the pinned challenge is the same computation as that of `H_{e-1}`
+  (`securityImplAt_pinnedChallenge_eq_recorded`). For `e > 0`, the run with the pinned challenge,
+  stopped at the first exposure of `e` and with `kStar` drawn uniformly in advance, accepts with
+  the probability of `S_e^random` (`stoppedRun_pinnedChallenge_sample_eq`).
 -/
 
 @[expose] public section
@@ -114,7 +119,8 @@ private theorem correctnessImpl_sends_step
     all_goals simp [recvBUpdate, isSendQuery]
 
 /-- If `base` raises `nA + nB` by at most one on sends and not otherwise, and `chall` records
-challenges, every possible successor `s'` of a family query `t` from `s` has
+challenges, every possible successor `s'` of a query `t` of
+`securityImplOf base chall vulnA vulnB scka` from `s` has
 `s'.nA + s'.nB ≤ s.nA + s.nB + (if t is a send then 1 else 0)`. -/
 private theorem securityImplOf_sends_step
     (base : QueryImpl (sckaCorrectnessSpec Rho) (StateT (GameState StA StB I Rho) ProbComp))
@@ -214,7 +220,7 @@ private theorem correctnessImpl_preserves_recordedB
 
 end Counters
 
-/-! ### The state-dependent family -/
+/-! ### State-dependent security oracles -/
 
 section StateDependent
 
@@ -240,9 +246,9 @@ theorem securityImplAt_run (t : (sckaSecuritySpec StA StB I Rho Rand).Domain)
         (schemeOf s) t).run s := by
   simp only [securityImplAt, StateT.run_bind, StateT.run_get, pure_bind]
 
-/-- Let `Inv` ignore `exposed` and `challenged`, the ordinary sends of each `schemeOf s` forget
-the coins of its leaking sends, and `chall` record challenges. If the correctness queries of each
-`schemeOf s` preserve `Inv` from `s`, then every query of
+/-- Let `Inv` ignore `exposed` and `challenged`, each ordinary send of every `schemeOf s` be its
+leaking send with the coins discarded, and `chall` record challenges. If the correctness queries
+of each `schemeOf s` preserve `Inv` from `s`, then every query of
 `securityImplAt schemeOf chall vulnA vulnB` preserves `Inv`. -/
 theorem securityImplAt_preservesInv
     (Inv : GameState StA StB I Rho → Prop)
@@ -416,8 +422,8 @@ theorem securityImplAt_congr {R : {α : Type} → ProbComp α → ProbComp α �
   · exact hrefl _
 
 /-- A message recorded by A at an index at most `nA` is kept, with the index bound, by every
-query of `securityImplAt`, when the ordinary sends of each instance forget the coins of its leaking
-sends and `chall` records challenges. -/
+query of `securityImplAt`, when each ordinary send of every `schemeOf s` is its leaking send with
+the coins discarded and `chall` records challenges. -/
 theorem securityImplAt_preserves_recordedA
     (hmA : ∀ s st, (do
       let out ← (schemeOf s).sendArleak st
@@ -455,7 +461,7 @@ open ENNReal
 
 /-! ### Challenge modes and epoch hybrids -/
 
-/-- Challenge mode of the hybrid `H_i`: a challenge at epoch `t` returns a uniform key iff
+/-- Challenge mode of the hybrid `H_i`: an eligible challenge at epoch `t` returns a uniform key iff
 `0 < t ∧ t ≤ i`, and the recorded key otherwise. -/
 def hybridMode (i t : ℕ) : Bool := decide (0 < t ∧ t ≤ i)
 
@@ -466,13 +472,13 @@ theorem hybridMode_zero : hybridMode 0 = fun _ => false := by
   omega
 
 /-- Challenge mode of the hybrids adjacent at `e`: `adjacentMode e false` is the mode of `H_{e-1}`
-and `adjacentMode e true` that of `H_e`, so a challenge at epoch `t` returns a uniform key (`U`)
-iff `0 < t < e`, or `t = e` and `b = true`, and the recorded key (`R`) otherwise:
+and `adjacentMode e true` that of `H_e`, so an eligible challenge at epoch `t` returns a uniform
+key (`U`) iff `0 < t < e`, or `t = e` and `b = true`, and the recorded key (`R`) otherwise:
 
 ```text
 epoch                  1   …   e-1   e   e+1  …
-adjacentMode e false   U   …   U     R   R    …      (H_{e-1}, version real)
-adjacentMode e true    U   …   U     U   R    …      (H_e, version random)
+adjacentMode e false   U   …   U     R   R    …      (H_{e-1} and S_e^real)
+adjacentMode e true    U   …   U     U   R    …      (H_e and S_e^random)
 ```
 -/
 def adjacentMode (e : ℕ) (b : Bool) : ℕ → Bool := hybridMode (if b then e else e - 1)
@@ -496,7 +502,7 @@ variable [DecidableEq I] [SampleableType I]
 variable (schemeOf : GameState StA StB I Rho → SCKAScheme ProbComp IK StA StB I Rho Rand)
 variable (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand)
 
-/-- The oracles of the proof game with challenge mode `mode`. -/
+/-- The state-dependent security oracles whose challenges are answered by `challOf mode`. -/
 abbrev modeImpl (mode : ℕ → Bool) :=
   securityImplAt schemeOf (challOf mode) vulnA vulnB
 
@@ -620,8 +626,8 @@ private theorem hybridImpl_query_eq_random (q : ℕ)
 
 /-- Let `Inv` be preserved by `modeImpl mode` for every mode, and let every epoch with a recorded
 key in a state `s` with `Inv s` be positive and at most `s.nA + s.nB`. If
-`SecuritySendQueryBound adv q`, then from an initial state `s₀` with `Inv s₀` and no sends,
-`H_q` and the uniform-key game accept equally often. -/
+`SecuritySendQueryBound adv q`, then from every state `s₀` with `Inv s₀` and
+`s₀.nA + s₀.nB = 0`, `H_q` and the uniform-key game accept equally often. -/
 theorem prEvent_hybridImpl_last_eq (Inv : GameState StA StB I Rho → Prop)
     (hpres : ∀ mode, QueryImpl.PreservesInv (modeImpl schemeOf vulnA vulnB mode) Inv)
     (hkeys : ∀ s, Inv s → ∀ t, (s.keyA t).isSome ∨ (s.keyB t).isSome → 0 < t ∧ t ≤ s.nA + s.nB)
@@ -843,10 +849,9 @@ private theorem securityImplAt_pinnedChallenge_use_records_challenge
   obtain rfl := (mem_support_pure_iff _ _).mp hz
   exact Finset.mem_insert_self _ _
 
-/-- Version `real` of the pinned challenge: from a state `s` in which every key recorded at `e` is
-`kStar`, answering challenges at `e` with `kStar` or with the recorded key gives the same query
-computation, that is, the oracles with `pinnedChallenge e kStar` and those of mode
-`adjacentMode e false` (`H_{e-1}`) agree from `s`. -/
+/-- If every key recorded at `e` in `s` is `kStar`, then every query from `s` of the oracles with
+`pinnedChallenge e kStar` is the same computation as that of `H_{e-1}` (mode
+`adjacentMode e false`). -/
 theorem securityImplAt_pinnedChallenge_eq_recorded
     (t : (sckaSecuritySpec StA StB I Rho Rand).Domain) (s : GameState StA StB I Rho)
     (hkey : ∀ k, s.keyA e = some k ∨ s.keyB e = some k → k = kStar) :
@@ -857,7 +862,8 @@ theorem securityImplAt_pinnedChallenge_eq_recorded
     (fun t => pinnedChallenge_eq_recorded e kStar t s hkey) t
 
 /-- For `e > 0`, drawing `k ←$ I` before a query of the oracles with `pinnedChallenge e k` gives,
-from every state, the joint answer/state distribution of the query in mode `adjacentMode e true`. -/
+from every state, the joint response/state distribution of the query in mode
+`adjacentMode e true`. -/
 private theorem securityImplAt_pinnedChallenge_sample_uniform (he : 0 < e)
     (t : (sckaSecuritySpec StA StB I Rho Rand).Domain) (s : GameState StA StB I Rho) :
     (do
@@ -871,10 +877,10 @@ private theorem securityImplAt_pinnedChallenge_sample_uniform (he : 0 < e)
         QueryImpl.add_apply_inr, challOf] using pinnedChallenge_sample_uniform e he t s
     | exact OracleComp.EvalDistEq.bind_const_of_support _ fun _ _ => rfl
 
-/-- Version `random` of the pinned challenge: for `e > 0`, drawing a uniform challenge key before
-the run or at the eligible challenge at `e` gives the same acceptance probability from every state
-`s`, that is, the run with `pinnedChallenge e k` for `k ←$ I` drawn in advance and the run in mode
-`adjacentMode e true` (`H_e`), both stopped at the first exposure of `e`. -/
+/-- For `e > 0` and every state `s`, the run of `adv` from `s` against the oracles with
+`pinnedChallenge e k`, for `k ←$ I` drawn in advance, accepts with the probability of
+`S_e^random`, the run of `adv` from `s` in mode `adjacentMode e true` (`H_e`); both runs return
+`false` at the first exposure of `e`. -/
 theorem stoppedRun_pinnedChallenge_sample_eq (he : 0 < e) (adv : SCKAAdversary StA StB I Rho Rand)
     (s : GameState StA StB I Rho) :
     Pr{let x ← (do

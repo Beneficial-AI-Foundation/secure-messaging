@@ -18,8 +18,8 @@ public import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
 **Setting.** Throughout this module, we consider:
 
 - the Opp-UniKEM protocol (`scheme`) over a KEM `kem`;
-- an SCKA security adversary `adv` making at most `q` send queries
-  (`SecuritySendQueryBound adv q`);
+- an SCKA security adversary `adv` making at most `q` ordinary or leaking sends of A and B together,
+  on every response path (`SCKAScheme.SecuritySendQueryBound adv q`);
 - the KEM correctness error `ε`, that is, `kem.correctnessError` (Def. A.1 of [SCKA]).
 
 **Main result.** For a challenge bit `b`, the *ideal game* `I_b` is the real game `G_b`
@@ -538,8 +538,9 @@ theorem trackedSecurity_score_step_le (b : Bool)
 
 include hEk hCt0 hCt1 in
 /-- Assuming the erasure codes are correct, for every bit `b` and SCKA adversary `adv` satisfying
-`SecuritySendQueryBound adv q`, the tracked execution of `G_b` from `(initialGame, false)`
-satisfies `Pr[bad_final = true] ≤ q · ε`, where `bad_final` is its final failure flag. -/
+`SCKAScheme.SecuritySendQueryBound adv q`, the tracked execution of `G_b` from
+`(initialGame, false)` satisfies `Pr[bad_final = true] ≤ q · ε`, where `bad_final` is its final
+failure flag. -/
 theorem kem_failure_probability_le (b : Bool)
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SCKAScheme.SecuritySendQueryBound adv q) :
     Pr{let res ← ((simulateQ (trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b) adv).run
@@ -607,9 +608,9 @@ theorem securityExpFixedBit_eq_run' (b : Bool)
     initialGame, initialA, initialB, StateT.run'_eq, map_eq_bind_pure_comp]
 
 include hEk hCt0 hCt1 in
-/-- Assuming the erasure codes are correct, for every bit `b` and SCKA adversary `adv` satisfying
-`SecuritySendQueryBound adv q`, that is, making at most `q` ordinary and leaking send queries,
-the real game `G_b` and ideal game `I_b` satisfy
+/-- Assuming the erasure codes are correct, for every bit `b` and SCKA adversary `adv` making at
+most `q` ordinary or leaking sends of A and B together, on every response path
+(`SCKAScheme.SecuritySendQueryBound adv q`), the real game `G_b` and ideal game `I_b` satisfy
 `|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`. -/
 theorem security_correctness_endpoint_le (b : Bool)
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SCKAScheme.SecuritySendQueryBound adv q) :

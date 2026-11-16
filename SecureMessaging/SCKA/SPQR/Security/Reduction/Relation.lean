@@ -9,15 +9,15 @@ module
 public import SecureMessaging.SCKA.SPQR.Security.Reduction.Pinned
 
 /-!
-# The simulated instance and hiding the challenge-epoch secrets
+# The simulated instance and hiding the secrets of the simulated epoch
 
-Let `e` be the epoch at which the reductions embed their challenge and `kemMat` its KEM material
-(`Reduction.Pinned`). The simulator knows only the public values of `e`, a public key `pk` and
-ciphertext components `ct1`, `ct2`, and the authenticator update `upd` of `e`. In place of the
-secret key, the encapsulation state, and the KEM key of `e`, it uses *dummies* `d : Dummies P`,
-drawn by `sampleDummies` from a fresh key pair and first stage. This module relates its states to
-those of the honest instance `honestSchemeOf kemMat` (`Reduction.Pinned`), which pins both sampling
-phases of `e` to `kemMat`.
+Let `e` be the simulated epoch (the challenge epoch drawn by the reductions or the epoch before
+it) and `kemMat` its KEM material (`Reduction.Pinned`). The simulator knows only the public values
+of `e`, a public key `pk` and ciphertext components `ct1`, `ct2`, and the authenticator update
+`upd` of `e`. In place of the secret key, the encapsulation state, and the KEM key of `e`, it uses
+*dummies* `d : Dummies P`, drawn by `sampleDummies` from a fresh key pair and first stage. This
+module relates its states to those of the honest instance `honestSchemeOf kemMat`
+(`Reduction.Pinned`), which pins both sampling phases of `e` to `kemMat`.
 
 - *Simulated instance.* At epoch `e`, the operations `simOps pk ct1 ct2 d e` return `pk` with
   the dummy secret key, then the dummy state, `ct1`, and the dummy KEM key, each with fresh coins,

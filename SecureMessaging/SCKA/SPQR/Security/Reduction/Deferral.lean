@@ -9,11 +9,12 @@ module
 public import SecureMessaging.SCKA.SPQR.Security.Reduction.Simulation
 
 /-!
-# Deferring the samples of the challenge epoch
+# Deferring the samples of the simulated epoch
 
 **Setting.** Let
 - `adv` be an SCKA adversary against SPQR and `ik` an initial key;
-- `e` be the epoch at which the reductions embed their challenge, and `e'` be `e` or `e + 1`;
+- `e` be the simulated epoch (the challenge epoch drawn by the reductions or the epoch before it),
+  and `e'` be `e` or `e + 1`;
 - `μ : ℕ → Bool` be a challenge mode: an eligible challenge at `t` returns a uniform key if `μ t`
   and the recorded key otherwise.
 
@@ -205,9 +206,11 @@ private theorem opsPossible_pinOps_kg (kg : (P.PK × P.SK) × P.det.KeygenRand)
 
 /-! ### Single use of the samples -/
 
-/-- Once `phase` has run at `e`, it stays run: every security query over a state-dependent
-instance whose ordinary sends forget the coins of its leaking sends, and whose challenge oracle
-records challenges, preserves `phaseSent e phase`. -/
+/-- Once `phase` has run at `e`, it stays run: for an assignment `schemeOf` of an SCKA scheme to
+each game state and a challenge oracle `chall` that records challenges, if each ordinary send of
+every `schemeOf s` is its leaking send with the coins discarded, then every query of the
+state-dependent security oracles of `schemeOf`, with challenges answered by `chall`, preserves
+`phaseSent e phase`. -/
 private theorem phaseSent_preserved [DecidableEq P.EpochKey] (phase : Phase)
     (schemeOf : GameState P AuthState → SCKAScheme ProbComp InitKey (PartyState P AuthState)
       (PartyState P AuthState) P.EpochKey (Message P.Sym)
@@ -546,7 +549,7 @@ private theorem oracleSendBrleak_pinned_encaps1_rejected
     pure_bind, Function.comp_def]
   simp [vuln, PartyState.epoch, he, inter_ne_empty_of_mem e hc]
 
-/-! ### The pinned families: independence, single use and averaging -/
+/-! ### The pinned oracles: independence, single use and averaging -/
 
 variable [SampleableType P.EpochKey]
 
@@ -563,8 +566,8 @@ private theorem pinnedImpl_none_none (mode : ℕ → Bool) :
   unfold pinnedImpl idealImpl idealSchemeOf pinnedSchemeOf
   rw [pinOps_none_none]
 
-/-- From a state in which no party runs the first-stage encapsulation of `e`, two families whose
-pins differ only in the encapsulation answer every query by the same computation. -/
+/-- From a state in which no party runs the first-stage encapsulation of `e`, the pinned oracles
+with first-stage pins `enc?` and `enc?'` answer every query by the same computation. -/
 private theorem pinnedImpl_run_eq_of_not_runs_encaps1
     (kg? : Option ((P.PK × P.SK) × P.det.KeygenRand))
     (enc? enc?' : Option ((P.det.St × P.det.C₁ × P.K) × P.det.Encaps1Rand)) (mode : ℕ → Bool)
@@ -696,7 +699,7 @@ private theorem phaseSent_of_usesPhase (phase : Phase)
   all_goals simp [usesPhase] at hh
 
 /-- Drawing the key pair `kg ← P.det.toRandLeak.keygenRleak` before a query pinned to `kg` or at
-its key generation gives the same joint answer/state distribution. -/
+its key generation gives the same joint response/state distribution. -/
 private theorem pinnedImpl_sample_keygen_eq
     (enc? : Option ((P.det.St × P.det.C₁ × P.K) × P.det.Encaps1Rand))
     (mode : ℕ → Bool) (t : (securitySpec P AuthState).Domain) (s : GameState P AuthState) :
@@ -716,7 +719,7 @@ private theorem pinnedImpl_sample_keygen_eq
 
 /-- From a state with the pinned invariant of `kg`, drawing the first stage
 `enc ← P.det.toRandLeak.encaps1Rleak (toHeader kg.pk)` before a query pinned to `kg` and `enc` or
-at its first stage gives the same joint answer/state distribution. -/
+at its first stage gives the same joint response/state distribution. -/
 private theorem pinnedImpl_sample_encaps1_eq (kg : (P.PK × P.SK) × P.det.KeygenRand)
     {s : GameState P AuthState} (hs : PinnedInv auth (some kg.1) none e s) (mode : ℕ → Bool)
     (t : (securitySpec P AuthState).Domain) :
@@ -747,8 +750,8 @@ private theorem pinnedImpl_sample_encaps1_eq (kg : (P.PK × P.SK) × P.det.Keyge
 
 include hHdrSound hEkSound hCt1Sound hCt2Sound in
 /-- For a possible key pair `kg`, and a first stage `enc?` that, when pinned, is a possible
-first stage at the header of `kg`, every query of the pinned game with its key generation pinned to
-`kg` and its first stage pinned to `enc?` preserves the pinned invariant of `kg` and `enc?`. -/
+first stage at the header of `kg`, every query of the oracles pinned to `kg` and `enc?` preserves
+the pinned invariant of `kg` and `enc?`. -/
 private theorem pinnedImpl_preserves_pinnedInv (kg : (P.PK × P.SK) × P.det.KeygenRand)
     (hkg : kg.1 ∈ support P.det.toKEM.keygen)
     (enc? : Option ((P.det.St × P.det.C₁ × P.K) × P.det.Encaps1Rand))
@@ -768,7 +771,7 @@ private theorem pinnedImpl_preserves_pinnedInv (kg : (P.PK × P.SK) × P.det.Key
       (fun _ _ => ⟨kg, rfl⟩) s hs t res hres)
 
 include hHdrSound hEkSound hCt1Sound hCt2Sound in
-/-- `Inv auth` is preserved by every query of the family pinned to a possible key pair only. -/
+/-- `Inv auth` is preserved by every query of the oracles pinned to a possible key pair only. -/
 private theorem pinnedImpl_preserves_Inv (kg : (P.PK × P.SK) × P.det.KeygenRand)
     (hkg : kg.1 ∈ support P.det.toKEM.keygen) (mode : ℕ → Bool) :
     QueryImpl.PreservesInv (pinnedImpl auth sampleInitKey e (some kg) none mode) (Inv auth) :=
@@ -781,9 +784,9 @@ private theorem pinnedImpl_preserves_Inv (kg : (P.PK × P.SK) × P.det.KeygenRan
       hCt1Sound hCt2Sound (opsPossible_pinOps_kg e kg hkg) s hs t res hres)
 
 include hHdrSound hEkSound hCt1Sound hCt2Sound in
-/-- The invariant of the first-stage deferral is preserved by every query of the family pinned to
-`kg` and a possible first stage, on the successors with `e'` unexposed, for `e' = e` or
-`e' = e + 1`. -/
+/-- For a possible key pair `kg`, the invariant of the first-stage deferral is preserved by every
+query of the oracles pinned to `kg` and a possible first stage, on the successors with `e'`
+unexposed, for `e' = e` or `e' = e + 1`. -/
 private theorem encapsDeferralInv_preserved (kg : (P.PK × P.SK) × P.det.KeygenRand)
     (hkg : kg ∈ support P.det.toRandLeak.keygenRleak) (enc : (P.det.St × P.det.C₁ × P.K) ×
       P.det.Encaps1Rand)
@@ -912,10 +915,7 @@ include hHdrSound hEkSound hCt1Sound hCt2Sound in
 /-- Assuming sound stream decoders, drawing the KEM material of `e` before the run or at the
 protocol calls gives equal acceptance probabilities: for every challenge mode `mode`, the pinned
 game with `kemMat ← sampleMaterial` and the ideal game under `mode`, both run from
-`initState auth ik` and stopped at the first exposure of `e'`, for `e' = e` or `e' = e + 1`. For
-`mode := hybridMode i` and `e' = e`, the ideal game is the stopped hybrid
-`stoppedHybridExp adv i e ik`, so `i = e - 1` (`real`) and `i = e` (`random`) give
-`Pr[P_e^x = true] = Pr[S_e^x = true]`. -/
+`initState auth ik` and stopped at the first exposure of `e'`, for `e' = e` or `e' = e + 1`. -/
 theorem stoppedRun_material_deferred (he' : e' = e ∨ e' = e + 1) (mode : ℕ → Bool)
     (adv : SecurityAdversary P AuthState) (ik : InitKey) :
     Pr{let x ← (do

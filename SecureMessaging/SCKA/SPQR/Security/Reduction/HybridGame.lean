@@ -13,11 +13,11 @@ public import SecureMessaging.SCKA.SPQR.Security.Reduction.AuthMap
 # The hybrid gap as a difference of simulated games
 
 Assume that the four stream decoders of `P` are sound for their erasure codes, and fix an SCKA
-adversary `adv` against SPQR, an epoch `e > 0` at which the reductions embed their challenge,
-dummies `d` (`Reduction.Relation`), an initial key `ik`, and a version `x ∈ {real, random}`: a
-challenge at `e` returns the real (recorded) key in `real` and an independent uniform key in
-`random`. All games below run `adv` from `initState auth ik`, return `false` at the first query that
-exposes `e`, and otherwise return the output of `adv`.
+adversary `adv` against SPQR, the challenge epoch `e > 0` drawn by the reductions, dummies `d`
+(`Reduction.Relation`), an initial key `ik`, and a version `x ∈ {real, random}` (`false` for
+`real`, `true` for `random`): a challenge at `e` returns the real (recorded) key in `real` and an
+independent uniform key in `random`. All games below run `adv` from `initState auth ik`, return
+`false` at the first query that exposes `e`, and otherwise return the output of `adv`.
 
 - The *stopped hybrid* `S_e^x[A]` over an authenticator `A` runs the ideal hybrid `H_{e-1}` in
   `real` and `H_e` in `random` (`stoppedHybridExp A adv (e - 1) e ik` and
@@ -27,13 +27,14 @@ exposes `e`, and otherwise return the output of `adv`.
   `e ≥ 2`, and for `e = 1` an update that no reachable state performs.
 - The *simulated game* `simRun A e d ik pk ct1 ct2 kStar kUpd` runs the simulated instance over `A`,
   which holds only the public values `pk`, `ct1`, `ct2` of `e` and the dummies `d`
-  (`simSchemeOf`, `Reduction.Relation`); the challenge at `e` is answered by `kStar`, the keys
-  recorded at `e` are the dummy key `P.kdfOK d.k e`, and the authenticator update of `e` uses
-  `kUpd`.
-- The *games of the chain* draw a fresh key pair `(pk, _) ← P.det.toKEM.keygen` and encapsulation
-  `(c, k) ← P.det.toKEM.encaps pk`, the keys of the following table, and `κ ←$ P.EpochKey`, and
-  run `simRun A_κ e d ik pk (splitC c).1 (splitC c).2 kStar kUpd`, for `kdf k := P.kdfOK k e`,
-  `r ←$ P.K`, and `u u' k' ←$ P.EpochKey`:
+  (`simSchemeOf`, `Reduction.Relation`); the keys recorded at `e` are the dummy key
+  `P.kdfOK d.k e`, the authenticator update of `e` uses `kUpd`, and challenges are answered by the
+  pinned challenge `pinnedChallenge e kStar` (`SCKA.Security.Hybrids`): an eligible challenge at
+  `t` returns a uniform key if `0 < t < e`, `kStar` if `t = e`, and the recorded key otherwise.
+- The *games of the chain* over `A_κ` draw a fresh key pair `(pk, _) ← P.det.toKEM.keygen` and
+  encapsulation `(c, k) ← P.det.toKEM.encaps pk`, the keys of the following table, and
+  `κ ←$ P.EpochKey`, and run `simRun A_κ e d ik pk (splitC c).1 (splitC c).2 kStar kUpd`, for
+  `kdf k := P.kdfOK k e`, `r ←$ P.K`, and `u u' k' ←$ P.EpochKey`:
 
   | game           | `kStar` (challenge key) | `kUpd` (authenticator update) |
   | -------------- | ----------------------- | ----------------------------- |
@@ -46,9 +47,9 @@ exposes `e`, and otherwise return the output of `adv`.
 
 - For `e ≥ 2`, `prevGame x e d ik pk ct1 ct2 w` runs the simulated instance of `e - 1` over `auth`
   holding `pk`, `ct1`, `ct2`, with the update of `e - 1` keyed by `w`, against the challenge
-  oracle of `S_e^x`; it is `pure false` for `e = 1`. The games `prevReal x`, `prevRand x` and
-  `prevKdf x` run it on a fresh encapsulation `(c, k)` with `w := P.kdfOK k (e - 1)`,
-  `w := P.kdfOK r (e - 1)` for `r ←$ P.K`, and `w ←$ P.EpochKey`.
+  oracle of `S_e^x`; it is `pure false` for `e = 1`. The other games of the chain, `prevReal x`,
+  `prevRand x` and `prevKdf x`, run it on a fresh encapsulation `(c, k)` with
+  `w := P.kdfOK k (e - 1)`, `w := P.kdfOK r (e - 1)` for `r ←$ P.K`, and `w ←$ P.EpochKey`.
 
 **Main results.** For every `x`, `d` and `ik`:
 
@@ -82,8 +83,10 @@ variable {P : SPQR.Parameters ProbComp} {InitKey AuthState : Type}
 /-! ### The simulated game -/
 
 /-- The simulated game of epoch `e` with dummies `d`: `adv` run from `initState auth ik` against
-the simulated instance holding `pk`, `ct1`, `ct2`, with the challenge at `e` answered by `kStar` and
-the authenticator update of `e` with `kUpd`, returning `false` at the first exposure of `e`. -/
+the simulated instance holding `pk`, `ct1`, `ct2`, with the authenticator update of `e` keyed by
+`kUpd` and challenges answered by `pinnedChallenge e kStar` (an eligible challenge at `t` returns a
+uniform key if `0 < t < e`, `kStar` if `t = e`, and the recorded key otherwise), returning `false`
+at the first exposure of `e`. -/
 def simRun (e : ℕ) (d : Dummies P) (ik : InitKey) (pk : P.PK) (ct1 : P.det.C₁) (ct2 : P.det.C₂)
     (kStar kUpd : P.EpochKey) : ProbComp Bool :=
   stoppedRun (SCKAScheme.securityImplAt
@@ -335,7 +338,7 @@ end ChainRand
 
 section Prev
 
-/-- For `e ≥ 2`, the simulated game pinned at `e - 1` of version `x`: `adv` run from
+/-- For `e ≥ 2`, the simulated game of `e - 1` in version `x`: `adv` run from
 `initState auth ik` against the simulated instance holding `pk`, `ct1`, `ct2` at `e - 1`, with the
 authenticator update of `e - 1` keyed by `k`, against the challenge oracle of `adjacentMode e x`,
 returning `false` at the first exposure of `e`. For `e = 1` it is `pure false`. -/
@@ -471,11 +474,9 @@ theorem stoppedHybrid_hybridAuth_eq_prevKdf {e : ℕ} (he : 2 ≤ e) (x : Bool) 
         rw [h]
         rfl
 
-/-- For every `i`, `x`, `d` and `ik`, at `e = i + 1`, replacing `auth` by
-`hybridAuth auth e ik κ` for a uniform `κ` in the stopped hybrid of version `x` changes its
-acceptance probability as replacing the derived key of `e - 1` by a uniform key changes that of the
-pinned games at `e - 1`:
-`Pr[S_e^x] - Pr[κ ←$ P.EpochKey; S_e^x over hybridAuth] = Pr[prevReal x] - Pr[prevKdf x]`. -/
+/-- For every `i`, `x`, `d` and `ik`, with `e := i + 1`, `A_κ := hybridAuth auth e ik κ`, and
+`S_e^x[A]` the stopped hybrid of version `x` over an authenticator `A` (`S_e^x := S_e^x[auth]`):
+`Pr[S_e^x] - Pr[κ ←$ P.EpochKey; S_e^x[A_κ]] = Pr[prevReal x] - Pr[prevKdf x]`. -/
 theorem stoppedHybrid_sub_hybridAuth_eq (i : ℕ) (x : Bool) (d : Dummies P) (ik : InitKey) :
     (Pr{let y ← (stoppedHybridExp auth sampleInitKey adv (if x then i + 1 else i) (i + 1)
       ik)}[y = true]).toReal -
