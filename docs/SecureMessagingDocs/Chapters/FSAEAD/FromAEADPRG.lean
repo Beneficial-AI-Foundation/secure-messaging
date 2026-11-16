@@ -240,37 +240,21 @@ first, so B runs $`\mathsf{skip}(3)` and keeps $`K_1` and $`K_2` in $`D` for mes
 :::defTitle "fs_aead_from_aead_prg_correctness" "FS-AEAD from AEAD and PRG correctness"
 :::
 
-::::theorem "fs_aead_from_aead_prg_correctness" (parent := "fs_aead_fs_aead_from_aead_prg") (lean := "FSAEADScheme.fromAEADPRG_correct, FSAEADScheme.FromAEADPRG.sendAll_eq, FSAEADScheme.FromAEADPRG.rcvAll_honest_initR") (tags := "gh-29") (uses := "fs_aead_from_aead_prg_spec, fs_aead_scheme, fs_aead_correctness, aead_correctness, prg")
+::::theorem "fs_aead_from_aead_prg_correctness" (parent := "fs_aead_fs_aead_from_aead_prg") (lean := "FSAEADScheme.fromAEADPRG_correct") (tags := "gh-29") (uses := "fs_aead_from_aead_prg_spec, fs_aead_scheme, fs_aead_correctness, aead_correctness, prg")
 Adapted from {Informal.citet ACD19}[], proof of Theorem 5 (step from $`H_1` to $`H_2`).
 
-Let $`\mathsf{AE}` be a correct AEAD scheme and $`G` a PRG. Then:
-1. The FS-AEAD scheme from $`\mathsf{AE}` and $`G` is
-   {bpref "fs_aead_correctness"}[correct].
-2. Let B start from $`\mathsf{Init\text{-}B}(k)` and receive ciphertexts
-   $`(j, \Enc(K_j, (j, a), m))` with associated data $`a`, for distinct indices
-   $`j \geq 1`, in any order. Then B outputs $`(j, m)` for each of them. A's $`j`-th
-   ciphertext from $`\mathsf{Init\text{-}A}(k)` has this form.
+Let $`\mathsf{AE}` be a correct AEAD scheme with key space $`\K`, and let
+$`G : \W \to \W \times \K` be a PRG. Then the FS-AEAD scheme from $`\mathsf{AE}` and $`G`
+is {bpref "fs_aead_correctness"}[correct].
 
 :::leanPillCaption "correctness"
 :::
 
 ```anchor fromAEADPRG_correct (project := ".") (module := SecureMessaging.FSAEAD.FromAEADPRG.Correctness)
-theorem fromAEADPRG_correct {Cae AD M : Type} [DecidableEq AD] [DecidableEq M]
+theorem fromAEADPRG_correct {W Kae Cae AD M : Type} [DecidableEq AD] [DecidableEq M]
     [DecidableEq Cae] (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae)
     (prg : PRGScheme W (W × Kae)) (hae : ae.Correct) :
     (fromAEADPRG ae prg).Correct
-```
-
-:::leanPillCaption "honest delivery in any order"
-:::
-
-```anchor rcvAll_honest_initR (project := ".") (module := SecureMessaging.FSAEAD.FromAEADPRG.Correctness)
-theorem rcvAll_honest_initR (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae)
-    (prg : PRGScheme W (W × Kae)) (hae : ae.Correct) (k : W) (del : List (ℕ × AD × M))
-    (hnd : (del.map (·.1)).Nodup) (hpos : ∀ x ∈ del, 1 ≤ x.1) :
-    (rcvAll ae prg (initR k) (del.map fun x =>
-      (x.2.1, (x.1, ae.encrypt (chainKey prg k x.1) (x.1, x.2.1) x.2.2)))).1 =
-      del.map fun x => some (x.1, x.2.2)
 ```
 ::::
 

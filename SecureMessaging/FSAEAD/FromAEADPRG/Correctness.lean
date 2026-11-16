@@ -615,14 +615,12 @@ theorem rcvAll_honest (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae)
 `j ≥ 1`. Let B start from `Init-B(k)` and receive `(j, Enc(K_j, (j, a), m))` with associated
 data `a` for each entry, in the order of `del`. Then B outputs `(j, m)` for each entry. By
 `sendAll_eq`, A's `j`-th ciphertext from `Init-A(k)` has this form. -/
--- ANCHOR: rcvAll_honest_initR
 theorem rcvAll_honest_initR (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae)
     (prg : PRGScheme W (W × Kae)) (hae : ae.Correct) (k : W) (del : List (ℕ × AD × M))
     (hnd : (del.map (·.1)).Nodup) (hpos : ∀ x ∈ del, 1 ≤ x.1) :
     (rcvAll ae prg (initR k) (del.map fun x =>
       (x.2.1, (x.1, ae.encrypt (chainKey prg k x.1) (x.1, x.2.1) x.2.2)))).1 =
       del.map fun x => some (x.1, x.2.2)
--- ANCHOR_END: rcvAll_honest_initR
   := rcvAll_honest ae prg hae del ⟨rfl, fun _ _ h => (nomatch h), fun _ _ => rfl⟩ hnd
     fun x hx => .inl (hpos x hx)
 
@@ -634,7 +632,7 @@ open FromAEADPRG
 every reachable game state with `win = false`, B receives every record in `trans` with the
 recorded index and message. -/
 -- ANCHOR: fromAEADPRG_correct
-theorem fromAEADPRG_correct {Cae AD M : Type} [DecidableEq AD] [DecidableEq M]
+theorem fromAEADPRG_correct {W Kae Cae AD M : Type} [DecidableEq AD] [DecidableEq M]
     [DecidableEq Cae] (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae)
     (prg : PRGScheme W (W × Kae)) (hae : ae.Correct) :
     (fromAEADPRG ae prg).Correct
