@@ -241,7 +241,7 @@ first, so B runs $`\mathsf{skip}(3)` and keeps $`K_1` and $`K_2` in $`D` for mes
 :::
 
 ::::theorem "fs_aead_from_aead_prg_correctness" (parent := "fs_aead_fs_aead_from_aead_prg") (lean := "FSAEADScheme.fromAEADPRG_correct") (tags := "gh-29") (uses := "fs_aead_from_aead_prg_spec, fs_aead_scheme, fs_aead_correctness, aead_correctness, prg")
-Adapted from {Informal.citet ACD19}[], proof of Theorem 5 (step from $`H_1` to $`H_2`).
+Adapted from {Informal.citet ACD19}[], §4.2.2, Figure 6.
 
 Let $`\mathsf{AE}` be a correct AEAD scheme with key space $`\K`, and let
 $`G : \W \to \W \times \K` be a PRG. Then the FS-AEAD scheme from $`\mathsf{AE}` and $`G`
