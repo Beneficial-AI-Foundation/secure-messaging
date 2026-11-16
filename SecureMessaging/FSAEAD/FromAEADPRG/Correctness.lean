@@ -567,8 +567,9 @@ def rcvAll (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (prg : PRGScheme W (
     | none => let r := rcvAll ae prg st cs; (none :: r.1, r.2)
     | some (st', i, m) => let r := rcvAll ae prg st' cs; (some (i, m) :: r.1, r.2)
 
-/-- Let A be at `(w_n, n)` on the chain from `k`, and let A send `(a_1, m_1), …, (a_l, m_l)`.
-Then A's `j`-th ciphertext is `(n + j, Enc(K_{n+j}, (n + j, a_j), m_j))`. -/
+/-- Let A be at `(w_n, n)` on the chain from `k`, and let A send
+`(a_0, m_0), …, (a_{l-1}, m_{l-1})`. Then A's `j`-th ciphertext is
+`(n + j + 1, Enc(K_{n+j+1}, (n + j + 1, a_j), m_j))`. -/
 theorem sendAll_eq (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (prg : PRGScheme W (W × Kae))
     {k : W} (msgs : List (AD × M)) {st : SendState W} (hst : st.w = chainState prg k st.iA) :
     sendAll ae prg st msgs = msgs.mapIdx fun j am =>
