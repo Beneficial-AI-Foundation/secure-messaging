@@ -251,8 +251,8 @@ is {bpref "fs_aead_correctness"}[correct].
 :::
 
 ```anchor fromAEADPRG_correct (project := ".") (module := SecureMessaging.FSAEAD.FromAEADPRG.Correctness)
-theorem fromAEADPRG_correct {W Kae Cae AD M : Type} [DecidableEq AD] [DecidableEq M]
-    [DecidableEq Cae] (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae)
+theorem fromAEADPRG_correct {W Kae Cae AD M : Type} [SampleableType W] [DecidableEq AD]
+    [DecidableEq M] [DecidableEq Cae] (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae)
     (prg : PRGScheme W (W × Kae)) (hae : ae.Correct) :
     (fromAEADPRG ae prg).Correct
 ```

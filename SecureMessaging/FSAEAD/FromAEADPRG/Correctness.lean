@@ -23,6 +23,8 @@ A's `j`-th ciphertext for associated data `a` and message `m` is `(j, Enc(K_j, (
 
 Let the AEAD scheme be correct. Then:
 - `fromAEADPRG_correct`: the construction is correct (`FSAEADScheme.Correct`).
+- `fromAEADPRG_securityExp_eq_noDeliverWin`: its security experiment equals the experiment
+  without the delivery check (`FSAEADScheme.securityExpNoDeliverWin`).
 - `rcvAll_honest_initR`: without an adversary, B outputs `(j, m)` for every
   `(j, Enc(K_j, (j, a), m))` with `j ≥ 1`, in any order and each `j` at most once.
 
@@ -536,13 +538,38 @@ theorem gameInv_step (hinv : GameInv ae prg k st) (len : M → ℕ) (b : Bool)
       simp only [Bool.or_eq_false_iff, Bool.not_eq_eq_eq_not, Bool.not_false] at hw
       exact ⟨hw.1, .inr (hinv.comp_corrA _ hw.2)⟩
 
-/-- Let `st` be reachable in the game for `fromAEADPRG ae prg` with key `k`. Then `st`
-satisfies the invariant. -/
-theorem gameInv_of_reachable {len : M → ℕ} {b : Bool}
-    (h : Reachable (fromAEADPRG ae prg) len b k st) : GameInv ae prg k st := by
-  induction h with
-  | init => exact gameInv_init
-  | step t _ hz ih => exact gameInv_step ih len b t hz
+/-- Let `ae` be correct, and let `st` satisfy the invariant with `win = false`. Then every
+outcome of `O-Deliver-B` from `st` has `win = false`. -/
+theorem gameInv_deliverB_win_false (hae : ae.Correct) (hinv : GameInv ae prg k st)
+    (hw : st.win = false) (q : AD × (ℕ × Cae)) :
+    ∀ z ∈ support ((oracleDeliverB (fromAEADPRG ae prg) q).run st), z.2.win = false := by
+  intro z hz
+  obtain ⟨a, e⟩ := q
+  simp only [oracleDeliverB, StateT.run_bind, StateT.run_get, pure_bind] at hz
+  split_ifs at hz with hend
+  · simp only [StateT.run_pure, support_pure, Set.mem_singleton_iff] at hz
+    subst hz
+    exact hw
+  rcases hf : st.findTrans a e with _ | ⟨i, a', m, e'⟩
+  · simp only [hf, StateT.run_pure, support_pure, Set.mem_singleton_iff] at hz
+    subst hz
+    exact hw
+  obtain ⟨hmem, rfl, rfl⟩ := GameState.findTrans_spec hf
+  obtain ⟨-, -, he⟩ := hinv.trans_honest _ hmem
+  simp only at he
+  obtain ⟨vB, hr⟩ := exists_rcv_eq_some ae prg hinv.vB (hinv.trans_key hw _ hmem).symm
+    (hae (chainKey prg k i) (i, a') m)
+  rw [← he] at hr
+  simp only [hf, fromAEADPRG, hr, StateT.run_bind, StateT.run_set, StateT.run_pure, pure_bind,
+    support_pure, Set.mem_singleton_iff] at hz
+  subst hz
+  simp only [GameState.delete, hw, decide_true, Bool.and_self, Bool.not_true, Bool.or_self]
+
+/-- Let `ae` be correct. Then `GameInv ae prg` is a `DeliverInv` for `fromAEADPRG ae prg`. -/
+theorem deliverInv (hae : ae.Correct) : DeliverInv (fromAEADPRG ae prg) (GameInv ae prg) where
+  init _ := gameInv_init
+  step len b _ t _ _ hinv hz := gameInv_step hinv len b t hz
+  deliverB _ _ q hinv hw := gameInv_deliverB_win_false hae hinv hw q
 
 end Oracles
 
@@ -626,23 +653,24 @@ end FromAEADPRG
 
 open FromAEADPRG
 
-/-- Let `ae` be a correct AEAD scheme. Then `fromAEADPRG ae prg` is perfectly correct: in
-every reachable game state with `win = false`, B receives every record in `trans` with the
-recorded index and message. -/
+/-- Let `ae` be a correct AEAD scheme. Then `fromAEADPRG ae prg` is (perfectly) correct. -/
 -- ANCHOR: fromAEADPRG_correct
-theorem fromAEADPRG_correct {W Kae Cae AD M : Type} [DecidableEq AD] [DecidableEq M]
-    [DecidableEq Cae] (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae)
+theorem fromAEADPRG_correct {W Kae Cae AD M : Type} [SampleableType W] [DecidableEq AD]
+    [DecidableEq M] [DecidableEq Cae] (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae)
     (prg : PRGScheme W (W × Kae)) (hae : ae.Correct) :
     (fromAEADPRG ae prg).Correct
 -- ANCHOR_END: fromAEADPRG_correct
-  := by
-  intro _ _ k st hst hw _ i a m e hf
-  have hinv := gameInv_of_reachable hst
-  obtain ⟨hmem, -, -⟩ := GameState.findTrans_spec hf
-  obtain ⟨-, -, he⟩ := hinv.trans_honest _ hmem
-  simp only at he
-  subst he
-  exact exists_rcv_eq_some ae prg hinv.vB (hinv.trans_key hw _ hmem).symm
-    (hae (chainKey prg k i) (i, a) m)
+  := (deliverInv hae).correct
+
+/-- Let `ae` be a correct AEAD scheme. Then for every length function and every adversary,
+the security experiment for `fromAEADPRG ae prg` equals the experiment of `fs-aead-nd`. -/
+theorem fromAEADPRG_securityExp_eq_noDeliverWin {W Kae Cae AD M : Type} [SampleableType W]
+    [DecidableEq AD] [DecidableEq M] [DecidableEq Cae]
+    (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (prg : PRGScheme W (W × Kae))
+    (hae : ae.Correct) (len : M → ℕ)
+    (adversary : FSAEADAdversary (SendState W) (RecvState W Kae) AD M (ℕ × Cae)) :
+    securityExp (fromAEADPRG ae prg) len adversary =
+      securityExpNoDeliverWin (fromAEADPRG ae prg) len adversary :=
+  (deliverInv hae).securityExp_eq_noDeliverWin len adversary
 
 end FSAEADScheme
