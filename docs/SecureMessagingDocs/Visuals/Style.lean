@@ -141,6 +141,45 @@ def smDocsCss : String := r#"
   }
 }
 
+/* A game beside its oracles in one box, as in a paper figure: the first two paragraphs of the
+   body are columns separated by a rule, stacked when the box is narrow. Other blocks, such as
+   Lean pills, span the box; as grid items they keep their margins apart, so the pills get half
+   their usual spacing. */
+.game-cell[data-kind="game-columns"] {
+  grid-column: 1 / -1;
+  container-type: inline-size;
+}
+.game-cell[data-kind="game-columns"] > .game-cell-body:not([hidden]) {
+  display: grid;
+  grid-template-columns: repeat(2, max-content);
+  justify-content: start;
+}
+.game-cell[data-kind="game-columns"] > .game-cell-body > :not(p) {
+  grid-column: 1 / -1;
+}
+.game-cell[data-kind="game-columns"] > .game-cell-body > p {
+  margin: 0 0 0.5rem;
+}
+.game-cell[data-kind="game-columns"] > .game-cell-body > p + p {
+  margin-left: 1.5rem;
+  padding-left: 1.5rem;
+  border-left: 1px solid #cbd5e1;
+}
+.game-cell[data-kind="game-columns"] > .game-cell-body > .lean-anchor-row {
+  margin: 0.5rem 0;
+}
+@container (max-width: 52rem) {
+  .game-cell[data-kind="game-columns"] > .game-cell-body:not([hidden]) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .game-cell[data-kind="game-columns"] > .game-cell-body > p + p {
+    margin: 0 0 0.5rem;
+    padding: 0.5rem 0 0;
+    border-left: 0;
+    border-top: 1px solid #cbd5e1;
+  }
+}
+
 /* The cell's title bar: experiment/oracle name (math) on the left, the state
    slice it touches on the right. One uniform colour/font for every box.
    Doubles as the fold/unfold toggle (see `smDocsJs`): clicking it shows/hides
@@ -359,25 +398,30 @@ def smDocsCss : String := r#"
    the narrow layout so the longest pseudocode rows fit the column. */
 @container spqr-protocol (min-width: 48rem) {
   .game-grid:has(> #spqr-send),
+  .game-grid:has(> #spqr-send-rleak),
   .game-grid:has(> #spqr-receive) {
     grid-template-columns: minmax(0, 5fr) minmax(0, 3fr);
   }
   /* The helper panel sizes to its content; a trailing flexible row takes the height the
      transition has beyond it, so the panel stays at the top. */
   .game-grid:has(> #spqr-send),
+  .game-grid:has(> #spqr-send-rleak),
   .game-grid:has(> #spqr-receive) {
     grid-template-rows: max-content 1fr;
   }
   #spqr-send,
+  #spqr-send-rleak,
   #spqr-receive {
     grid-column: 1;
     grid-row: 1 / span 2;
   }
   #spqr-send ~ .game-cell,
+  #spqr-send-rleak ~ .game-cell,
   #spqr-receive ~ .game-cell {
     grid-column: 2;
   }
   .game-grid:has(> #spqr-send) .katex,
+  .game-grid:has(> #spqr-send-rleak) .katex,
   .game-grid:has(> #spqr-receive) .katex {
     font-size: 1em;
   }

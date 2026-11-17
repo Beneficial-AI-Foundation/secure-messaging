@@ -76,21 +76,27 @@ abbrev SecurityAdversary (P : SPQR.Parameters ProbComp) (AuthState : Type) :=
 /-- Whether a state holds a decapsulation key or an encapsulation state: the four generator states
 after key generation and the three encapsulator states between the first and the second stage of
 encapsulation. -/
+-- ANCHOR: SPQR_holdsSecret
 def Chunked.PartyState.holdsSecret : PartyState P AuthState → Bool
   | .keysSampled .. | .headerSent .. | .ct1Received .. | .ekSentCt1Received .. => true
   | .ct1Sampled .. | .ekReceivedCt1Sampled .. | .ct1Acknowledged .. => true
   | _ => false
+-- ANCHOR_END: SPQR_holdsSecret
 
 /-- Whether the authenticator state of a party already includes the key of its current epoch: the
 four encapsulator states after first-stage encapsulation. -/
+-- ANCHOR: SPQR_authUpdated
 def Chunked.PartyState.authUpdated : PartyState P AuthState → Bool
   | .ct1Sampled .. | .ekReceivedCt1Sampled .. | .ct1Acknowledged .. | .ct2Sampled .. => true
   | _ => false
+-- ANCHOR_END: SPQR_authUpdated
 
 /-- The epoch whose authenticator update consumes the authenticator state of `st`: the epoch after
 `st.epoch` if the state already includes the key of `st.epoch`, and `st.epoch` otherwise. -/
+-- ANCHOR: SPQR_authEpoch
 def Chunked.PartyState.authEpoch (st : PartyState P AuthState) : ℕ :=
   if st.authUpdated then st.epoch + 1 else st.epoch
+-- ANCHOR_END: SPQR_authEpoch
 
 /-- Whether a send from the state samples: `keysUnsampled` and `headerReceived`. -/
 def Chunked.PartyState.samples : PartyState P AuthState → Bool

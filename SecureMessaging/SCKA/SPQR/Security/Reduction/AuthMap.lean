@@ -40,9 +40,10 @@ the update of `A₂` on the mapped state.
 (`Braid.HiddenAuth`, `MLKEMBraid.Security.KeyHiding`) and `0 < e`. The authenticator
 `withHidden auth h e` keeps a representative `a` in place of the authenticator state entering `e`:
 its update of `e - 1` keeps `a`, its header operations at `e` and its ciphertext operations at
-`e - 1` are those of `h` on `a`, and its update of `e` is `h.next`. The map `hiddenMap e hide`,
-which applies `hide` to the authenticator states consumed by the update of `e`, maps
-`withHidden auth (Braid.hiddenAuth auth hide e u) e` to `authAt auth (e - 1) hide`, both with the
+`e - 1` are those of `h` on `a`, and its update of `e` is `h.next`. For
+`H := Braid.hiddenState auth e ik κ`, the map `hiddenMap e H`, which applies `H` to the
+authenticator states consumed by the update of `e`, maps
+`withHidden auth (Braid.hiddenAuth auth e ik κ u) e` to `authAt auth (e - 1) H`, both with the
 update of `e` keyed by `u` (`authMap_withHidden`).
 -/
 
@@ -984,16 +985,17 @@ theorem hiddenMap_of_ne {e t : ℕ} (hide : AuthState → AuthState) (ht : t ≠
     hiddenMap e hide t = id := by
   simp [hiddenMap, ht]
 
-/-- For `0 < e`, `hiddenMap e hide` maps the simulated instance's authenticator over
-`withHidden auth (Braid.hiddenAuth auth hide e u) e` to the one over `authAt auth (e - 1) hide`,
-both with the update of `e` keyed by `u`. -/
-theorem authMap_withHidden {e : ℕ} (he : 0 < e) (hide : AuthState → AuthState)
-    (u k : P.EpochKey) :
+/-- For `0 < e`, `hiddenMap e (Braid.hiddenState auth e ik κ)` maps the simulated instance's
+authenticator over `withHidden auth (Braid.hiddenAuth auth e ik κ u) e` to the one over
+`authAt auth (e - 1) (Braid.hiddenState auth e ik κ)`, both with the update of `e` keyed by
+`u`. -/
+theorem authMap_withHidden {e : ℕ} (he : 0 < e) (ik : InitKey) (κ u k : P.EpochKey) :
     AuthMap
-      (authAt (withHidden auth (hiddenAuth auth hide e u) e) e
-        (fun a => (withHidden auth (hiddenAuth auth hide e u) e).update a e k))
-      (authAt (authAt auth (e - 1) hide) e (fun a => (authAt auth (e - 1) hide).update a e u))
-      (hiddenMap e hide) := by
+      (authAt (withHidden auth (hiddenAuth auth e ik κ u) e) e
+        (fun a => (withHidden auth (hiddenAuth auth e ik κ u) e).update a e k))
+      (authAt (authAt auth (e - 1) (hiddenState auth e ik κ)) e
+        (fun a => (authAt auth (e - 1) (hiddenState auth e ik κ)).update a e u))
+      (hiddenMap e (hiddenState auth e ik κ)) := by
   have hne : e ≠ e - 1 := by omega
   refine ⟨fun a t hdr => ?_, fun a t hdr tag => ?_, fun a t ik => ?_, fun a t c => ?_,
     fun a t c tag => ?_⟩

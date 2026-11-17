@@ -462,45 +462,48 @@ def authReduction : Braid.AuthHideAdversary P.EpochKey AuthState P.det.PKheader
       (P.det.splitC st.2.2).1 (P.det.splitC st.2.2).2 y y
 -- ANCHOR_END: authReduction
 
-/-- For `0 < e`, the simulated game over `withHidden auth (Braid.hiddenAuth auth hide e u) e` from
-`ik₁` with the challenge key `y` accepts as often as the simulated game over
-`authAt auth (e - 1) hide` from `ik₂` with the challenge key `y` and the update of `e` keyed by `u`,
-if `hiddenMap e hide` maps the initial authenticator state of `ik₁` to that of `ik₂`. -/
-theorem prEvent_simRun_withHidden {e : ℕ} (he : 0 < e) (hide : AuthState → AuthState)
-    (u y : P.EpochKey) (d : Dummies P) (ik₁ ik₂ : InitKey) (pk : P.PK) (ct1 : P.det.C₁)
-    (ct2 : P.det.C₂) (hinit : hiddenMap e hide 1 (auth.init ik₁ 1) = auth.init ik₂ 1) :
-    Pr{let x ← (simRun (withHidden auth (hiddenAuth auth hide e u) e) sampleInitKey adv e d ik₁ pk
+/-- For `0 < e` and `H := Braid.hiddenState auth e ik κ`, the simulated game over
+`withHidden auth (Braid.hiddenAuth auth e ik κ u) e` from `ik₁` with the challenge key `y` accepts
+as often as the simulated game over `authAt auth (e - 1) H` from `ik₂` with the challenge key `y`
+and the update of `e` keyed by `u`, if `hiddenMap e H` maps the initial authenticator state of
+`ik₁` to that of `ik₂`. -/
+theorem prEvent_simRun_withHidden {e : ℕ} (he : 0 < e) (ik : InitKey) (κ u y : P.EpochKey)
+    (d : Dummies P) (ik₁ ik₂ : InitKey) (pk : P.PK) (ct1 : P.det.C₁) (ct2 : P.det.C₂)
+    (hinit : hiddenMap e (hiddenState auth e ik κ) 1 (auth.init ik₁ 1) = auth.init ik₂ 1) :
+    Pr{let x ← (simRun (withHidden auth (hiddenAuth auth e ik κ u) e) sampleInitKey adv e d ik₁ pk
       ct1 ct2 y y)}[x = true] =
-    Pr{let x ← (simRun (authAt auth (e - 1) hide) sampleInitKey adv e d ik₂ pk ct1 ct2 y
-      u)}[x = true] := by
-  have hs : authMapState (hiddenMap e hide)
-      (initState (withHidden auth (hiddenAuth auth hide e u) e) ik₁) =
-      initState (authAt auth (e - 1) hide) ik₂ :=
+    Pr{let x ← (simRun (authAt auth (e - 1) (hiddenState auth e ik κ)) sampleInitKey adv e d ik₂
+      pk ct1 ct2 y u)}[x = true] := by
+  have hs : authMapState (hiddenMap e (hiddenState auth e ik κ))
+      (initState (withHidden auth (hiddenAuth auth e ik κ u) e) ik₁) =
+      initState (authAt auth (e - 1) (hiddenState auth e ik κ)) ik₂ :=
     authMapState_initState _ _ ik₁ ik₂ hinit
   unfold simRun
   rw [← hs]
   exact (prEvent_stoppedRun_authMap (simOps pk ct1 ct2 d e) sampleInitKey
-    (authMap_withHidden auth he hide u y) e (fun t ht => hiddenMap_of_ne hide ht)
+    (authMap_withHidden auth he ik κ u y) e
+    (fun t ht => hiddenMap_of_ne (hiddenState auth e ik κ) ht)
     (SCKAScheme.pinnedChallenge e y)
-    (fun t s => pinnedChallenge_run_authMapState (π := hiddenMap e hide) e y t s) adv _).symm
+    (fun t s => pinnedChallenge_run_authMapState (π := hiddenMap e (hiddenState auth e ik κ)) e y
+      t s) adv _).symm
 
 /-- The game of the key-hiding experiment after the transport: for `0 < e`, the simulated game
 over `withHidden` with the operations on `Braid.hiddenState auth e ik' κ` accepts as often as the
 simulated game over `hybridAuth auth e ik₀ κ` from `ik₀ := if e = 1 then ik' else ik`. -/
 private theorem prEvent_authGuess_eq {e : ℕ} (he : 0 < e) (d : Dummies P) (ik ik' : InitKey)
     (pk : P.PK) (c : P.C) (u y κ : P.EpochKey) :
-    Pr{let x ← (simRun (withHidden auth (hiddenAuth auth (hiddenState auth e ik' κ) e u) e)
+    Pr{let x ← (simRun (withHidden auth (hiddenAuth auth e ik' κ u) e)
       sampleInitKey adv e d ik pk (P.det.splitC c).1 (P.det.splitC c).2 y y)}[x = true] =
     Pr{let x ← (simRun (hybridAuth auth e (if e = 1 then ik' else ik) κ) sampleInitKey adv e d
       (if e = 1 then ik' else ik) pk (P.det.splitC c).1 (P.det.splitC c).2 y u)}[x = true] := by
   by_cases he1 : e = 1
   · subst he1
-    exact prEvent_simRun_withHidden auth sampleInitKey adv he _ u y d ik ik' pk _ _
+    exact prEvent_simRun_withHidden auth sampleInitKey adv he ik' κ u y d ik ik' pk _ _
       (by simp [hiddenMap, hiddenState])
   · have hH : hiddenState auth e ik' κ = hiddenState auth e ik κ :=
       funext fun a => by simp [hiddenState, he1]
     simp only [he1, ↓reduceIte]
-    rw [prEvent_simRun_withHidden auth sampleInitKey adv he _ u y d ik ik pk _ _
+    rw [prEvent_simRun_withHidden auth sampleInitKey adv he ik' κ u y d ik ik pk _ _
       (by simp [hiddenMap, Ne.symm he1]), hH]
 
 omit [DecidableEq P.EpochKey] in
@@ -599,7 +602,7 @@ theorem authReduction_prEvent_toReal (real : Bool) :
   have he0 := ToVCVio.pos_of_mem_support_epochChoice he
   refine (prEvent_authShape_congr sampleInitKey
     (fun ik d pk c ik' u u' κ =>
-      simRun (withHidden auth (hiddenAuth auth (hiddenState auth e ik' κ) e u) e) sampleInitKey
+      simRun (withHidden auth (hiddenAuth auth e ik' κ u) e) sampleInitKey
         adv e d ik pk (P.det.splitC c).1 (P.det.splitC c).2 (if real then u else u')
         (if real then u else u'))
     (fun ik d pk c ik' u u' κ =>

@@ -68,25 +68,29 @@ variable {InitKey EpochKey AuthState Header Ciphertext Mac : Type}
 /-- The authenticator state entering epoch `e` as a function of a state `a`: the initial state
 `auth.init ik 1` of the initial key `ik` if `e = 1`, and the update `auth.update a (e - 1) κ` of
 `a` at epoch `e - 1` with the epoch key `κ` otherwise. -/
+-- ANCHOR: hiddenState
 def hiddenState (e : ℕ) (ik : InitKey) (κ : EpochKey) (a : AuthState) : AuthState :=
   if e = 1 then auth.init ik 1 else auth.update a (e - 1) κ
+-- ANCHOR_END: hiddenState
 
-/-- The operations of `auth` on `hide a`, as functions of a state `a`, for a map `hide` of
-authenticator states (`hiddenState auth e ik κ` in `authHideExp`): header tags and verifications
-at `e`, ciphertext tags and verifications at `e - 1`, and the update at `e` keyed by `u`. -/
-def hiddenAuth (hide : AuthState → AuthState) (e : ℕ) (u : EpochKey) :
+/-- The hidden operations: the operations of `auth` on the state `hiddenState auth e ik κ a`
+entering `e`, as functions of a state `a` entering `e - 1`; header tags and verifications at `e`,
+ciphertext tags and verifications at `e - 1`, and the update at `e` keyed by `u`. -/
+-- ANCHOR: hiddenAuth
+def hiddenAuth (e : ℕ) (ik : InitKey) (κ u : EpochKey) :
     HiddenAuth AuthState Header Ciphertext Mac where
-  macHeader a := auth.macHeader (hide a) e
-  verifyHeader a := auth.verifyHeader (hide a) e
-  macCiphertext a := auth.macCiphertext (hide a) (e - 1)
-  verifyCiphertext a := auth.verifyCiphertext (hide a) (e - 1)
-  next a := auth.update (hide a) e u
-  verifyHeader_correct a := auth.verifyHeader_correct (hide a) e
-  verifyCiphertext_correct a := auth.verifyCiphertext_correct (hide a) (e - 1)
+  macHeader a := auth.macHeader (hiddenState auth e ik κ a) e
+  verifyHeader a := auth.verifyHeader (hiddenState auth e ik κ a) e
+  macCiphertext a := auth.macCiphertext (hiddenState auth e ik κ a) (e - 1)
+  verifyCiphertext a := auth.verifyCiphertext (hiddenState auth e ik κ a) (e - 1)
+  next a := auth.update (hiddenState auth e ik κ a) e u
+  verifyHeader_correct a := auth.verifyHeader_correct (hiddenState auth e ik κ a) e
+  verifyCiphertext_correct a := auth.verifyCiphertext_correct (hiddenState auth e ik κ a) (e - 1)
+-- ANCHOR_END: hiddenAuth
 
 /-- The key-hiding experiment: `(e, st) ← adv.context`, `ik ← sampleInitKey` and
 `u, u', κ ←$ EpochKey`, then `adv.guess st (if real then u else u') h` for the hidden operations
-`h := hiddenAuth auth (hiddenState auth e ik κ) e u`, whose update uses `u`. -/
+`h := hiddenAuth auth e ik κ u`, whose update uses `u`. -/
 -- ANCHOR: authHideExp
 def authHideExp [SampleableType EpochKey] (sampleInitKey : ProbComp InitKey)
     (adv : AuthHideAdversary EpochKey AuthState Header Ciphertext Mac) (real : Bool) :
@@ -96,7 +100,7 @@ def authHideExp [SampleableType EpochKey] (sampleInitKey : ProbComp InitKey)
   let u ← ($ᵗ EpochKey : ProbComp EpochKey)
   let u' ← ($ᵗ EpochKey : ProbComp EpochKey)
   let κ ← ($ᵗ EpochKey : ProbComp EpochKey)
-  adv.guess st (if real then u else u') (hiddenAuth auth (hiddenState auth e ik κ) e u)
+  adv.guess st (if real then u else u') (hiddenAuth auth e ik κ u)
 -- ANCHOR_END: authHideExp
 
 /-- The advantage of a key-hiding adversary `adv`: the difference in acceptance probability
