@@ -41,7 +41,7 @@ the update of `A₂` on the mapped state.
 `withHidden auth h e` keeps a representative `a` in place of the authenticator state entering `e`:
 its update of `e - 1` keeps `a`, its header operations at `e` and its ciphertext operations at
 `e - 1` are those of `h` on `a`, and its update of `e` is `h.next`. For
-`H := Braid.hiddenState auth e ik κ`, the map `hiddenMap e H`, which applies `H` to the
+`H := hiddenState auth e ik κ`, the map `hiddenMap e H`, which applies `H` to the
 authenticator states consumed by the update of `e`, maps
 `withHidden auth (Braid.hiddenAuth auth e ik κ u) e` to `authAt auth (e - 1) H`, both with the
 update of `e` keyed by `u` (`authMap_withHidden`).
@@ -54,7 +54,7 @@ open OracleSpec OracleComp ErasureCodePayload.Streaming
 namespace SPQR
 
 open Chunked
-open Braid (HiddenAuth hiddenAuth hiddenState)
+open Braid (HiddenAuth hiddenAuth)
 
 variable {P : SPQR.Parameters ProbComp} {InitKey AuthState : Type}
 
@@ -953,6 +953,13 @@ section Hidden
 variable (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
     P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
 
+/-- The authenticator state entering epoch `e` as a function of a state `a`: the initial state
+`auth.init ik 1` of the initial key `ik` if `e = 1`, and the update `auth.update a (e - 1) κ` of
+`a` at epoch `e - 1` with the epoch key `κ` otherwise; `Braid.hiddenAuth auth e ik κ u` operates on
+it. -/
+def hiddenState (e : ℕ) (ik : InitKey) (κ : P.EpochKey) (a : AuthState) : AuthState :=
+  if e = 1 then auth.init ik 1 else auth.update a (e - 1) κ
+
 /-- The authenticator that keeps a representative in place of the hidden authenticator state
 entering `e`: its update at `e - 1` keeps its argument, its header operations at `e` and its
 ciphertext operations at `e - 1` are those of `h` on the representative, and its update at `e` is
@@ -985,10 +992,9 @@ theorem hiddenMap_of_ne {e t : ℕ} (hide : AuthState → AuthState) (ht : t ≠
     hiddenMap e hide t = id := by
   simp [hiddenMap, ht]
 
-/-- For `0 < e`, `hiddenMap e (Braid.hiddenState auth e ik κ)` maps the simulated instance's
+/-- For `0 < e`, `hiddenMap e (hiddenState auth e ik κ)` maps the simulated instance's
 authenticator over `withHidden auth (Braid.hiddenAuth auth e ik κ u) e` to the one over
-`authAt auth (e - 1) (Braid.hiddenState auth e ik κ)`, both with the update of `e` keyed by
-`u`. -/
+`authAt auth (e - 1) (hiddenState auth e ik κ)`, both with the update of `e` keyed by `u`. -/
 theorem authMap_withHidden {e : ℕ} (he : 0 < e) (ik : InitKey) (κ u k : P.EpochKey) :
     AuthMap
       (authAt (withHidden auth (hiddenAuth auth e ik κ u) e) e
@@ -999,24 +1005,24 @@ theorem authMap_withHidden {e : ℕ} (he : 0 < e) (ik : InitKey) (κ u k : P.Epo
   have hne : e ≠ e - 1 := by omega
   refine ⟨fun a t hdr => ?_, fun a t hdr tag => ?_, fun a t ik => ?_, fun a t c => ?_,
     fun a t c tag => ?_⟩
-  · by_cases ht : t = e <;> simp [authAt, withHidden, hiddenAuth, hiddenMap, ht]
-  · by_cases ht : t = e <;> simp [authAt, withHidden, hiddenAuth, hiddenMap, ht]
+  · by_cases ht : t = e <;> simp [authAt, withHidden, hiddenAuth, hiddenMap, hiddenState, ht]
+  · by_cases ht : t = e <;> simp [authAt, withHidden, hiddenAuth, hiddenMap, hiddenState, ht]
   · by_cases ht : t = e
     · subst ht
-      simp [authAt, withHidden, hiddenAuth, hiddenMap, hne]
+      simp [authAt, withHidden, hiddenAuth, hiddenMap, hiddenState, hne]
     · by_cases ht' : t + 1 = e
       · subst ht'
-        simp [authAt, withHidden, hiddenAuth, hiddenMap]
+        simp [authAt, withHidden, hiddenAuth, hiddenMap, hiddenState]
       · have ht'' : t ≠ e - 1 := by omega
-        simp [authAt, withHidden, hiddenAuth, hiddenMap, ht, ht', ht'']
+        simp [authAt, withHidden, hiddenAuth, hiddenMap, hiddenState, ht, ht', ht'']
   · by_cases ht : t + 1 = e
     · subst ht
-      simp [authAt, withHidden, hiddenAuth, hiddenMap]
-    · simp [authAt, withHidden, hiddenAuth, hiddenMap, ht]
+      simp [authAt, withHidden, hiddenAuth, hiddenMap, hiddenState]
+    · simp [authAt, withHidden, hiddenAuth, hiddenMap, hiddenState, ht]
   · by_cases ht : t + 1 = e
     · subst ht
-      simp [authAt, withHidden, hiddenAuth, hiddenMap]
-    · simp [authAt, withHidden, hiddenAuth, hiddenMap, ht]
+      simp [authAt, withHidden, hiddenAuth, hiddenMap, hiddenState]
+    · simp [authAt, withHidden, hiddenAuth, hiddenMap, hiddenState, ht]
 
 end Hidden
 

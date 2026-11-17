@@ -69,7 +69,7 @@ Paths are relative to `SPQR/Security/`. Every game draws `ik ← sampleInitKey`,
 - `S_e^x`, the *stopped hybrid* of version `x ∈ {real, random}`: `H_{e-1}` for `real` and `H_e` for
   `random`, returning `false` at the first exposure of `e` (`stoppedHybridExp`, `Ideal`).
 - `A_κ := hybridAuth auth e ik κ`: `auth` with its update of `e - 1` replaced by
-  `Braid.hiddenState auth e ik κ`, the update keyed by `κ` for `e ≥ 2`, and for `e = 1` an update
+  `hiddenState auth e ik κ`, the update keyed by `κ` for `e ≥ 2`, and for `e = 1` an update
   that no reachable state performs (`Reduction/HybridGame`).
 - The *games of the chain* (`Reduction/HybridGame`): the simulated games of `e` over `A_κ` for a
   uniform `κ` (`realKey`, `randKey`, `randEpochKey`, `splitKeys`, `randKeyChal`, `realKeyChal`)

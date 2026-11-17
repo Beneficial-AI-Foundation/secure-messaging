@@ -6,20 +6,22 @@ import VersoManual
 import VersoManual.Diagrams
 
 /-! # SPQR vulnerable epochs illustration
-The authenticator state entering an epoch, its update with the epoch key into the state entering
-the next epoch, the corruptions and leaking sends that reveal each of them, and the epochs each
-exposes. The colours follow the Opp-UniKEM vulnerable-epoch figures. -/
+The epochs a corruption or a leaking send exposes: the key material of an epoch gives its key and,
+through the authenticator update, the authenticator state entering the next epoch; an
+authenticator state exposes the epoch it enters. The colours follow the Opp-UniKEM
+vulnerable-epoch figures. -/
 
 open Verso Genre Manual Doc Elab
 open Lean
 
-/-- The authenticator chain `a_ep → a_{ep+1}` updated with the epoch key `k_ep`, under the key-hiding
-principle: corrupting states 1 to 7 reveals `a_ep` and exposes `ep`, corrupting states 8 to 10
-reveals `a_{ep+1}` and exposes `ep + 1`, and the key material of `ep` exposes both. -/
+/-- A corruption or a leaking send exposes every epoch whose key the revealed values may give away:
+the key material of `ep` gives `k_ep` and exposes `ep`, and `ep + 1` since `a_{ep+1}` is derived from
+`k_ep`; `auth` is `a_ep` in states 1 to 7 and exposes `ep`, and `a_{ep+1}` in states 8 to 10 and
+exposes `ep + 1`. -/
 private def spqrVulnerableEpochsSvg : String := r##"
-<svg xmlns="http://www.w3.org/2000/svg" class="ve-text" viewBox="0 0 1000 400" width="1000" height="400" style="display:block;width:100%;max-width:1000px;height:auto;margin:0 auto" role="img" aria-labelledby="spqr-vuln-title spqr-vuln-desc">
-  <title id="spqr-vuln-title">SPQR exposures along the authenticator chain</title>
-  <desc id="spqr-vuln-desc">Key hiding protects the epoch key k_e only while the authenticator state a_e entering e, and the key a_e is derived from, stay hidden. The state a_ep is updated with k_ep into a_ep+1. Corrupting states 1 to 7 reveals auth, which is a_ep, and exposes ep. Corrupting states 8 to 10 reveals auth, which is a_ep+1 since it is already updated with k_ep, and exposes ep+1. Corrupting states 2 to 5 or 8 to 9b, or a leaking send from state 1 or 7, reveals key material of ep (sk, encapsSt, r_K, or r_1) and exposes ep, and also ep+1 since a_ep+1 is derived from k_ep.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" class="ve-text" viewBox="0 0 1000 430" width="1000" height="430" style="display:block;width:100%;max-width:1000px;height:auto;margin:0 auto" role="img" aria-labelledby="spqr-vuln-title spqr-vuln-desc">
+  <title id="spqr-vuln-title">Epochs exposed by a corruption or a leaking send in SPQR</title>
+  <desc id="spqr-vuln-desc">A corruption or a leaking send exposes every epoch whose key the revealed values may give away. The key material of epoch ep, sk of states 2 to 5, encapsSt of states 8 to 9b, and the coins r_K and r_1 of the leaking sends from states 1 and 7, gives the epoch key k_ep and exposes ep, and also ep+1 since the authenticator state a_ep+1 is derived from k_ep. The authenticator state auth is a_ep in states 1 to 7 and exposes ep, and a_ep+1 in states 8 to 10 and exposes ep+1, since key hiding protects the key of an epoch only while the state entering it is hidden.</desc>
   <defs>
     <marker id="spqr-vuln-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#252525" stroke-width="1.2"/></marker>
     <style>
@@ -30,6 +32,7 @@ private def spqrVulnerableEpochsSvg : String := r##"
       .ve-sub    { baseline-shift: -5px; font-size: 14px; }
       .ve-small .ve-sub { font-size: 12px; }
       .ve-muted  { fill: #5f5f5f; }
+      .ve-head   { font-size: 16px; font-weight: bold; }
       .ve-box    { fill: white; stroke: #252525; stroke-width: 1.2; }
       .ve-secret { fill: #fff6e0; stroke: #b7791f; stroke-width: 1.8; }
       .ve-flow   { fill: none; stroke: #252525; stroke-width: 1.3; }
@@ -41,10 +44,10 @@ private def spqrVulnerableEpochsSvg : String := r##"
     </style>
   </defs>
 
-  <!-- The principle: key hiding protects k_e only while a_e and the key it is derived from are hidden. -->
-  <text class="ve-small ve-muted" x="500" y="22" text-anchor="middle">Key hiding protects <tspan class="ve-math">k</tspan><tspan class="ve-sub">e</tspan> only while <tspan class="ve-math">a</tspan><tspan class="ve-sub">e</tspan>, and the key <tspan class="ve-math">a</tspan><tspan class="ve-sub">e</tspan> is derived from, stay hidden.</text>
+  <!-- The general rule. -->
+  <text class="ve-head" x="500" y="24" text-anchor="middle">A corruption or a leaking send exposes every epoch whose key the revealed values may give away.</text>
 
-  <!-- The chain: a_ep is updated with k_ep into a_{ep+1}. -->
+  <!-- The authenticator chain and the key material of ep. -->
   <rect class="ve-box" x="110" y="52" width="120" height="48" rx="4"/>
   <text x="170" y="84" text-anchor="middle"><tspan class="ve-math">a</tspan><tspan class="ve-sub">ep</tspan></text>
   <rect class="ve-box" x="770" y="52" width="120" height="48" rx="4"/>
@@ -57,19 +60,17 @@ private def spqrVulnerableEpochsSvg : String := r##"
 
   <!-- What reveals each value. -->
   <g class="ve-small" text-anchor="middle">
-    <text x="170" y="128">corrupting states 1 to 7</text>
-    <text x="170" y="150">reveals auth = <tspan class="ve-math">a</tspan><tspan class="ve-sub">ep</tspan></text>
+    <text x="170" y="128">auth of states 1 to 7</text>
 
-    <text x="830" y="128">corrupting states 8 to 10</text>
-    <text x="830" y="150">reveals auth = <tspan class="ve-math">a</tspan><tspan class="ve-sub">ep+1</tspan>,</text>
-    <text x="830" y="172">already updated with <tspan class="ve-math">k</tspan><tspan class="ve-sub">ep</tspan></text>
+    <text x="830" y="128">auth of states 8 to 10,</text>
+    <text x="830" y="150">already updated with <tspan class="ve-math">k</tspan><tspan class="ve-sub">ep</tspan></text>
 
-    <text x="500" y="184">corrupting states 2 to 5 (sk) or 8 to 9b (encapsSt),</text>
-    <text x="500" y="206">or a leaking send from state 1 (<tspan class="ve-math">r</tspan><tspan class="ve-sub">K</tspan>) or 7 (<tspan class="ve-math">r</tspan><tspan class="ve-sub">1</tspan>),</text>
-    <text x="500" y="228">reveals key material of ep</text>
+    <text x="500" y="184">key material of ep, which gives <tspan class="ve-math">k</tspan><tspan class="ve-sub">ep</tspan>:</text>
+    <text x="500" y="206">sk of states 2 to 5, encapsSt of states 8 to 9b,</text>
+    <text x="500" y="228"><tspan class="ve-math">r</tspan><tspan class="ve-sub">K</tspan> and <tspan class="ve-math">r</tspan><tspan class="ve-sub">1</tspan> of the leaking sends from states 1 and 7</text>
   </g>
 
-  <!-- The epochs each value exposes. -->
+  <!-- The epochs each value exposes, and why. -->
   <text class="ve-muted" x="24" y="282">exposes</text>
   <g text-anchor="middle" class="ve-cellt">
     <rect class="ve-exposed" x="114" y="262" width="56" height="30"/>
@@ -87,10 +88,19 @@ private def spqrVulnerableEpochsSvg : String := r##"
     <text x="802" y="282">ep</text>
     <text class="ve-on-red" x="858" y="282">ep+1</text>
   </g>
-  <text class="ve-small ve-muted" x="500" y="318" text-anchor="middle">ep + 1 too, since <tspan class="ve-math">a</tspan><tspan class="ve-sub">ep+1</tspan> is derived from <tspan class="ve-math">k</tspan><tspan class="ve-sub">ep</tspan></text>
+  <g class="ve-small ve-muted" text-anchor="middle">
+    <text x="170" y="318">key hiding protects <tspan class="ve-math">k</tspan><tspan class="ve-sub">ep</tspan></text>
+    <text x="170" y="340">only while <tspan class="ve-math">a</tspan><tspan class="ve-sub">ep</tspan> is hidden</text>
+
+    <text x="500" y="318">the key of ep is known, and</text>
+    <text x="500" y="340"><tspan class="ve-math">a</tspan><tspan class="ve-sub">ep+1</tspan> is derived from <tspan class="ve-math">k</tspan><tspan class="ve-sub">ep</tspan></text>
+
+    <text x="830" y="318">key hiding protects <tspan class="ve-math">k</tspan><tspan class="ve-sub">ep+1</tspan></text>
+    <text x="830" y="340">only while <tspan class="ve-math">a</tspan><tspan class="ve-sub">ep+1</tspan> is hidden</text>
+  </g>
 
   <!-- Legend. -->
-  <g class="ve-legend" transform="translate(24,362)">
+  <g class="ve-legend" transform="translate(24,392)">
     <rect class="ve-secret" width="22" height="16"/>
     <text x="30" y="13">key material of epoch ep</text>
     <rect class="ve-exposed" x="250" width="22" height="16"/>
@@ -99,7 +109,7 @@ private def spqrVulnerableEpochsSvg : String := r##"
 </svg>
 "##
 
-/-- Embed the illustration of SPQR's exposures along the authenticator chain. -/
+/-- Embed the illustration of the epochs a corruption or a leaking send exposes in SPQR. -/
 @[directive]
 def spqrVulnerableEpochs : DirectiveExpanderOf Unit
   | (), _ =>

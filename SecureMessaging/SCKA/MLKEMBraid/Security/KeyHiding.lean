@@ -13,11 +13,10 @@ public import VCVio.CryptoFoundations.PRG
 # Key hiding of a ratcheted authenticator
 
 Let `auth` be a ratcheted authenticator and `sampleInitKey` a sampler of its initial keys. For an
-epoch `e`, an initial key `ik` and an epoch key `κ`, the authenticator state *entering* `e`,
-computed from a state `a`, is `auth.init ik 1` if `e = 1` and
-`auth.update a (e - 1) κ` otherwise (`hiddenState`). The *hidden operations* on it are the header
-tag and its verification at `e`, the ciphertext tag and its verification at `e - 1`, and the
-update at `e` with an epoch key `u` (`hiddenAuth`).
+epoch `e`, an initial key `ik` and epoch keys `κ` and `u`, the *hidden operations* `hiddenAuth` take
+a state `a` and compute the authenticator state `aₑ` *entering* `e`, `auth.init ik 1` if `e = 1`
+and `auth.update a (e - 1) κ` otherwise; they are the header tag and its verification at `e`, the
+ciphertext tag and its verification at `e - 1`, and the update of `aₑ` at `e` with `u`.
 
 A key-hiding adversary `adv` chooses an epoch `e` and keeps a state. It then receives an epoch key
 and the hidden operations, for `ik ← sampleInitKey` and uniform `κ` and `u`, and outputs a bit. The
@@ -65,27 +64,21 @@ structure AuthHideAdversary (EpochKey AuthState Header Ciphertext Mac : Type) wh
 variable {InitKey EpochKey AuthState Header Ciphertext Mac : Type}
   (auth : RatchetedAuthenticator InitKey EpochKey AuthState Header Ciphertext Mac)
 
-/-- The authenticator state entering epoch `e` as a function of a state `a`: the initial state
-`auth.init ik 1` of the initial key `ik` if `e = 1`, and the update `auth.update a (e - 1) κ` of
-`a` at epoch `e - 1` with the epoch key `κ` otherwise. -/
--- ANCHOR: hiddenState
-def hiddenState (e : ℕ) (ik : InitKey) (κ : EpochKey) (a : AuthState) : AuthState :=
-  if e = 1 then auth.init ik 1 else auth.update a (e - 1) κ
--- ANCHOR_END: hiddenState
-
-/-- The hidden operations: the operations of `auth` on the state `hiddenState auth e ik κ a`
-entering `e`, as functions of a state `a` entering `e - 1`; header tags and verifications at `e`,
-ciphertext tags and verifications at `e - 1`, and the update at `e` keyed by `u`. -/
+/-- The hidden operations: for a state `a` entering `e - 1`, the operations of `auth` on the state
+`aₑ` entering `e`, the initial state of `ik` if `e = 1` and the update of `a` with `κ` otherwise;
+header tags and verifications at `e`, ciphertext tags and verifications at `e - 1`, and the update
+of `aₑ` at `e` keyed by `u`. -/
 -- ANCHOR: hiddenAuth
 def hiddenAuth (e : ℕ) (ik : InitKey) (κ u : EpochKey) :
-    HiddenAuth AuthState Header Ciphertext Mac where
-  macHeader a := auth.macHeader (hiddenState auth e ik κ a) e
-  verifyHeader a := auth.verifyHeader (hiddenState auth e ik κ a) e
-  macCiphertext a := auth.macCiphertext (hiddenState auth e ik κ a) (e - 1)
-  verifyCiphertext a := auth.verifyCiphertext (hiddenState auth e ik κ a) (e - 1)
-  next a := auth.update (hiddenState auth e ik κ a) e u
-  verifyHeader_correct a := auth.verifyHeader_correct (hiddenState auth e ik κ a) e
-  verifyCiphertext_correct a := auth.verifyCiphertext_correct (hiddenState auth e ik κ a) (e - 1)
+    HiddenAuth AuthState Header Ciphertext Mac :=
+  let aₑ := fun a => if e = 1 then auth.init ik 1 else auth.update a (e - 1) κ
+  { macHeader := fun a => auth.macHeader (aₑ a) e
+    verifyHeader := fun a => auth.verifyHeader (aₑ a) e
+    macCiphertext := fun a => auth.macCiphertext (aₑ a) (e - 1)
+    verifyCiphertext := fun a => auth.verifyCiphertext (aₑ a) (e - 1)
+    next := fun a => auth.update (aₑ a) e u
+    verifyHeader_correct := fun a => auth.verifyHeader_correct (aₑ a) e
+    verifyCiphertext_correct := fun a => auth.verifyCiphertext_correct (aₑ a) (e - 1) }
 -- ANCHOR_END: hiddenAuth
 
 /-- The key-hiding experiment: `(e, st) ← adv.context`, `ik ← sampleInitKey` and

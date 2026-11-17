@@ -67,8 +67,8 @@ Pr[authHideExp 𝓑_Auth false] = contextProb splitKeys
 ```
 
 The key-hiding game hands `𝓑_Auth` the operations of `auth` on the hidden state
-`Braid.hiddenState auth e ik' κ` for its own initial key `ik'`; the authenticator map
-`hiddenMap e (Braid.hiddenState auth e ik' κ)` (`Reduction.AuthMap`) relates the simulated game
+`hiddenState auth e ik' κ` for its own initial key `ik'`; the authenticator map
+`hiddenMap e (hiddenState auth e ik' κ)` (`Reduction.AuthMap`) relates the simulated game
 over `withHidden` to the one over `hybridAuth auth e ik₀ κ`, for `ik₀ := ik'` if `e = 1` and the
 initial key of the context otherwise (`prEvent_simRun_withHidden`).
 -/
@@ -80,7 +80,7 @@ open OracleSpec OracleComp
 namespace SPQR
 
 open Chunked
-open Braid (hiddenAuth hiddenState)
+open Braid (hiddenAuth)
 
 variable {P : SPQR.Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
@@ -462,7 +462,7 @@ def authReduction : Braid.AuthHideAdversary P.EpochKey AuthState P.det.PKheader
       (P.det.splitC st.2.2).1 (P.det.splitC st.2.2).2 y y
 -- ANCHOR_END: authReduction
 
-/-- For `0 < e` and `H := Braid.hiddenState auth e ik κ`, the simulated game over
+/-- For `0 < e` and `H := hiddenState auth e ik κ`, the simulated game over
 `withHidden auth (Braid.hiddenAuth auth e ik κ u) e` from `ik₁` with the challenge key `y` accepts
 as often as the simulated game over `authAt auth (e - 1) H` from `ik₂` with the challenge key `y`
 and the update of `e` keyed by `u`, if `hiddenMap e H` maps the initial authenticator state of
@@ -488,7 +488,7 @@ theorem prEvent_simRun_withHidden {e : ℕ} (he : 0 < e) (ik : InitKey) (κ u y 
       t s) adv _).symm
 
 /-- The game of the key-hiding experiment after the transport: for `0 < e`, the simulated game
-over `withHidden` with the operations on `Braid.hiddenState auth e ik' κ` accepts as often as the
+over `withHidden` with the operations on `hiddenState auth e ik' κ` accepts as often as the
 simulated game over `hybridAuth auth e ik₀ κ` from `ik₀ := if e = 1 then ik' else ik`. -/
 private theorem prEvent_authGuess_eq {e : ℕ} (he : 0 < e) (d : Dummies P) (ik ik' : InitKey)
     (pk : P.PK) (c : P.C) (u y κ : P.EpochKey) :

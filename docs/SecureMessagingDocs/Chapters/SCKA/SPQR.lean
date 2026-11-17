@@ -1306,10 +1306,11 @@ Let $`\mathsf{St}` be the state space of both parties and $`R` the space of rand
 their leaking send. We define the functions
 $`\mathsf{vuln}^{\mathsf{corr}}:\mathsf{St}\to\mathcal P_{\mathrm{fin}}(\mathbb N)` and
 $`\mathsf{vuln}^{\mathsf{rleak}}:\mathsf{St}\times R\to\mathcal P_{\mathrm{fin}}(\mathbb N)`,
-which parametrise the security game of {bpref "scka_oracles"}[], as follows.
+which give the epochs exposed by revealing a state and the coins of a leaking send, respectively,
+and parametrise the security game of {bpref "scka_oracles"}[], as follows.
 
 ::::::gameGrid
-:::::gameCell "\\textsf{Illustration: exposures along the authenticator chain}" (kind := "game")
+:::::gameCell "\\textsf{Illustration: what corruptions and leaking sends expose}" (kind := "game")
 :::spqrVulnerableEpochs
 :::
 
@@ -1322,10 +1323,12 @@ $$`\mathsf{vuln}^{\mathsf{corr}}(\mathsf{st})=\{\mathsf{authEpoch}(\mathsf{st})\
 \{\mathsf{ep},\mathsf{ep}+1\} & \mathsf{holdsSecret}(\mathsf{st}),\\
 \emptyset & \text{otherwise},\end{cases}`
 
-$$`\begin{array}{l}
-\mathsf{holdsSecret}(\mathsf{st})\iff\mathsf{st}\text{ is in states 2 to 5 or 8 to 9b}\pcomment{\mathsf{st}\text{ holds }\mathsf{sk}\text{ or }\mathsf{encapsSt}}\\[0.4em]
-\mathsf{authUpdated}(\mathsf{st})\iff\mathsf{st}\text{ is in states 8 to 10}\pcomment{\mathsf{auth}\text{ is already updated with }k_{\mathsf{ep}}}\\[0.4em]
-\mathsf{authEpoch}(\mathsf{st})=\begin{cases}\mathsf{ep}+1 & \mathsf{authUpdated}(\mathsf{st}),\\ \mathsf{ep} & \text{otherwise}\end{cases}\pcomment{\mathsf{auth}=a_{\mathsf{authEpoch}(\mathsf{st})}}
+where
+
+$$`\begin{array}{lcll}
+\mathsf{holdsSecret}(\mathsf{st}) & \iff & \mathsf{st}\text{ is in states 2 to 5 or 8 to 9b} & \pcommentline{\mathsf{st}\text{ holds key material of }\mathsf{ep}\text{: }\mathsf{sk}\text{ or }\mathsf{encapsSt}}\\[0.3em]
+\mathsf{authUpdated}(\mathsf{st}) & \iff & \mathsf{st}\text{ is in states 8 to 10} & \pcommentline{\mathsf{auth}\text{ is already updated with }k_{\mathsf{ep}}}\\[0.3em]
+\mathsf{authEpoch}(\mathsf{st}) & = & \mathsf{ep}+1\text{ if }\mathsf{authUpdated}(\mathsf{st})\text{, else }\mathsf{ep} & \pcommentline{\mathsf{auth}=a_{\mathsf{authEpoch}(\mathsf{st})}}
 \end{array}`
 
 $$`\mathsf{vuln}^{\mathsf{corr}}_\A=\mathsf{vuln}^{\mathsf{corr}}_\B=\mathsf{vuln}^{\mathsf{corr}}`
@@ -1359,10 +1362,11 @@ def Chunked.PartyState.authEpoch (st : PartyState P AuthState) : ℕ :=
 :::::
 
 :::::gameCell "\\mathsf{vuln}^{\\mathsf{rleak}}" (kind := "game")
-$$`\mathsf{vuln}^{\mathsf{rleak}}(\mathsf{st},r)=\begin{cases}
-\emptyset & r=\bot,\\
-\{\mathsf{ep},\mathsf{ep}+1\} & r=r_K\text{, the coins of }\mathsf{KeyGen},\\
-\{\mathsf{ep},\mathsf{ep}+1\} & r=r_1\text{, the coins of }\mathsf{Encaps}_1.\end{cases}`
+$$`\mathsf{vuln}^{\mathsf{rleak}}(\mathsf{st},r)=\left\{\begin{array}{lll}
+\emptyset & r=\bot, & \\
+\{\mathsf{ep},\mathsf{ep}+1\} & r=r_K, & \pcommentline{\text{the coins of }\mathsf{KeyGen}\text{, key material of }\mathsf{ep}}\\
+\{\mathsf{ep},\mathsf{ep}+1\} & r=r_1, & \pcommentline{\text{the coins of }\mathsf{Encaps}_1\text{, key material of }\mathsf{ep}}
+\end{array}\right.`
 
 $$`\mathsf{vuln}^{\mathsf{rleak}}_\A=\mathsf{vuln}^{\mathsf{rleak}}_\B
 =\mathsf{vuln}^{\mathsf{rleak}}`

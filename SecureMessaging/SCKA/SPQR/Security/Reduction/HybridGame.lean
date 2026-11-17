@@ -23,7 +23,7 @@ independent uniform key in `random`. All games below run `adv` from `initState a
   `real` and `H_e` in `random` (`stoppedHybridExp A adv (e - 1) e ik` and
   `stoppedHybridExp A adv e e ik`, `Security.Ideal`); `S_e^x := S_e^x[auth]`.
 - `A_κ := hybridAuth auth e ik κ` is `auth` with its update of `e - 1` replaced by
-  `Braid.hiddenState auth e ik κ` (`MLKEMBraid.Security.KeyHiding`): the update keyed by `κ` for
+  `hiddenState auth e ik κ` (`Reduction.AuthMap`): the update keyed by `κ` for
   `e ≥ 2`, and for `e = 1` an update that no reachable state performs.
 - The *simulated game* `simRun A e d ik pk ct1 ct2 kStar kUpd` runs the simulated instance over `A`,
   which holds only the public values `pk`, `ct1`, `ct2` of `e` and the dummies `d`
@@ -70,7 +70,6 @@ open OracleSpec OracleComp
 namespace SPQR
 
 open Chunked
-open Braid (hiddenState)
 
 variable {P : SPQR.Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
@@ -184,7 +183,7 @@ end Hybrids
 /-! ### The authenticator with the hidden state -/
 
 /-- The authenticator of the hybrids with the hidden state at `e`: `auth` with its update of
-`e - 1` replaced by `Braid.hiddenState auth e ik κ`. For `e = 1` this replaces an update that
+`e - 1` replaced by `hiddenState auth e ik κ`. For `e = 1` this replaces an update that
 no reachable state performs. -/
 abbrev hybridAuth (e : ℕ) (ik : InitKey) (κ : P.EpochKey) :=
   authAt auth (e - 1) (hiddenState auth e ik κ)

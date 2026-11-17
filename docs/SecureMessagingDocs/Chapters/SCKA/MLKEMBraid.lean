@@ -102,7 +102,7 @@ structure RatchetedAuthenticator
 :::defTitle "mlkem_braid_auth_key_hiding" "Key hiding of a ratcheted authenticator"
 :::
 
-:::::::definition "mlkem_braid_auth_key_hiding" (parent := "cka_protocols_mlkem_braid") (lean := "Braid.HiddenAuth, Braid.hiddenState, Braid.hiddenAuth, Braid.AuthHideAdversary, Braid.authHideExp, Braid.authHideAdvantage") (uses := "mlkem_braid_ratcheted_authenticator")
+:::::::definition "mlkem_braid_auth_key_hiding" (parent := "cka_protocols_mlkem_braid") (lean := "Braid.HiddenAuth, Braid.hiddenAuth, Braid.AuthHideAdversary, Braid.authHideExp, Braid.authHideAdvantage") (uses := "mlkem_braid_ratcheted_authenticator")
 Let $`\mathsf{Auth}` be a {bpref "mlkem_braid_ratcheted_authenticator"}[ratcheted authenticator]
 with initial-key space $`\mathcal I_{\mathsf{CKA}}`, epoch-key space $`E`, and state space
 $`\mathcal S_{\mathsf{Auth}}`, and let
@@ -113,26 +113,61 @@ epochs $`1,\ldots,e-1`, by
 
 $$`a_1=\mathsf{Init}(I_{\mathsf{CKA}},1),\qquad a_{e+1}=\mathsf{Update}(a_e,e,k_e).`
 
+For an epoch $`e`, an initial key $`I_{\mathsf{CKA}}`, and epoch keys $`\kappa` and $`u`, the
+oracle $`\O` runs this chain through epoch $`e` with $`k_{e-1}=\kappa` and $`k_e=u`, from a state
+$`a` of the caller's choice as $`a_{e-1}`: it computes $`a_e`, which is
+$`\mathsf{Init}(I_{\mathsf{CKA}},1)` for $`e=1` and $`\mathsf{Update}(a,e-1,\kappa)` otherwise, and
+returns the tags and verifications under $`a_e` and the next state
+$`a_{e+1}=\mathsf{Update}(a_e,e,u)`, where $`e-1` is truncated at $`0`.
+
+::::::gameGrid
+:::::gameCell "\\O(a)" (kind := "oracle") (state := "e,\\ I_{\\mathsf{CKA}},\\ \\kappa,\\ u")
+$`\begin{array}{l}
+\pcommentline{a\text{ plays }a_{e-1}} \\
+\pif\ e=1\ \pthen\ a_e\gets\mathsf{Init}(I_{\mathsf{CKA}},1) \\
+\pelse\ a_e\gets\mathsf{Update}(a,e-1,\kappa); \\
+\pcommentline{\text{Ciphertext tags at }e-1\text{, as in ML-KEM Braid}} \\
+\Return\bigl(\mathsf{Mac}_H(a_e,e,\cdot),\ \mathsf{Verify}_H(a_e,e,\cdot,\cdot), \\
+\qquad\mathsf{Mac}_C(a_e,e-1,\cdot),\ \mathsf{Verify}_C(a_e,e-1,\cdot,\cdot), \\
+\qquad\mathsf{Update}(a_e,e,u)\bigr)\pcomment{a_{e+1}}
+\end{array}`
+
+:::leanPillCaption "$`\\O(a)`"
+:::
+
+```anchor hiddenAuth (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security.KeyHiding)
+def hiddenAuth (e : ℕ) (ik : InitKey) (κ u : EpochKey) :
+    HiddenAuth AuthState Header Ciphertext Mac :=
+  let aₑ := fun a => if e = 1 then auth.init ik 1 else auth.update a (e - 1) κ
+  { macHeader := fun a => auth.macHeader (aₑ a) e
+    verifyHeader := fun a => auth.verifyHeader (aₑ a) e
+    macCiphertext := fun a => auth.macCiphertext (aₑ a) (e - 1)
+    verifyCiphertext := fun a => auth.verifyCiphertext (aₑ a) (e - 1)
+    next := fun a => auth.update (aₑ a) e u
+    verifyHeader_correct := fun a => auth.verifyHeader_correct (aₑ a) e
+    verifyCiphertext_correct := fun a => auth.verifyCiphertext_correct (aₑ a) (e - 1) }
+```
+:::::
+::::::
+
 A *key-hiding adversary* $`\mathcal B` against $`\mathsf{Auth}` consists of two algorithms:
 
 - $`\mathcal B.\mathsf{context}()\to(e,\sigma)`: chooses an epoch $`e` and information
   $`\sigma` that it keeps for guessing;
-- $`\mathcal B.\mathsf{guess}^{\mathsf{O}\text{-}\mathsf{HiddenAuth}}(\sigma,k)\to b'`: from
-  $`\sigma` and an epoch key $`k`, with oracle access to
-  $`\mathsf{O}\text{-}\mathsf{HiddenAuth}`, outputs a bit $`b'`, its guess whether $`k` is the
+- $`\mathcal B.\mathsf{guess}^{\O}(\sigma,k)\to b'`: from $`\sigma` and an epoch key $`k`, with
+  oracle access to $`\O` for its epoch $`e`, outputs a bit $`b'`, its guess whether $`k` is the
   epoch key $`k_e` or an independent epoch key.
 
 For $`b\in\{\mathsf{real},\mathsf{ideal}\}`, the experiment
-$`\mathsf{Hide}^b_{\mathsf{Auth}}(\mathcal B)` and its oracle
-$`\mathsf{O}\text{-}\mathsf{HiddenAuth}` are defined below, where $`e-1` is truncated at $`0`.
-The *key-hiding advantage* of $`\mathcal B` is
+$`\mathsf{Hide}^b_{\mathsf{Auth}}(\mathcal B)` is defined below. The *key-hiding advantage* of
+$`\mathcal B` is
 
 $$`\Adv{\mathsf{hide}}{\mathsf{Auth}}(\mathcal B)
 =\left|\Pr[\mathsf{Hide}^{\mathsf{real}}_{\mathsf{Auth}}(\mathcal B)=1]
 -\Pr[\mathsf{Hide}^{\mathsf{ideal}}_{\mathsf{Auth}}(\mathcal B)=1]\right|.`
 
 ::::::gameGrid
-:::::gameCell "\\mathsf{Hide}^b_{\\mathsf{Auth}}(\\mathcal B)" (kind := "game-columns")
+:::::gameCell "\\mathsf{Hide}^b_{\\mathsf{Auth}}(\\mathcal B)" (kind := "game")
 $`\begin{array}{l}
 \pcommentline{\mathcal B\text{ chooses the challenge epoch }e} \\
 (e,\sigma)\sample\mathcal B.\mathsf{context}(); \\
@@ -140,22 +175,9 @@ $`\begin{array}{l}
 I_{\mathsf{CKA}}\sample\Init\text{-}\KeyGen();\quad u,u',\kappa\sample E; \\
 \pcommentline{\text{Real: the key }k_e\text{; ideal: an independent key}} \\
 \pif\ b=\mathsf{real}\ \pthen\ k\gets u\ \pelse\ k\gets u'; \\
-\pcommentline{\mathcal B\text{ gets }a_{e+1}\text{ and tags under }a_e\text{, but not }a_e} \\
-b'\sample\mathcal B.\mathsf{guess}^{\mathsf{O}\text{-}\mathsf{HiddenAuth}}(\sigma,k); \\
+\pcommentline{\mathcal B\text{ gets }a_{e+1}\text{ and tags under }a_e\text{ from }\O\text{, but not }a_e} \\
+b'\sample\mathcal B.\mathsf{guess}^{\O}(\sigma,k); \\
 \Return b'
-\end{array}`
-
-$`\begin{array}{l}
-\underline{\mathsf{O}\text{-}\mathsf{HiddenAuth}(a)} \\
-\pcommentline{a\text{ plays }a_{e-1}\text{, chosen by }\mathcal B} \\
-a_e\gets\mathsf{HiddenState}(a); \\
-\pcommentline{\text{Ciphertext tags at }e-1\text{, as in ML-KEM Braid}} \\
-\Return\bigl(\mathsf{Mac}_H(a_e,e,\cdot),\ \mathsf{Verify}_H(a_e,e,\cdot,\cdot), \\
-\qquad\mathsf{Mac}_C(a_e,e-1,\cdot),\ \mathsf{Verify}_C(a_e,e-1,\cdot,\cdot), \\
-\qquad\mathsf{Update}(a_e,e,u)\bigr)\pcomment{a_{e+1}} \\[0.7em]
-\underline{\mathsf{HiddenState}(a)} \\
-\pif\ e=1\ \pthen\ \Return\mathsf{Init}(I_{\mathsf{CKA}},1); \\
-\Return\mathsf{Update}(a,e-1,\kappa)
 \end{array}`
 
 :::leanPillCaption "$`\\mathsf{Hide}^b_{\\mathsf{Auth}}(\\mathcal B)`"
@@ -171,29 +193,6 @@ def authHideExp [SampleableType EpochKey] (sampleInitKey : ProbComp InitKey)
   let u' ← ($ᵗ EpochKey : ProbComp EpochKey)
   let κ ← ($ᵗ EpochKey : ProbComp EpochKey)
   adv.guess st (if real then u else u') (hiddenAuth auth e ik κ u)
-```
-
-:::leanPillCaption "$`\\mathsf{O}\\text{-}\\mathsf{HiddenAuth}(a)`"
-:::
-
-```anchor hiddenAuth (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security.KeyHiding)
-def hiddenAuth (e : ℕ) (ik : InitKey) (κ u : EpochKey) :
-    HiddenAuth AuthState Header Ciphertext Mac where
-  macHeader a := auth.macHeader (hiddenState auth e ik κ a) e
-  verifyHeader a := auth.verifyHeader (hiddenState auth e ik κ a) e
-  macCiphertext a := auth.macCiphertext (hiddenState auth e ik κ a) (e - 1)
-  verifyCiphertext a := auth.verifyCiphertext (hiddenState auth e ik κ a) (e - 1)
-  next a := auth.update (hiddenState auth e ik κ a) e u
-  verifyHeader_correct a := auth.verifyHeader_correct (hiddenState auth e ik κ a) e
-  verifyCiphertext_correct a := auth.verifyCiphertext_correct (hiddenState auth e ik κ a) (e - 1)
-```
-
-:::leanPillCaption "$`\\mathsf{HiddenState}(a)`"
-:::
-
-```anchor hiddenState (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security.KeyHiding)
-def hiddenState (e : ℕ) (ik : InitKey) (κ : EpochKey) (a : AuthState) : AuthState :=
-  if e = 1 then auth.init ik 1 else auth.update a (e - 1) κ
 ```
 :::::
 ::::::
