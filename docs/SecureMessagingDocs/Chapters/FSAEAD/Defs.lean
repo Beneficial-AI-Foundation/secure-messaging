@@ -445,7 +445,7 @@ $`\begin{array}{l}
 r \gets \mathsf{FS\text{-}Rcv}(v_\B, a, e); \\
 \req\;r \neq \bot; \\
 (v_\B, i', m') \gets r; \\
-\pcommentline{\text{in the security game:}} \\
+\pcommentline{\text{in the security game only:}} \\
 \pcommentline{\pif\; i' \notin \mathsf{comp}\; \pthen\; \mathsf{win} \gets \mathsf{true}} \\
 \req\;i' \in \mathsf{comp}; \\
 \mathsf{delete}(i'); \\

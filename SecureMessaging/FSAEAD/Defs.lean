@@ -466,7 +466,7 @@ O-Inject-B^corr(a, e):
   r ← FS-Rcv(v_B, a, e)
   req r ≠ ⊥
   (v_B, i', m') ← r
-  -- security game: if i' ∉ comp: win ← true
+  -- in the security game only: if i' ∉ comp: win ← true
   req i' ∈ comp
   delete(i')
   return (i', m')
