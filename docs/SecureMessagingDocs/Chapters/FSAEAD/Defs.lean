@@ -6,7 +6,6 @@ import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessagingDocs.Visuals.FSAEADAdversary
 import SecureMessaging.FSAEAD.Defs
-import SecureMessaging.FSAEAD.Correctness
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false
@@ -27,8 +26,8 @@ set_option pp.rawOnError true
 
 *References:*
 
-- {Informal.citet ACD19}[] — FS-AEAD syntax (Definition 14), security game (Figure 5)
-  and security (Definition 15).
+- {Informal.citet ACD19}[] — FS-AEAD syntax (Definition 14), security game (Figure 5),
+  security (Definition 15) and the correctness game of SM (§3.3).
 
 :::group "fs_aead"
 Forward-Secure AEAD (FS-AEAD).
@@ -424,51 +423,96 @@ noncomputable def advantage [SampleableType K] [DecidableEq AD] [DecidableEq M]
 :::defTitle "fs_aead_correctness" "FS-AEAD correctness"
 :::
 
-::::definition "fs_aead_correctness" (parent := "fs_aead") (lean := "FSAEADScheme.Reachable, FSAEADScheme.Correct") (tags := "gh-366") (uses := "fs_aead_security")
-Adapted from {Informal.citet ACD19}[], §4.2.1.
+:::::::definition "fs_aead_correctness" (parent := "fs_aead") (lean := "FSAEADScheme.oracleInjectBCorr, FSAEADScheme.fsaeadCorrectnessImpl, FSAEADScheme.correctnessExp, FSAEADScheme.Correct") (tags := "gh-366") (uses := "fs_aead_security")
+Adapted from {Informal.citet ACD19}[], §4.2.1, with the correctness game of §3.3.
 
 The paper builds correctness into the game of the
-{bpref "fs_aead_security"}[FS-AEAD security definition]: $`\ODeliverB` sets $`\mathsf{win}`
-if B rejects an honest ciphertext or outputs a wrong index or message. This definition
-states that condition on its own, as perfect correctness: no honest delivery fails.
+{bpref "fs_aead_security"}[FS-AEAD security definition]. The correctness game is that
+game with two changes:
 
-Let $`|\cdot|` be a length function, $`k` a key and $`b` a challenge bit. A game state
-$`\mathit{st}` is _reachable_ for $`|\cdot|`, $`k` and $`b` if the oracles of the FS-AEAD
-security game with $`|\cdot|` and $`b` reach $`\mathit{st}` from the initial state for $`k`.
+* it has no $`\OChallA`, so it also has no challenge bit $`b`, no $`\mathsf{chall}` and no
+  length function;
+* $`\OInjectB^{\mathsf{corr}}` replaces $`\OInjectB`. It accepts only a ciphertext at a
+  compromised index, and it does not set $`\mathsf{win}`.
 
-An FS-AEAD scheme is _correct_ if the following holds for every length function
-$`|\cdot|`, key $`k`, challenge bit $`b`, game state $`\mathit{st}` that is reachable for
-$`|\cdot|`, $`k` and $`b`, index $`i`, associated data $`a`, message $`m` and ciphertext
-$`e`. If
+So only $`\ODeliverB` sets $`\mathsf{win}`: when B rejects a ciphertext that A sent, or
+outputs a wrong index or message for it.
 
-* $`\mathit{st}.\mathsf{win} = \mathsf{false} \land \mathit{st}.\mathsf{end} = \mathsf{false}`, and
-* $`(i, a, m, e)` is the record in $`\mathit{st}.\mathsf{trans}` with associated data $`a`,
-  ciphertext $`e` and the smallest index,
+::::::gameGrid
+:::::gameCell "\\OInjectB^{\\mathsf{corr}}(a, e)" (kind := "compact")
+$`\begin{array}{l}
+\req\;\neg(\exists i, m: (i, a, m, e) \in \mathsf{trans}); \\
+r \gets \mathsf{FS\text{-}Rcv}(v_\B, a, e); \\
+\req\;r \neq \bot; \\
+(v_\B, i', m') \gets r; \\
+\req\;i' \in \mathsf{comp}; \\
+\mathsf{delete}(i'); \\
+\Return (i', m')
+\end{array}`
 
-then $`\mathsf{FS\text{-}Rcv}(\mathit{st}.v_\B, a, e) = (v_\B', i, m)` for some $`v_\B'`.
+```anchor oracleInjectBCorr (project := ".") (module := SecureMessaging.FSAEAD.Defs)
+def oracleInjectBCorr [DecidableEq AD] [DecidableEq C]
+    (fs : FSAEADScheme K StS StR AD M C) :
+    QueryImpl (AD × C →ₒ Option (ℕ × M)) (GameM StS StR AD M C) :=
+  fun (a, e) => do
+    let st ← get
+    if st.end_ || (st.findTrans a e).isSome then return none
+    let some (vB, i', m') := fs.rcv st.vB a e | return none
+    if !st.comp i' then return none
+    set ({ st with vB }.delete i')
+    return some (i', m')
+```
+:::::
 
-:::leanPillCaption "reachable game states"
+:::::gameCell "\\Exp{\\textsf{corr}}{\\textsf{FS-AEAD}}(\\adv)" (kind := "game")
+$`\begin{array}{l}
+\pcommentline{\text{Initialize both parties with a shared key}} \\
+k \sample \K;\quad v_\A \gets \mathsf{FS\text{-}Init\text{-}S}(k);\quad v_\B \gets \mathsf{FS\text{-}Init\text{-}R}(k); \\
+\pcommentline{\text{Initialize the game state}} \\
+i_\A \gets 0;\quad \mathsf{corrA} \gets \mathsf{false};\quad \mathsf{win} \gets \mathsf{false};\quad \mathsf{end} \gets \mathsf{false}; \\
+\mathsf{trans}, \mathsf{comp} \gets \emptyset; \\
+\pcommentline{\text{Run the adversary with } \OTransmitA, \OCorrA, \OCorrB, \ODeliverB, \OInjectB^{\mathsf{corr}}} \\
+\adv^{\O}; \\
+\Return\;\mathsf{win}
+\end{array}`
+
+:::leanPillCaption "Correctness oracles"
 :::
 
-```anchor Reachable (project := ".") (module := SecureMessaging.FSAEAD.Correctness)
-inductive Reachable (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : Bool) (k : K) :
-    GameState StS StR AD M C → Prop
-  /-- The initial state is reachable. -/
-  | init : Reachable fs len b k (.init fs k)
-  /-- Every outcome of an oracle from a reachable state is reachable. -/
-  | step {st : GameState StS StR AD M C} (t : (fsaeadSpec StS StR AD M C).Domain) {z}
-      (hst : Reachable fs len b k st)
-      (hz : z ∈ support ((fsaeadSecurityImpl fs len b t).run st)) :
-      Reachable fs len b k z.2
+```anchor fsaeadCorrectnessImpl (project := ".") (module := SecureMessaging.FSAEAD.Defs)
+def fsaeadCorrectnessImpl [DecidableEq AD] [DecidableEq M] [DecidableEq C]
+    (fs : FSAEADScheme K StS StR AD M C) :
+    QueryImpl (fsaeadCorrectnessSpec StS StR AD M C) (GameM StS StR AD M C) :=
+  oracleUnif StS StR AD M C
+    + oracleTransmitA fs
+    + oracleCorrA StS StR AD M C
+    + oracleCorrB StS StR AD M C
+    + oracleDeliverB fs
+    + oracleInjectBCorr fs
 ```
 
-:::leanPillCaption "correctness"
+:::leanPillCaption "Correctness experiment"
 :::
 
-```anchor Correct (project := ".") (module := SecureMessaging.FSAEAD.Correctness)
-def Correct (fs : FSAEADScheme K StS StR AD M C) : Prop :=
-  ∀ (len : M → ℕ) (b : Bool) (k : K) (st : GameState StS StR AD M C), Reachable fs len b k st →
-    st.win = false → st.end_ = false → ∀ (i : ℕ) (a : AD) (m : M) (e : C),
-      st.findTrans a e = some (i, a, m, e) → ∃ vB, fs.rcv st.vB a e = some (vB, i, m)
+```anchor correctnessExp (project := ".") (module := SecureMessaging.FSAEAD.Defs)
+def correctnessExp [SampleableType K] [DecidableEq AD] [DecidableEq M] [DecidableEq C]
+    (fs : FSAEADScheme K StS StR AD M C)
+    (adversary : FSAEADCorrectnessAdversary StS StR AD M C) : ProbComp Bool := do
+  let k ← $ᵗ K
+  let (_, st) ← (simulateQ (fsaeadCorrectnessImpl fs) adversary).run (.init fs k)
+  return st.win
 ```
-::::
+:::::
+::::::
+
+An FS-AEAD scheme is _(perfectly) correct_ if for every adversary $`\adv`,
+
+$$`\Pr\bigl[\Exp{\textsf{corr}}{\textsf{FS-AEAD}}(\adv) = 1\bigr] = 0.`
+
+```anchor Correct (project := ".") (module := SecureMessaging.FSAEAD.Defs)
+def Correct [SampleableType K] [DecidableEq AD] [DecidableEq M] [DecidableEq C]
+    (fs : FSAEADScheme K StS StR AD M C) : Prop :=
+  ∀ adversary : FSAEADCorrectnessAdversary StS StR AD M C,
+    Pr{let x ← correctnessExp fs adversary}[x = true] = 0
+```
+:::::::

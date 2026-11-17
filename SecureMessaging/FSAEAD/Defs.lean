@@ -13,13 +13,14 @@ public import VCVio.OracleComp.SimSemantics.Append.Core
 /-!
 # Forward-Secure Authenticated Encryption with Associated Data (FS-AEAD)
 
-Formalization of FS-AEAD syntax and security following:
+Formalization of FS-AEAD syntax, security and correctness following:
 
 - [ACD19] Alwen, Coretti, Dodis.
   *The Double Ratchet: Security Notions, Proofs, and Modularization for the
   Signal Protocol.*
   EUROCRYPT 2019, https://eprint.iacr.org/2018/1037.pdf
-  — Definition 14 (syntax), Figure 5 (security game), Definition 15 (security).
+  — Definition 14 (syntax), Figure 5 (security game), Definition 15 (security),
+  §3.3 (correctness game of SM, which `correctnessExp` adapts to FS-AEAD).
 - [Kli21] Tijana Klimović.
   *Modular Design of the Messaging Layer Security (MLS) Protocol.*
   Master's thesis, ETH Zürich, 2021
@@ -454,6 +455,90 @@ noncomputable def advantage [SampleableType K] [DecidableEq AD] [DecidableEq M]
     (adversary : FSAEADAdversary StS StR AD M C) : ℝ :=
   |(Pr{let x ← securityExp fs len adversary}[x = true]).toReal - 1 / 2|
 -- ANCHOR_END: advantage
+
+/-! ### Correctness experiment -/
+
+/-- **O-Inject-B^corr(a, e)**, the reduced `O-Inject-B` of the correctness game. It accepts
+only a ciphertext at a compromised index, and it never sets `win`.
+```text
+O-Inject-B^corr(a, e):
+  req ¬(∃ i, m: (i, a, m, e) ∈ trans)
+  r ← FS-Rcv(v_B, a, e)
+  req r ≠ ⊥
+  (v_B, i', m') ← r
+  req i' ∈ comp
+  delete(i')
+  return (i', m')
+``` -/
+-- ANCHOR: oracleInjectBCorr
+def oracleInjectBCorr [DecidableEq AD] [DecidableEq C]
+    (fs : FSAEADScheme K StS StR AD M C) :
+    QueryImpl (AD × C →ₒ Option (ℕ × M)) (GameM StS StR AD M C) :=
+  fun (a, e) => do
+    let st ← get
+    if st.end_ || (st.findTrans a e).isSome then return none
+    let some (vB, i', m') := fs.rcv st.vB a e | return none
+    if !st.comp i' then return none
+    set ({ st with vB }.delete i')
+    return some (i', m')
+-- ANCHOR_END: oracleInjectBCorr
+
+/-- Oracle spec for the FS-AEAD correctness game: `fsaeadSpec` without `O-Chall-A`. -/
+-- ANCHOR: fsaeadCorrectnessSpec
+abbrev fsaeadCorrectnessSpec (StS StR AD M C : Type) :=
+  unifSpec
+    + (AD × M →ₒ Option C)
+    + (Unit →ₒ Option StS)
+    + (Unit →ₒ Option (StS × StR))
+    + (AD × C →ₒ Option (ℕ × Option M))
+    + (AD × C →ₒ Option (ℕ × M))
+-- ANCHOR_END: fsaeadCorrectnessSpec
+
+/-- Oracle set for the FS-AEAD correctness game: the oracles of the security game without
+`O-Chall-A`, and with `O-Inject-B^corr` for `O-Inject-B`. -/
+-- ANCHOR: fsaeadCorrectnessImpl
+def fsaeadCorrectnessImpl [DecidableEq AD] [DecidableEq M] [DecidableEq C]
+    (fs : FSAEADScheme K StS StR AD M C) :
+    QueryImpl (fsaeadCorrectnessSpec StS StR AD M C) (GameM StS StR AD M C) :=
+  oracleUnif StS StR AD M C
+    + oracleTransmitA fs
+    + oracleCorrA StS StR AD M C
+    + oracleCorrB StS StR AD M C
+    + oracleDeliverB fs
+    + oracleInjectBCorr fs
+-- ANCHOR_END: fsaeadCorrectnessImpl
+
+/-- An FS-AEAD correctness adversary: a computation with access to the oracles of the
+correctness game. -/
+-- ANCHOR: FSAEADCorrectnessAdversary
+abbrev FSAEADCorrectnessAdversary (StS StR AD M C : Type) :=
+  OracleComp (fsaeadCorrectnessSpec StS StR AD M C) Bool
+-- ANCHOR_END: FSAEADCorrectnessAdversary
+
+/-- **FS-AEAD correctness experiment**, following the correctness game of [ACD19, §3.3].
+Only `O-Deliver-B` sets `win`, so the adversary wins if B rejects a ciphertext that A sent
+or outputs a wrong index or message for it.
+
+`init`:   `k ←$ K; v_A ← FS-Init-S(k); v_B ← FS-Init-R(k)`
+`run`:    `A^{O-Transmit-A, O-Corr-A, O-Corr-B, O-Deliver-B, O-Inject-B^corr}`
+`output`: `win` -/
+-- ANCHOR: correctnessExp
+def correctnessExp [SampleableType K] [DecidableEq AD] [DecidableEq M] [DecidableEq C]
+    (fs : FSAEADScheme K StS StR AD M C)
+    (adversary : FSAEADCorrectnessAdversary StS StR AD M C) : ProbComp Bool := do
+  let k ← $ᵗ K
+  let (_, st) ← (simulateQ (fsaeadCorrectnessImpl fs) adversary).run (.init fs k)
+  return st.win
+-- ANCHOR_END: correctnessExp
+
+/-- An FS-AEAD scheme is (perfectly) correct if every adversary wins the correctness
+experiment with probability 0. -/
+-- ANCHOR: Correct
+def Correct [SampleableType K] [DecidableEq AD] [DecidableEq M] [DecidableEq C]
+    (fs : FSAEADScheme K StS StR AD M C) : Prop :=
+  ∀ adversary : FSAEADCorrectnessAdversary StS StR AD M C,
+    Pr{let x ← correctnessExp fs adversary}[x = true] = 0
+-- ANCHOR_END: Correct
 
 end Security
 
