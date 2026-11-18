@@ -71,7 +71,7 @@ lemma tsum_prEvent_toReal_mul_measureTVDist_le_const_mul_prEvent {β : Type} [Me
         mul_zero]
   have hsum : ∑' a, Pr{let x ← mx}[x = a] * measureETVDist (f a) (g a) ≤
       ENNReal.ofReal c * Pr{let x ← mx}[bad x] := by
-    refine (ENNReal.tsum_le_tsum hterm).trans ?_
+    refine (tsum_le_tsum hterm).trans ?_
     rw [ENNReal.tsum_mul_left]
     exact mul_le_mul' le_rfl (tsum_ite_prEvent_eq_le_prEvent mx bad)
   calc (∑' a, Pr{let x ← mx}[x = a].toReal * measureTVDist (f a) (g a))
@@ -132,9 +132,9 @@ lemma measureTVDist_eq_abs_prEvent_true_sub (p q : m Bool)
   rw [prEvent_eq_evalDist_singleton, prEvent_eq_evalDist_singleton,
     ← ENNReal.absDiff_toReal (ne_top_of_le_ne_top ENNReal.one_ne_top (hle _ hp _))
       (ne_top_of_le_ne_top ENNReal.one_ne_top (hle _ hq _))]
-  unfold measureTVDist Measure.tvDist
+  unfold measureTVDist Measure.statDist
   congr 1
-  refine le_antisymm ?_ (Measure.absDiff_apply_le_etvDist _ _ (measurableSet_singleton true))
+  refine le_antisymm ?_ (Measure.absDiff_apply_le_statEDist _ _ (measurableSet_singleton true))
   refine iSup_le fun ⟨s, _⟩ => ?_
   have key : s = ∅ ∨ s = {true} ∨ s = {false} ∨ s = Set.univ := by
     by_cases ht : true ∈ s <;> by_cases hf : false ∈ s

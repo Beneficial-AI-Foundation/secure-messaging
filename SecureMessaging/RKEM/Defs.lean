@@ -188,7 +188,7 @@ stated below only for `A`; the `B` versions swap the roles). Fix `A`'s fresh key
    `RKeyGen-A(par, updated)`.
 
 `correctExpP`/`correctnessErrorP` capture property 1; `ratchetRoundOutputP`/`updateKeyDistErrorP`
-capture property 2, using total-variation distance (`Measure.etvDist`) in place of the paper's
+capture property 2, using total-variation distance (`Measure.statEDist`) in place of the paper's
 asymptotic "statistically close".
 -/
 
@@ -257,7 +257,7 @@ from `distKeyGenAUpdated`. -/
 noncomputable def updateKeyDistErrorA (rkem : RKEMScheme m Par EK DK CT K)
     (runtime : ProbCompRuntime m) : ℝ≥0∞ :=
   letI : MeasurableSpace (EK × DK) := ⊤
-  (runtime.evalDist rkem.ratchetRoundOutputA).etvDist
+  (runtime.evalDist rkem.ratchetRoundOutputA).statEDist
     (runtime.evalDist (do
       let par ← rkem.rsetup
       rkem.rkeygenAUpdated par))
@@ -266,7 +266,7 @@ noncomputable def updateKeyDistErrorA (rkem : RKEMScheme m Par EK DK CT K)
 noncomputable def updateKeyDistErrorB (rkem : RKEMScheme m Par EK DK CT K)
     (runtime : ProbCompRuntime m) : ℝ≥0∞ :=
   letI : MeasurableSpace (EK × DK) := ⊤
-  (runtime.evalDist rkem.ratchetRoundOutputB).etvDist
+  (runtime.evalDist rkem.ratchetRoundOutputB).statEDist
     (runtime.evalDist (do
       let par ← rkem.rsetup
       rkem.rkeygenBUpdated par))

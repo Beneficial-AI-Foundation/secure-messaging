@@ -231,7 +231,7 @@ lemma failureAfterKeypair_le_one [DecidableEq K]
     (pk : PK) (sk : SK) :
     failureAfterKeypair kem onoff pk sk ≤ 1 := by
   unfold failureAfterKeypair failureAfterBoth
-  refine (ENNReal.tsum_le_tsum fun off => mul_le_mul' le_rfl (prEvent_le_one _)).trans_eq ?_
+  refine (tsum_le_tsum fun off => mul_le_mul' le_rfl (prEvent_le_one _)).trans_eq ?_
   simp only [mul_one, tsum_prEvent_eq_one]
 
 /-- `failureAfterOff` is at most `1`. -/
@@ -240,7 +240,7 @@ lemma failureAfterOff_le_one [DecidableEq K]
     (st : onoff.St) (ct0 : onoff.C₀) :
     failureAfterOff kem onoff st ct0 ≤ 1 := by
   unfold failureAfterOff failureAfterBoth
-  refine (ENNReal.tsum_le_tsum fun kp => mul_le_mul' le_rfl (prEvent_le_one _)).trans_eq ?_
+  refine (tsum_le_tsum fun kp => mul_le_mul' le_rfl (prEvent_le_one _)).trans_eq ?_
   simp only [mul_one, tsum_prEvent_eq_one]
 
 /-- `failureAfterBoth` is at most `1`. -/

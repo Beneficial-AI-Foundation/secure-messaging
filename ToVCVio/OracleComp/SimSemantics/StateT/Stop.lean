@@ -437,7 +437,7 @@ private theorem prEvent_stop_cross_add
       dsimp only [OracleSpec.query, OracleQuery.cont, OracleQuery.input]
       simp only [← heq]
       simp only [OracleComp.prEvent_bind_eq_tsum_prEvent]
-      rw [← ENNReal.tsum_add, ← ENNReal.tsum_add]
+      rw [← tsum_add, ← tsum_add]
       apply tsum_congr
       intro z
       by_cases hz : z ∈ support ((left t).run s)

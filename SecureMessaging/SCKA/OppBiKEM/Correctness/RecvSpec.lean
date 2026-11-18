@@ -145,7 +145,7 @@ lemma recv_eq_recvSpec (role : Role) (kem : KEMScheme ProbComp K PK SK C) [Decid
   all_goals
     cases hpk : (insertChunkAndDecode ecEk st.req.receivedChunks ρ.ch).2 <;>
     cases hctd : (insertChunkAndDecode ecCt st.req.receivedChunks ρ.ch).2 <;>
-    (try simp only [hpk, hctd, Option.pure_def])
+    (simp only [hpk, hctd, Option.pure_def])
   all_goals split_ifs <;> rfl
 
 /-- `recvSpec` is `recvWith` for the KEM's deterministic decapsulation. -/

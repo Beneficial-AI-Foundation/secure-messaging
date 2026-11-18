@@ -131,7 +131,7 @@ private theorem honestOracle_use_records_challenge (kemMat : KEMMaterial leak) (
     (hres : res ∈ support ((honestOracle kem onoff ecEk ecCt0 ecCt1 leak kemMat e k t).run s)) :
     e ∈ res.2.challenged := by
   rcases t with (((((t | a) | a) | t) | a) | a)
-  all_goals try simp only [usesChallengeKey, Bool.false_eq_true, decide_eq_true_eq] at h
+  all_goals simp only [usesChallengeKey, Bool.false_eq_true, decide_eq_true_eq] at h
   obtain ⟨ht, he, hc, hk⟩ := h
   subst t
   simp only [securityImplAt, SCKAScheme.securityImplOf, QueryImpl.add_apply_inl,
@@ -318,7 +318,7 @@ theorem sendBrleak_fresh_eq [DecidableEq Sym]
     cases hst : stB.stCt <;> cases hack : stB.ack.ctRec
   all_goals
     simp only [sendBrleak, hct0, hek, hct1]
-    try dsimp only [Pinned.leakage]
+    dsimp only [Pinned.leakage]
     simp [hct0, hek, hct1, hst, hack, monad_norm]
 
 /-- Ordinary-send version of `sendBrleak_fresh_eq`. -/

@@ -455,6 +455,9 @@ private theorem pinned_online_inputs
   ⟨online_pk_eq_material kem onoff ecEk ecCt0 ecCt1 leak kemMat e s hs hm he pk hp hc,
     Option.some.inj (hst.symm.trans (hm.2 he (by simp [hst])).1)⟩
 
+-- Lean v4.36 reports the tactics inside the `all_goals` blocks below as unused because they
+-- close no goal in some branches. Each one is needed in other branches.
+set_option linter.unusedTactic false in
 variable {kem onoff leak} in
 /-- A's successful send in `honestScheme kemMat e s` preserves `consistentMat kemMat e`. -/
 private theorem sendA_preserves_consistentMat (kemMat : KEMMaterial leak) (e : ℕ)
@@ -475,6 +478,9 @@ private theorem sendA_preserves_consistentMat (kemMat : KEMMaterial leak) (e : �
     simp_all [consistentMat]
     all_goals aesop
 
+-- Lean v4.36 reports the tactics inside the `all_goals` blocks below as unused because they
+-- close no goal in some branches. Each one is needed in other branches.
+set_option linter.unusedTactic false in
 variable {kem onoff leak} in
 /-- B version of `sendA_preserves_consistentMat`. -/
 private theorem sendB_preserves_consistentMat (kemMat : KEMMaterial leak) (e : ℕ)

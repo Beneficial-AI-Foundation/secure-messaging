@@ -41,8 +41,8 @@ section BadEventBound
 /-- Updating one summand of an `ℝ≥0∞`-valued series. -/
 private theorem tsum_update_add (f : ℕ → ℝ≥0∞) (e : ℕ) (v : ℝ≥0∞) :
     (∑' t, Function.update f e v t) + f e = (∑' t, f t) + v := by
-  rw [ENNReal.tsum_eq_add_tsum_ite (f := Function.update f e v) e,
-    ENNReal.tsum_eq_add_tsum_ite (f := f) e, Function.update_self, add_comm (f e),
+  rw [tsum_eq_add_tsum_ite (f := Function.update f e v) e,
+    tsum_eq_add_tsum_ite (f := f) e, Function.update_self, add_comm (f e),
     add_right_comm _ _ v, add_comm _ v]
   congr 2
   refine tsum_congr fun x => ?_
@@ -184,7 +184,7 @@ private theorem traceSend_payoff_keygen
         P.kem.correctnessError ProbCompRuntime.probComp := by
       rw [← P.inc.wp_keygen_decapsFailureProb, ← irl.keygen_fst, bind_pure_comp,
         wp_map]
-      try rfl
+      rfl
     refine le_trans (wp_mono _ fun x => le_of_eq (hstep x)) ?_
     refine le_trans (wp_add_const_le _ _ _) ?_
     rw [hkg]
@@ -252,7 +252,7 @@ private theorem traceSend_payoff_encaps1
         P.inc.decapsFailureProb (P.inc.toHeader pk) (P.inc.toVector pk) sk := by
       rw [P.inc.decapsFailureProb_eq_wp P.hDet P.hEnc2, ← irl.encaps1_fst,
         bind_pure_comp, wp_map]
-      try rfl
+      rfl
     refine le_trans (wp_mono _ (post' :=
       fun x : (P.inc.St × P.inc.C₁ × P.K) × irl.Encaps1Rand =>
         (if P.hDet.decapsDet sk (P.inc.splitC.symm (x.1.2.1,

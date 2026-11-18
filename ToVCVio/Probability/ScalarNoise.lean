@@ -135,7 +135,7 @@ private theorem probOutput_neg_map
   calc
     Pr{let x ← (-·) <$> χ}[x = z] = Pr{let x ← χ}[x = -z] := by
       convert prEvent_map_injective χ (fun _ _ h => neg_inj.mp h) (-z) using 1
-      all_goals simp
+      simp
     _ = (counts c (-z) : ℝ≥0∞) / 2 ^ c.seedBits := hlaw (-z)
     _ = (counts c z : ℝ≥0∞) / 2 ^ c.seedBits := by rw [counts_neg c hsym]
 

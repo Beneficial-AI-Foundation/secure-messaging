@@ -257,7 +257,7 @@ theorem completedEpoch (h : SendEdge auth st r) (hpos : 0 < st.epoch) :
     | some (tI, _) => tI = st.completedEpoch + 1 ∧ r.state.completedEpoch = tI := by
   cases h
   all_goals simp only [State.completedEpoch, State.epoch, and_true] at hpos ⊢
-  all_goals omega
+  omega
 
 /-- From a positive epoch, a send does not lower the completed epoch. -/
 theorem completedEpoch_mono (h : SendEdge auth st r) (hpos : 0 < st.epoch) :

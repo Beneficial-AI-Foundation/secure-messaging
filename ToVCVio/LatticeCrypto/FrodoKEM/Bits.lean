@@ -5,6 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 module
 
+public import Batteries.Data.Fin.Basic
 public import Mathlib.Algebra.Group.End
 public import Mathlib.Algebra.Group.Nat.Defs
 public import Mathlib.Algebra.Order.Monoid.Unbundled.Basic

@@ -77,7 +77,7 @@ private theorem corruptA_hide
     simp only [hv]
     simp [hg, hs, StateT.run_pure,
       revealA_hideA_eq, hideState, Prod.map]
-  all_goals by_cases he : e ∈ vulnCorrA kem onoff s.stA <;> simp [he]
+  by_cases he : e ∈ vulnCorrA kem onoff s.stA <;> simp [he]
 
 /-- B version of `corruptA_hide`, with `revealB`. -/
 private theorem corruptB_hide
@@ -100,7 +100,7 @@ private theorem corruptB_hide
     simp only [hv]
     simp [hg, hs, StateT.run_pure,
       revealB_hideB_eq, hideState, Prod.map]
-  all_goals by_cases he : e ∈ vulnCorrB kem onoff s.stB <;> simp [he]
+  by_cases he : e ∈ vulnCorrB kem onoff s.stB <;> simp [he]
 
 section
 

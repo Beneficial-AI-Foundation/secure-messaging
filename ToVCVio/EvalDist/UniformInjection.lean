@@ -72,7 +72,7 @@ theorem measureTVDist_map_injective_uniformSample {A B : Type} [Fintype A] [Fint
     rw [Finset.coe_univ, Set.compl_univ]
   have hE : measureETVDist (ι <$> ($ᵗ A : ProbComp A)) ($ᵗ B : ProbComp B)
       = (Fintype.card A : ℝ≥0∞) * ((Fintype.card A : ℝ≥0∞)⁻¹ - (Fintype.card B : ℝ≥0∞)⁻¹) := by
-    rw [measureETVDist, MeasureTheory.Measure.etvDist_eq_sum_tsub (F := Finset.univ)
+    rw [measureETVDist, MeasureTheory.Measure.statEDist_eq_sum_tsub (F := Finset.univ)
       (by rw [hcompl, MeasureTheory.measure_empty]) (by rw [hcompl, MeasureTheory.measure_empty])]
     simp_rw [← prEvent_eq_evalDist_singleton, hp, SampleableType.prEvent_uniformSample_eq_singleton]
     have hterm : ∀ b : B, ((if b ∈ S then (Fintype.card A : ℝ≥0∞)⁻¹ else 0)

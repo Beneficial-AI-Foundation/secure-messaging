@@ -142,7 +142,7 @@ lemma tsum_ite_prEvent_eq_le_prEvent [EvalDistSemantics m] [LawfulEvalDistSemant
     (mx : m α) (p : α → Prop) [DecidablePred p] :
     ∑' a, (if p a then Pr{let x ← mx}[x = a] else 0) ≤ Pr{let x ← mx}[p x] := by
   let : MeasurableSpace α := ⊤
-  rw [prEvent_eq_evalDist_of_discrete, ENNReal.tsum_eq_iSup_sum]
+  rw [prEvent_eq_evalDist_of_discrete, tsum_eq_iSup_sum]
   refine iSup_le fun s => ?_
   calc ∑ a ∈ s, (if p a then Pr{let x ← mx}[x = a] else 0)
       = ∑ a ∈ s.filter p, 𝒟[mx] {a} := by
@@ -164,7 +164,7 @@ lemma tsum_prEvent_mul_le_of_forall_mem_support [MonadAttach m] [WeaklyLawfulMon
     (h : ∀ z ∈ support mx, F z ≤ c) :
     ∑' z, Pr{let x ← mx}[x = z] * F z ≤ c := by
   calc ∑' z, Pr{let x ← mx}[x = z] * F z ≤ ∑' z, Pr{let x ← mx}[x = z] * c := by
-        refine ENNReal.tsum_le_tsum fun z => ?_
+        refine tsum_le_tsum fun z => ?_
         by_cases hz : z ∈ support mx
         · exact mul_le_mul' le_rfl (h z hz)
         · rw [prEvent_eq_zero_of_not_mem_support mx hz, zero_mul, zero_mul]

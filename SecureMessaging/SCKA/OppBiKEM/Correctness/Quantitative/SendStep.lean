@@ -84,7 +84,7 @@ lemma wp_keygen_le {A : Type} (f : PK × SK → A) (score : A → ℝ≥0∞) (V
         = (∑' kp : PK × SK, Pr{let x ← kem.keygen}[x = kp]) * V +
             ∑' kp : PK × SK,
               Pr{let x ← kem.keygen}[x = kp] * keypairFailure kem hDet kp.1 kp.2 := by
-          rw [← ENNReal.tsum_mul_right, ← ENNReal.tsum_add]
+          rw [← ENNReal.tsum_mul_right, ← tsum_add]
           refine tsum_congr fun kp => ?_
           rw [mul_add]
       _ ≤ 1 * V +
@@ -119,7 +119,7 @@ lemma wp_encaps_le {A : Type} (pk : PK) (sk : SK) (g : C × K → A)
       _ = (∑' ck : C × K, if hDet.decapsDet sk ck.1 ≠ some ck.2 then
               Pr{let x ← kem.encaps pk}[x = ck] else 0) +
             (∑' ck : C × K, Pr{let x ← kem.encaps pk}[x = ck]) * V := by
-          rw [ENNReal.tsum_add, ENNReal.tsum_mul_right]
+          rw [tsum_add, ENNReal.tsum_mul_right]
       _ ≤ (∑' ck : C × K, if hDet.decapsDet sk ck.1 ≠ some ck.2 then
               Pr{let x ← kem.encaps pk}[x = ck] else 0) + 1 * V := by
           gcongr

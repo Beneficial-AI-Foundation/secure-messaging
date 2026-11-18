@@ -80,12 +80,14 @@ theorem deltaCorrect [DecidableEq G] (gen : G) :
     let : MeasurableSpace (G × F) := ⊤
     rw [show (scheme (F := F) gen).rsetup >>= (scheme gen).rkeygenAUpdated = rkeygen gen () by
       simp [scheme], ProbCompRuntime.probComp_evalDist, ProbCompRuntime.probComp_evalDist,
-      (evalDistEq_ratchetRoundOutputA_rkeygen gen).evalDist_eq, MeasureTheory.Measure.etvDist_self]
+      (evalDistEq_ratchetRoundOutputA_rkeygen gen).evalDist_eq,
+      MeasureTheory.Measure.statEDist_self]
   · unfold RKEMScheme.updateKeyDistErrorB
     let : MeasurableSpace (G × F) := ⊤
     rw [show (scheme (F := F) gen).ratchetRoundOutputB = (scheme gen).ratchetRoundOutputA by rfl,
       show (scheme (F := F) gen).rsetup >>= (scheme gen).rkeygenBUpdated = rkeygen gen () by
       simp [scheme], ProbCompRuntime.probComp_evalDist, ProbCompRuntime.probComp_evalDist,
-      (evalDistEq_ratchetRoundOutputA_rkeygen gen).evalDist_eq, MeasureTheory.Measure.etvDist_self]
+      (evalDistEq_ratchetRoundOutputA_rkeygen gen).evalDist_eq,
+      MeasureTheory.Measure.statEDist_self]
 
 end ddhRKEM

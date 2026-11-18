@@ -7,7 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.SCKA.OppBiKEM.Security.IdealReceive
-public import ToVCVio.OracleComp.QueryTracking.StateBudget
+public import VCVio.OracleComp.QueryTracking.QueryBound.Simulation
 
 /-!
 # Opp-BiKEM — Epoch counter
@@ -285,9 +285,13 @@ theorem advances_le_of_run_real [SampleableType K] (b : Bool)
       (exposure .B leak) (scheme kem hDet ecEk ecCt leak)) adv).run
       (initState (K := K) (PK := PK) (SK := SK) (C := C) (Sym := Sym)))) :
     advances z.2 ≤ q :=
-  (stateCounter_simulateQ_run_le _ advances
-    (fun t => SCKAScheme.sckaSecuritySpec.isSendQuery t = true)
-    (advances_step_real kem hDet ecEk ecCt leak b) adv q hq _ z hz).trans_eq
+  (OracleComp.IsQueryBoundP.cost_le_of_mem_support_run_simulateQ advances
+    (fun t ht s z hz => by
+      simpa only [ht, ↓reduceIte] using advances_step_real kem hDet ecEk ecCt leak b t s z hz)
+    (fun t ht s z hz => by
+      simpa only [ht, Bool.false_eq_true, ↓reduceIte, add_zero] using
+        advances_step_real kem hDet ecEk ecCt leak b t s z hz)
+    hq _ z hz).trans_eq
     (by rw [advances_init, zero_add])
 
 /-- After an ideal security run of an adversary making at most `q` ordinary or leaking sends, at
@@ -298,9 +302,13 @@ theorem advances_le_of_run_ideal [SampleableType K] (b : Bool)
     (hz : z ∈ support ((simulateQ (idealSecurityImpl kem hDet ecEk ecCt leak b) adv).run
       (initState (K := K) (PK := PK) (SK := SK) (C := C) (Sym := Sym)))) :
     advances z.2 ≤ q :=
-  (stateCounter_simulateQ_run_le _ advances
-    (fun t => SCKAScheme.sckaSecuritySpec.isSendQuery t = true)
-    (advances_step_ideal kem hDet ecEk ecCt leak b) adv q hq _ z hz).trans_eq
+  (OracleComp.IsQueryBoundP.cost_le_of_mem_support_run_simulateQ advances
+    (fun t ht s z hz => by
+      simpa only [ht, ↓reduceIte] using advances_step_ideal kem hDet ecEk ecCt leak b t s z hz)
+    (fun t ht s z hz => by
+      simpa only [ht, Bool.false_eq_true, ↓reduceIte, add_zero] using
+        advances_step_ideal kem hDet ecEk ecCt leak b t s z hz)
+    hq _ z hz).trans_eq
     (by rw [advances_init, zero_add])
 
 end Steps

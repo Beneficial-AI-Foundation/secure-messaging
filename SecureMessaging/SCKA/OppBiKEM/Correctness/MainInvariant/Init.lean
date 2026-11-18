@@ -48,6 +48,6 @@ lemma gameInv_init (kem : KEMScheme ProbComp K PK SK C)
       Bool.false_eq_true, implies_true, true_and, Finset.notMem_empty, IsEmpty.forall_iff]
   all_goals try omega
   all_goals try (intro t sk ht; simp at ht)
-  all_goals try simp
+  all_goals simp
 
 end oppBiKemCKA

@@ -85,7 +85,7 @@ theorem prEvent_post_axu_le {Z K D : Type} [SampleableType K] {ε : ℝ≥0∞}
          hash p.2 x.1 ^^^ hash p.2 (chal p.1).1 = x.2 ^^^ (chal p.1).2]
       ≤ ∑' z, Pr{let x ← μ}[x = z] * ((post z).length : ℝ≥0∞) * ε := by
   rw [OracleComp.prEvent_bind_eq_tsum]
-  refine ENNReal.tsum_le_tsum fun z => ?_
+  refine tsum_le_tsum fun z => ?_
   rcases Classical.em (z ∈ support μ) with hz | hz
   · rw [mul_assoc]
     gcongr
@@ -114,7 +114,7 @@ theorem prEvent_pre_fresh_le {W β : Type} (ν : ProbComp W)
     intro m
     rw [SampleableType.prEvent_uniformSample_eq_singleton, ToVCVio.natCast_card_bitVec]
   rw [OracleComp.prEvent_bind_eq_tsum]
-  refine ENNReal.tsum_le_tsum fun w => ?_
+  refine tsum_le_tsum fun w => ?_
   rw [mul_assoc]
   gcongr
   rw [OracleComp.prEvent_bind_eq_tsum]
@@ -123,7 +123,7 @@ theorem prEvent_pre_fresh_le {W β : Type} (ν : ProbComp W)
       -- Off the fixed locus list the event is impossible on the whole support of `k w m`.
       ≤ ∑' m : BitVec 128,
         ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ * (if m ∈ pre w then 1 else 0) := by
-        refine ENNReal.tsum_le_tsum fun m => ?_
+        refine tsum_le_tsum fun m => ?_
         rw [hunif m]
         gcongr
         by_cases hm : m ∈ pre w

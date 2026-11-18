@@ -136,7 +136,7 @@ theorem stageOracle_online_first_use
     (hcont : decide (e ∈ res.2.exposed) = false) : (res.2.keyB e).isSome := by
   rcases t with (((((t | u) | u) | t) | u) | u)
   · rcases t with ((((n | u) | u) | n) | n)
-    all_goals try simp only [usesOnline, Bool.false_eq_true] at hh
+    all_goals simp only [usesOnline, Bool.false_eq_true] at hh
     cases u
     have hr : s.stB.t = e ∧ onlineReady s.stB := of_decide_eq_true hh
     obtain ⟨he, ha, hp, hc1, hsrc⟩ := hr
@@ -434,6 +434,9 @@ def usesOffline (e : ℕ) (t : (securitySpec leak Sym).Domain) (s : GameState on
     decide ((s.stB.t = e ∧ s.stB.ct0.isNone) ∧ e ∉ s.challenged)
   | _ => false
 
+-- Lean v4.36 reports the tactics inside the `all_goals` blocks below as unused because they
+-- close no goal in some branches. Each one is needed in other branches.
+set_option linter.unusedTactic false in
 variable {kem onoff leak} in
 /-- Single use of the offline sample: once B has used its offline encapsulation of epoch `e`
 (`offlineUsed e s.stB`), no query runs it: `usesOffline e t s = false`. -/
@@ -561,7 +564,7 @@ theorem stageOracle_offline_first_use
     (hcont : decide (e ∈ res.2.exposed) = false) : offlineUsed e res.2.stB := by
   rcases t with (((((t | u) | u) | t) | u) | u)
   all_goals try (rcases t with ((((n | u) | u) | n) | n))
-  all_goals try (simp only [usesOffline, Bool.false_eq_true] at hh)
+  all_goals simp only [usesOffline, Bool.false_eq_true] at hh
   all_goals cases u
   · have hhit : s.stB.t = e ∧ s.stB.ct0.isNone := of_decide_eq_true hh
     change res ∈ support
@@ -815,6 +818,9 @@ def usesKeygen (e : ℕ) (t : (securitySpec leak Sym).Domain) (s : GameState ono
     decide ((s.stA.t = e ∧ s.stA.dkA.isNone) ∧ e ∉ s.challenged)
   | _ => false
 
+-- Lean v4.36 reports the tactics inside the `all_goals` blocks below as unused because they
+-- close no goal in some branches. Each one is needed in other branches.
+set_option linter.unusedTactic false in
 variable {kem onoff leak} in
 /-- Single use of the key pair: once A has used its key generation of epoch `e`
 (`keygenUsed e s.stA`), no query runs it: `usesKeygen e t s = false`. -/
@@ -938,7 +944,7 @@ theorem stageOracle_keygen_first_use
     (hcont : decide (e ∈ res.2.exposed) = false) : keygenUsed e res.2.stA := by
   rcases t with (((((t | u) | u) | t) | u) | u)
   all_goals try (rcases t with ((((n | u) | u) | n) | n))
-  all_goals try (simp only [usesKeygen, Bool.false_eq_true] at hh)
+  all_goals simp only [usesKeygen, Bool.false_eq_true] at hh
   all_goals cases u
   · have hhit : s.stA.t = e ∧ s.stA.dkA.isNone := of_decide_eq_true hh
     change res ∈ support
@@ -993,6 +999,9 @@ theorem sendA_sample_keygen_eq_fresh [DecidableEq Sym]
   rw [map_bind] at h
   simpa only [scheme_sendA_eq_map_sendArleak] using h
 
+-- Lean v4.36 reports the tactics inside the `all_goals` blocks below as unused because they
+-- close no goal in some branches. Each one is needed in other branches.
+set_option linter.unusedTactic false in
 /-- B's leaking send is unchanged when A's key-generation sample for epoch `e` is deferred
 to its protocol call. Both encapsulation phases are sampled at their calls. -/
 theorem sendBrleak_encapsFresh_eq_fresh [DecidableEq Sym]

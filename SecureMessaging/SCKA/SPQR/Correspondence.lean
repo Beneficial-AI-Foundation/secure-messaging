@@ -214,15 +214,14 @@ private theorem recvSCKA_toBraid_of_epoch_eq
       Option.map_some, and_false, and_self, and_true, exists_and_left, exists_eq', exists_false,
       lt_self_iff_false, not_false_eq_true, not_true_eq_false, one_ne_zero, or_false, or_self,
       or_true, reduceCtorEq, ↓existsAndEq, ↓reduceIte] at h ⊢ <;>
-    try simp_all only
+    simp_all only
   all_goals
     generalize hdec : StreamDecoder.decodedPayload _ (StreamDecoder.addChunk _ _ _) = decoded
     cases decoded <;> simp_all only [Option.map_some]
   all_goals try (split_ifs <;> simp_all)
-  all_goals
-    generalize hdecaps : P.det.decapsDet _ _ = decaps
-    cases decaps <;> simp_all only [Option.map_none]
-  all_goals try (split_ifs <;> simp_all)
+  generalize hdecaps : P.det.decapsDet _ _ = decaps
+  cases decaps <;> simp_all only [Option.map_none]
+  split_ifs <;> simp_all
 
 /-- Outside `RecvDivergence`, the SCKA receive outputs agree after translation. This includes the
 deliveries that both receives ignore: both adapters report `msg.epoch - 1` and keep the state. -/

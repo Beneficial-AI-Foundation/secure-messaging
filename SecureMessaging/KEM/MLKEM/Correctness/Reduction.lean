@@ -85,7 +85,7 @@ noncomputable def underlyingCorrectnessError : ℝ≥0∞ :=
 underlying K-PKE decryption-failure probability in the corresponding honest
 experiment. -/
 theorem correctnessError_le_underlyingCorrectnessError
-    [DecidableEq encoding.EncodedTHat] [DecidableEq encoding.EncodedU]
+    [DecidableEq encoding.EncodedU]
     [DecidableEq encoding.EncodedV] :
     (asKEMScheme ring encoding prims).correctnessError ProbCompRuntime.probComp ≤
       underlyingCorrectnessError ring encoding prims := by
@@ -108,7 +108,7 @@ theorem correctnessError_le_underlyingCorrectnessError
 /-- If the K-PKE recovery experiment fails with probability at most `delta`,
 then VCV-io's packaged ML-KEM scheme is `delta`-correct. -/
 theorem deltaCorrect_of_underlying
-    [DecidableEq encoding.EncodedTHat] [DecidableEq encoding.EncodedU]
+    [DecidableEq encoding.EncodedU]
     [DecidableEq encoding.EncodedV] {delta : ℝ≥0∞}
     (h : underlyingCorrectnessError ring encoding prims ≤ delta) :
     (asKEMScheme ring encoding prims).deltaCorrect ProbCompRuntime.probComp delta :=
