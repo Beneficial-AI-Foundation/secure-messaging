@@ -8,7 +8,7 @@ module
 
 public import ToVCVio.OracleComp.SimSemantics.StateT.WPBound
 public import VCVio.OracleComp.SimSemantics.StateT.StateProjection
-public import ToVCVio.ProgramLogic.Unary.WP
+public import VCVio.ProgramLogic.NotationCore
 
 /-!
 # Stateful simulation with a sticky bad flag
@@ -137,8 +137,9 @@ theorem trackedImpl_preserves (impl : QueryImpl spec (StateT σ ProbComp)) (bad 
 at least `1` on flagged states. -/
 theorem tracked_bad_probability_le_score {α : Type} (score : σ × Bool → ℝ≥0∞)
     (hscore : ∀ p : σ × Bool, p.2 = true → 1 ≤ score p) (oa : ProbComp (α × (σ × Bool))) :
-    Pr{let z ← oa}[z.2.2 = true] ≤ wp oa (fun z => score z.2) :=
-  prEvent_le_wp oa _ _ fun z hz => hscore z.2 hz
+    Pr{let z ← oa}[z.2.2 = true] ≤ wp oa (fun z => score z.2) := by
+  simpa only [one_mul] using
+    markov_bound oa (fun z => score z.2) 1 (fun z => z.2.2 = true) (fun z hz => hscore z.2 hz)
 
 /-- From a flagged state, one tracked query keeps the expected score within
 `score (s, true) + ε` for every allowance `ε`, for any score that is constant on flagged
