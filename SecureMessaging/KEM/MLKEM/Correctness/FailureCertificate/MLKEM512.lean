@@ -37,7 +37,7 @@ checks one large closed arithmetic proof at a time.
 
 @[expose] public section
 
-open ToVCVio LatticeCrypto
+open ToVCVio ToVCVio.Radix LatticeCrypto
 open scoped ENNReal
 
 namespace MLKEM

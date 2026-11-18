@@ -40,7 +40,7 @@ closed arithmetic proofs in lake order.
 
 @[expose] public section
 
-open ToVCVio LatticeCrypto
+open ToVCVio ToVCVio.Radix LatticeCrypto
 open scoped ENNReal
 
 namespace MLKEM
