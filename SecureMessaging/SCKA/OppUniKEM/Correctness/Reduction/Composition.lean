@@ -6,7 +6,6 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import ToVCVio.ProgramLogic.Unary.WP
 public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Core
 
 /-!
@@ -32,13 +31,13 @@ Pr[b_f = true] ≤ E[S(s_f, b_f)].
 ```
 
 that is, the probability that the failure flag is set is at most the expected
-tracked failure score.
+tracked failure score. This is `OracleComp.tracked_bad_probability_le_score`
+(`ToVCVio.OracleComp.SimSemantics.StateT.BadFlag`) with `S`, since `S(s, true) = 1`.
 -/
 
 @[expose] public section
 
 open OracleSpec OracleComp ENNReal KEMScheme
-open OracleComp.ProgramLogic
 
 namespace oppUniKemCKA
 
@@ -52,22 +51,5 @@ open Reduction.Internal
 abbrev SendQueryBound (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (q : ℕ) : Prop :=
   SCKAScheme.SendQueryBound adv q
-
-namespace Reduction.Internal
-
-omit [DecidableEq Sym] in
-/-- The probability that the failure flag is set is at most the expected
-tracked failure score. -/
-lemma tracked_bad_probability_le_score [DecidableEq K]
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (oa : ProbComp
-      (Bool ×
-        (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) ×
-          Bool))) :
-    Pr{let z ← oa}[z.2.2 = true] ≤
-      wp oa (fun z => trackedFailureScore kem onoff z.2) :=
-  prEvent_le_wp oa _ _ fun z hz => by simp [trackedFailureScore, hz]
-
-end Reduction.Internal
 
 end oppUniKemCKA

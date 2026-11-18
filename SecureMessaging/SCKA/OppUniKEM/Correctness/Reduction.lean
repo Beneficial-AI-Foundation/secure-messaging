@@ -209,7 +209,8 @@ theorem correctness_of_perfectKEM [DecidableEq K]
       Pr{let z ← (simulateQ tracked adv).run (s₀, false)}[z.2.2 = true] ≤
           wp ((simulateQ tracked adv).run (s₀, false))
             (fun z => score z.2) :=
-        tracked_bad_probability_le_score kem onoff _
+        tracked_bad_probability_le_score _
+          (fun _ hp => by simp [score, trackedFailureScore, hp]) _
       _ ≤ 0 := hscore
   have hfalse_le :
       Pr{let x ← (SCKAScheme.correctnessExp
@@ -249,48 +250,17 @@ theorem correctness_failure_le_reduction [DecidableEq K]
   have hEkPos := ecEk.ec.nchunk_pos
   have hCt0Pos := ecCt0.ec.nchunk_pos
   have hCt1Pos := ecCt1.ec.nchunk_pos
-  let tracked := trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak
-  let Inv := trackedInv kem onoff hDet ecEk ecCt0 ecCt1
-  let score := trackedFailureScore (Sym := Sym) kem onoff
-  let s₀ := initialGame (Sym := Sym) kem onoff
-  let epsilon := factorCorrectnessError kem onoff
-  have hpres : QueryImpl.PreservesInv tracked Inv :=
-    trackedCorrectnessImpl_preserves kem onoff hDet ecEk hEkCorrect hEkPos
-      ecCt0 hCt0Correct hCt0Pos ecCt1 hCt1Correct hCt1Pos leak
-  have hinit : Inv (s₀, false) := by
-    simpa [Inv, s₀] using
-      tracked_initial_inv kem onoff hDet ecEk ecCt0 ecCt1 hEkPos hCt0Pos
-  have hscore₀ : score (s₀, false) = 0 := by
-    simp [score, trackedFailureScore, currentFailurePotential, s₀, initialGame,
-      initialA, initialB, SCKAScheme.initGameState]
-  have hscore :
-      wp ((simulateQ tracked adv).run (s₀, false))
-          (fun z => score z.2) ≤
-        (q : ℝ≥0∞) * epsilon := by
-    have h := wp_simulateQ_run_le
-      (trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak)
-      (trackedInv kem onoff hDet ecEk ecCt0 ecCt1)
-      (trackedFailureScore kem onoff)
-      (IsSendQuery (Sym := Sym)) epsilon hpres
-      (tracked_score_step_le kem onoff hDet ecEk ecCt0 ecCt1 leak)
-      adv q hq (s₀, false) hinit
-    have hscore₀' : trackedFailureScore kem onoff (s₀, false) = 0 := by
-      simpa [score] using hscore₀
-    rw [hscore₀', zero_add] at h
-    simpa [tracked, score] using h
-  have hbad :
-      Pr{let z ← ((simulateQ
-            (trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) adv).run
-              (initialGame (Sym := Sym) kem onoff, false))}[z.2.2 = true] ≤
-        (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp := by
-    calc
-      Pr{let z ← (simulateQ tracked adv).run (s₀, false)}[z.2.2 = true] ≤
-          wp ((simulateQ tracked adv).run (s₀, false))
-            (fun z => score z.2) :=
-        tracked_bad_probability_le_score kem onoff _
-      _ ≤ (q : ℝ≥0∞) * epsilon := hscore
-      _ = (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp := by
-        simp only [epsilon, factorCorrectnessError_eq]
+  have hbad := SCKAScheme.tracked_bad_le_of_score_step
+    (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) (currentKEMFailure kem onoff hDet)
+    (reachableInv kem onoff ecEk ecCt0 ecCt1) (trackedFailureScore kem onoff)
+    (factorCorrectnessError kem onoff) (fun _ hp => by simp [trackedFailureScore, hp])
+    (trackedCorrectnessImpl_preserves kem onoff hDet ecEk hEkCorrect hEkPos
+      ecCt0 hCt0Correct hCt0Pos ecCt1 hCt1Correct hCt1Pos leak)
+    (tracked_score_step_le kem onoff hDet ecEk ecCt0 ecCt1 leak) adv q hq
+    (initialGame kem onoff) (tracked_initial_inv kem onoff hDet ecEk ecCt0 ecCt1 hEkPos hCt0Pos)
+    (by simp [trackedFailureScore, currentFailurePotential, initialGame, initialA, initialB,
+      SCKAScheme.initGameState])
+  rw [factorCorrectnessError_eq] at hbad
   exact correctness_failure_le_of_tracked_bad kem onoff hDet
     ecEk hEkCorrect hEkPos ecCt0 hCt0Correct hCt0Pos
     ecCt1 hCt1Correct hCt1Pos leak adv
