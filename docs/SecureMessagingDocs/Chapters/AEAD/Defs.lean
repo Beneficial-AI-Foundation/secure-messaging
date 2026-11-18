@@ -159,8 +159,8 @@ def oracleDecrypt [DecidableEq AD] [DecidableEq C] (ae : AEADScheme ProbComp M A
 :::definition "aead_correctness" (lean := "AEADScheme.Correct") (tags := "gh-193") (uses := "aead")
 Adapted from {Informal.citet ACD19}[], Definition 1.
 
-An AEAD scheme is correct if for all keys $`K`, associated data $`a` and messages $`m`,
-$`\Dec(K, a, \Enc(K, a, m)) = m`.
+An AEAD scheme is (perfectly) correct if for all keys $`K`, associated data $`a` and
+messages $`m`, $`\Dec(K, a, \Enc(K, a, m)) = m`.
 
 ```anchor Correct (project := ".") (module := SecureMessaging.AEAD.Defs)
 def Correct (ae : AEADScheme m M AD K C) : Prop :=

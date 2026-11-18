@@ -26,8 +26,8 @@ set_option pp.rawOnError true
 
 *References:*
 
-- {Informal.citet ACD19}[] — FS-AEAD syntax (Definition 14), security game (Figure 5)
-  and security (Definition 15).
+- {Informal.citet ACD19}[] — FS-AEAD syntax (Definition 14), security game (Figure 5),
+  security (Definition 15) and the correctness game of SM (§3.3).
 
 :::group "fs_aead"
 Forward-Secure AEAD (FS-AEAD).
@@ -100,6 +100,8 @@ The game state consists of:
 In the oracles, $`\req\varphi` means: if $`\varphi` is false, the oracle returns
 $`\bot` and the game state does not change. $`\mathsf{end}` disables all oracles: after
 it, every oracle returns $`\bot`.
+
+The game has a parameter: a length function $`|\cdot|` on messages.
 
 :::leanPillCaption "Game state"
 :::
@@ -415,5 +417,143 @@ noncomputable def advantage [SampleableType K] [DecidableEq AD] [DecidableEq M]
     [DecidableEq C] (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ)
     (adversary : FSAEADAdversary StS StR AD M C) : ℝ :=
   |(Pr{let x ← securityExp fs len adversary}[x = true]).toReal - 1 / 2|
+```
+:::::::
+
+:::defTitle "fs_aead_correctness" "FS-AEAD correctness"
+:::
+
+:::::::definition "fs_aead_correctness" (parent := "fs_aead") (lean := "FSAEADScheme.oracleInjectBCorr, FSAEADScheme.fsaeadCorrectnessImpl, FSAEADScheme.correctnessExp, FSAEADScheme.Correct") (tags := "gh-366") (uses := "fs_aead_security")
+Adapted from {Informal.citet ACD19}[], §4.2.1, with the correctness game of §3.3.
+
+Correctness requires that, whenever a ciphertext of A in transit is delivered to B, B
+outputs the index and the message with which A sent it, whatever the order of delivery.
+
+The correctness game is the {bpref "fs_aead_security"}[FS-AEAD security game] without
+$`\OChallA`, so also without the challenge bit $`b` and the length function, and with
+$`\OInjectB^{\mathsf{corr}}` for $`\OInjectB`. Only $`\ODeliverB` sets $`\mathsf{win}`, when
+B rejects the delivered ciphertext or outputs a wrong index or message for it.
+$`\OInjectB^{\mathsf{corr}}` takes a ciphertext that is not in transit. B can receive it only
+at an index in $`\mathsf{comp}`: exposed by A's corruption and not yet received by B. If B
+accepts such a ciphertext at any other index, it is a forgery, which the security game counts.
+
+::::::gameGrid
+:::::gameCell "\\ODeliverB(a, e)" (kind := "compact")
+$`\begin{array}{l}
+\pcommentline{\text{as in the security game}} \\
+\req\;(i, a, m, e) \in \mathsf{trans}\text{, with the smallest such } i; \\
+r \gets \mathsf{FS\text{-}Rcv}(v_\B, a, e); \\
+\pcommentline{\text{correctness failure: B rejects the honest ciphertext } e} \\
+\pif\;r = \bot\;\pthen \\
+\quad\mathsf{win} \gets \mathsf{true}; \\
+\quad\Return \bot; \\
+(v_\B, i', m') \gets r; \\
+\pcommentline{\text{correctness failure: B outputs a wrong index or message}} \\
+\pif\;(i', m') \neq (i, m)\;\pthen \\
+\quad\mathsf{win} \gets \mathsf{true}; \\
+\pif\;i \in \mathsf{chall}\;\pthen \\
+\quad m' \gets \bot; \\
+\mathsf{delete}(i); \\
+\Return (i', m')
+\end{array}`
+
+```anchor oracleDeliverB (project := ".") (module := SecureMessaging.FSAEAD.Defs)
+def oracleDeliverB [DecidableEq AD] [DecidableEq M] [DecidableEq C]
+    (fs : FSAEADScheme K StS StR AD M C) :
+    QueryImpl (AD × C →ₒ Option (ℕ × Option M)) (GameM StS StR AD M C) :=
+  fun (a, e) => do
+    let st ← get
+    if st.end_ then return none
+    let some (i, _, m, _) := st.findTrans a e | return none
+    match fs.rcv st.vB a e with
+    | none =>
+      set { st with win := true }
+      return none
+    | some (vB, i', m') =>
+      let win := st.win || !(decide (i' = i) && decide (m' = m))
+      set ({ st with vB, win }.delete i)
+      return some (i', if i ∈ st.chall then none else some m')
+```
+:::::
+
+:::::gameCell "\\OInjectB^{\\mathsf{corr}}(a, e)" (kind := "compact")
+$`\begin{array}{l}
+\req\;\neg(\exists i, m: (i, a, m, e) \in \mathsf{trans}); \\
+r \gets \mathsf{FS\text{-}Rcv}(v_\B, a, e); \\
+\req\;r \neq \bot; \\
+(v_\B, i', m') \gets r; \\
+\pcommentline{\text{in the security game only:}} \\
+\pcommentline{\pif\; i' \notin \mathsf{comp}\; \pthen\; \mathsf{win} \gets \mathsf{true}} \\
+\req\;i' \in \mathsf{comp}; \\
+\mathsf{delete}(i'); \\
+\Return (i', m')
+\end{array}`
+
+```anchor oracleInjectBCorr (project := ".") (module := SecureMessaging.FSAEAD.Defs)
+def oracleInjectBCorr [DecidableEq AD] [DecidableEq C]
+    (fs : FSAEADScheme K StS StR AD M C) :
+    QueryImpl (AD × C →ₒ Option (ℕ × M)) (GameM StS StR AD M C) :=
+  fun (a, e) => do
+    let st ← get
+    if st.end_ || (st.findTrans a e).isSome then return none
+    let some (vB, i', m') := fs.rcv st.vB a e | return none
+    if !st.comp i' then return none
+    set ({ st with vB }.delete i')
+    return some (i', m')
+```
+:::::
+
+:::::gameCell "\\Exp{\\textsf{corr}}{\\textsf{FS-AEAD}}(\\adv)" (kind := "game")
+$`\begin{array}{l}
+\pcommentline{\text{Check delivery under adversarial scheduling}} \\
+\pcommentline{\text{Initialize both parties with a shared key}} \\
+k \sample \K;\quad v_\A \gets \mathsf{FS\text{-}Init\text{-}S}(k);\quad v_\B \gets \mathsf{FS\text{-}Init\text{-}R}(k); \\
+\pcommentline{\text{Initialize the game state}} \\
+i_\A \gets 0;\quad \mathsf{corrA} \gets \mathsf{false};\quad \mathsf{win} \gets \mathsf{false};\quad \mathsf{end} \gets \mathsf{false}; \\
+\mathsf{trans}, \mathsf{chall}, \mathsf{comp} \gets \emptyset; \\
+\pcommentline{\text{Run the adversary with } \OTransmitA, \OCorrA, \OCorrB, \ODeliverB, \OInjectB^{\mathsf{corr}}} \\
+\adv^{\O}; \\
+\pcommentline{\text{The adversary wins if and only if a delivery failed}} \\
+\Return\;\mathsf{win}
+\end{array}`
+
+:::leanPillCaption "Correctness oracles"
+:::
+
+```anchor fsaeadCorrectnessImpl (project := ".") (module := SecureMessaging.FSAEAD.Defs)
+def fsaeadCorrectnessImpl [DecidableEq AD] [DecidableEq M] [DecidableEq C]
+    (fs : FSAEADScheme K StS StR AD M C) :
+    QueryImpl (fsaeadCorrectnessSpec StS StR AD M C) (GameM StS StR AD M C) :=
+  oracleUnif StS StR AD M C
+    + oracleTransmitA fs
+    + oracleCorrA StS StR AD M C
+    + oracleCorrB StS StR AD M C
+    + oracleDeliverB fs
+    + oracleInjectBCorr fs
+```
+
+:::leanPillCaption "Correctness experiment"
+:::
+
+```anchor correctnessExp (project := ".") (module := SecureMessaging.FSAEAD.Defs)
+def correctnessExp [SampleableType K] [DecidableEq AD] [DecidableEq M] [DecidableEq C]
+    (fs : FSAEADScheme K StS StR AD M C)
+    (adversary : FSAEADCorrectnessAdversary StS StR AD M C) : ProbComp Bool := do
+  let k ← $ᵗ K
+  let (_, st) ← (simulateQ (fsaeadCorrectnessImpl fs) adversary).run (.init fs k)
+  return st.win
+```
+:::::
+::::::
+
+An FS-AEAD scheme is _(perfectly) correct_ if for every adversary $`\adv`,
+
+$$`\Pr\bigl[\Exp{\textsf{corr}}{\textsf{FS-AEAD}}(\adv) = 1\bigr] = 0.`
+
+```anchor Correct (project := ".") (module := SecureMessaging.FSAEAD.Defs)
+def Correct [SampleableType K] [DecidableEq AD] [DecidableEq M] [DecidableEq C]
+    (fs : FSAEADScheme K StS StR AD M C) : Prop :=
+  ∀ adversary : FSAEADCorrectnessAdversary StS StR AD M C,
+    Pr{let x ← correctnessExp fs adversary}[x = true] = 0
 ```
 :::::::
