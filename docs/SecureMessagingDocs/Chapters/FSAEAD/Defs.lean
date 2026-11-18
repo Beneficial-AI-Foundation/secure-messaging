@@ -426,19 +426,56 @@ noncomputable def advantage [SampleableType K] [DecidableEq AD] [DecidableEq M]
 :::::::definition "fs_aead_correctness" (parent := "fs_aead") (lean := "FSAEADScheme.oracleInjectBCorr, FSAEADScheme.fsaeadCorrectnessImpl, FSAEADScheme.correctnessExp, FSAEADScheme.Correct") (tags := "gh-366") (uses := "fs_aead_security")
 Adapted from {Informal.citet ACD19}[], §4.2.1, with the correctness game of §3.3.
 
-The paper builds correctness into the game of the
-{bpref "fs_aead_security"}[FS-AEAD security definition]. The correctness game is that
-game with two changes:
+Correctness requires that, whenever a ciphertext of A in transit is delivered to B, B
+outputs the index and the message with which A sent it, whatever the order of delivery.
 
-* it has no $`\OChallA`, so it also has no challenge bit $`b`, no $`\mathsf{chall}` and no
-  length function;
-* $`\OInjectB^{\mathsf{corr}}` replaces $`\OInjectB`. It accepts only a ciphertext at a
-  compromised index, and it does not set $`\mathsf{win}`.
-
-So only $`\ODeliverB` sets $`\mathsf{win}`: when B rejects a ciphertext that A sent, or
-outputs a wrong index or message for it.
+The correctness game is the {bpref "fs_aead_security"}[FS-AEAD security game] without
+$`\OChallA`, so also without the challenge bit $`b` and the length function, and with
+$`\OInjectB^{\mathsf{corr}}` for $`\OInjectB`. Only $`\ODeliverB` sets $`\mathsf{win}`, when
+B rejects the delivered ciphertext or outputs a wrong index or message for it.
+$`\OInjectB^{\mathsf{corr}}` takes a ciphertext that is not in transit. B can receive it only
+at an index in $`\mathsf{comp}`: exposed by A's corruption and not yet received by B. If B
+accepts such a ciphertext at any other index, it is a forgery, which the security game counts.
 
 ::::::gameGrid
+:::::gameCell "\\ODeliverB(a, e)" (kind := "compact")
+$`\begin{array}{l}
+\pcommentline{\text{as in the security game}} \\
+\req\;(i, a, m, e) \in \mathsf{trans}\text{, with the smallest such } i; \\
+r \gets \mathsf{FS\text{-}Rcv}(v_\B, a, e); \\
+\pcommentline{\text{correctness failure: B rejects the honest ciphertext } e} \\
+\pif\;r = \bot\;\pthen \\
+\quad\mathsf{win} \gets \mathsf{true}; \\
+\quad\Return \bot; \\
+(v_\B, i', m') \gets r; \\
+\pcommentline{\text{correctness failure: B outputs a wrong index or message}} \\
+\pif\;(i', m') \neq (i, m)\;\pthen \\
+\quad\mathsf{win} \gets \mathsf{true}; \\
+\pif\;i \in \mathsf{chall}\;\pthen \\
+\quad m' \gets \bot; \\
+\mathsf{delete}(i); \\
+\Return (i', m')
+\end{array}`
+
+```anchor oracleDeliverB (project := ".") (module := SecureMessaging.FSAEAD.Defs)
+def oracleDeliverB [DecidableEq AD] [DecidableEq M] [DecidableEq C]
+    (fs : FSAEADScheme K StS StR AD M C) :
+    QueryImpl (AD × C →ₒ Option (ℕ × Option M)) (GameM StS StR AD M C) :=
+  fun (a, e) => do
+    let st ← get
+    if st.end_ then return none
+    let some (i, _, m, _) := st.findTrans a e | return none
+    match fs.rcv st.vB a e with
+    | none =>
+      set { st with win := true }
+      return none
+    | some (vB, i', m') =>
+      let win := st.win || !(decide (i' = i) && decide (m' = m))
+      set ({ st with vB, win }.delete i)
+      return some (i', if i ∈ st.chall then none else some m')
+```
+:::::
+
 :::::gameCell "\\OInjectB^{\\mathsf{corr}}(a, e)" (kind := "compact")
 $`\begin{array}{l}
 \req\;\neg(\exists i, m: (i, a, m, e) \in \mathsf{trans}); \\
@@ -468,13 +505,15 @@ def oracleInjectBCorr [DecidableEq AD] [DecidableEq C]
 
 :::::gameCell "\\Exp{\\textsf{corr}}{\\textsf{FS-AEAD}}(\\adv)" (kind := "game")
 $`\begin{array}{l}
+\pcommentline{\text{Check delivery under adversarial scheduling}} \\
 \pcommentline{\text{Initialize both parties with a shared key}} \\
 k \sample \K;\quad v_\A \gets \mathsf{FS\text{-}Init\text{-}S}(k);\quad v_\B \gets \mathsf{FS\text{-}Init\text{-}R}(k); \\
 \pcommentline{\text{Initialize the game state}} \\
 i_\A \gets 0;\quad \mathsf{corrA} \gets \mathsf{false};\quad \mathsf{win} \gets \mathsf{false};\quad \mathsf{end} \gets \mathsf{false}; \\
-\mathsf{trans}, \mathsf{comp} \gets \emptyset; \\
+\mathsf{trans}, \mathsf{chall}, \mathsf{comp} \gets \emptyset; \\
 \pcommentline{\text{Run the adversary with } \OTransmitA, \OCorrA, \OCorrB, \ODeliverB, \OInjectB^{\mathsf{corr}}} \\
 \adv^{\O}; \\
+\pcommentline{\text{The adversary wins if and only if a delivery failed}} \\
 \Return\;\mathsf{win}
 \end{array}`
 
