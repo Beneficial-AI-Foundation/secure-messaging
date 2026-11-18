@@ -70,8 +70,8 @@ extraction therefore gives
 
 `decodeFailureMass_eq` applies (1)--(2) with `q=3329`, `F` equal to
 `coefficientNoiseMeasure p`, and `b_t` equal to the exact number of message
-bits that fail at residue `lo+t`.  The implementation uses `fold` for the
-pushforward that sums masses in one congruence class.  The extracted “middle
+bits that fail at residue `lo+t`.  The implementation uses `foldedNoiseMeasure`,
+defined with `Finsupp.mapDomain`, to sum the masses in each congruence class.  The extracted “middle
 coefficient” is the coefficient of `X^{q-1}` in the product with the reversed
 weight polynomial.
 -/
