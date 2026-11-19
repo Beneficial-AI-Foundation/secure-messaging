@@ -19,8 +19,8 @@ public import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.HybridGame
 
 Assume that the KEM has deterministic decapsulation and the three erasure codes are correct.
 
-**Challenge mode.** The mode `μ := adjacentMode e b` (`IdealHybrids`) answers eligible challenges
-as follows:
+**Challenge mode.** The mode `μ := adjacentMode e b` (`SCKA.Security.Hybrids`) answers eligible
+challenges as follows:
 
 | Epoch `t`   | Answer                                          |
 | ----------- | ----------------------------------------------- |
@@ -112,7 +112,7 @@ theorem stageOracle_preserves_keyB_available
     (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool) :
     QueryImpl.PreservesInv (stageOracle kem onoff ecEk ecCt0 ecCt1 leak stage kemMat e b)
       (fun s => (s.keyB e).isSome) :=
-  securityImplAt_preservesInv kem onoff leak _ _ _ (fun _ _ _ h => h)
+  SCKAScheme.securityImplAt_preservesInv _ _ _ _ _ (fun _ _ _ h => h)
     (fun _ => sendArleak_forget (onoff := Pinned.onOff kemMat _ _ _ _) _ _ _)
     (fun _ => sendBrleak_forget (onoff := Pinned.onOff kemMat _ _ _ _) _ _ _ _)
     (SCKAScheme.challOf_recordsChallenges _)
@@ -146,7 +146,8 @@ theorem stageOracle_online_first_use
     all_goals simp only [hc0, hst, Option.isNone_some, Option.isNone_none,
       Option.isSome_none, Option.isSome_some, Bool.false_eq_true, or_false] at hsrc
     all_goals
-      simp only [securityImplAt, SCKAScheme.securityImplOf, QueryImpl.add_apply_inl,
+      simp only [SCKAScheme.modeImpl, SCKAScheme.securityImplAt, SCKAScheme.securityImplOf,
+        QueryImpl.add_apply_inl,
         QueryImpl.add_apply_inr, stageOracle, SCKAScheme.sckaCorrectnessImpl,
         SCKAScheme.oracleSendB, stageScheme, Stage.offlineFlag,
         Stage.onlineFlag, scheme, sendB,
@@ -168,7 +169,8 @@ theorem stageOracle_online_first_use
     all_goals simp only [hc0, hst, Option.isNone_some, Option.isNone_none,
       Option.isSome_none, Option.isSome_some, Bool.false_eq_true, or_false] at hsrc
     all_goals
-      simp only [securityImplAt, SCKAScheme.securityImplOf, QueryImpl.add_apply_inl,
+      simp only [SCKAScheme.modeImpl, SCKAScheme.securityImplAt, SCKAScheme.securityImplOf,
+        QueryImpl.add_apply_inl,
         QueryImpl.add_apply_inr, stageOracle, SCKAScheme.oracleSendBrleak,
         stageScheme, Stage.keygenFlag, Stage.offlineFlag, Stage.onlineFlag, scheme,
         sendBrleak, vulnRleakB,
@@ -258,12 +260,12 @@ theorem stageOracle_online_independent
       { kemMat with on := online } e b t).run s =
     (stageOracle kem onoff ecEk ecCt0 ecCt1 leak .pinned
       { kemMat with on := online' } e b t).run s := by
-  apply securityImplAt_congr kem onoff leak (R := fun {_} => Eq) (fun _ => rfl)
+  apply SCKAScheme.securityImplAt_congr (R := fun {_} => Eq) (hrefl := fun _ => rfl)
   · intro _; rfl
   · rintro rfl
     exact sendB_online_independent kem onoff ecEk ecCt0 ecCt1 leak kemMat e s
       (of_decide_eq_false hh) online online'
-  · intro _ _ ρ
+  · intro _ _ ρ _ _
     exact (stageScheme_recvA_eq_ideal kem onoff ecEk ecCt0 ecCt1 leak .pinned
         { kemMat with on := online } e s ρ).trans
       (stageScheme_recvA_eq_ideal kem onoff ecEk ecCt0 ecCt1 leak .pinned
@@ -352,10 +354,10 @@ theorem stageOracle_sample_online_eq_fresh
       (stageOracle kem onoff ecEk ecCt0 ecCt1 leak .pinned { kemMat with on := online } e b t).run
         s) =ᵈ
     (stageOracle kem onoff ecEk ecCt0 ecCt1 leak .onlineFresh kemMat e b t).run s :=
-  securityImplAt_sample_eq kem onoff leak (leak.encapsOnRleak kemMat.st kemMat.pk)
+  SCKAScheme.securityImplAt_sample_eq (SCKAScheme.challOf (SCKAScheme.adjacentMode e b))
+    (exposureA kem onoff leak) (exposureB kem onoff leak) (leak.encapsOnRleak kemMat.st kemMat.pk)
     (fun online => stageScheme ecEk ecCt0 ecCt1 .pinned { kemMat with on := online } e)
-    (stageScheme ecEk ecCt0 ecCt1 .onlineFresh kemMat e)
-    (SCKAScheme.challOf (adjacentMode e b)) s
+    (stageScheme ecEk ecCt0 ecCt1 .onlineFresh kemMat e) s
     (OracleComp.EvalDistEq.bind_const_of_support _ fun _ _ => rfl)
     (sendB_sample_online_eq_fresh kem onoff ecEk ecCt0 ecCt1 leak kemMat e s hs hsrc)
     (OracleComp.EvalDistEq.bind_const_of_support _ fun _ _ => rfl)
@@ -487,7 +489,7 @@ theorem stageOracle_preserves_offlineUsed [SampleableType K]
     (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool) :
     QueryImpl.PreservesInv (stageOracle kem onoff ecEk ecCt0 ecCt1 leak stage kemMat e b)
       (fun s => offlineUsed e s.stB) :=
-  securityImplAt_preservesInv kem onoff leak _ _ _ (fun _ _ _ h => h)
+  SCKAScheme.securityImplAt_preservesInv _ _ _ _ _ (fun _ _ _ h => h)
     (fun _ => sendArleak_forget (onoff := Pinned.onOff kemMat _ _ _ _) _ _ _)
     (fun _ => sendBrleak_forget (onoff := Pinned.onOff kemMat _ _ _ _) _ _ _ _)
     (SCKAScheme.challOf_recordsChallenges _)
@@ -654,13 +656,13 @@ theorem stageOracle_offline_independent
       .onlineFresh { kemMat with off := offline } e b t).run s =ᵈ
     (stageOracle kem onoff ecEk ecCt0 ecCt1 leak
       .onlineFresh { kemMat with off := offline' } e b t).run s := by
-  apply securityImplAt_congr kem onoff leak (R := fun {_} => EvalDistEq)
-    (fun _ => EvalDistEq.refl _)
+  apply SCKAScheme.securityImplAt_congr (R := fun {_} => EvalDistEq)
+    (hrefl := fun _ => EvalDistEq.refl _)
   · intro _; rfl
   · rintro rfl
     exact sendB_offline_independent kem onoff ecEk ecCt0 ecCt1 leak kemMat e s
       (of_decide_eq_false hh) offline offline'
-  · intro _ _ ρ
+  · intro _ _ ρ _ _
     exact (stageScheme_recvA_eq_ideal kem onoff ecEk ecCt0 ecCt1 leak .onlineFresh
         { kemMat with off := offline } e s ρ).trans
       (stageScheme_recvA_eq_ideal kem onoff ecEk ecCt0 ecCt1 leak .onlineFresh
@@ -739,11 +741,11 @@ theorem stageOracle_sample_offline_eq_fresh
       (stageOracle kem onoff ecEk ecCt0 ecCt1 leak
         .onlineFresh { kemMat with off := offline } e b t).run s) =ᵈ
     (stageOracle kem onoff ecEk ecCt0 ecCt1 leak .encapsFresh kemMat e b t).run s :=
-  securityImplAt_sample_eq kem onoff leak leak.encapsOffRleak
+  SCKAScheme.securityImplAt_sample_eq (SCKAScheme.challOf (SCKAScheme.adjacentMode e b))
+    (exposureA kem onoff leak) (exposureB kem onoff leak) leak.encapsOffRleak
     (fun offline =>
       stageScheme ecEk ecCt0 ecCt1 .onlineFresh { kemMat with off := offline } e)
-    (stageScheme ecEk ecCt0 ecCt1 .encapsFresh kemMat e)
-    (SCKAScheme.challOf (adjacentMode e b)) s
+    (stageScheme ecEk ecCt0 ecCt1 .encapsFresh kemMat e) s
     (OracleComp.EvalDistEq.bind_const_of_support _ fun _ _ => rfl)
     (sendB_sample_offline_eq_fresh kem onoff ecEk ecCt0 ecCt1 leak kemMat e s)
     (OracleComp.EvalDistEq.bind_const_of_support _ fun _ _ => rfl)
@@ -869,7 +871,7 @@ theorem stageOracle_preserves_keygenUsed [SampleableType K]
     (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool) :
     QueryImpl.PreservesInv (stageOracle kem onoff ecEk ecCt0 ecCt1 leak stage kemMat e b)
       (fun s => keygenUsed e s.stA) :=
-  securityImplAt_preservesInv kem onoff leak _ _ _ (fun _ _ _ h => h)
+  SCKAScheme.securityImplAt_preservesInv _ _ _ _ _ (fun _ _ _ h => h)
     (fun _ => sendArleak_forget (onoff := Pinned.onOff kemMat _ _ _ _) _ _ _)
     (fun _ => sendBrleak_forget (onoff := Pinned.onOff kemMat _ _ _ _) _ _ _ _)
     (SCKAScheme.challOf_recordsChallenges _)
@@ -1032,9 +1034,10 @@ theorem stageOracle_sample_keygen_eq_fresh
       (stageOracle kem onoff ecEk ecCt0 ecCt1 leak .encapsFresh
         { kemMat with keygen := pair } e b t).run s) =ᵈ
     (stageOracle kem onoff ecEk ecCt0 ecCt1 leak .fresh kemMat e b t).run s :=
-  securityImplAt_sample_eq kem onoff leak leak.keygenRleak
+  SCKAScheme.securityImplAt_sample_eq (SCKAScheme.challOf (SCKAScheme.adjacentMode e b))
+    (exposureA kem onoff leak) (exposureB kem onoff leak) leak.keygenRleak
     (fun pair => stageScheme ecEk ecCt0 ecCt1 .encapsFresh { kemMat with keygen := pair } e)
-    (stageScheme ecEk ecCt0 ecCt1 .fresh kemMat e) (SCKAScheme.challOf (adjacentMode e b)) s
+    (stageScheme ecEk ecCt0 ecCt1 .fresh kemMat e) s
     (sendA_sample_keygen_eq_fresh kem onoff ecEk ecCt0 ecCt1 leak kemMat e s)
     (OracleComp.EvalDistEq.bind_const_of_support _ fun pair _ =>
       sendB_encapsFresh_eq_fresh kem onoff ecEk ecCt0 ecCt1 leak kemMat e s pair)
@@ -1127,15 +1130,15 @@ theorem stageOracle_keygen_independent
       .encapsFresh { kemMat with keygen := pair } e b t).run s =ᵈ
     (stageOracle kem onoff ecEk ecCt0 ecCt1 leak
       .encapsFresh { kemMat with keygen := pair' } e b t).run s := by
-  apply securityImplAt_congr kem onoff leak (R := fun {_} => EvalDistEq)
-    (fun _ => EvalDistEq.refl _)
+  apply SCKAScheme.securityImplAt_congr (R := fun {_} => EvalDistEq)
+    (hrefl := fun _ => EvalDistEq.refl _)
   · rintro rfl
     exact sendA_keygen_independent kem onoff ecEk ecCt0 ecCt1 leak kemMat e s
       (of_decide_eq_false hh) pair pair'
   · intro _
     exact (sendB_encapsFresh_eq_fresh kem onoff ecEk ecCt0 ecCt1 leak kemMat e s pair).trans
       (sendB_encapsFresh_eq_fresh kem onoff ecEk ecCt0 ecCt1 leak kemMat e s pair').symm
-  · intro _ _ ρ
+  · intro _ _ ρ _ _
     exact (stageScheme_recvA_eq_ideal kem onoff ecEk ecCt0 ecCt1 leak .encapsFresh
         { kemMat with keygen := pair } e s ρ).trans
       (stageScheme_recvA_eq_ideal kem onoff ecEk ecCt0 ecCt1 leak .encapsFresh

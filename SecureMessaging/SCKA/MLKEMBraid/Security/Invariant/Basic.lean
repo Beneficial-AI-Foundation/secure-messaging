@@ -14,8 +14,8 @@ public import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
 
 `RepairInv` is `TranscriptInv` with no condition on decapsulation: the control states, the
 payloads and the output keys agree with the transcript. `DecapsGood` is the extra condition that
-decapsulation of every recorded encapsulation gives its key. The module also proves that the
-invariant ignores the exposed and challenged epochs.
+decapsulation of every recorded encapsulation derives the transcript key of its epoch. Like every
+`TranscriptInv`, `RepairInv` ignores the exposed and challenged epochs (`TranscriptInv.setFlags`).
 -/
 
 @[expose] public section
@@ -32,7 +32,8 @@ abbrev RepairInv (hMac : P.Mac = Unit) (T : ℕ → EpochTranscript P)
     (s : Braid.GameState P Unit) : Prop :=
   TranscriptInv (auth P hMac) (fun _ _ _ _ _ _ => True) () T s
 
-/-- Actual decapsulation of every recorded first-stage encapsulation gives its derived key. -/
+/-- Actual decapsulation of every recorded first-stage encapsulation derives the transcript key of
+its epoch. -/
 def DecapsGood (T : ℕ → EpochTranscript P) : Prop :=
   ∀ e pk sk encapsState ct1 key, (T e).keypair = some (pk, sk) →
     (T e).encaps1 = some (encapsState, ct1, key) →
@@ -46,19 +47,6 @@ variable {hMac : P.Mac = Unit} {T : ℕ → EpochTranscript P} {s : Braid.GameSt
 theorem of_transcriptConsistent (h : TranscriptConsistent (auth P hMac) () T s) :
     RepairInv hMac T s :=
   h.mono _ _ fun _ _ _ _ _ _ _ _ _ => trivial
-
-/-- The invariant reads neither the exposed nor the challenged epochs. -/
-theorem setFlags (h : RepairInv hMac T s) (X Y : Finset ℕ) :
-    RepairInv hMac T { s with exposed := X, challenged := Y } :=
-  have hC := h.control
-  have hE := hC.epochKnowledge
-  ⟨h.correct,
-    ⟨⟨⟨hE.keyPrefix.posA, hE.keyPrefix.posB, hE.keyPrefix.prefixA, hE.keyPrefix.prefixB⟩,
-        hE.epochA_le, hE.epochB_le, hE.tcurA_le, hE.tcurB_le, hE.msgA, hE.msgB⟩,
-      ⟨hC.recordedReport.msgA, hC.recordedReport.msgB⟩, hC.tcurA_le_sub_one,
-      hC.tcurB_le_sub_one, hC.roles⟩,
-    h.statePair, h.keypair_zero, h.encaps_zero, h.keypair, h.encaps, h.localA, h.localB,
-    h.messages, h.keys⟩
 
 /-- Build the invariant for the same transcript at a state with larger epochs and completed
 epochs whose local states, messages and keys agree with the transcript. -/

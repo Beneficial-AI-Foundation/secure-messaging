@@ -13,7 +13,7 @@ public import SecureMessaging.SCKA.OppUniKEM.Construction
 
 **Main results.** The SCKA security interface of Opp-UniKEM admits Boolean adversaries `adv`
 (`securitySpec`, `SecurityAdversary`), whose *send budget* `q` bounds the ordinary and leaking sends
-on every response path (`SecuritySendQueryBound adv q`).
+on every response path (`SCKAScheme.SecuritySendQueryBound adv q`, `SCKA.Defs`).
 
 - A leaking send without its coins is the ordinary send (`sendArleak_forget`, `sendBrleak_forget`).
 - The epochs exposed by a successful leaking send from a party state `s` depend on `s` alone:
@@ -53,14 +53,6 @@ variable {kem onoff} in
 abbrev SecurityAdversary (Sym : Type) :=
   SCKAScheme.SCKAAdversary (StA onoff Sym) (StB onoff Sym) K (Message Sym)
     (SendRand leak.KeygenRand leak.OffRand leak.OnRand)
-
-/-- Every response path of `adv` makes at most `q` ordinary or leaking sends (`isSendQuery`). -/
--- ANCHOR: SecuritySendQueryBound
-def SecuritySendQueryBound {kem : KEMScheme ProbComp K PK SK C}
-    {onoff : kem.OnOffStructure} {leak : kem.OnOffRandLeak onoff}
-    (adv : SecurityAdversary leak Sym) (q : ℕ) : Prop :=
-  adv.IsQueryBoundP (fun t => SCKAScheme.sckaSecuritySpec.isSendQuery t = true) q
--- ANCHOR_END: SecuritySendQueryBound
 
 section Marginals
 

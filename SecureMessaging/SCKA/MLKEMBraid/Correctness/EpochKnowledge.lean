@@ -14,7 +14,8 @@ public import SecureMessaging.SCKA.MLKEMBraid.Correctness.KeyPrefixes
 `EpochKnowledgeInv` bounds each party's epoch by its peer's completed epoch plus one, the game's
 current epochs `tcurA`, `tcurB` (the largest epoch reported by the party's sends and receives) by
 the party's completed epoch, and the epoch of every recorded message by both completed epochs plus
-one. Every oracle of the correctness game preserves it.
+one. Every send edge preserves it, and so does every receive edge on a message recorded by the
+peer.
 -/
 
 @[expose] public section
@@ -83,20 +84,13 @@ theorem epochKnowledgeInv_initGameState (ik : InitKey) :
     simp [SCKAScheme.initGameState, initA, initB, State.epoch, State.completedEpoch]
 
 variable [DecidableEq P.EpochKey]
-  (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey)
 
-/-- The send oracle of either party preserves `EpochKnowledgeInv`. -/
-theorem oracleSend_preserves_epochKnowledgeInv (party : Bool) :
-    QueryImpl.PreservesInv (oracleSend auth irl sampleInitKey party) EpochKnowledgeInv := by
-  rintro _ (s : GameState P AuthState) hs z hz
-  have hprefix : KeyPrefixInv z.2 := by
-    cases party
-    · exact correctnessImpl_preserves_keyPrefixInv auth irl sampleInitKey
-        (OSendB (Rho := Message P.Sym)) s hs.keyPrefix z hz
-    · exact correctnessImpl_preserves_keyPrefixInv auth irl sampleInitKey
-        (OSendA (Rho := Message P.Sym)) s hs.keyPrefix z hz
-  obtain ⟨r, hr, rfl⟩ := (mem_support_oracleSend_run_iff auth irl sampleInitKey s party z).mp hz
-  have hedge := (mem_support_send_iff auth).mp hr
+/-- A send edge from the state of `party` preserves `EpochKnowledgeInv`. -/
+theorem epochKnowledgeInv_sendUpdate {s : GameState P AuthState} (hs : EpochKnowledgeInv s)
+    (party : Bool) {r : SendResult P AuthState} (hedge : SendEdge auth (s.stateAt party) r) :
+    EpochKnowledgeInv (sendUpdate s party r) := by
+  have hprefix : KeyPrefixInv (sendUpdate s party r) :=
+    keyPrefixInv_sendUpdate auth hs.keyPrefix party hedge
   obtain ⟨hep, hmsgEp⟩ := hedge.epoch_eq
   have hmono := hedge.completedEpoch_mono (hs.keyPrefix.pos party)
   have hlocal := (s.stateAt party).epoch_sub_one_le_completedEpoch
@@ -138,21 +132,15 @@ theorem oracleSend_preserves_epochKnowledgeInv (party : Bool) :
     | exact ⟨hprefix, hcP, hc, htcurP, ht, hmsgsP, hmsgs⟩
     | exact ⟨hprefix, hc, hcP, ht, htcurP, hmsgs, hmsgsP⟩
 
-/-- The receive oracle of either party preserves `EpochKnowledgeInv`. -/
-theorem oracleRecv_preserves_epochKnowledgeInv (party : Bool) :
-    QueryImpl.PreservesInv (oracleRecv auth irl sampleInitKey party) EpochKnowledgeInv := by
-  rintro n (s : GameState P AuthState) hs z hz
-  have hprefix : KeyPrefixInv z.2 := by
-    cases party
-    · exact correctnessImpl_preserves_keyPrefixInv auth irl sampleInitKey
-        (ORecvB (Rho := Message P.Sym) n) s hs.keyPrefix z hz
-    · exact correctnessImpl_preserves_keyPrefixInv auth irl sampleInitKey
-        (ORecvA (Rho := Message P.Sym) n) s hs.keyPrefix z hz
-  rcases oracleRecv_run_cases auth irl sampleInitKey party hz with
-    ⟨-, rfl⟩ | ⟨msg, tsnd, err, -, -, rfl⟩ | ⟨msg, tsnd, r, hentry, hraw, rfl⟩
-  · exact hs
-  · exact ⟨hprefix, hs.epochA_le, hs.epochB_le, hs.tcurA_le, hs.tcurB_le, hs.msgA, hs.msgB⟩
-  have hedge := ReceiveEdge.of_eq_ok auth hraw
+/-- A receive edge from the state of `party`, on the message recorded by the peer at index `n`,
+preserves `EpochKnowledgeInv`. -/
+theorem epochKnowledgeInv_recvUpdate {s : GameState P AuthState}
+    (hs : EpochKnowledgeInv s) (party : Bool) {n : ℕ} {msg : Message P.Sym} {tsnd : ℕ}
+    {r : RecvResult P AuthState} (hentry : s.messagesAt (!party) n = some (msg, tsnd))
+    (hedge : ReceiveEdge auth (s.stateAt party) msg r) :
+    EpochKnowledgeInv (recvUpdate s party tsnd r (msg.epoch - 1)) := by
+  have hprefix : KeyPrefixInv (recvUpdate s party tsnd r (msg.epoch - 1)) :=
+    keyPrefixInv_recvUpdate auth hs.keyPrefix party hedge tsnd (msg.epoch - 1)
   obtain ⟨h1, h2, h3⟩ := hs.msgs (!party) n msg tsnd hentry
   have hbound := hedge.epoch_le_of_le _ (hs.epoch_le party) h1 h3
   have hmono := hedge.completedEpoch_mono (hs.keyPrefix.pos party)
@@ -183,15 +171,5 @@ theorem oracleRecv_preserves_epochKnowledgeInv (party : Bool) :
   all_goals first
     | exact ⟨hprefix, hcP, hbound, htcurP, ht, hmsgsP, hmsgs⟩
     | exact ⟨hprefix, hbound, hcP, ht, htcurP, hmsgs, hmsgsP⟩
-
-/-- Every oracle of the correctness game preserves `EpochKnowledgeInv`. -/
-theorem correctnessImpl_preserves_epochKnowledgeInv :
-    QueryImpl.PreservesInv
-      (SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey)) EpochKnowledgeInv :=
-  SCKAScheme.sckaCorrectnessImpl_preservesInv _
-    (oracleSend_preserves_epochKnowledgeInv auth irl sampleInitKey true)
-    (oracleSend_preserves_epochKnowledgeInv auth irl sampleInitKey false)
-    (oracleRecv_preserves_epochKnowledgeInv auth irl sampleInitKey true)
-    (oracleRecv_preserves_epochKnowledgeInv auth irl sampleInitKey false)
 
 end Braid

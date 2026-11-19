@@ -151,7 +151,7 @@ theorem correctness_failure_le_security [DecidableEq K] [DecidableEq Sym] [Sampl
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1Correct : ecCt1.ec.Correct)
     (leak : kem.OnOffRandLeak onoff)
     (adv : SecurityAdversary leak Sym) (b : Bool)
-    (q : ℕ) (hq : SecuritySendQueryBound adv q) :
+    (q : ℕ) (hq : SCKAScheme.SecuritySendQueryBound adv q) :
     let scka := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak
     let oracles := SCKAScheme.sckaSecurityImpl b
       (exposureA kem onoff leak) (exposureB kem onoff leak) scka

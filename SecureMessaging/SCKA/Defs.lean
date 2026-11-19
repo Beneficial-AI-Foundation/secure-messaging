@@ -784,6 +784,13 @@ abbrev SCKAAdversary (StA StB I Rho Rand : Type) :=
   OracleComp (sckaSecuritySpec StA StB I Rho Rand) Bool
 -- ANCHOR_END: SCKAAdversary
 
+/-- `adv` makes at most `q` ordinary or leaking sends of A and B together, on every response path
+(`sckaSecuritySpec.isSendQuery`). -/
+-- ANCHOR: SecuritySendQueryBound
+def SecuritySendQueryBound (adv : SCKAAdversary StA StB I Rho Rand) (q : ℕ) : Prop :=
+  adv.IsQueryBoundP (fun t => sckaSecuritySpec.isSendQuery t = true) q
+-- ANCHOR_END: SecuritySendQueryBound
+
 /-! ### Experiments -/
 
 /-- **Correctness experiment** (§3.1 of [SCKA]).

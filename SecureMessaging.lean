@@ -79,6 +79,7 @@ public import SecureMessaging.RKEM.RatchetSimulatabilityHelper
 public import SecureMessaging.SCKA.Correctness
 public import SecureMessaging.SCKA.Defs
 public import SecureMessaging.SCKA.Correctness.Tracked
+public import SecureMessaging.SCKA.Security.Hybrids
 public import SecureMessaging.SCKA.MLKEMBraid.Authenticator
 public import SecureMessaging.SCKA.MLKEMBraid.Basic
 public import SecureMessaging.SCKA.MLKEMBraid.Construction
@@ -91,6 +92,7 @@ public import SecureMessaging.SCKA.SPQR.Correctness.Relabel
 public import SecureMessaging.SCKA.SPQR.Correctness.Relation
 public import SecureMessaging.SCKA.SPQR.Correspondence
 public import SecureMessaging.SCKA.SPQR.Instances
+public import SecureMessaging.SCKA.SPQR.Security
 public import SecureMessaging.SCKA.SPQR.Params
 public import SecureMessaging.SCKA.SPQR.Unchunked
 public import SecureMessaging.SCKA.OppUniKEM.Construction

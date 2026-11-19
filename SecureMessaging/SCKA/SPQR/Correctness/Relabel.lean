@@ -13,13 +13,16 @@ public import SecureMessaging.SCKA.SPQR.Correctness.Relation
 
 Let `s` be an SPQR game state in which `party` is in `ct1Acknowledged` and its peer has recorded a
 plain vector chunk `n` of that epoch. `s.toBraidAck party n` is the translation of `s` in which the
-record `n` is an acknowledging vector chunk (`SPQR.Correctness.Relation`). The two lemmas of this
-module show that the relabelling keeps the invariant of the Braid correctness proof:
+record `n` is an acknowledging vector chunk (`SPQR.Correctness.Relation`). The lemmas of this
+module show that the relabelling keeps the transcript invariant `Braid.TranscriptInv D` for every
+condition `D`, and so the invariant of the Braid correctness proof:
 
-* `transcriptConsistent_toBraidAck`: if the translation of `s` is consistent with a transcript, so
-  is `s.toBraidAck party n`;
-* `correctnessInv_restore`: after a Braid query on `s.toBraidAck party n`, restoring the plain
-  vector chunk keeps `Braid.CorrectnessInv`.
+* `transcriptInv_toBraidAck`: if the translation of `s` satisfies `TranscriptInv D` for a
+  transcript, so does `s.toBraidAck party n`;
+* `transcriptInv_restore`: if a Braid game state `z` satisfies `TranscriptInv D` for a transcript
+  and has the peer message table of `s.toBraidAck party n` (as after a receive by `party`), so does
+  `z` with the plain vector chunk restored;
+  `correctnessInv_restore` is the same statement for `Braid.CorrectnessInv`.
 
 The Braid invariant sees the type of a recorded vector chunk only through the step its sender must
 have reached. The sender is in `ct1Received`, which is late enough for an acknowledging chunk.
@@ -34,17 +37,18 @@ open Chunked
 variable {P : SPQR.Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
     P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
+  {D : ℕ → P.toBraid.PK → P.toBraid.SK → P.toBraid.inc.St → P.toBraid.inc.C₁ → P.toBraid.K → Prop}
 
-/-- If the translation of a state is consistent with a transcript, so is its relabelling at a plain
-vector chunk delivered to a party in `ct1Acknowledged`. -/
-theorem transcriptConsistent_toBraidAck {ik : InitKey}
+/-- If the translation of a state satisfies `TranscriptInv D` for a transcript, so does its
+relabelling at a plain vector chunk delivered to a party in `ct1Acknowledged`. -/
+theorem transcriptInv_toBraidAck {ik : InitKey}
     {T : ℕ → Braid.EpochTranscript P.toBraid} {s : GameState P AuthState}
-    (hT : Braid.TranscriptConsistent auth ik T s.toBraid) (party : Bool) (n : ℕ)
+    (hT : Braid.TranscriptInv auth D ik T s.toBraid) (party : Bool) (n : ℕ)
     {core : CtSender.Ct1Sent P AuthState} {dec : P.decEk.D}
     {chunk : ℕ × P.Sym} {tsnd : ℕ}
     (hst : s.stateAt party = .ct1Acknowledged core dec)
     (hmsg : s.messagesAt (!party) n = some (⟨core.ep, .ek chunk⟩, tsnd)) :
-    Braid.TranscriptConsistent auth ik T (s.toBraidAck party n) := by
+    Braid.TranscriptInv auth D ik T (s.toBraidAck party n) := by
   have hmsg' : s.toBraid.messagesAt (!party) n =
       some (⟨core.ep, .ek, some chunk⟩, tsnd) := by
     simp [hmsg, Chunked.Message.toBraid]
@@ -56,25 +60,17 @@ theorem transcriptConsistent_toBraidAck {ik : InitKey}
     (Or.inr rfl) hctl
   simpa [GameState.toBraidAck, hmsg'] using h
 
-/-- After a query of the relabelled translation, restoring the plain vector chunk keeps the Braid
-invariant. -/
-theorem correctnessInv_restore {ik : InitKey} (party : Bool) (n : ℕ)
-    {s : GameState P AuthState} {core : CtSender.Ct1Sent P AuthState} {chunk : ℕ × P.Sym}
-    {tsnd : ℕ} (hmsg : s.messagesAt (!party) n = some (⟨core.ep, .ek chunk⟩, tsnd))
+/-- Let `z` be a Braid game state that satisfies `TranscriptInv D` for a transcript `T` and whose
+peer message table is that of `s.toBraidAck party n` (as after a receive by `party`). Restoring
+the plain vector chunk in `z` keeps `TranscriptInv D` for `T`. -/
+theorem transcriptInv_restore {ik : InitKey} {T : ℕ → Braid.EpochTranscript P.toBraid}
+    (party : Bool) (n : ℕ) {s : GameState P AuthState} {core : CtSender.Ct1Sent P AuthState}
+    {chunk : ℕ × P.Sym} {tsnd : ℕ}
+    (hmsg : s.messagesAt (!party) n = some (⟨core.ep, .ek chunk⟩, tsnd))
     {z : Braid.GameState P.toBraid AuthState}
     (hmsgs : z.messagesAt (!party) = (s.toBraidAck party n).messagesAt (!party))
-    (hz : Braid.CorrectnessInv auth ik z) :
-    Braid.CorrectnessInv auth ik
-      (if party then { z with msgB := s.toBraid.msgB }
-        else { z with msgA := s.toBraid.msgA }) := by
-  have hrestore : (if party then { z with msgB := s.toBraid.msgB }
-      else { z with msgA := s.toBraid.msgA }) =
-      z.setMessages (!party) (s.toBraid.messagesAt (!party)) := by
-    cases party <;> rfl
-  rw [hrestore]
-  rcases hz with hzf | ⟨T, hT⟩
-  · exact Or.inl hzf
-  refine Or.inr ⟨T, ?_⟩
+    (hT : Braid.TranscriptInv auth D ik T z) :
+    Braid.TranscriptInv auth D ik T (z.setMessages (!party) (s.toBraid.messagesAt (!party))) := by
   have hmsgF : s.toBraid.messagesAt (!party) n = some (⟨core.ep, .ek, some chunk⟩, tsnd) := by
     simp [hmsg, Chunked.Message.toBraid]
   have hmsgZ : z.messagesAt (!party) n = some (⟨core.ep, .ekCt1Ack, some chunk⟩, tsnd) := by
@@ -92,5 +88,24 @@ theorem correctnessInv_restore {ik : InitKey} (party : Bool) (n : ℕ)
     rw [hmsgs]
     simp [GameState.toBraidAck, hmsgF]
   rwa [htable] at h
+
+/-- The version of `transcriptInv_restore` for `Braid.CorrectnessInv`. -/
+theorem correctnessInv_restore {ik : InitKey} (party : Bool) (n : ℕ)
+    {s : GameState P AuthState} {core : CtSender.Ct1Sent P AuthState} {chunk : ℕ × P.Sym}
+    {tsnd : ℕ} (hmsg : s.messagesAt (!party) n = some (⟨core.ep, .ek chunk⟩, tsnd))
+    {z : Braid.GameState P.toBraid AuthState}
+    (hmsgs : z.messagesAt (!party) = (s.toBraidAck party n).messagesAt (!party))
+    (hz : Braid.CorrectnessInv auth ik z) :
+    Braid.CorrectnessInv auth ik
+      (if party then { z with msgB := s.toBraid.msgB }
+        else { z with msgA := s.toBraid.msgA }) := by
+  have hrestore : (if party then { z with msgB := s.toBraid.msgB }
+      else { z with msgA := s.toBraid.msgA }) =
+      z.setMessages (!party) (s.toBraid.messagesAt (!party)) := by
+    cases party <;> rfl
+  rw [hrestore]
+  rcases hz with hzf | ⟨T, hT⟩
+  · exact Or.inl hzf
+  · exact Or.inr ⟨T, transcriptInv_restore auth party n hmsg hmsgs hT⟩
 
 end SPQR

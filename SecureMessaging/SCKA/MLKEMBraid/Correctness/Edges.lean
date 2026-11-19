@@ -17,7 +17,10 @@ Edge numbers refer to Figure 1 of the ML-KEM Braid specification.
   (`mem_support_send_iff`).
 * `ReceiveEdge auth st msg r` holds whenever `receive P auth st msg` accepts with result `r`
   (`ReceiveEdge.of_eq_ok`). The converse fails: `ignore` and `nextEpoch` omit the guards of
-  `receive`.
+  `receive`, and `ct2Done` admits every epoch key `key` such that the `ct₂` tag verifies under
+  the authenticator updated with `key`, not only the key derived from the decapsulated KEM key.
+  So lemmas stated over edges also cover receives that output another key, such as the key
+  recorded by the peer.
 
 Sends keep the epoch; receives keep it or increase it by one. From a positive epoch, a transition
 that outputs the key of epoch `t` moves the completed epoch (`State.completedEpoch`) from `t - 1`
@@ -275,8 +278,9 @@ end SendEdge
 /-! ### Receive edges -/
 
 /-- `ReceiveEdge auth st msg r` holds whenever `receive P auth st msg` accepts with result `r`
-(`ReceiveEdge.of_eq_ok`). The converse fails: `ignore` and `nextEpoch` omit the guards of `receive`.
--/
+(`ReceiveEdge.of_eq_ok`). The converse fails: `ignore` and `nextEpoch` omit the guards of
+`receive`, and `ct2Done` admits every epoch key `key` such that the `ct₂` tag verifies under the
+authenticator updated with `key`, not only the key derived from the decapsulated KEM key. -/
 inductive ReceiveEdge : State P AuthState → Message P.Sym → RecvResult P AuthState → Prop
   /-- Any message leaves the state unchanged and reports `st.epoch - 1`. -/
   | ignore (st : State P AuthState) (msg : Message P.Sym) :
@@ -310,17 +314,17 @@ inductive ReceiveEdge : State P AuthState → Message P.Sym → RecvResult P Aut
       (h : P.decCt2.decodedPayload (P.decCt2.addChunk dec chunk) = none) :
       ReceiveEdge (.ekSentCt1Received e a sk ct1 dec) ⟨e, .ct2, some chunk⟩
         ⟨e - 1, none, .ekSentCt1Received e a sk ct1 (P.decCt2.addChunk dec chunk)⟩
-  /-- Edge 5: `ct₂` completes, decapsulation and tag verification succeed, and the generator outputs
-  the epoch key and advances to epoch `e + 1`. -/
+  /-- Edge 5: `ct₂` completes, its tag verifies under the authenticator updated with an epoch key
+  `key`, and the generator outputs `key` and advances to epoch `e + 1`; `receive` takes this edge
+  with `key = P.kdfOK k e` for the decapsulated KEM key `k`. -/
   | ct2Done (e : ℕ) (a : AuthState) (sk : P.SK) (ct1 : P.inc.C₁)
       (dec : P.decCt2.D) (chunk : ℕ × P.Sym) (ct2 : P.inc.C₂)
-      (tag : P.Mac) (k : P.K)
+      (tag : P.Mac) (key : P.EpochKey)
       (hdec : P.decCt2.decodedPayload (P.decCt2.addChunk dec chunk) = some (ct2, tag))
-      (hk : P.hDet.decapsDet sk (P.inc.splitC.symm (ct1, ct2)) = some k)
-      (htag : auth.verifyCiphertext (auth.update a e (P.kdfOK k e)) e (ct1, ct2) tag = true) :
+      (htag : auth.verifyCiphertext (auth.update a e key) e (ct1, ct2) tag = true) :
       ReceiveEdge (.ekSentCt1Received e a sk ct1 dec) ⟨e, .ct2, some chunk⟩
-        ⟨e - 1, some (e, P.kdfOK k e),
-          .noHeaderReceived (e + 1) (auth.update a e (P.kdfOK k e)) P.decHdr.empty⟩
+        ⟨e - 1, some (e, key),
+          .noHeaderReceived (e + 1) (auth.update a e key) P.decHdr.empty⟩
   /-- A header chunk that does not complete the header. -/
   | hdrChunk (e : ℕ) (a : AuthState) (dec : P.decHdr.D)
       (chunk : ℕ × P.Sym) (h : P.decHdr.decodedPayload (P.decHdr.addChunk dec chunk) = none) :
@@ -431,7 +435,7 @@ theorem ReceiveEdge.of_eq_ok {st : State P AuthState} {msg : Message P.Sym}
     receive_cases hr
     all_goals first
       | exact .ct2Chunk _ _ _ _ _ _ ‹_›
-      | exact .ct2Done _ _ _ _ _ _ _ _ _ ‹_› ‹_› ‹_›
+      | exact .ct2Done _ _ _ _ _ _ _ _ _ ‹_› ‹_›
       | exact .ignore _ _
   case noHeaderReceived =>
     receive_cases hr
