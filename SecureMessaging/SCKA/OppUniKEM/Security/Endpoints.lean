@@ -394,19 +394,15 @@ theorem trackedSecurity_run_project (b : Bool)
       -- Run the real game from `s = p.1`, retaining its output and final state.
       (simulateQ (SCKAScheme.sckaSecurityImpl b (exposureA kem onoff leak)
         (exposureB kem onoff leak)
-        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)) adv).run p.1 :=
-  OracleComp.tracked_run_project _ _ adv p
+        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)) adv).run p.1 := by
+  unfold trackedSecurityImpl
+  exact OracleComp.extendState_run_proj_eq _ _ adv p.1 p.2
 
 /-- Once the failure flag is set, every tracked successor has it set. -/
 theorem trackedSecurityImpl_preserves_bad (b : Bool) :
     QueryImpl.PreservesInv (trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b)
-      (fun p => p.2 = true) := by
-  intro t p hp res hres
-  unfold trackedSecurityImpl trackedImpl StateT.run at hres
-  rw [mem_support_bind_iff] at hres
-  obtain ⟨y, _, hres⟩ := hres
-  obtain rfl := (mem_support_pure_iff _ _).mp hres
-  simp [hp]
+      (fun p => p.2 = true) :=
+  OracleComp.trackedImpl_preserves_flag _ _
 
 include hEk hCt0 hCt1 in
 /-- Assume the three erasure codes are correct. Every query of `trackedSecurityImpl` preserves
@@ -607,8 +603,9 @@ theorem trackedIdeal_run_project (b : Bool)
     Prod.map id Prod.fst <$>
         (simulateQ (trackedIdealImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b) adv).run p =
       (simulateQ (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak (fun _ => b))
-        adv).run p.1 :=
-  OracleComp.tracked_run_project _ _ adv p
+        adv).run p.1 := by
+  unfold trackedIdealImpl
+  exact OracleComp.extendState_run_proj_eq _ _ adv p.1 p.2
 
 /-- The real game `G_b` equals the security-oracle simulation from `initialGame`,
 projected to the adversary's output. -/
@@ -647,8 +644,8 @@ theorem security_correctness_endpoint_le (b : Bool)
         p.1 hr hf
       have heq := securityImpl_eq_ideal_of_current kem onoff hDet ecEk ecCt0 ecCt1
         leak b t p.1 ⟨hCt1, hr, hc⟩
-      unfold left right trackedSecurityImpl trackedIdealImpl trackedImpl StateT.run
-      rw [heq]
+      unfold left right trackedSecurityImpl trackedIdealImpl
+      rw [QueryImpl.extendState_apply, QueryImpl.extendState_apply, heq]
   have hbound := abs_prEvent_simulateQ_run_sub_le_bad_of_inv left right Inv
     (fun p => p.2 = true)
     (trackedSecurityImpl_preserves kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1 leak b)

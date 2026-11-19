@@ -8,7 +8,7 @@ module
 
 public import ToVCVio.OracleComp.SimSemantics.StateT.WPBound
 public import VCVio.OracleComp.SimSemantics.StateT.StateProjection
-public import ToVCVio.ProgramLogic.Unary.WP
+public import VCVio.ProgramLogic.NotationCore
 
 /-!
 # Stateful simulation with a sticky bad flag
@@ -20,13 +20,13 @@ public import ToVCVio.ProgramLogic.Unary.WP
 - `Inv : σ → Prop` be an invariant that only has to hold until the first bad state.
 
 `trackedImpl impl bad` runs `impl` on pairs `(s, b) : σ × Bool` and sets the flag `b` as soon as
-the resulting state is bad; the flag is never cleared. `trackedInv Inv bad (s, b)` holds when the
-flag is set, or `Inv s` holds and `s` is not bad.
+the resulting state is bad; the flag is never cleared. It is upstream `QueryImpl.extendState` with
+a Boolean auxiliary state, so `QueryImpl.extendState_apply` unfolds one query and
+`extendState_run_proj_eq` forgets the flag after a whole run. `trackedInv Inv bad (s, b)` holds
+when the flag is set, or `Inv s` holds and `s` is not bad.
 
 **Results.**
 
-- `trackedImpl_run`: one tracked query is the ordinary query followed by the flag update;
-- `tracked_run_project`: forgetting the flag after a tracked run gives the run of `impl`;
 - `trackedInv_of_flag_false`: a tracked state with the flag clear satisfies `Inv` and is not bad;
 - `trackedImpl_preserves_flag`: once set, the flag stays set;
 - `trackedImpl_preserves`: if every query preserves `Inv` from states that are not bad, the
@@ -55,22 +55,13 @@ namespace OracleComp
 variable {ι : Type} {spec : OracleSpec ι} {σ : Type}
 
 /-- Run an oracle and set the flag if the resulting state is bad. The flag is never cleared. -/
-def trackedImpl (impl : QueryImpl spec (StateT σ ProbComp)) (bad : σ → Bool) :
+abbrev trackedImpl (impl : QueryImpl spec (StateT σ ProbComp)) (bad : σ → Bool) :
     QueryImpl spec (StateT (σ × Bool) ProbComp) :=
-  fun t p => do
-    let z ← (impl t).run p.1
-    pure (z.1, (z.2, p.2 || bad z.2))
+  impl.extendState fun _ _ _ next flag => flag || bad next
 
 /-- The tracked invariant: the flag is set, or the invariant holds and the state is not bad. -/
 def trackedInv (Inv : σ → Prop) (bad : σ → Bool) (p : σ × Bool) : Prop :=
   p.2 = true ∨ (Inv p.1 ∧ bad p.1 = false)
-
-/-- One tracked query is the ordinary query followed by the flag update. -/
-theorem trackedImpl_run (impl : QueryImpl spec (StateT σ ProbComp)) (bad : σ → Bool)
-    (t : ι) (p : σ × Bool) :
-    ((trackedImpl impl bad) t).run p =
-      (impl t).run p.1 >>= fun z => pure (z.1, (z.2, p.2 || bad z.2)) :=
-  rfl
 
 /-- A tracked state with the flag clear satisfies the invariant and is not bad. -/
 theorem trackedInv_of_flag_false {Inv : σ → Prop} {bad : σ → Bool} {p : σ × Bool}
@@ -80,30 +71,11 @@ theorem trackedInv_of_flag_false {Inv : σ → Prop} {bad : σ → Bool} {p : σ
     cases hflag
   · exact hgood
 
-/-- Forgetting the flag after one tracked query gives the ordinary query. -/
-theorem trackedImpl_project (impl : QueryImpl spec (StateT σ ProbComp)) (bad : σ → Bool)
-    (t : ι) (p : σ × Bool) :
-    Prod.map id Prod.fst <$> ((trackedImpl impl bad) t).run p = (impl t).run p.1 := by
-  unfold trackedImpl
-  change Prod.map id Prod.fst <$> (do
-      let z ← (impl t).run p.1
-      pure (z.1, (z.2, p.2 || bad z.2))) = _
-  rw [map_eq_bind_pure_comp, bind_assoc]
-  simp
-
-/-- Forgetting the flag after a whole tracked run gives the ordinary run. -/
-theorem tracked_run_project (impl : QueryImpl spec (StateT σ ProbComp)) (bad : σ → Bool)
-    {α : Type} (oa : OracleComp spec α) (p : σ × Bool) :
-    Prod.map id Prod.fst <$> (simulateQ (trackedImpl impl bad) oa).run p =
-      (simulateQ impl oa).run p.1 :=
-  map_run_simulateQ_eq_of_query_map_eq (trackedImpl impl bad) impl Prod.fst
-    (trackedImpl_project impl bad) oa p
-
 /-- Once the flag is set, every tracked successor has it set. -/
 theorem trackedImpl_preserves_flag (impl : QueryImpl spec (StateT σ ProbComp)) (bad : σ → Bool) :
     QueryImpl.PreservesInv (trackedImpl impl bad) (fun p => p.2 = true) := by
   intro t p hp z hz
-  rw [trackedImpl_run, mem_support_bind_iff] at hz
+  rw [QueryImpl.extendState_apply, mem_support_bind_iff] at hz
   obtain ⟨y, -, hz⟩ := hz
   simp only [mem_support_pure_iff] at hz
   subst hz
@@ -116,11 +88,7 @@ theorem trackedImpl_preserves (impl : QueryImpl spec (StateT σ ProbComp)) (bad 
     (hstep : ∀ t s, Inv s → bad s = false → ∀ z ∈ support ((impl t).run s), Inv z.2) :
     QueryImpl.PreservesInv (trackedImpl impl bad) (trackedInv Inv bad) := by
   intro t p hp z hz
-  unfold trackedImpl at hz
-  change z ∈ support (do
-    let y ← (impl t).run p.1
-    pure (y.1, (y.2, p.2 || bad y.2))) at hz
-  rw [mem_support_bind_iff] at hz
+  rw [QueryImpl.extendState_apply, mem_support_bind_iff] at hz
   obtain ⟨y, hy, hz⟩ := hz
   simp only [mem_support_pure_iff] at hz
   subst z
@@ -137,8 +105,9 @@ theorem trackedImpl_preserves (impl : QueryImpl spec (StateT σ ProbComp)) (bad 
 at least `1` on flagged states. -/
 theorem tracked_bad_probability_le_score {α : Type} (score : σ × Bool → ℝ≥0∞)
     (hscore : ∀ p : σ × Bool, p.2 = true → 1 ≤ score p) (oa : ProbComp (α × (σ × Bool))) :
-    Pr{let z ← oa}[z.2.2 = true] ≤ wp oa (fun z => score z.2) :=
-  prEvent_le_wp oa _ _ fun z hz => hscore z.2 hz
+    Pr{let z ← oa}[z.2.2 = true] ≤ wp oa (fun z => score z.2) := by
+  simpa only [one_mul] using
+    markov_bound oa (fun z => score z.2) 1 (fun z => z.2.2 = true) (fun z hz => hscore z.2 hz)
 
 /-- From a flagged state, one tracked query keeps the expected score within
 `score (s, true) + ε` for every allowance `ε`, for any score that is constant on flagged
@@ -151,7 +120,7 @@ theorem trackedImpl_wp_flag_le (impl : QueryImpl spec (StateT σ ProbComp))
   refine le_add_right ?_
   refine wp_le_const_of_support _ ?_
   intro z hz
-  rw [trackedImpl_run, mem_support_bind_iff] at hz
+  rw [QueryImpl.extendState_apply, mem_support_bind_iff] at hz
   obtain ⟨y, -, hz⟩ := hz
   simp only [mem_support_pure_iff] at hz
   subst hz
@@ -185,7 +154,7 @@ theorem prEvent_not_good_le_tracked_bad (impl : QueryImpl spec (StateT σ ProbCo
     {α : Type} (oa : OracleComp spec α) (s₀ : σ) (hinit : trackedInv Inv bad (s₀, false)) :
     Pr{let z ← (simulateQ impl oa).run s₀}[good z.2 = false] ≤
       Pr{let z ← (simulateQ (trackedImpl impl bad) oa).run (s₀, false)}[z.2.2 = true] := by
-  rw [← tracked_run_project impl bad oa (s₀, false), prEvent_map]
+  rw [← extendState_run_proj_eq impl _ oa s₀ false, prEvent_map]
   refine prEvent_mono_of_support _ _ _ ?_
   intro z hz hnotgood
   rcases simulateQ_run_preservesInv (trackedImpl impl bad) (trackedInv Inv bad) hpres oa

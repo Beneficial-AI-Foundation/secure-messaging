@@ -52,7 +52,7 @@ lemma tracked_sendArleak_score_le
         SCKAScheme.sckaSecuritySpec.OSendArleak).run (s, false))
       (fun z => trackedScore hDet z.2) ≤
       trackedScore hDet (s, false) + kem.correctnessError ProbCompRuntime.probComp := by
-  rw [trackedImpl_run, bind_pure_comp, wp_map, Function.comp_def]
+  rw [QueryImpl.extendState_apply, bind_pure_comp, wp_map, Function.comp_def]
   apply SCKAScheme.oracleSendArleak_wp_le
       (scheme kem hDet ecEk ecCt leak) (rleakEpochs .A)
       (sendWith_rleak_forget kem .A ecEk ecCt leak) s (leakEpochs .A s.stA)
@@ -65,7 +65,7 @@ lemma tracked_sendArleak_score_le
     rfl
   · simp [hfail]
   · have h := tracked_sendA_score_le kem hDet ecEk ecCt leak s hs hfail
-    rw [trackedImpl_run, bind_pure_comp, wp_map, Function.comp_def] at h
+    rw [QueryImpl.extendState_apply, bind_pure_comp, wp_map, Function.comp_def] at h
     exact h
 
 /-- B's leaking send raises the expected tracked score by at most `ε` from a state
@@ -85,7 +85,7 @@ lemma tracked_sendBrleak_score_le
         SCKAScheme.sckaSecuritySpec.OSendBrleak).run (s, false))
       (fun z => trackedScore hDet z.2) ≤
       trackedScore hDet (s, false) + kem.correctnessError ProbCompRuntime.probComp := by
-  rw [trackedImpl_run, bind_pure_comp, wp_map, Function.comp_def]
+  rw [QueryImpl.extendState_apply, bind_pure_comp, wp_map, Function.comp_def]
   apply SCKAScheme.oracleSendBrleak_wp_le
       (scheme kem hDet ecEk ecCt leak) (rleakEpochs .B)
       (sendWith_rleak_forget kem .B ecEk ecCt leak) s (leakEpochs .B s.stB)
@@ -98,7 +98,7 @@ lemma tracked_sendBrleak_score_le
     rfl
   · simp [hfail]
   · have h := tracked_sendB_score_le kem hDet ecEk ecCt leak s hs hfail
-    rw [trackedImpl_run, bind_pure_comp, wp_map, Function.comp_def] at h
+    rw [QueryImpl.extendState_apply, bind_pure_comp, wp_map, Function.comp_def] at h
     exact h
 
 /-- One security query raises the expected tracked score by at most `ε` if it is an
@@ -142,7 +142,7 @@ lemma trackedSecurity_score_step_le
     all_goals
       simp only [SCKAScheme.sckaSecuritySpec.isSendQuery, Bool.false_eq_true, ↓reduceIte,
         add_zero]
-      rw [trackedImpl_run, bind_pure_comp, wp_map, Function.comp_def]
+      rw [QueryImpl.extendState_apply, bind_pure_comp, wp_map, Function.comp_def]
     · refine (SCKAScheme.oracleChall_wp_le b t s
         (fun state => trackedScore hDet (state, false || kemFailure hDet state))
         (fun _ _ => rfl)).trans ?_

@@ -88,7 +88,7 @@ theorem security_ideal_endpoint_le [DecidableEq K] [DecidableEq Sym] [Sampleable
         (trackedIdealImpl kem hDet ecEk ecCt leak b t).run p := by
     intro t p hp hgood
     obtain ⟨hs, hfail⟩ := trackedInv_of_flag_false hp (Bool.eq_false_iff.mpr hgood)
-    rw [trackedImpl_run, trackedImpl_run,
+    rw [QueryImpl.extendState_apply, QueryImpl.extendState_apply,
       securityImpl_eq_ideal_of_noFailure kem hDet ecEk ecCt hCt leak b t p.1 hs hfail]
   have hbound := abs_prEvent_simulateQ_run_sub_le_bad_of_inv
     (trackedSecurityImpl kem hDet ecEk ecCt leak b) (trackedIdealImpl kem hDet ecEk ecCt leak b)
@@ -101,15 +101,15 @@ theorem security_ideal_endpoint_le [DecidableEq K] [DecidableEq Sym] [Sampleable
       Pr{let z ← (simulateQ (trackedSecurityImpl kem hDet ecEk ecCt leak b) adv).run
           (initState, false)}[z.1 = true] := by
     rw [securityExpFixedBit_eq_run', StateT.run'_eq, prEvent_map,
-      ← tracked_run_project (SCKAScheme.sckaSecurityImpl b (exposure .A leak) (exposure .B leak)
-        (scheme kem hDet ecEk ecCt leak)) (kemFailure hDet) adv (initState, false), prEvent_map]
+      ← extendState_run_proj_eq (SCKAScheme.sckaSecurityImpl b (exposure .A leak)
+        (exposure .B leak) (scheme kem hDet ecEk ecCt leak)) _ adv initState false, prEvent_map]
     rfl
   have hr : Pr{let x ← idealSecurityExp kem hDet ecEk ecCt leak b adv}[x = true] =
       Pr{let z ← (simulateQ (trackedIdealImpl kem hDet ecEk ecCt leak b) adv).run
           (initState, false)}[z.1 = true] := by
     rw [idealSecurityExp, StateT.run'_eq, prEvent_map,
-      ← tracked_run_project (idealSecurityImpl kem hDet ecEk ecCt leak b) (kemFailure hDet) adv
-        (initState, false), prEvent_map]
+      ← extendState_run_proj_eq (idealSecurityImpl kem hDet ecEk ecCt leak b) _ adv initState
+        false, prEvent_map]
     rfl
   rw [hl, hr]
   refine hbound.trans ?_

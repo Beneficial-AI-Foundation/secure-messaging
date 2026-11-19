@@ -13,10 +13,6 @@ public import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 Projection means forgetting the failure flag `b` of a tracked state `(s, b)`.
 The main results are:
 
-* `trackedCorrectnessImpl_project` — one tracked query projects to the
-  corresponding ordinary query;
-* `tracked_run_project` — a complete tracked adversary execution projects to
-  the corresponding ordinary execution;
 * `correctnessExp_eq_final_map` — the correctness experiment is a
   final-state map over the simulated run;
 * `trackedCorrectnessImpl_preserves` — every query preserves the tracked
@@ -38,54 +34,6 @@ variable [DecidableEq Sym]
 open SCKAScheme.sckaCorrectnessSpec
 
 namespace Reduction.Internal
-
-/-- Projecting away the failure flag after one tracked query results in the
-corresponding ordinary correctness-game query. -/
-lemma trackedCorrectnessImpl_project [DecidableEq K]
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
-    (leak : KEMScheme.OnOffRandLeak kem onoff)
-    (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
-    (p : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) × Bool) :
-    Prod.map id Prod.fst <$>
-        ((trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) t).run p =
-      ((SCKAScheme.sckaCorrectnessImpl
-        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)) t).run p.1 := by
-  unfold trackedCorrectnessImpl
-  change Prod.map id Prod.fst <$> (do
-      let z ← ((SCKAScheme.sckaCorrectnessImpl
-        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)) t).run p.1
-      pure (z.1, (z.2, p.2 || currentKEMFailure kem onoff hDet z.2))) = _
-  rw [map_eq_bind_pure_comp, bind_assoc]
-  simp
-
-/-- The per-query state projection lifts through `simulateQ`, projecting a
-complete tracked adversary run to the ordinary correctness-game run. -/
-lemma tracked_run_project [DecidableEq K]
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
-    (leak : KEMScheme.OnOffRandLeak kem onoff)
-    (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
-    (p : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) × Bool) :
-    Prod.map id Prod.fst <$>
-        (simulateQ
-          (trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) adv).run p =
-      (simulateQ
-        (SCKAScheme.sckaCorrectnessImpl
-          (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)) adv).run p.1 := by
-  exact OracleComp.map_run_simulateQ_eq_of_query_map_eq
-    (trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak)
-    (SCKAScheme.sckaCorrectnessImpl
-      (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak))
-    Prod.fst
-    (trackedCorrectnessImpl_project kem onoff hDet ecEk ecCt0 ecCt1 leak)
-    adv p
 
 /-- The ordinary correctness experiment is the final state's correctness bit
 mapped over the simulated correctness-game run from its initial state. -/
@@ -123,45 +71,25 @@ lemma trackedCorrectnessImpl_preserves
     QueryImpl.PreservesInv
       (trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak)
       (trackedInv kem onoff hDet ecEk ecCt0 ecCt1) := by
-  intro t p hp z hz
-  unfold trackedCorrectnessImpl at hz
-  change z ∈ support (do
-    let y ← ((SCKAScheme.sckaCorrectnessImpl
-      (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)) t).run p.1
-    pure (y.1, (y.2, p.2 || currentKEMFailure kem onoff hDet y.2))) at hz
-  rw [mem_support_bind_iff] at hz
-  obtain ⟨y, hy, hz⟩ := hz
-  simp only [mem_support_pure_iff] at hz
-  subst z
-  rcases hp with hbad | ⟨hreach, hfailOld⟩
-  · left
-    simp [hbad]
-  have hcurrent : CurrentKEMCorrect kem onoff hDet p.1 :=
+  refine trackedImpl_preserves _ _ _ fun t s hreach hfailOld y hy => ?_
+  have hcurrent : CurrentKEMCorrect kem onoff hDet s :=
     currentKEMFailure_eq_false_implies_current kem onoff hDet ecEk ecCt0 ecCt1
-      p.1 hreach hfailOld
-  have hreach' : reachableInv kem onoff ecEk ecCt0 ecCt1 y.2 := by
-    match t with
-    | OUnif n =>
-        exact SCKAScheme.oracleUnif_preservesInv _ n p.1 hreach y hy
-    | OSendA =>
-        exact oracleSendA_preserves_reachableInv kem onoff hDet ecEk ecCt0 ecCt1
-          leak hEkPos () p.1 hreach y hy
-    | OSendB =>
-        exact oracleSendB_preserves_reachableInv kem onoff hDet ecEk ecCt0 hCt0Pos
-          ecCt1 hCt1Pos leak () p.1 hreach y hy
-    | ORecvA n =>
-        exact oracleRecvA_preserves_reachableInv kem onoff hDet ecEk ecCt0
-          hCt0Correct ecCt1 hCt1Correct hCt1Pos leak n p.1 hreach hcurrent y hy
-    | ORecvB n =>
-        exact oracleRecvB_preserves_reachableInv kem onoff hDet ecEk hEkCorrect hEkPos
-          ecCt0 ecCt1 leak n p.1 hreach y hy
-  by_cases hfail : currentKEMFailure kem onoff hDet y.2 = true
-  · left
-    simp [hfail]
-  · right
-    have hfailFalse : currentKEMFailure kem onoff hDet y.2 = false := by
-      cases h : currentKEMFailure kem onoff hDet y.2 <;> simp [h] at hfail ⊢
-    exact ⟨hreach', hfailFalse⟩
+      s hreach hfailOld
+  match t with
+  | OUnif n =>
+      exact SCKAScheme.oracleUnif_preservesInv _ n s hreach y hy
+  | OSendA =>
+      exact oracleSendA_preserves_reachableInv kem onoff hDet ecEk ecCt0 ecCt1
+        leak hEkPos () s hreach y hy
+  | OSendB =>
+      exact oracleSendB_preserves_reachableInv kem onoff hDet ecEk ecCt0 hCt0Pos
+        ecCt1 hCt1Pos leak () s hreach y hy
+  | ORecvA n =>
+      exact oracleRecvA_preserves_reachableInv kem onoff hDet ecEk ecCt0
+        hCt0Correct ecCt1 hCt1Correct hCt1Pos leak n s hreach hcurrent y hy
+  | ORecvB n =>
+      exact oracleRecvB_preserves_reachableInv kem onoff hDet ecEk hEkCorrect hEkPos
+        ecCt0 ecCt1 leak n s hreach y hy
 
 omit [DecidableEq Sym] in
 /-- The initial game state with an unset failure flag satisfies the
@@ -200,40 +128,13 @@ lemma correctness_failure_le_of_tracked_bad [DecidableEq K]
           (trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) adv).run
           (initialGame (Sym := Sym) kem onoff, false))}[z.2.2 = true] ≤ δ) :
     Pr{let x ← (SCKAScheme.correctnessExp
-        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv)}[x = false] ≤ δ := by
-  let tracked := trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak
-  let Inv := trackedInv kem onoff hDet ecEk ecCt0 ecCt1
-  let s₀ := initialGame (Sym := Sym) kem onoff
-  have hpres : QueryImpl.PreservesInv tracked Inv :=
-    trackedCorrectnessImpl_preserves kem onoff hDet ecEk hEkCorrect hEkPos
-      ecCt0 hCt0Correct hCt0Pos ecCt1 hCt1Correct hCt1Pos leak
-  have hinit : Inv (s₀, false) := by
-    simpa [Inv, s₀] using
-      tracked_initial_inv kem onoff hDet ecEk ecCt0 ecCt1 hEkPos hCt0Pos
-  have hmono :
-      Pr{let z ← (simulateQ tracked adv).run (s₀, false)}[z.2.1.correct = false] ≤
-        Pr{let z ← (simulateQ tracked adv).run (s₀, false)}[z.2.2 = true] := by
-    refine prEvent_mono_of_support _ _ _ ?_
-    intro z hz hincorrect
-    have hzInv : Inv z.2 :=
-      OracleComp.simulateQ_run_preservesInv tracked Inv hpres adv
-        (s₀, false) hinit z hz
-    rcases hzInv with hbad | ⟨hreach, _hcurrent⟩
-    · exact hbad
-    · rcases hreach with ⟨_T, hConsistent⟩
-      simp [hConsistent.correct] at hincorrect
-  calc
-    Pr{let x ← (SCKAScheme.correctnessExp
-          (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv)}[x = false] =
-        Pr{let z ← (simulateQ tracked adv).run (s₀, false)}[z.2.1.correct = false] := by
-      rw [correctnessExp_eq_final_map]
-      rw [prEvent_map]
-      have hproject := tracked_run_project kem onoff hDet ecEk ecCt0 ecCt1
-        leak adv (s₀, false)
-      rw [← hproject, prEvent_map]
-      congr 1
-    _ ≤ Pr{let z ← (simulateQ tracked adv).run (s₀, false)}[z.2.2 = true] := hmono
-    _ ≤ δ := by simpa [tracked, s₀] using hbad
+        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv)}[x = false] ≤ δ :=
+  SCKAScheme.correctness_failure_le_of_tracked_bad _ _ (reachableInv kem onoff ecEk ecCt0 ecCt1)
+    (fun _ ⟨_T, hConsistent⟩ => hConsistent.correct)
+    (trackedCorrectnessImpl_preserves kem onoff hDet ecEk hEkCorrect hEkPos
+      ecCt0 hCt0Correct hCt0Pos ecCt1 hCt1Correct hCt1Pos leak) adv _
+    (tracked_initial_inv kem onoff hDet ecEk ecCt0 ecCt1 hEkPos hCt0Pos)
+    (correctnessExp_eq_final_map kem onoff hDet ecEk ecCt0 ecCt1 leak adv) δ hbad
 
 end Reduction.Internal
 

@@ -8,6 +8,7 @@ module
 
 public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Receive
 public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Send
+public import SecureMessaging.SCKA.Correctness.Tracked
 
 /-!
 # Opp-UniKEM-CKA One-Step Score Bounds
@@ -40,7 +41,7 @@ namespace Reduction.Internal
 
 /-- Run one correctness oracle step and update the failure flag, which remains
 set once a KEM inconsistency occurs. -/
-def trackedCorrectnessImpl [DecidableEq K]
+abbrev trackedCorrectnessImpl [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym)
@@ -51,24 +52,20 @@ def trackedCorrectnessImpl [DecidableEq K]
       (StateT
         (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) × Bool)
         ProbComp) :=
-  fun t p => do
-    let z ← ((SCKAScheme.sckaCorrectnessImpl
-      (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)) t).run p.1
-    let bad' := p.2 || currentKEMFailure kem onoff hDet z.2
-    pure (z.1, (z.2, bad'))
+  trackedImpl (SCKAScheme.sckaCorrectnessImpl (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak))
+    (currentKEMFailure kem onoff hDet)
 
 /-- The tracked invariant: failure is already recorded, or the game state is
 reachable and its current KEM material is consistent. -/
-def trackedInv [DecidableEq K]
+abbrev trackedInv [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
     (p : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) × Bool) : Prop :=
-  p.2 = true ∨
-    reachableInv kem onoff ecEk ecCt0 ecCt1 p.1 ∧
-      currentKEMFailure kem onoff hDet p.1 = false
+  OracleComp.trackedInv (reachableInv kem onoff ecEk ecCt0 ecCt1)
+    (currentKEMFailure kem onoff hDet) p
 
 /-- Once the failure flag is set, one tracked step has expected failure score
 at most the current score plus any nonnegative allowance. -/
@@ -86,9 +83,10 @@ lemma tracked_step_score_le_of_bad [DecidableEq K]
         (((trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) t).run p)
         (fun z => trackedFailureScore kem onoff z.2) ≤
       trackedFailureScore kem onoff p + epsilon := by
-  refine (wp_le_const_of_support (c := 1) _ fun z _ => ?_).trans ?_
-  · exact trackedFailureScore_le_one kem onoff z.2
-  · simp [trackedFailureScore, hbad]
+  obtain ⟨s, b⟩ := p
+  obtain rfl : b = true := hbad
+  exact trackedImpl_wp_flag_le _ _ _ 1 
+    (fun _ => by simp only [trackedFailureScore, ↓reduceIte]) t s epsilon
 
 /-- `SendA` or `SendB`, viewed as a proposition (`SCKAScheme.isSendQuery`). -/
 abbrev IsSendQuery (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain) : Prop :=
