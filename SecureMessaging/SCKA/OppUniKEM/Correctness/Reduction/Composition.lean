@@ -9,30 +9,12 @@ module
 public import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Core
 
 /-!
-# Opp-UniKEM-CKA Adversary Composition
+# Opp-UniKEM-CKA send-query bound
 
-This module extends the one-query bounds of `Reduction.OneStep` to complete
-adaptive executions of the tracked game.
-
-For an execution of the tracked game against an adversary `adv`, let:
-
-* `(s_f, b_f)` denote the final tracked state: ordinary game state `s_f` and
-  failure flag `b_f`;
-* `V(s) := currentFailurePotential s` (`Reduction.Core`), the conditional
-  failure probability of the KEM epoch in progress;
-* `S(s, b) := trackedFailureScore (s, b)` (`Reduction.Core`), equal to `1`
-  when `b = true` and to `V(s)` otherwise;
-* `E[S(s_f, b_f)]` denote `wp` of the final score.
-
-For every tracked execution,
-
-```text
-Pr[b_f = true] ≤ E[S(s_f, b_f)].
-```
-
-that is, the probability that the failure flag is set is at most the expected
-tracked failure score. This is `OracleComp.tracked_bad_probability_le_score`
-(`ToVCVio.OracleComp.SimSemantics.StateT.BadFlag`) with `S`, since `S(s, true) = 1`.
+This module defines `SendQueryBound adv q`: the adversary `adv` makes at most `q` `SendA` and
+`SendB` queries in total. It is the query bound of `correctness_failure_le_reduction`
+(`Correctness.Reduction`), which takes the bound on executions of the tracked game from
+`SCKAScheme.tracked_bad_le_of_score_step`.
 -/
 
 @[expose] public section

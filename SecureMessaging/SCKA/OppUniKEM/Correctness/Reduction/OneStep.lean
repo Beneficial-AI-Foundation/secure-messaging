@@ -85,7 +85,8 @@ lemma tracked_step_score_le_of_bad [DecidableEq K]
       trackedFailureScore kem onoff p + epsilon := by
   obtain ⟨s, b⟩ := p
   obtain rfl : b = true := hbad
-  exact trackedImpl_wp_flag_le _ _ _ 1 (fun _ => by simp [trackedFailureScore]) t s epsilon
+  exact trackedImpl_wp_flag_le _ _ _ 1 
+    (fun _ => by simp only [trackedFailureScore, ↓reduceIte]) t s epsilon
 
 /-- `SendA` or `SendB`, viewed as a proposition (`SCKAScheme.isSendQuery`). -/
 abbrev IsSendQuery (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain) : Prop :=

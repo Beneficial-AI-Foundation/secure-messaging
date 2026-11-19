@@ -210,7 +210,8 @@ theorem correctness_of_perfectKEM [DecidableEq K]
           wp ((simulateQ tracked adv).run (s₀, false))
             (fun z => score z.2) :=
         tracked_bad_probability_le_score _
-          (fun _ hp => by simp [score, trackedFailureScore, hp]) _
+          (fun _ hp => by
+            simp only [trackedFailureScore, hp, ↓reduceIte, Std.le_refl, score]) _
       _ ≤ 0 := hscore
   have hfalse_le :
       Pr{let x ← (SCKAScheme.correctnessExp
@@ -253,13 +254,15 @@ theorem correctness_failure_le_reduction [DecidableEq K]
   have hbad := SCKAScheme.tracked_bad_le_of_score_step
     (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) (currentKEMFailure kem onoff hDet)
     (reachableInv kem onoff ecEk ecCt0 ecCt1) (trackedFailureScore kem onoff)
-    (factorCorrectnessError kem onoff) (fun _ hp => by simp [trackedFailureScore, hp])
+    (factorCorrectnessError kem onoff) 
+    (fun _ hp => by simp only [trackedFailureScore, hp, ↓reduceIte, Std.le_refl])
     (trackedCorrectnessImpl_preserves kem onoff hDet ecEk hEkCorrect hEkPos
       ecCt0 hCt0Correct hCt0Pos ecCt1 hCt1Correct hCt1Pos leak)
     (tracked_score_step_le kem onoff hDet ecEk ecCt0 ecCt1 leak) adv q hq
     (initialGame kem onoff) (tracked_initial_inv kem onoff hDet ecEk ecCt0 ecCt1 hEkPos hCt0Pos)
-    (by simp [trackedFailureScore, currentFailurePotential, initialGame, initialA, initialB,
-      SCKAScheme.initGameState])
+    (by simp only [trackedFailureScore, Bool.false_eq_true, ↓reduceIte,
+      currentFailurePotential, initialGame, SCKAScheme.initGameState, initialA, initialB,
+      Option.isSome_none, Option.map₂_none_right])
   rw [factorCorrectnessError_eq] at hbad
   exact correctness_failure_le_of_tracked_bad kem onoff hDet
     ecEk hEkCorrect hEkPos ecCt0 hCt0Correct hCt0Pos
