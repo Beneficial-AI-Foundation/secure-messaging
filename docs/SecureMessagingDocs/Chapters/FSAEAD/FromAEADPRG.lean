@@ -7,6 +7,7 @@ import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessagingDocs.Visuals.FSAEADKeyChain
 import SecureMessaging.FSAEAD.FromAEADPRG.Construction
+import SecureMessaging.FSAEAD.FromAEADPRG.Correctness
 
 /-! # Blueprint chapter: FS-AEAD from AEAD and PRG -/
 
@@ -239,11 +240,23 @@ first, so B runs $`\mathsf{skip}(3)` and keeps $`K_1` and $`K_2` in $`D` for mes
 :::defTitle "fs_aead_from_aead_prg_correctness" "FS-AEAD from AEAD and PRG correctness"
 :::
 
-::::theorem "fs_aead_from_aead_prg_correctness" (parent := "fs_aead_fs_aead_from_aead_prg") (tags := "gh-29") (uses := "fs_aead_from_aead_prg_spec, fs_aead_scheme, aead_correctness, prg")
-$`\todo`
+::::theorem "fs_aead_from_aead_prg_correctness" (parent := "fs_aead_fs_aead_from_aead_prg") (lean := "FSAEADScheme.fromAEADPRG_correct") (tags := "gh-29") (uses := "fs_aead_from_aead_prg_spec, fs_aead_scheme, fs_aead_correctness, aead_correctness, prg")
+Adapted from {Informal.citet ACD19}[], §4.2.2, Figure 6.
 
-:::leanPill "missing"
+Let $`\mathsf{AE}` be a {bpref "aead_correctness"}[correct] {bpref "aead"}[AEAD scheme] with
+key space $`\K`, and let $`G : \W \to \W \times \K` be a {bpref "prg"}[PRG]. Then the
+{bpref "fs_aead_from_aead_prg_spec"}[FS-AEAD scheme] from $`\mathsf{AE}` and $`G` is
+{bpref "fs_aead_correctness"}[correct].
+
+:::leanPillCaption "correctness"
 :::
+
+```anchor fromAEADPRG_correct (project := ".") (module := SecureMessaging.FSAEAD.FromAEADPRG.Correctness)
+theorem fromAEADPRG_correct {W Kae Cae AD M : Type} [SampleableType W] [DecidableEq AD]
+    [DecidableEq M] [DecidableEq Cae] (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae)
+    (prg : PRGScheme W (W × Kae)) (hae : ae.Correct) :
+    (fromAEADPRG ae prg).Correct
+```
 ::::
 
 :::defTitle "fs_aead_from_aead_prg_security" "FS-AEAD from AEAD and PRG security"
