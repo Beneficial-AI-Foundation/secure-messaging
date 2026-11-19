@@ -93,7 +93,7 @@ theorem sum_mul_pow_div_pow_mod {R n : ℕ} {f : ℕ → ℕ} (h : ∀ i < n, f 
     Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt (h t ht)]
 
 /-- Splitting a packed sequence of `q * m` digits into `m` blocks of `q`. -/
-private theorem sum_range_mul_eq_sum_sum {q m : ℕ} (g : ℕ → ℕ) :
+theorem sum_range_mul_eq_sum_sum {q m : ℕ} (g : ℕ → ℕ) :
     ∑ i ∈ Finset.range (q * m), g i =
       ∑ j ∈ Finset.range m, ∑ t ∈ Finset.range q, g (q * j + t) := by
   induction m with
@@ -102,7 +102,7 @@ private theorem sum_range_mul_eq_sum_sum {q m : ℕ} (g : ℕ → ℕ) :
     rw [Nat.mul_succ, Finset.sum_range_add, ih, Finset.sum_range_succ]
 
 /-- A range sum of radix terms is unchanged by padding with zero digits. -/
-private theorem sum_mul_pow_pad {R q n : ℕ} (hqn : q ≤ n) (f : ℕ → ℕ) :
+theorem sum_mul_pow_pad {R q n : ℕ} (hqn : q ≤ n) (f : ℕ → ℕ) :
     ∑ t ∈ Finset.range q, f t * R ^ t =
       ∑ t ∈ Finset.range n, (if t < q then f t else 0) * R ^ t := by
   rw [show (∑ t ∈ Finset.range q, f t * R ^ t) =
@@ -113,7 +113,7 @@ private theorem sum_mul_pow_pad {R q n : ℕ} (hqn : q ≤ n) (f : ℕ → ℕ) 
 
 /-- A range sum of radix terms in blocks: `b` blocks of `a` digits, with the
 block shift pulled out as a power of `R ^ a`. -/
-private theorem sum_mul_pow_blocks {R : ℕ} (a b : ℕ) (f : ℕ → ℕ) :
+theorem sum_mul_pow_blocks {R : ℕ} (a b : ℕ) (f : ℕ → ℕ) :
     ∑ t ∈ Finset.range (a * b), f t * R ^ t =
       ∑ j ∈ Finset.range b,
         (∑ i ∈ Finset.range a, f (a * j + i) * R ^ i) * (R ^ a) ^ j := by
@@ -126,7 +126,7 @@ private theorem sum_mul_pow_blocks {R : ℕ} (a b : ℕ) (f : ℕ → ℕ) :
 
 /-- Reduction of a packed sequence modulo the repunit `R ^ q - 1` folds the
 digits `q` apart onto each other. -/
-private theorem sum_mul_pow_mod_repunit {R q m : ℕ} {f : ℕ → ℕ} (hR : 2 ≤ R) (hq : 0 < q)
+theorem sum_mul_pow_mod_repunit {R q m : ℕ} {f : ℕ → ℕ} (hR : 2 ≤ R) (hq : 0 < q)
     (hfold : ∀ t < q, 2 * (∑ j ∈ Finset.range m, f (q * j + t)) < R) :
     (∑ i ∈ Finset.range (q * m), f i * R ^ i) % (R ^ q - 1) =
       ∑ t ∈ Finset.range q, (∑ j ∈ Finset.range m, f (q * j + t)) * R ^ t := by

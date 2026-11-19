@@ -41,7 +41,7 @@ computation.
 
 @[expose] public section
 
-open ToVCVio LatticeCrypto
+open ToVCVio ToVCVio.Radix LatticeCrypto
 open scoped ENNReal
 
 namespace MLKEM
