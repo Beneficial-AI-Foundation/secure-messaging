@@ -73,7 +73,7 @@ lemma kemFailureAt_eq_false_of [DecidableEq K] {st peer : State PK SK C Sym}
       peerKey peer.res.resEpoch.toNat = none) :
     kemFailureAt hDet st peer peerKey = false := by
   unfold kemFailureAt
-  rcases h with h | h | h <;> rw [h] <;> (try split) <;> simp_all
+  rcases h with h | h | h <;> rw [h] <;> (split) <;> simp_all
 
 /-- When all three components are present, `kemFailureAt` decides disagreement. -/
 lemma kemFailureAt_eq_decide [DecidableEq K] {st peer : State PK SK C Sym}

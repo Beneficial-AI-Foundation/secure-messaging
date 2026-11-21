@@ -80,7 +80,6 @@ def incrementalEncaps2 {params : Params} {encoding : Encoding params} (ring : NT
 -- ANCHOR: incrementalStructure
 def incrementalStructure {params : Params} (ring : NTTRingOps)
     (encoding : Encoding params) (prims : Primitives params encoding)
-    [DecidableEq encoding.EncodedTHat]
     [DecidableEq encoding.EncodedU] [DecidableEq encoding.EncodedV] :
     (asKEMScheme ring encoding prims).IncrementalStructure where
   PKheader := Seed32 × PublicKeyHash
@@ -117,7 +116,6 @@ def incrementalStructure {params : Params} (ring : NTTRingOps)
 /-- The second stage samples no randomness. -/
 def incrementalDeterministicEncaps2 {params : Params} (ring : NTTRingOps)
     (encoding : Encoding params) (prims : Primitives params encoding)
-    [DecidableEq encoding.EncodedTHat]
     [DecidableEq encoding.EncodedU] [DecidableEq encoding.EncodedV] :
     (incrementalStructure ring encoding prims).DeterministicEncaps2 where
   encaps2Det := fun st _hdr vec => incrementalEncaps2 ring st vec
@@ -126,7 +124,6 @@ def incrementalDeterministicEncaps2 {params : Params} (ring : NTTRingOps)
 /-- Decapsulation is deterministic: it is the total implicit-rejection computation of ML-KEM. -/
 def incrementalDeterministicDecaps {params : Params} (ring : NTTRingOps)
     (encoding : Encoding params) (prims : Primitives params encoding)
-    [DecidableEq encoding.EncodedTHat]
     [DecidableEq encoding.EncodedU] [DecidableEq encoding.EncodedV] :
     KEMScheme.DeterministicDecaps (asKEMScheme ring encoding prims) where
   decapsDet := fun dk c => some (decapsInternal ring encoding prims dk c)
@@ -136,7 +133,6 @@ def incrementalDeterministicDecaps {params : Params} (ring : NTTRingOps)
 -- ANCHOR: incrementalRandLeak
 def incrementalRandLeak {params : Params} (ring : NTTRingOps)
     (encoding : Encoding params) (prims : Primitives params encoding)
-    [DecidableEq encoding.EncodedTHat]
     [DecidableEq encoding.EncodedU] [DecidableEq encoding.EncodedV] :
     (asKEMScheme ring encoding prims).IncrementalRandLeak
       (incrementalStructure ring encoding prims) where

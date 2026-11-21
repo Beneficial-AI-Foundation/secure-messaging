@@ -80,7 +80,7 @@ lemma recvB_kem_source_shape
   · right
     simp only [recvB, ht, ite_true] at hrecv
     repeat' split at hrecv
-    all_goals try simp_all only [Option.isNone_none, and_true, BEq.rfl,
+    all_goals simp_all only [Option.isNone_none, and_true, BEq.rfl,
       Bool.and_true, Bool.not_eq_true, insert_empty_eq, Option.some.injEq,
       Prod.mk.injEq, Bool.and_eq_true, beq_iff_eq, and_false,
       not_false_eq_true]
@@ -89,7 +89,7 @@ lemma recvB_kem_source_shape
   · left
     simp only [recvB, ht, ite_false] at hrecv
     repeat' split at hrecv
-    all_goals try simp_all only [lt_self_iff_false, not_false_eq_true,
+    all_goals simp_all only [lt_self_iff_false, not_false_eq_true,
       Option.isNone_iff_eq_none, BEq.rfl, Bool.and_true, Bool.not_eq_true,
       Option.some.injEq, Prod.mk.injEq, not_lt, not_and, Bool.and_eq_true,
       beq_iff_eq, Std.le_refl, forall_const, and_self]

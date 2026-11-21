@@ -739,7 +739,7 @@ lemma recv_local_publicKey_eq_or_none
         simp only [hdecode] at hproj
       all_goals
         repeat' split at hproj
-        try simp only [Option.pure_def, Option.map_some] at hproj
+        simp only [Option.pure_def, Option.map_some] at hproj
         all_goals first
           | exact Or.inl (Option.some.inj hproj).symm
           | exact Or.inr (Option.some.inj hproj).symm
@@ -749,7 +749,7 @@ lemma recv_local_publicKey_eq_or_none
       all_goals try simp only [Option.bind_eq_bind,
         Option.bind] at hproj
       all_goals repeat' split at hproj
-      all_goals try simp only [Option.pure_def, Option.map_some,
+      all_goals simp only [Option.pure_def, Option.map_some,
         Option.map_none] at hproj
       all_goals repeat' split at hproj
       all_goals try simp only [Option.map_some, Option.map_none] at hproj
@@ -808,7 +808,7 @@ lemma recv_peerKeys_stable [DecidableEq Sym]
       cases hdecode : (insertChunkAndDecode ecEk st.req.receivedChunks ρ.ch).2 <;>
         simp only [hdecode] at hproj
       all_goals repeat' split at hproj
-      all_goals try simp only [Option.pure_def, Option.map_some] at hproj
+      all_goals simp only [Option.pure_def, Option.map_some] at hproj
       all_goals first
         | exact (Option.some.inj hproj).symm
         | exact (Option.some.inj hproj).symm.trans
@@ -819,7 +819,7 @@ lemma recv_peerKeys_stable [DecidableEq Sym]
       all_goals try simp only [Option.bind_eq_bind,
         Option.bind] at hproj
       all_goals repeat' split at hproj
-      all_goals try simp only [Option.pure_def, Option.map_some,
+      all_goals simp only [Option.pure_def, Option.map_some,
         Option.map_none] at hproj
       all_goals repeat' split at hproj
       all_goals try simp only [Option.map_some, Option.map_none] at hproj
@@ -871,7 +871,7 @@ lemma recv_peerKeys_origin [DecidableEq Sym]
       cases hdecode : (insertChunkAndDecode ecEk st.req.receivedChunks ρ.ch).2 <;>
         simp only [hdecode] at hproj
       all_goals repeat' split at hproj
-      all_goals try simp only [Option.pure_def, Option.map_some] at hproj
+      all_goals simp only [Option.pure_def, Option.map_some] at hproj
       -- Public-key leaves: either `ekPeer` is unchanged, or the decoded key is installed
       -- at the new requester epoch shifted by the role offset.
       all_goals
@@ -888,7 +888,7 @@ lemma recv_peerKeys_origin [DecidableEq Sym]
       all_goals try simp only [Option.bind_eq_bind,
         Option.bind] at hproj
       all_goals repeat' split at hproj
-      all_goals try simp only [Option.pure_def, Option.map_some,
+      all_goals simp only [Option.pure_def, Option.map_some,
         Option.map_none] at hproj
       all_goals repeat' split at hproj
       all_goals try simp only [Option.map_some, Option.map_none] at hproj

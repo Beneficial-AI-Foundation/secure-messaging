@@ -251,7 +251,7 @@ private theorem prSampleMagnitude_zero (ps : ParameterSet) :
       have h := prEvent_uniformFin_Icc (a := 0) (b := ps.errorTable.thresholds[0])
         (by positivity : 0 < 2 ^ (lenChi - 1)) htop
       convert h using 1
-      all_goals norm_num [lenChi]
+      norm_num [lenChi]
 
 private theorem prSampleMagnitude_pos (ps : ParameterSet) (k : ℕ)
     (hk0 : 0 < k) (hkd : k ≤ ps.errorTable.d) :
@@ -279,7 +279,7 @@ private theorem prSampleMagnitude_pos (ps : ParameterSet) (k : ℕ)
         (a := ps.errorTable.thresholds[k - 1]'(by omega))
         (b := ps.errorTable.thresholds[k]'(by omega)) hlow hupp
       convert h using 1
-      all_goals norm_num [lenChi]
+      norm_num [lenChi]
 
 private theorem threshold_diff_eq_noiseCount (ps : ParameterSet) (k : ℕ)
     (hk0 : 0 < k) (hkd : k ≤ ps.errorTable.d) :

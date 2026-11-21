@@ -671,7 +671,7 @@ lemma sendAUpdate_map (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C S
       targetStateMap t d k (SCKAScheme.sendAUpdate s key? ρ tsnd stA') := by
   rcases key? with _ | ⟨tI, key⟩
   · simp [SCKAScheme.sendAUpdate, targetStateMap]
-    try rfl
+    rfl
   · simp only [SCKAScheme.sendAUpdate, mapKey_some, targetStateMap]
     have hcorr' := hcorr
     simp only [SCKAScheme.sendAUpdate, Bool.and_eq_true] at hcorr'
@@ -693,7 +693,7 @@ lemma sendBUpdate_map (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C S
       targetStateMap t d k (SCKAScheme.sendBUpdate s key? ρ tsnd stB') := by
   rcases key? with _ | ⟨tI, key⟩
   · simp [SCKAScheme.sendBUpdate, targetStateMap]
-    try rfl
+    rfl
   · simp only [SCKAScheme.sendBUpdate, mapKey_some, targetStateMap]
     have hcorr' := hcorr
     simp only [SCKAScheme.sendBUpdate, Bool.and_eq_true] at hcorr'

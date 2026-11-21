@@ -443,7 +443,7 @@ lemma sendWith_hitEncaps_evalDist {RK : Type} (role : Role) (keygen : ProbComp (
       obtain rfl := hpk peerEk hpeer
       dsimp only
       simp only [honestEncaps, bind_assoc, pure_bind]
-      try rfl
+      rfl
 
 /-- At a generation of the target's key pair, drawing the pair and running the keygen-injected
 oracles is running the hybrid oracles. -/

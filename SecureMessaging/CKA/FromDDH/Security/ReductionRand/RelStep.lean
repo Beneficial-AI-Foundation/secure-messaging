@@ -378,95 +378,94 @@ lemma reduction_honest_param_rand_step_rel
               simpa [isChallengeEpoch, GameState.tP, h_cp, h_tB] using h_epoch
             have h_lastH : sH.lastAction = some CKAAction.recvB :=
               (validStep_challB_eq_true_iff sH.lastAction).mp h_vH
-            all_goals
-              rcases (by
-                simpa [reachableShape, epochCounterInv, stateShapeInv, h_lastH]
-                  using h_shape) with
-                ⟨h_phase, y, h_stAH, h_stBH, h_rhoAH, h_rhoBH, h_keyAH, h_keyBH⟩
-              have h_tB_chall : sR.tB + 1 = gp.challengeEpoch := by
-                simpa [isChallengeEpoch, GameState.tP, h_cp] using h_epoch
-              have h_tA_embed : sR.tA = gp.challengeEpoch - 1 := by
-                have h_phaseR : sR.tA = sR.tB := by omega
-                omega
-              have h_pending :=
-                h_pendingA h_cp h_tA_embed (by rw [h_last, h_lastH]; simp)
-              rcases h_pending with ⟨h_stAR, h_stAH_dead⟩
-              have hy : y = a := by
-                rw [h_stAH] at h_stAH_dead
-                exact CKAState.recvReady.inj h_stAH_dead
-              subst y
-              have h_runR :
-                  (reductionChallB (F := F) gp (b • gen) gT ()).run sR =
-                    (pure (some (b • gen, gT),
-                      { sR with
-                        tB := sR.tB + 1, stB := (.recvReady 0 : CKAState F G),
-                        rhoB := some (b • gen), keyB := some gT,
-                        lastAction := some .challB }) :
-                      ProbComp (Option (G × G) × GameState (CKAState F G) G G)) := by
-                unfold reductionChallB
-                rw [StateT.run_get_bind]
-                simp [h_cp, h_v, h_epoch]
-              have h_epochH_nat : sH.tB + 1 = gp.challengeEpoch := by
-                simpa [isChallengeEpoch, GameState.tP, h_cp] using h_epochH
-              have h_runH :
-                  (honestChallBparamRand (F := F) gp gen b gT ()).run sH =
-                    (pure (some (b • gen, gT),
-                      { sH with
-                        tB := sH.tB + 1, stB := (.recvReady b : CKAState F G),
-                        rhoB := some (b • gen), keyB := some (b • (a • gen)),
-                        lastAction := some .challB }) :
-                      ProbComp (Option (G × G) × GameState (CKAState F G) G G)) := by
-                unfold honestChallBparamRand
-                rw [StateT.run_get_bind]
-                simp [h_lastH, validStep, h_cp, h_epochH_nat, h_stBH,
-                  isChallengeEpoch, GameState.tP]
-              refine relTriple_of_eq_pure_pure
-                (oa := (reductionChallB (F := F) gp (b • gen) gT ()).run sR)
-                (ob := (honestChallBparamRand (F := F) gp gen b gT ()).run sH)
-                (R := fun pR pH =>
-                  pR.1 = pH.1 ∧ reductionHonestRelRand gp gen a b gT pR.2 pH.2)
-                (a := (some (b • gen, gT),
-                  { sR with
-                    tB := sR.tB + 1, stB := (.recvReady 0 : CKAState F G),
-                    rhoB := some (b • gen), keyB := some gT,
-                    lastAction := some .challB }))
-                (b := (some (b • gen, gT),
-                  { sH with
-                    tB := sH.tB + 1, stB := (.recvReady b : CKAState F G),
-                    rhoB := some (b • gen), keyB := some (b • (a • gen)),
-                    lastAction := some .challB }))
-                h_runR h_runH ?_
-              refine ⟨rfl, ?_⟩
-              refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_ , ?_⟩
-              · refine ⟨?_, b, a, ?_, ?_, ?_, ?_, ?_, ?_⟩
-                · simpa [epochCounterInv] using h_phase.symm
-                · simpa using h_stAH_dead
-                · rfl
-                · simpa [h_rhoA] using h_rhoAH
-                · rfl
-                · simp [h_keyAH]
-                · rfl
-              · simp [h_tA]
-              · simp [h_tB]
+            rcases (by
+              simpa [reachableShape, epochCounterInv, stateShapeInv, h_lastH]
+                using h_shape) with
+              ⟨h_phase, y, h_stAH, h_stBH, h_rhoAH, h_rhoBH, h_keyAH, h_keyBH⟩
+            have h_tB_chall : sR.tB + 1 = gp.challengeEpoch := by
+              simpa [isChallengeEpoch, GameState.tP, h_cp] using h_epoch
+            have h_tA_embed : sR.tA = gp.challengeEpoch - 1 := by
+              have h_phaseR : sR.tA = sR.tB := by omega
+              omega
+            have h_pending :=
+              h_pendingA h_cp h_tA_embed (by rw [h_last, h_lastH]; simp)
+            rcases h_pending with ⟨h_stAR, h_stAH_dead⟩
+            have hy : y = a := by
+              rw [h_stAH] at h_stAH_dead
+              exact CKAState.recvReady.inj h_stAH_dead
+            subst y
+            have h_runR :
+                (reductionChallB (F := F) gp (b • gen) gT ()).run sR =
+                  (pure (some (b • gen, gT),
+                    { sR with
+                      tB := sR.tB + 1, stB := (.recvReady 0 : CKAState F G),
+                      rhoB := some (b • gen), keyB := some gT,
+                      lastAction := some .challB }) :
+                    ProbComp (Option (G × G) × GameState (CKAState F G) G G)) := by
+              unfold reductionChallB
+              rw [StateT.run_get_bind]
+              simp [h_cp, h_v, h_epoch]
+            have h_epochH_nat : sH.tB + 1 = gp.challengeEpoch := by
+              simpa [isChallengeEpoch, GameState.tP, h_cp] using h_epochH
+            have h_runH :
+                (honestChallBparamRand (F := F) gp gen b gT ()).run sH =
+                  (pure (some (b • gen, gT),
+                    { sH with
+                      tB := sH.tB + 1, stB := (.recvReady b : CKAState F G),
+                      rhoB := some (b • gen), keyB := some (b • (a • gen)),
+                      lastAction := some .challB }) :
+                    ProbComp (Option (G × G) × GameState (CKAState F G) G G)) := by
+              unfold honestChallBparamRand
+              rw [StateT.run_get_bind]
+              simp [h_lastH, validStep, h_cp, h_epochH_nat, h_stBH,
+                isChallengeEpoch, GameState.tP]
+            refine relTriple_of_eq_pure_pure
+              (oa := (reductionChallB (F := F) gp (b • gen) gT ()).run sR)
+              (ob := (honestChallBparamRand (F := F) gp gen b gT ()).run sH)
+              (R := fun pR pH =>
+                pR.1 = pH.1 ∧ reductionHonestRelRand gp gen a b gT pR.2 pH.2)
+              (a := (some (b • gen, gT),
+                { sR with
+                  tB := sR.tB + 1, stB := (.recvReady 0 : CKAState F G),
+                  rhoB := some (b • gen), keyB := some gT,
+                  lastAction := some .challB }))
+              (b := (some (b • gen, gT),
+                { sH with
+                  tB := sH.tB + 1, stB := (.recvReady b : CKAState F G),
+                  rhoB := some (b • gen), keyB := some (b • (a • gen)),
+                  lastAction := some .challB }))
+              h_runR h_runH ?_
+            refine ⟨rfl, ?_⟩
+            refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_ , ?_⟩
+            · refine ⟨?_, b, a, ?_, ?_, ?_, ?_, ?_, ?_⟩
+              · simpa [epochCounterInv] using h_phase.symm
+              · simpa using h_stAH_dead
               · rfl
-              · simp [h_rhoA]
+              · simpa [h_rhoA] using h_rhoAH
               · rfl
-              · intro h
-                simp at h
-              · exact Or.inr (Or.inl ⟨h_cp, h_tA_embed, h_stAR, h_stAH_dead⟩)
-              · exact Or.inr (Or.inr ⟨h_cp, h_tB_chall, rfl, rfl⟩)
-              · intro _h_cp _h_tA h_last_post
-                simp at h_last_post
-              · intro h_cpA _h_tB _h_last_post
-                simp [h_cp] at h_cpA
-              · intro hsafe
-                exfalso
-                simp [allowCorrPCS, allowCorrFS, hΔFS, hΔPCS] at hsafe
-                omega
-              · intro hsafe
-                exfalso
-                simp [allowCorrPCS, allowCorrFS, hΔFS, hΔPCS] at hsafe
-                omega
+              · simp [h_keyAH]
+              · rfl
+            · simp [h_tA]
+            · simp [h_tB]
+            · rfl
+            · simp [h_rhoA]
+            · rfl
+            · intro h
+              simp at h
+            · exact Or.inr (Or.inl ⟨h_cp, h_tA_embed, h_stAR, h_stAH_dead⟩)
+            · exact Or.inr (Or.inr ⟨h_cp, h_tB_chall, rfl, rfl⟩)
+            · intro _h_cp _h_tA h_last_post
+              simp at h_last_post
+            · intro h_cpA _h_tB _h_last_post
+              simp [h_cp] at h_cpA
+            · intro hsafe
+              exfalso
+              simp [allowCorrPCS, allowCorrFS, hΔFS, hΔPCS] at hsafe
+              omega
+            · intro hsafe
+              exfalso
+              simp [allowCorrPCS, allowCorrFS, hΔFS, hΔPCS] at hsafe
+              omega
           · have h_epochR :
                 isChallengeEpoch gp {sR with tB := sR.tB + 1} = false :=
               Bool.eq_false_iff.mpr h_epoch
@@ -663,251 +662,250 @@ lemma reduction_honest_param_rand_step_rel
           exact h_v
         rcases h_lastH : sH.lastAction with _ | (_ | _ | _ | _ | _ | _) <;>
           simp [h_lastH, validStep] at h_vH
-        all_goals
-          rcases (by
-            simpa [reachableShape, epochCounterInv, stateShapeInv, h_lastH]
-              using h_shape) with
-            ⟨h_phase, y, h_stAH, h_stBH, h_rhoAH, h_rhoBH, h_keyAH, h_keyBH⟩
-          have h_stBR : sR.stB = (.sendReady (y • gen) : CKAState F G) := by
-            rcases h_stB with h_eq | h_dead | h_dead
-            · rw [h_eq, h_stBH]
-            · rcases h_dead with ⟨_, _, _, h_stBH_dead⟩
-              rw [h_stBH] at h_stBH_dead
-              cases h_stBH_dead
-            · rcases h_dead with ⟨_, _, _, h_stBH_dead⟩
-              rw [h_stBH] at h_stBH_dead
-              cases h_stBH_dead
-          have h_key_eq : y • (a • gen) = a • (y • gen) := by
-            rw [smul_smul, smul_smul, mul_comm]
-          by_cases h_embed :
+        rcases (by
+          simpa [reachableShape, epochCounterInv, stateShapeInv, h_lastH]
+            using h_shape) with
+          ⟨h_phase, y, h_stAH, h_stBH, h_rhoAH, h_rhoBH, h_keyAH, h_keyBH⟩
+        have h_stBR : sR.stB = (.sendReady (y • gen) : CKAState F G) := by
+          rcases h_stB with h_eq | h_dead | h_dead
+          · rw [h_eq, h_stBH]
+          · rcases h_dead with ⟨_, _, _, h_stBH_dead⟩
+            rw [h_stBH] at h_stBH_dead
+            cases h_stBH_dead
+          · rcases h_dead with ⟨_, _, _, h_stBH_dead⟩
+            rw [h_stBH] at h_stBH_dead
+            cases h_stBH_dead
+        have h_key_eq : y • (a • gen) = a • (y • gen) := by
+          rw [smul_smul, smul_smul, mul_comm]
+        by_cases h_embed :
+            ((gp.challengedParty == CKAParty.A) &&
+              isOtherSendBeforeChall gp {sR with tB := sR.tB + 1}) = true
+        · have h_cpA : gp.challengedParty = CKAParty.A := by
+            cases h_party : gp.challengedParty <;> simp [h_party] at h_embed ⊢
+          have h_other :
+              isOtherSendBeforeChall gp {sR with tB := sR.tB + 1} = true := by
+            simpa [h_cpA] using h_embed
+          have h_tB_embed : sR.tB + 1 = gp.challengeEpoch - 1 := by
+            simpa [isOtherSendBeforeChall, GameState.tP, CKAParty.other, h_cpA] using
+              h_other
+          have h_tB_embedH : sH.tB + 1 = gp.challengeEpoch - 1 := by
+            omega
+          have h_stAR : sR.stA = (.recvReady y : CKAState F G) := by
+            rcases h_stA with h_eq | h_dead | h_dead
+            · rw [h_eq, h_stAH]
+            · rcases h_dead with ⟨h_cpB, _, _, _⟩
+              simp [h_cpA] at h_cpB
+            · rcases h_dead with ⟨_, h_tA_dead, _, _⟩
+              have h_phaseR : sR.tA = sR.tB := by omega
+              omega
+          have h_embed_prop :
+              gp.challengedParty = CKAParty.A ∧
+                isOtherSendBeforeChall gp {sR with tB := sR.tB + 1} = true :=
+            ⟨h_cpA, h_other⟩
+          have h_runR :
+              (reductionSendB (F := F) gp gen (a • gen) ()).run sR =
+                (pure (some (a • gen, y • (a • gen)),
+                  { sR with
+                    tB := sR.tB + 1, stB := (.recvReady 0 : CKAState F G),
+                    rhoB := some (a • gen), keyB := some (y • (a • gen)),
+                    lastAction := some .sendB }) :
+                  ProbComp (Option (G × G) × GameState (CKAState F G) G G)) := by
+            unfold reductionSendB
+            rw [StateT.run_get_bind]
+            simp [h_v, h_cpA, h_tB_embed, h_stAR,
+              isOtherSendBeforeChall, GameState.tP, CKAParty.other]
+          have h_predH :
+              (validStep sH.lastAction CKAAction.sendB &&
+                (gp.challengedParty == CKAParty.A) &&
+                isOtherSendBeforeChall gp {sH with tB := sH.tB + 1}) = true := by
+            simp [h_lastH, validStep, h_cpA, h_tB_embedH,
+              isOtherSendBeforeChall, GameState.tP, CKAParty.other]
+          have h_runH :
+              (honestSendBparam (F := F) gp gen a ()).run sH =
+                (pure (some (a • gen, a • (y • gen)),
+                  { sH with
+                    tB := sH.tB + 1, stB := (.recvReady a : CKAState F G),
+                    rhoB := some (a • gen), keyB := some (a • (y • gen)),
+                    lastAction := some .sendB }) :
+                  ProbComp (Option (G × G) × GameState (CKAState F G) G G)) := by
+            unfold honestSendBparam
+            rw [StateT.run_get_bind]
+            simp [h_lastH, validStep, h_cpA, h_tB_embedH, h_stBH,
+              isOtherSendBeforeChall, GameState.tP, CKAParty.other]
+          refine relTriple_of_eq_pure_pure
+            (oa := (reductionSendB (F := F) gp gen (a • gen) ()).run sR)
+            (ob := (honestSendBparam (F := F) gp gen a ()).run sH)
+            (R := fun pR pH =>
+              pR.1 = pH.1 ∧ reductionHonestRelRand gp gen a b gT pR.2 pH.2)
+            (a := (some (a • gen, y • (a • gen)),
+              { sR with
+                tB := sR.tB + 1, stB := (.recvReady 0 : CKAState F G),
+                rhoB := some (a • gen), keyB := some (y • (a • gen)),
+                lastAction := some .sendB }))
+            (b := (some (a • gen, a • (y • gen)),
+              { sH with
+                tB := sH.tB + 1, stB := (.recvReady a : CKAState F G),
+                rhoB := some (a • gen), keyB := some (a • (y • gen)),
+                lastAction := some .sendB }))
+            h_runR h_runH ?_
+          refine ⟨by simp [h_key_eq], ?_⟩
+          refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_ , ?_⟩
+          · refine ⟨?_, a, y, ?_, ?_, ?_, ?_, ?_, ?_⟩
+            · simpa [epochCounterInv] using h_phase.symm
+            · simpa using h_stAH
+            · rfl
+            · simpa [h_rhoA] using h_rhoAH
+            · rfl
+            · simp [h_keyAH]
+            · rfl
+          · simp [h_tA]
+          · simp [h_tB]
+          · rfl
+          · simp [h_rhoA]
+          · rfl
+          · intro h
+            simp at h
+          · simp [h_stA]
+          · exact Or.inr (Or.inl ⟨h_cpA, h_tB_embed, rfl, rfl⟩)
+          · intro _h_cp _h_tA h_last_post
+            simp at h_last_post
+          · intro _h_cp _h_tB _h_last_post
+            exact ⟨rfl, rfl⟩
+          · intro hsafe
+            exfalso
+            simp [allowCorrPCS, allowCorrFS, hΔFS, hΔPCS] at hsafe
+            omega
+          · intro hsafe
+            exfalso
+            simp [allowCorrPCS, allowCorrFS, hΔFS, hΔPCS] at hsafe
+            omega
+        · have h_embed_false :
               ((gp.challengedParty == CKAParty.A) &&
-                isOtherSendBeforeChall gp {sR with tB := sR.tB + 1}) = true
-          · have h_cpA : gp.challengedParty = CKAParty.A := by
-              cases h_party : gp.challengedParty <;> simp [h_party] at h_embed ⊢
-            have h_other :
-                isOtherSendBeforeChall gp {sR with tB := sR.tB + 1} = true := by
-              simpa [h_cpA] using h_embed
-            have h_tB_embed : sR.tB + 1 = gp.challengeEpoch - 1 := by
-              simpa [isOtherSendBeforeChall, GameState.tP, CKAParty.other, h_cpA] using
-                h_other
-            have h_tB_embedH : sH.tB + 1 = gp.challengeEpoch - 1 := by
-              omega
-            have h_stAR : sR.stA = (.recvReady y : CKAState F G) := by
-              rcases h_stA with h_eq | h_dead | h_dead
-              · rw [h_eq, h_stAH]
-              · rcases h_dead with ⟨h_cpB, _, _, _⟩
-                simp [h_cpA] at h_cpB
-              · rcases h_dead with ⟨_, h_tA_dead, _, _⟩
-                have h_phaseR : sR.tA = sR.tB := by omega
-                omega
-            have h_embed_prop :
-                gp.challengedParty = CKAParty.A ∧
-                  isOtherSendBeforeChall gp {sR with tB := sR.tB + 1} = true :=
-              ⟨h_cpA, h_other⟩
-            have h_runR :
-                (reductionSendB (F := F) gp gen (a • gen) ()).run sR =
-                  (pure (some (a • gen, y • (a • gen)),
+                isOtherSendBeforeChall gp {sR with tB := sR.tB + 1}) = false :=
+            Bool.eq_false_iff.mpr h_embed
+          have h_predH :
+              (validStep sH.lastAction CKAAction.sendB &&
+                (gp.challengedParty == CKAParty.A) &&
+                isOtherSendBeforeChall gp {sH with tB := sH.tB + 1}) = false := by
+            cases h_party : gp.challengedParty
+            · have h_otherR_false :
+                  isOtherSendBeforeChall gp {sR with tB := sR.tB + 1} = false := by
+                have h_embed_false' := h_embed_false
+                simp only [h_party] at h_embed_false'
+                exact h_embed_false'
+              have h_tB_not : ¬ sR.tB + 1 = gp.challengeEpoch - 1 := by
+                simpa [isOtherSendBeforeChall, GameState.tP, CKAParty.other, h_party]
+                  using h_otherR_false
+              have h_otherH_false :
+                  isOtherSendBeforeChall gp {sH with tB := sH.tB + 1} = false := by
+                apply Bool.eq_false_iff.mpr
+                intro h_otherH_true
+                apply h_tB_not
+                simpa [isOtherSendBeforeChall, GameState.tP, CKAParty.other, h_party, h_tB]
+                  using h_otherH_true
+              simpa [h_lastH, validStep, h_party, isOtherSendBeforeChall,
+                GameState.tP, CKAParty.other] using h_otherH_false
+            · simp [h_lastH, validStep]
+          have h_embed_prop_false :
+              ¬ (gp.challengedParty = CKAParty.A ∧
+                isOtherSendBeforeChall gp {sR with tB := sR.tB + 1} = true) := by
+            intro hprop
+            rcases hprop with ⟨h_cpA', h_other'⟩
+            simp [h_cpA', h_other'] at h_embed_false
+          have h_runR :
+              (reductionSendB (F := F) gp gen (a • gen) ()).run sR =
+                ((fun x =>
+                  (some (x • gen, x • (y • gen)),
                     { sR with
-                      tB := sR.tB + 1, stB := (.recvReady 0 : CKAState F G),
-                      rhoB := some (a • gen), keyB := some (y • (a • gen)),
-                      lastAction := some .sendB }) :
-                    ProbComp (Option (G × G) × GameState (CKAState F G) G G)) := by
-              unfold reductionSendB
-              rw [StateT.run_get_bind]
-              simp [h_v, h_cpA, h_tB_embed, h_stAR,
+                      tB := sR.tB + 1, stB := (.recvReady x : CKAState F G),
+                      rhoB := some (x • gen), keyB := some (x • (y • gen)),
+                      lastAction := some .sendB })) <$> ($ᵗ F : ProbComp F)) := by
+            unfold reductionSendB
+            rw [StateT.run_get_bind]
+            cases h_party : gp.challengedParty
+            · simp [h_v, h_party, h_stBR, send,
+                isOtherSendBeforeChall, GameState.tP, CKAParty.other] at h_embed_false ⊢
+              simp [h_embed_false]
+            · simp [h_v, h_party, h_stBR, send,
                 isOtherSendBeforeChall, GameState.tP, CKAParty.other]
-            have h_predH :
-                (validStep sH.lastAction CKAAction.sendB &&
-                  (gp.challengedParty == CKAParty.A) &&
-                  isOtherSendBeforeChall gp {sH with tB := sH.tB + 1}) = true := by
-              simp [h_lastH, validStep, h_cpA, h_tB_embedH,
-                isOtherSendBeforeChall, GameState.tP, CKAParty.other]
-            have h_runH :
-                (honestSendBparam (F := F) gp gen a ()).run sH =
-                  (pure (some (a • gen, a • (y • gen)),
+          have h_runH :
+              (honestSendBparam (F := F) gp gen a ()).run sH =
+                ((fun x =>
+                  (some (x • gen, x • (y • gen)),
                     { sH with
-                      tB := sH.tB + 1, stB := (.recvReady a : CKAState F G),
-                      rhoB := some (a • gen), keyB := some (a • (y • gen)),
-                      lastAction := some .sendB }) :
-                    ProbComp (Option (G × G) × GameState (CKAState F G) G G)) := by
-              unfold honestSendBparam
-              rw [StateT.run_get_bind]
-              simp [h_lastH, validStep, h_cpA, h_tB_embedH, h_stBH,
-                isOtherSendBeforeChall, GameState.tP, CKAParty.other]
-            refine relTriple_of_eq_pure_pure
-              (oa := (reductionSendB (F := F) gp gen (a • gen) ()).run sR)
-              (ob := (honestSendBparam (F := F) gp gen a ()).run sH)
-              (R := fun pR pH =>
-                pR.1 = pH.1 ∧ reductionHonestRelRand gp gen a b gT pR.2 pH.2)
-              (a := (some (a • gen, y • (a • gen)),
-                { sR with
-                  tB := sR.tB + 1, stB := (.recvReady 0 : CKAState F G),
-                  rhoB := some (a • gen), keyB := some (y • (a • gen)),
-                  lastAction := some .sendB }))
-              (b := (some (a • gen, a • (y • gen)),
-                { sH with
-                  tB := sH.tB + 1, stB := (.recvReady a : CKAState F G),
-                  rhoB := some (a • gen), keyB := some (a • (y • gen)),
-                  lastAction := some .sendB }))
-              h_runR h_runH ?_
-            refine ⟨by simp [h_key_eq], ?_⟩
-            refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_ , ?_⟩
-            · refine ⟨?_, a, y, ?_, ?_, ?_, ?_, ?_, ?_⟩
-              · simpa [epochCounterInv] using h_phase.symm
-              · simpa using h_stAH
-              · rfl
-              · simpa [h_rhoA] using h_rhoAH
-              · rfl
-              · simp [h_keyAH]
-              · rfl
-            · simp [h_tA]
-            · simp [h_tB]
+                      tB := sH.tB + 1, stB := (.recvReady x : CKAState F G),
+                      rhoB := some (x • gen), keyB := some (x • (y • gen)),
+                      lastAction := some .sendB })) <$> ($ᵗ F : ProbComp F)) := by
+            rw [honestSendB_param_run_eq_when_pred_false (gen := gen) gp a sH h_predH]
+            unfold oracleSendB
+            rw [StateT.run_get_bind]
+            simp [h_lastH, validStep, h_stBH, ddhCKA, send]
+          refine relTriple_of_eq_map_map h_runR h_runH fun xR => ?_
+          refine ⟨rfl, ?_⟩
+          refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_ , ?_⟩
+          · refine ⟨?_, xR, y, ?_, ?_, ?_, ?_, ?_, ?_⟩
+            · simpa [epochCounterInv] using h_phase.symm
+            · simpa using h_stAH
             · rfl
-            · simp [h_rhoA]
+            · simpa [h_rhoA] using h_rhoAH
             · rfl
-            · intro h
-              simp at h
-            · simp [h_stA]
-            · exact Or.inr (Or.inl ⟨h_cpA, h_tB_embed, rfl, rfl⟩)
-            · intro _h_cp _h_tA h_last_post
-              simp at h_last_post
-            · intro _h_cp _h_tB _h_last_post
-              exact ⟨rfl, rfl⟩
-            · intro hsafe
-              exfalso
-              simp [allowCorrPCS, allowCorrFS, hΔFS, hΔPCS] at hsafe
+            · simp [h_keyAH]
+            · rfl
+          · simp [h_tA]
+          · simp [h_tB]
+          · rfl
+          · simp [h_rhoA]
+          · rfl
+          · intro h
+            simp at h
+          · simp [h_stA]
+          · exact Or.inl rfl
+          · intro _h_cp _h_tA h_last_post
+            simp at h_last_post
+          · intro h_cpA h_tB_embed _h_last_post
+            have h_tB_embed' : sR.tB + 1 + 1 = gp.challengeEpoch := by
+              simpa using h_tB_embed
+            have h_tB_prev : sR.tB + 1 = gp.challengeEpoch - 1 := by
+              rw [← h_tB_embed']
               omega
-            · intro hsafe
-              exfalso
-              simp [allowCorrPCS, allowCorrFS, hΔFS, hΔPCS] at hsafe
-              omega
-          · have h_embed_false :
-                ((gp.challengedParty == CKAParty.A) &&
-                  isOtherSendBeforeChall gp {sR with tB := sR.tB + 1}) = false :=
-              Bool.eq_false_iff.mpr h_embed
-            have h_predH :
-                (validStep sH.lastAction CKAAction.sendB &&
-                  (gp.challengedParty == CKAParty.A) &&
-                  isOtherSendBeforeChall gp {sH with tB := sH.tB + 1}) = false := by
-              cases h_party : gp.challengedParty
-              · have h_otherR_false :
-                    isOtherSendBeforeChall gp {sR with tB := sR.tB + 1} = false := by
-                  have h_embed_false' := h_embed_false
-                  simp only [h_party] at h_embed_false'
-                  exact h_embed_false'
-                have h_tB_not : ¬ sR.tB + 1 = gp.challengeEpoch - 1 := by
-                  simpa [isOtherSendBeforeChall, GameState.tP, CKAParty.other, h_party]
-                    using h_otherR_false
-                have h_otherH_false :
-                    isOtherSendBeforeChall gp {sH with tB := sH.tB + 1} = false := by
-                  apply Bool.eq_false_iff.mpr
-                  intro h_otherH_true
-                  apply h_tB_not
-                  simpa [isOtherSendBeforeChall, GameState.tP, CKAParty.other, h_party, h_tB]
-                    using h_otherH_true
-                simpa [h_lastH, validStep, h_party, isOtherSendBeforeChall,
-                  GameState.tP, CKAParty.other] using h_otherH_false
-              · simp [h_lastH, validStep]
-            have h_embed_prop_false :
-                ¬ (gp.challengedParty = CKAParty.A ∧
-                  isOtherSendBeforeChall gp {sR with tB := sR.tB + 1} = true) := by
-              intro hprop
-              rcases hprop with ⟨h_cpA', h_other'⟩
-              simp [h_cpA', h_other'] at h_embed_false
-            have h_runR :
-                (reductionSendB (F := F) gp gen (a • gen) ()).run sR =
-                  ((fun x =>
-                    (some (x • gen, x • (y • gen)),
-                      { sR with
-                        tB := sR.tB + 1, stB := (.recvReady x : CKAState F G),
-                        rhoB := some (x • gen), keyB := some (x • (y • gen)),
-                        lastAction := some .sendB })) <$> ($ᵗ F : ProbComp F)) := by
-              unfold reductionSendB
-              rw [StateT.run_get_bind]
-              cases h_party : gp.challengedParty
-              · simp [h_v, h_party, h_stBR, send,
-                  isOtherSendBeforeChall, GameState.tP, CKAParty.other] at h_embed_false ⊢
-                simp [h_embed_false]
-              · simp [h_v, h_party, h_stBR, send,
-                  isOtherSendBeforeChall, GameState.tP, CKAParty.other]
-            have h_runH :
-                (honestSendBparam (F := F) gp gen a ()).run sH =
-                  ((fun x =>
-                    (some (x • gen, x • (y • gen)),
-                      { sH with
-                        tB := sH.tB + 1, stB := (.recvReady x : CKAState F G),
-                        rhoB := some (x • gen), keyB := some (x • (y • gen)),
-                        lastAction := some .sendB })) <$> ($ᵗ F : ProbComp F)) := by
-              rw [honestSendB_param_run_eq_when_pred_false (gen := gen) gp a sH h_predH]
-              unfold oracleSendB
-              rw [StateT.run_get_bind]
-              simp [h_lastH, validStep, h_stBH, ddhCKA, send]
-            refine relTriple_of_eq_map_map h_runR h_runH fun xR => ?_
-            refine ⟨rfl, ?_⟩
-            refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_ , ?_⟩
-            · refine ⟨?_, xR, y, ?_, ?_, ?_, ?_, ?_, ?_⟩
-              · simpa [epochCounterInv] using h_phase.symm
-              · simpa using h_stAH
-              · rfl
-              · simpa [h_rhoA] using h_rhoAH
-              · rfl
-              · simp [h_keyAH]
-              · rfl
-            · simp [h_tA]
-            · simp [h_tB]
-            · rfl
-            · simp [h_rhoA]
-            · rfl
-            · intro h
-              simp at h
-            · simp [h_stA]
-            · exact Or.inl rfl
-            · intro _h_cp _h_tA h_last_post
-              simp at h_last_post
-            · intro h_cpA h_tB_embed _h_last_post
-              have h_tB_embed' : sR.tB + 1 + 1 = gp.challengeEpoch := by
-                simpa using h_tB_embed
-              have h_tB_prev : sR.tB + 1 = gp.challengeEpoch - 1 := by
-                rw [← h_tB_embed']
-                omega
-              exact False.elim (h_embed_prop_false ⟨h_cpA, by
-                simpa only [isOtherSendBeforeChall, GameState.tP, CKAParty.other, h_cpA,
-                  beq_iff_eq] using h_tB_prev⟩)
-            · intro hsafe
-              apply h_safeA
-              by_cases h_allow_post :
+            exact False.elim (h_embed_prop_false ⟨h_cpA, by
+              simpa only [isOtherSendBeforeChall, GameState.tP, CKAParty.other, h_cpA,
+                beq_iff_eq] using h_tB_prev⟩)
+          · intro hsafe
+            apply h_safeA
+            by_cases h_allow_post :
+                allowCorrPCS gp
+                  ({ sR with
+                    tB := sR.tB + 1, stB := (.recvReady xR : CKAState F G),
+                    rhoB := some (xR • gen), keyB := some (xR • (y • gen)),
+                    lastAction := some .sendB } :
+                    GameState (CKAState F G) G G) = true
+            · have h_allow_succ :
+                  allowCorrPCS gp {sR with tB := sR.tB + 1} = true := by
+                simpa [allowCorr, allowCorrPCS] using h_allow_post
+              have h_allow_pre := allowCorr_of_allowCorr_tB_succ gp sR h_allow_succ
+              simp [h_allow_pre]
+            · have h_allow_post_false :
                   allowCorrPCS gp
                     ({ sR with
                       tB := sR.tB + 1, stB := (.recvReady xR : CKAState F G),
                       rhoB := some (xR • gen), keyB := some (xR • (y • gen)),
                       lastAction := some .sendB } :
-                      GameState (CKAState F G) G G) = true
-              · have h_allow_succ :
-                    allowCorrPCS gp {sR with tB := sR.tB + 1} = true := by
-                  simpa [allowCorr, allowCorrPCS] using h_allow_post
-                have h_allow_pre := allowCorr_of_allowCorr_tB_succ gp sR h_allow_succ
-                simp [h_allow_pre]
-              · have h_allow_post_false :
-                    allowCorrPCS gp
-                      ({ sR with
-                        tB := sR.tB + 1, stB := (.recvReady xR : CKAState F G),
-                        rhoB := some (xR • gen), keyB := some (xR • (y • gen)),
-                        lastAction := some .sendB } :
-                        GameState (CKAState F G) G G) = false :=
-                  Bool.eq_false_iff.mpr h_allow_post
-                have h_finished_post :
-                    allowCorrFS gp
-                      ({ sR with
-                        tB := sR.tB + 1, stB := (.recvReady xR : CKAState F G),
-                        rhoB := some (xR • gen), keyB := some (xR • (y • gen)),
-                        lastAction := some .sendB } :
-                        GameState (CKAState F G) G G) .A = true := by
-                  simpa [h_allow_post_false] using hsafe
-                have h_finished_pre : allowCorrFS gp sR .A = true := by
-                  simpa [allowCorrFS] using h_finished_post
-                simp [h_finished_pre]
-            · intro _hsafe
-              rfl
+                      GameState (CKAState F G) G G) = false :=
+                Bool.eq_false_iff.mpr h_allow_post
+              have h_finished_post :
+                  allowCorrFS gp
+                    ({ sR with
+                      tB := sR.tB + 1, stB := (.recvReady xR : CKAState F G),
+                      rhoB := some (xR • gen), keyB := some (xR • (y • gen)),
+                      lastAction := some .sendB } :
+                      GameState (CKAState F G) G G) .A = true := by
+                simpa [h_allow_post_false] using hsafe
+              have h_finished_pre : allowCorrFS gp sR .A = true := by
+                simpa [allowCorrFS] using h_finished_post
+              simp [h_finished_pre]
+          · intro _hsafe
+            rfl
       · exact relTriple_reductionSendB_invalid_of_state_rel
           (gp := gp) (gen := gen) (a := a)
           (R := fun sR sH => reductionHonestRelRand gp gen a b gT sR sH)
@@ -1454,106 +1452,105 @@ lemma reduction_honest_param_rand_step_rel
           have h_stB_eq : sR.stB = sH.stB := h_safeB (by simp [h_allow_pre])
           rcases h_lastH : sH.lastAction with _ | (_ | _ | _ | _ | _ | _) <;>
             simp [h_lastH, validStep] at h_vH
-          all_goals
-            rcases (by
-              simpa [reachableShape, epochCounterInv, stateShapeInv, h_lastH]
-                using h_shape) with
-              ⟨h_phase, y, h_stAH, h_stBH, h_rhoAH, h_rhoBH, h_keyAH, h_keyBH⟩
-            have h_stBR : sR.stB = (.sendReady (y • gen) : CKAState F G) := by
-              rw [h_stB_eq, h_stBH]
-            have h_runR :
-                (oracleSendBrleak gp (ddhCKA F G gen) ()).run sR =
-                  ((fun x =>
-                    (some (x • gen, x • (y • gen), x),
-                      { sR with
-                        tB := sR.tB + 1, stB := (.recvReady x : CKAState F G),
-                        rhoB := some (x • gen), keyB := some (x • (y • gen)),
-                        lastAction := some .sendB })) <$> ($ᵗ F : ProbComp F)) := by
-              unfold oracleSendBrleak
-              rw [StateT.run_get_bind]
-              rw [ite_eq_left h_v]
-              rw [ite_eq_left h_allow]
-              simp [h_stBR, ddhCKA, sendRleak]
-            have h_runH :
-                (oracleSendBrleak gp (ddhCKA F G gen) ()).run sH =
-                  ((fun x =>
-                    (some (x • gen, x • (y • gen), x),
-                      { sH with
-                        tB := sH.tB + 1, stB := (.recvReady x : CKAState F G),
-                        rhoB := some (x • gen), keyB := some (x • (y • gen)),
-                        lastAction := some .sendB })) <$> ($ᵗ F : ProbComp F)) := by
-              unfold oracleSendBrleak
-              rw [StateT.run_get_bind]
-              rw [ite_eq_left (by simp [h_lastH, validStep])]
-              rw [ite_eq_left h_allowH]
-              simp [h_stBH, ddhCKA, sendRleak]
-            refine relTriple_of_eq_map_map h_runR h_runH fun xR => ?_
-            refine ⟨rfl, ?_⟩
-            refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
-            · refine ⟨?_, xR, y, ?_, ?_, ?_, ?_, ?_, ?_⟩
-              · simpa [epochCounterInv] using h_phase.symm
-              · simpa using h_stAH
-              · rfl
-              · simpa [h_rhoA] using h_rhoAH
-              · rfl
-              · simp [h_keyAH]
-              · rfl
-            · simp [h_tA]
-            · simp [h_tB]
+          rcases (by
+            simpa [reachableShape, epochCounterInv, stateShapeInv, h_lastH]
+              using h_shape) with
+            ⟨h_phase, y, h_stAH, h_stBH, h_rhoAH, h_rhoBH, h_keyAH, h_keyBH⟩
+          have h_stBR : sR.stB = (.sendReady (y • gen) : CKAState F G) := by
+            rw [h_stB_eq, h_stBH]
+          have h_runR :
+              (oracleSendBrleak gp (ddhCKA F G gen) ()).run sR =
+                ((fun x =>
+                  (some (x • gen, x • (y • gen), x),
+                    { sR with
+                      tB := sR.tB + 1, stB := (.recvReady x : CKAState F G),
+                      rhoB := some (x • gen), keyB := some (x • (y • gen)),
+                      lastAction := some .sendB })) <$> ($ᵗ F : ProbComp F)) := by
+            unfold oracleSendBrleak
+            rw [StateT.run_get_bind]
+            rw [ite_eq_left h_v]
+            rw [ite_eq_left h_allow]
+            simp [h_stBR, ddhCKA, sendRleak]
+          have h_runH :
+              (oracleSendBrleak gp (ddhCKA F G gen) ()).run sH =
+                ((fun x =>
+                  (some (x • gen, x • (y • gen), x),
+                    { sH with
+                      tB := sH.tB + 1, stB := (.recvReady x : CKAState F G),
+                      rhoB := some (x • gen), keyB := some (x • (y • gen)),
+                      lastAction := some .sendB })) <$> ($ᵗ F : ProbComp F)) := by
+            unfold oracleSendBrleak
+            rw [StateT.run_get_bind]
+            rw [ite_eq_left (by simp [h_lastH, validStep])]
+            rw [ite_eq_left h_allowH]
+            simp [h_stBH, ddhCKA, sendRleak]
+          refine relTriple_of_eq_map_map h_runR h_runH fun xR => ?_
+          refine ⟨rfl, ?_⟩
+          refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+          · refine ⟨?_, xR, y, ?_, ?_, ?_, ?_, ?_, ?_⟩
+            · simpa [epochCounterInv] using h_phase.symm
+            · simpa using h_stAH
             · rfl
-            · simp [h_rhoA]
+            · simpa [h_rhoA] using h_rhoAH
             · rfl
-            · intro h
-              simp at h
-            · simp [h_stA]
-            · exact Or.inl rfl
-            · intro _h_cp _h_tA h_last_post
-              simp at h_last_post
-            · intro _h_cp h_tB_embed _h_last_post
-              exfalso
-              simp at h_tB_embed
-              have h_le_max : max sR.tA (sR.tB + 1) + gp.ΔPCS ≤ gp.challengeEpoch := by
-                simpa [allowCorr, allowCorrPCS] using h_allow
-              have h_le_tB : sR.tB + 1 + gp.ΔPCS ≤ gp.challengeEpoch :=
-                le_trans (Nat.add_le_add_right (le_max_right sR.tA (sR.tB + 1)) gp.ΔPCS)
-                  h_le_max
-              simp [hΔPCS] at h_le_tB
-              omega
-            · intro hsafe
-              apply h_safeA
-              by_cases h_allow_post :
+            · simp [h_keyAH]
+            · rfl
+          · simp [h_tA]
+          · simp [h_tB]
+          · rfl
+          · simp [h_rhoA]
+          · rfl
+          · intro h
+            simp at h
+          · simp [h_stA]
+          · exact Or.inl rfl
+          · intro _h_cp _h_tA h_last_post
+            simp at h_last_post
+          · intro _h_cp h_tB_embed _h_last_post
+            exfalso
+            simp at h_tB_embed
+            have h_le_max : max sR.tA (sR.tB + 1) + gp.ΔPCS ≤ gp.challengeEpoch := by
+              simpa [allowCorr, allowCorrPCS] using h_allow
+            have h_le_tB : sR.tB + 1 + gp.ΔPCS ≤ gp.challengeEpoch :=
+              le_trans (Nat.add_le_add_right (le_max_right sR.tA (sR.tB + 1)) gp.ΔPCS)
+                h_le_max
+            simp [hΔPCS] at h_le_tB
+            omega
+          · intro hsafe
+            apply h_safeA
+            by_cases h_allow_post :
+                allowCorrPCS gp
+                  ({ sR with
+                    tB := sR.tB + 1, stB := (.recvReady xR : CKAState F G),
+                    rhoB := some (xR • gen), keyB := some (xR • (y • gen)),
+                    lastAction := some .sendB } :
+                    GameState (CKAState F G) G G) = true
+            · have h_allow_succ :
+                  allowCorrPCS gp {sR with tB := sR.tB + 1} = true := by
+                simpa [allowCorr, allowCorrPCS] using h_allow_post
+              have h_allow_pre := allowCorr_of_allowCorr_tB_succ gp sR h_allow_succ
+              simp [h_allow_pre]
+            · have h_allow_post_false :
                   allowCorrPCS gp
                     ({ sR with
                       tB := sR.tB + 1, stB := (.recvReady xR : CKAState F G),
                       rhoB := some (xR • gen), keyB := some (xR • (y • gen)),
                       lastAction := some .sendB } :
-                      GameState (CKAState F G) G G) = true
-              · have h_allow_succ :
-                    allowCorrPCS gp {sR with tB := sR.tB + 1} = true := by
-                  simpa [allowCorr, allowCorrPCS] using h_allow_post
-                have h_allow_pre := allowCorr_of_allowCorr_tB_succ gp sR h_allow_succ
-                simp [h_allow_pre]
-              · have h_allow_post_false :
-                    allowCorrPCS gp
-                      ({ sR with
-                        tB := sR.tB + 1, stB := (.recvReady xR : CKAState F G),
-                        rhoB := some (xR • gen), keyB := some (xR • (y • gen)),
-                        lastAction := some .sendB } :
-                        GameState (CKAState F G) G G) = false :=
-                  Bool.eq_false_iff.mpr h_allow_post
-                have h_finished_post :
-                    allowCorrFS gp
-                      ({ sR with
-                        tB := sR.tB + 1, stB := (.recvReady xR : CKAState F G),
-                        rhoB := some (xR • gen), keyB := some (xR • (y • gen)),
-                        lastAction := some .sendB } :
-                        GameState (CKAState F G) G G) .A = true := by
-                  simpa [h_allow_post_false] using hsafe
-                have h_finished_pre : allowCorrFS gp sR .A = true := by
-                  simpa [allowCorrFS] using h_finished_post
-                simp [h_finished_pre]
-            · intro _hsafe
-              rfl
+                      GameState (CKAState F G) G G) = false :=
+                Bool.eq_false_iff.mpr h_allow_post
+              have h_finished_post :
+                  allowCorrFS gp
+                    ({ sR with
+                      tB := sR.tB + 1, stB := (.recvReady xR : CKAState F G),
+                      rhoB := some (xR • gen), keyB := some (xR • (y • gen)),
+                      lastAction := some .sendB } :
+                      GameState (CKAState F G) G G) .A = true := by
+                simpa [h_allow_post_false] using hsafe
+              have h_finished_pre : allowCorrFS gp sR .A = true := by
+                simpa [allowCorrFS] using h_finished_post
+              simp [h_finished_pre]
+          · intro _hsafe
+            rfl
         · have h_allowR : allowCorrPCS gp {sR with tB := sR.tB + 1} = false :=
             Bool.eq_false_iff.mpr h_allow
           have h_allowH : allowCorrPCS gp {sH with tB := sH.tB + 1} = false := by

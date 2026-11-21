@@ -60,10 +60,7 @@ structure CKAScheme (m : Type → Type u) [Monad m] (IK St I Rho Rand : Type) wh
 :::defTitle "cka_oracles" "CKA game oracles"
 :::
 
-:::::::definition "cka_oracles" (lean := "CKAScheme.GameState, CKAScheme.GameParams, CKAScheme.isChallengeEpoch,
-CKAScheme.allowCorrPCS, CKAScheme.allowCorrFS, CKAScheme.allowCorr, CKAScheme.oracleSendA, CKAScheme.oracleSendB,
-CKAScheme.oracleSendArleak, CKAScheme.oracleSendBrleak, CKAScheme.oracleRecvA, CKAScheme.oracleRecvB,
-CKAScheme.oracleChallA, CKAScheme.oracleChallB, CKAScheme.oracleCorruptA, CKAScheme.oracleCorruptB") (uses := "cka")
+:::::::definition "cka_oracles" (lean := "CKAScheme.GameState, CKAScheme.GameParams, CKAScheme.isChallengeEpoch, CKAScheme.allowCorrPCS, CKAScheme.allowCorrFS, CKAScheme.allowCorr, CKAScheme.oracleSendA, CKAScheme.oracleSendB, CKAScheme.oracleSendArleak, CKAScheme.oracleSendBrleak, CKAScheme.oracleRecvA, CKAScheme.oracleRecvB, CKAScheme.oracleChallA, CKAScheme.oracleChallB, CKAScheme.oracleCorruptA, CKAScheme.oracleCorruptB") (uses := "cka")
 $`\todo`
 
 *Game state* $`(\stA, \stB, \rho_\mathsf{A}, \rho_\mathsf{B}, K_\mathsf{A}, K_\mathsf{B}, \mathsf{correct}, \mathsf{last}, t_\mathsf{A}, t_\mathsf{B})`

@@ -306,7 +306,6 @@ def incrementalEncaps2 {params : Params} {encoding : Encoding params} (ring : NT
 ```anchor incrementalStructure (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.MLKEM)
 def incrementalStructure {params : Params} (ring : NTTRingOps)
     (encoding : Encoding params) (prims : Primitives params encoding)
-    [DecidableEq encoding.EncodedTHat]
     [DecidableEq encoding.EncodedU] [DecidableEq encoding.EncodedV] :
     (asKEMScheme ring encoding prims).IncrementalStructure where
   PKheader := Seed32 × PublicKeyHash
@@ -452,7 +451,6 @@ structure IncrementalRandLeak (kem : KEMScheme m K PK SK C)
 ```anchor incrementalRandLeak (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.MLKEM)
 def incrementalRandLeak {params : Params} (ring : NTTRingOps)
     (encoding : Encoding params) (prims : Primitives params encoding)
-    [DecidableEq encoding.EncodedTHat]
     [DecidableEq encoding.EncodedU] [DecidableEq encoding.EncodedV] :
     (asKEMScheme ring encoding prims).IncrementalRandLeak
       (incrementalStructure ring encoding prims) where

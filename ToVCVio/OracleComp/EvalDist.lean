@@ -31,7 +31,7 @@ lemma prEvent_bind_congr_eq_add {α β γ₁ γ₂ : Type} (mx : ProbComp α)
       Pr{let y ← f x}[p y] = Pr{let z ← g₁ x}[q₁ z] + Pr{let z ← g₂ x}[q₂ z]) :
     Pr{let y ← mx >>= f}[p y] =
       Pr{let z ← mx >>= g₁}[q₁ z] + Pr{let z ← mx >>= g₂}[q₂ z] := by
-  simp only [OracleComp.prEvent_bind_eq_tsum, ← ENNReal.tsum_add]
+  simp only [OracleComp.prEvent_bind_eq_tsum, ← tsum_add]
   refine tsum_congr fun x => ?_
   by_cases hx : x ∈ support mx
   · rw [h x hx, left_distrib]

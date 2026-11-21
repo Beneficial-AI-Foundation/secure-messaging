@@ -17,13 +17,16 @@ maxRecDepth = 10000
 
 [[require]]
 name = "versoBlueprint"
-git = "https://github.com/leanprover/verso-blueprint"
-rev = "v4.35.0"
+# Temporary: the Lean 4.36 port in leanprover/verso-blueprint#504, from the
+# Beneficial-AI-Foundation fork. Switch back to leanprover/verso-blueprint when
+# it has a v4.36.0 release.
+git = "https://github.com/Beneficial-AI-Foundation/verso-blueprint"
+rev = "74b2c9e6784b88778e3482bbd9d5c67bd26a5c0e"
 
 [[require]]
 name = "VCVio"
 git = "https://github.com/Verified-zkEVM/VCVio"
-rev = "v4.35.0"
+rev = "v4.36.0"
 
 [[lean_lib]]
 name = "ToVCVio"

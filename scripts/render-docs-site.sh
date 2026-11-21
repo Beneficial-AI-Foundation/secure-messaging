@@ -213,7 +213,21 @@ recover_previous_progress_history
 echo "Rendering unified Verso manual"
 rm -rf "$site_root"
 lake build SecureMessagingDocs.Render SecureMessagingDocs.Contents
-lake env lean --run docs/SecureMessagingDocs/Renderers/ContentsMain.lean --output "$output_root"
+# Since Lean v4.36, `lean --run` does not find MD4Lean's native Markdown parser
+# by itself, so load its shared library explicitly.
+md4lean_lib=""
+for candidate in .lake/packages/MD4Lean/.lake/build/lib/libMD4Lean_MD4Lean.{so,dylib}; do
+  if [[ -f "$candidate" ]]; then
+    md4lean_lib="$candidate"
+    break
+  fi
+done
+if [[ -z "$md4lean_lib" ]]; then
+  echo "MD4Lean shared library not found under .lake/packages/MD4Lean" >&2
+  exit 1
+fi
+lake env lean --load-dynlib="$md4lean_lib" \
+  --run docs/SecureMessagingDocs/Renderers/ContentsMain.lean --output "$output_root"
 if [[ -f "$site_root/index.html" ]]; then
   mv "$site_root/index.html" "$site_root/book.html"
 fi

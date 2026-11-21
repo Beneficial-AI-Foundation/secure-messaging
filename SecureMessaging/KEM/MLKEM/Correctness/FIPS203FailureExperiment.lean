@@ -69,7 +69,7 @@ def fips203DecapsulationFailureExp (p : ParameterSet) (ring : NTTRingOps)
 generic correctness error of VCV-io's packaged ML-KEM `KEMScheme`. -/
 theorem correctnessError_eq_fips203DecapsulationFailureProb (p : ParameterSet)
     (ring : NTTRingOps) (encoding : Encoding (ParameterSet.params p))
-    [DecidableEq encoding.EncodedTHat] [DecidableEq encoding.EncodedU]
+    [DecidableEq encoding.EncodedU]
     [DecidableEq encoding.EncodedV]
     (prims : Primitives (ParameterSet.params p) encoding) :
     (asKEMScheme ring encoding prims).correctnessError ProbCompRuntime.probComp =

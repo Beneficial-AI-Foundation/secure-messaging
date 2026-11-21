@@ -521,8 +521,8 @@ private theorem probForge_run_le [Fintype R]
               rw [hru, Bool.false_and]
           -- Sum the per-draw bound: hit terms total `1/|R|`; the miss-shaped tail is the
           -- forge-resampling average, which the forgetting lemma collapses to the bare cache.
-          refine le_trans (ENNReal.tsum_le_tsum hkey) ?_
-          rw [ENNReal.tsum_add]
+          refine le_trans (tsum_le_tsum hkey) ?_
+          rw [tsum_add]
           have hhit : (∑' u : R, if u = r then (Fintype.card R : ℝ≥0∞)⁻¹ else 0)
               = (Fintype.card R : ℝ≥0∞)⁻¹ := by
             rw [tsum_eq_single r (fun u hu => by simp [hu])]

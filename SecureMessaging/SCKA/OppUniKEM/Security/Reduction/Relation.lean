@@ -412,7 +412,7 @@ theorem pinnedChallenge_selected [SampleableType K]
     (pinnedChallenge onoff e kStar e).run s =
       pure (some kStar, { s with challenged := insert e s.challenged }) := by
   cases hA : s.keyA e <;> cases hB : s.keyB e
-  all_goals try simp [hA, hB] at hkey
+  all_goals simp [hA, hB] at hkey
   all_goals simp [pinnedChallenge, challengeWith, helig, hA, hB, StateT.run_bind,
     StateT.run_get, StateT.run_set]
 

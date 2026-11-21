@@ -397,7 +397,7 @@ private theorem measureWindow_lower_product (c : Config) (k : ℕ) :
   have h := ToVCVio.measureWindow_mul
     (measureWindow_lowerCounts c k) (measureWindow_products c)
   convert h using 1
-  all_goals ring
+  ring
 
 private theorem measurePack_lowerCounts_succ_sum (c : Config) (k : ℕ) :
     ToVCVio.Radix.measurePack (radix c) (-(c.window : ℤ)) (lowerCounts c (k + 1)) =
@@ -422,8 +422,8 @@ private theorem measurePack_lower_product_sum (c : Config) (k : ℕ) :
           (-((c.window : ℤ) + (c.a : ℤ) ^ 2) + i) * radix c ^ i := by
   apply ToVCVio.Radix.measurePack_eq_range_sum
   convert measureWindow_lower_product c k using 1
-  all_goals push_cast
-  all_goals ring_nf
+  push_cast
+  ring_nf
 
 private theorem measurePack_lower_product_mul (c : Config) (k : ℕ) :
     ToVCVio.Radix.measurePack (radix c) (-((c.window : ℤ) + (c.a : ℤ) ^ 2))

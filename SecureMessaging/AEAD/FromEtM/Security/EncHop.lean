@@ -88,7 +88,7 @@ private theorem securityExpFixedBit_encReduction (se : DetSymmEncAlg M K_e C_e)
         StateT.run_get, StateT.run_map, StateT.run_set, map_pure, Functor.map_map, simulateQ_bind,
         simulateQ_query, OracleQuery.input_query, OracleQuery.cont_query, id_map, hT,
         simulateQ_pure] <;>
-    (try split_ifs) <;>
+    (split_ifs) <;>
     simp only [StateT.run_pure, StateT.run_map, StateT.run_set, map_pure, simulateQ_pure]
 
 omit [Inhabited C_e] [Inhabited T] [LenSampleable C_e] in

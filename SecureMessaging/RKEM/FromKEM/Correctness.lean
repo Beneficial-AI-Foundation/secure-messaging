@@ -102,7 +102,7 @@ theorem deltaCorrect [DecidableEq K] (kem : KEMScheme ProbComp K PK SK C)
       simp [scheme, rkeygen], ProbCompRuntime.probComp_evalDist,
       ProbCompRuntime.probComp_evalDist,
       (evalDistEq_ratchetRoundOutputA_keygen kem total).evalDist_eq,
-      MeasureTheory.Measure.etvDist_self]
+      MeasureTheory.Measure.statEDist_self]
   · unfold RKEMScheme.updateKeyDistErrorB
     let : MeasurableSpace (PK × SK) := ⊤
     rw [show (scheme kem total).ratchetRoundOutputB = (scheme kem total).ratchetRoundOutputA
@@ -111,7 +111,7 @@ theorem deltaCorrect [DecidableEq K] (kem : KEMScheme ProbComp K PK SK C)
       simp [scheme, rkeygen], ProbCompRuntime.probComp_evalDist,
       ProbCompRuntime.probComp_evalDist,
       (evalDistEq_ratchetRoundOutputA_keygen kem total).evalDist_eq,
-      MeasureTheory.Measure.etvDist_self]
+      MeasureTheory.Measure.statEDist_self]
 
 /-- **Perfect correctness** of the RKEM-from-KEM construction, as the `δ = 0` special case of
 `deltaCorrect`: if the underlying KEM is perfectly correct, so is the construction. -/
