@@ -17,38 +17,16 @@ maxRecDepth = 10000
 
 [[require]]
 name = "versoBlueprint"
-git = "https://github.com/leanprover/verso-blueprint"
-rev = "v4.35.0"
+# Temporary: the Lean 4.36 port in leanprover/verso-blueprint#504, from the
+# Beneficial-AI-Foundation fork. Switch back to leanprover/verso-blueprint when
+# it has a v4.36.0 release.
+git = "https://github.com/Beneficial-AI-Foundation/verso-blueprint"
+rev = "74b2c9e6784b88778e3482bbd9d5c67bd26a5c0e"
 
 [[require]]
 name = "VCVio"
 git = "https://github.com/Verified-zkEVM/VCVio"
 rev = "v4.36.0"
-
-# verso-blueprint has no v4.36 release yet and still pins Verso v4.35.0.
-# These direct requirements override its pins so that the whole build uses one
-# toolchain. Delete them when verso-blueprint moves to v4.36.
-[[require]]
-name = "verso"
-git = "https://github.com/leanprover/verso"
-rev = "v4.36.0"
-
-[[require]]
-name = "verso-slides"
-git = "https://github.com/leanprover/verso-slides"
-rev = "v4.36.0"
-
-[[require]]
-name = "subverso"
-git = "https://github.com/leanprover/subverso"
-rev = "verso-v4.36.0"
-
-# lean-vir main still targets v4.36.0-rc2; this commit on its `feat/lean-4.36.0`
-# branch builds with the v4.36.0 Lake.
-[[require]]
-name = "lean_vir"
-git = "https://github.com/ejgallego/lean-vir"
-rev = "6547f74c6bc863624ffddd883d213b426e5947f1"
 
 [[lean_lib]]
 name = "ToVCVio"
