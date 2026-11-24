@@ -177,8 +177,9 @@ theorem authInv_step (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (G : ℕ �
     · simp only [StateT.run_bind, StateT.run_set, StateT.run_pure, pure_bind, support_pure,
         Set.mem_singleton_iff] at hy
       subst hy
-      refine hI.of_eq ?_ ?_ ?_ ?_ <;> unfold GameState.record <;> split_ifs <;>
-        first | rfl | (simp only; omega)
+      refine hI.of_eq ?_ ?_ ?_ ?_ <;> simp only [GameState.record_vB, GameState.record_corrA,
+        GameState.record_comp, GameState.record_iA]
+      omega
   · change y ∈ support ((oracleChallA (fromAEADChain ae G) len b (a, m₀, m₁)).run st) at hy
     simp only [oracleChallA, StateT.run_bind, StateT.run_get, pure_bind] at hy
     split_ifs at hy
@@ -189,8 +190,9 @@ theorem authInv_step (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (G : ℕ �
       simp only [StateT.run_bind, StateT.run_set, StateT.run_pure, pure_bind, support_pure,
         Set.mem_singleton_iff] at hy
       subst hy
-      refine hI.of_eq ?_ ?_ ?_ ?_ <;> unfold GameState.record <;> split_ifs <;>
-        first | rfl | (simp only; omega)
+      refine hI.of_eq ?_ ?_ ?_ ?_ <;> simp only [GameState.record_vB, GameState.record_corrA,
+        GameState.record_comp, GameState.record_iA]
+      omega
   · change y ∈ support ((oracleCorrALow _ _ _ _ _ j ()).run st) at hy
     cases hend : st.end_
     · have hfw : h.firstWin = none := by

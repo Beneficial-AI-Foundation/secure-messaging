@@ -52,9 +52,9 @@ def normSt (G : ℕ → W → W × Kae) (k : W) (st : CState W Kae AD M Cae) :
     CState W Kae AD M Cae :=
   { st with vA := normS G k st.vA, vB := normR G k st.vB }
 
-/-- On the chain from `k`, `rcvKey` rejects index `i` if B used it. Otherwise it returns the key
-`K_i` and the state at position `max(i_B, i)`, with `D[i] = ⊥` and the keys of the skipped
-positions `i_B < q < i`. -/
+/-- On the chain from `k`, `rcvKey` rejects index `i` if `D[i] = ⊥` and `i ≤ i_B`. Otherwise it
+returns the key `K_i` and the state at position `max(i_B, i)`, with `D[i] = ⊥` and the keys of
+the skipped positions `i_B < q < i`. -/
 theorem rcvKey_eq_of_onChain (G : ℕ → W → W × Kae) {k : W} {st : RecvState W Kae}
     (hst : OnChain G k st) (i : ℕ) :
     rcvKey G st i = if st.D i = none ∧ i ≤ st.iB then none else

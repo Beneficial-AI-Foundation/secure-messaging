@@ -23,9 +23,10 @@ below the hybrid step. This file defines the game `G_conf^s` (`confImplWith`) fo
 - a stop position `s`: `O-Corr-A^s` (`oracleCorrALow`) and `O-Corr-B^s` (`oracleCorrBLow`) set
   `end` and return `⊥` if the call would reveal a position below `s`.
 
-The history (`ConfHist`) records the smallest position `m` that a corruption reveals (`expo`),
-the positions of the challenges, and the positions of the attempts of `O-Transmit-A`.
-`O-Corr-A` reveals A's position `i_A`, and `O-Corr-B` reveals `min(i_A, i_B)`.
+The history (`ConfHist`) records the smallest position `m` that a corruption reveals in
+`G_conf^0` (`expo`), the positions of the challenges, and the positions of the attempts of
+`O-Transmit-A`. `O-Corr-A` reveals A's position `i_A`, and `O-Corr-B` reveals `min(i_A, i_B)`.
+A call that the cutoff `s` blocks is recorded too.
 
 - `fsaeadRejLookupImpl_eq_confImplWith`: `G_conf^0` with real challenges and no blocked
   position is `G_rej` with `O-Deliver-B^lk`.
