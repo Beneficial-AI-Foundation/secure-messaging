@@ -54,17 +54,25 @@ def oracleDeliverBNoWin (fs : FSAEADScheme K StS StR AD M C) :
       set ({ st with vB }.delete i)
       return some (i', if i ∈ st.chall then none else some m')
 
-/-- The oracles of `fs-aead-nd`: `fsaeadSecurityImpl`, with `oracleDeliverBNoWin` for
-`O-Deliver-B`. -/
-def fsaeadNoDeliverWinImpl (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : Bool) :
+/-- The oracles of the security game with `deliver` for `O-Deliver-B` and `inject` for
+`O-Inject-B`. The other oracles are those of `fsaeadSecurityImpl`. -/
+def fsaeadImplWith (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : Bool)
+    (deliver : QueryImpl (AD × C →ₒ Option (ℕ × Option M)) (GameM StS StR AD M C))
+    (inject : QueryImpl (AD × C →ₒ Option (ℕ × M)) (GameM StS StR AD M C)) :
     QueryImpl (fsaeadSpec StS StR AD M C) (GameM StS StR AD M C) :=
   oracleUnif StS StR AD M C
     + oracleTransmitA fs
     + oracleChallA fs len b
     + oracleCorrA StS StR AD M C
     + oracleCorrB StS StR AD M C
-    + oracleDeliverBNoWin fs
-    + oracleInjectB fs
+    + deliver
+    + inject
+
+/-- The oracles of `fs-aead-nd`: `fsaeadSecurityImpl`, with `oracleDeliverBNoWin` for
+`O-Deliver-B`. -/
+def fsaeadNoDeliverWinImpl (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : Bool) :
+    QueryImpl (fsaeadSpec StS StR AD M C) (GameM StS StR AD M C) :=
+  fsaeadImplWith fs len b (oracleDeliverBNoWin fs) (oracleInjectB fs)
 
 /-- The experiment of `fs-aead-nd`: `securityExp` with `fsaeadNoDeliverWinImpl` for
 `fsaeadSecurityImpl`. -/
