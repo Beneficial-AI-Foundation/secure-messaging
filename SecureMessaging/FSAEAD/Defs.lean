@@ -8,6 +8,7 @@ module
 
 public import ToVCVio.OracleComp.SimSemantics.UnifLift
 public import VCVio.OracleComp.Constructions.SampleableType.Basic
+public import VCVio.OracleComp.QueryTracking.QueryBound.Basic
 public import VCVio.OracleComp.SimSemantics.Append.Core
 
 /-!
@@ -219,6 +220,16 @@ theorem findTrans_spec [DecidableEq AD] [DecidableEq C] {st : GameState StS StR 
   simp only [decide_eq_true_eq] at this
   exact ⟨List.mem_of_find?_eq_some h, this⟩
 
+/-- A record in `trans` with associated data `a` and ciphertext `e` is found by `findTrans a e`.
+This is the converse of `findTrans_spec`. -/
+theorem findTrans_isSome [DecidableEq AD] [DecidableEq C] {st : GameState StS StR AD M C}
+    {a : AD} {e : C} (h : ∃ r ∈ st.trans, r.2.1 = a ∧ r.2.2.2 = e) :
+    (st.findTrans a e).isSome := by
+  obtain ⟨r, hr, ha, he⟩ := h
+  unfold findTrans
+  rw [List.find?_isSome]
+  exact ⟨r, hr, by simp only [ha, he, and_self, decide_true]⟩
+
 end GameState
 
 /-- Oracle spec for the FS-AEAD security game: uniform randomness, then `O-Transmit-A`,
@@ -261,6 +272,17 @@ variable {StS StR AD M C : Type}
 @[match_pattern] abbrev OInjectB (ae : AD × C) : (fsaeadSpec StS StR AD M C).Domain :=
   .inr ae
 
+/-- Whether a query goes to `O-Transmit-A` or to `O-Chall-A`. Each such query can make A send. -/
+def isSendQuery : (fsaeadSpec StS StR AD M C).Domain → Bool
+  | .inl (.inl (.inl (.inl (.inl (.inr _))))) => true
+  | .inl (.inl (.inl (.inl (.inr _)))) => true
+  | _ => false
+
+/-- Whether a query goes to `O-Inject-B` with a ciphertext `e` of index `idx e > N`. -/
+def isInjectAbove (idx : C → ℕ) (N : ℕ) : (fsaeadSpec StS StR AD M C).Domain → Bool
+  | .inr (_, e) => decide (N < idx e)
+  | _ => false
+
 end fsaeadSpec
 
 /-- An FS-AEAD adversary: a computation with access to the game oracles, outputting a
@@ -269,6 +291,15 @@ guess `b'` for the challenge bit. -/
 abbrev FSAEADAdversary (StS StR AD M C : Type) :=
   OracleComp (fsaeadSpec StS StR AD M C) Bool
 -- ANCHOR_END: FSAEADAdversary
+
+/-- `adv` makes at most `q` queries to `O-Transmit-A` and `O-Chall-A` together. -/
+def SendQueryBound (adv : FSAEADAdversary StS StR AD M C) (q : ℕ) : Prop :=
+  adv.IsQueryBoundP (fun t => fsaeadSpec.isSendQuery (StS := StS) (StR := StR) t = true) q
+
+/-- Every query of `adv` to `O-Inject-B` carries a ciphertext `e` of index `idx e ≤ N`. -/
+def InjectIndexBound (idx : C → ℕ) (adv : FSAEADAdversary StS StR AD M C) (N : ℕ) : Prop :=
+  adv.IsQueryBoundP
+    (fun t => fsaeadSpec.isInjectAbove (StS := StS) (StR := StR) idx N t = true) 0
 
 /-! ### Oracle implementations -/
 
