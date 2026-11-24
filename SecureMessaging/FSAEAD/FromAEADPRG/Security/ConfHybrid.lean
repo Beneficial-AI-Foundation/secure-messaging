@@ -23,7 +23,7 @@ confGap(Γ, E) = Pr_Γ[b = b' ∧ E] - Pr_Γ[E] / 2
 ```
 A reduction for step `j` outputs `b = b'` if no corruption call came at a position below `j`, and
 a fair coin otherwise (`coinOut`). It outputs `1` with probability
-`confGap(Γ, no corruption call below j) + 1/2` (`prEvent_coinOut_toReal`).
+`confGap(Γ, ¬LowExpo j) + 1/2` (`prEvent_coinOut_toReal`).
 
 The PRG reduction `P'_{n+1}` (`confPrgRed`) takes `y` as step `n + 1` of the chain and plays
 `G_{n+1, n}^{n+1}`. In the ideal world it plays `G_{n+1,n}`, and in the real world `G_{n,n} = G_n`
@@ -71,7 +71,7 @@ def coinOut (j : ℕ) (mx : ProbComp (Bool × Bool × ConfHist)) : ProbComp Bool
   let c ← $ᵗ Bool
   pure (if ¬LowExpo j r.2.2 then r.1 == r.2.1 else c)
 
-/-- A reduction for step `j` outputs `1` with probability `confGap(Γ, no reveal below j) + 1/2`. -/
+/-- A reduction for step `j` outputs `1` with probability `confGap(Γ, ¬LowExpo j) + 1/2`. -/
 theorem prEvent_coinOut_toReal (j : ℕ) (mx : ProbComp (Bool × Bool × ConfHist)) :
     (Pr{let x ← coinOut j mx}[x = true]).toReal =
       confGap mx (fun h => ¬LowExpo j h) + 1 / 2 := by
@@ -207,8 +207,8 @@ theorem prgReal_confPrgRed [SampleableType W] [SampleableType Kae]
   rw [e₁, e₂]
   exact h.bind_left g
 
-/-- **The PRG step.** The gap between `G_n` and `G_{n+1,n}` on runs where no corruption revealed
-a position below `n + 1` is at most the advantage of `P'_{n+1}`. -/
+/-- **The PRG step.** The gap between `G_n` and `G_{n+1,n}` on runs without `LowExpo (n + 1)` is
+at most the advantage of `P'_{n+1}`. -/
 theorem confGap_le_prgAdvantage [SampleableType W] [SampleableType Kae]
     (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (prg : PRGScheme W (W × Kae)) (len : M → ℕ)
     (clen : ℕ → ℕ) (adversary : FSAEADAdversary (SendState W) (RecvState W Kae) AD M (ℕ × Cae))

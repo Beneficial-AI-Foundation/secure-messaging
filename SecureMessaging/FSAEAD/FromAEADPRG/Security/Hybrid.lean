@@ -174,19 +174,6 @@ def prgRed [SampleableType W] [SampleableType Kae] (ae : AEADScheme ProbComp M (
   let z ← authExp ae (hybGen prg (Function.update U (n + 1) (some y))) len (n + 1) adversary
   pure (winIn (n + 1) L z.2.2)
 
-/-- Let the chains `G₁` from `k₁` and `G₂` from `k₂` have the same keys, and the same seeds from
-`j` on. Then every event of the history has the same probability in `G_auth^j` for both. -/
-theorem prEvent_authRun_eq_of_chain (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae)
-    (G₁ G₂ : ℕ → W → W × Kae) (k₁ k₂ : W) (len : M → ℕ) (b : Bool) (j : ℕ)
-    (hkey : ∀ q, 1 ≤ q → chainKey G₁ k₁ q = chainKey G₂ k₂ q)
-    (hseed : ∀ q, j ≤ q → chainState G₁ k₁ q = chainState G₂ k₂ q)
-    (adversary : FSAEADAdversary (SendState W) (RecvState W Kae) AD M (ℕ × Cae))
-    (E : AuthHist → Prop) :
-    Pr{let z ← authRun ae G₁ len b j adversary k₁}[E z.2.2] =
-      Pr{let z ← authRun ae G₂ len b j adversary k₂}[E z.2.2] := by
-  rw [← authRun_map_normSt ae G₁ G₂ k₁ k₂ len b j hkey hseed adversary, prEvent_map]
-  rfl
-
 /-- In every hybrid `H_i`, the cutoffs `j` and `0` give a first win in `[j, L]` the same
 probability: a corruption of A below `j` excludes such a win. -/
 theorem prEvent_hybExp_eq_low [SampleableType W] [SampleableType Kae]
@@ -211,18 +198,6 @@ theorem prgIdeal_prgRed [SampleableType W] [SampleableType Kae]
   simp only [PRGScheme.prgIdealExperiment, prgRed, hybExp, sampleTab, bind_assoc, map_bind,
     bind_pure_comp, bind_map_left]
   exact EvalDistEq.bind_bind_swap (spec := unifSpec) _ _ _
-
-/-- `prEvent_authRun_eq_of_chain` for the output map of the reductions. -/
-theorem map_authRun_eq_of_chain (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae)
-    (G₁ G₂ : ℕ → W → W × Kae) (k₁ k₂ : W) (len : M → ℕ) (b : Bool) (j : ℕ)
-    (hkey : ∀ q, 1 ≤ q → chainKey G₁ k₁ q = chainKey G₂ k₂ q)
-    (hseed : ∀ q, j ≤ q → chainState G₁ k₁ q = chainState G₂ k₂ q)
-    (adversary : FSAEADAdversary (SendState W) (RecvState W Kae) AD M (ℕ × Cae))
-    {β : Type} (f : AuthHist → β) :
-    (fun z => f z.2.2) <$> authRun ae G₁ len b j adversary k₁ =
-      (fun z => f z.2.2) <$> authRun ae G₂ len b j adversary k₂ := by
-  rw [← authRun_map_normSt ae G₁ G₂ k₁ k₂ len b j hkey hseed adversary, Functor.map_map]
-  rfl
 
 /-- **The real world of a PRG step on the hybrid chain.** Let `R G k` depend on the chain `G` from
 `k` only through the keys `K_q` for `q ≥ 1` and the seeds `w_q` for `q ≥ n + 1`. Then the chain
@@ -302,7 +277,7 @@ theorem hybGen_prgReal_evalDistEq [SampleableType W] [SampleableType Kae]
 
 /-- **The real world of `P_{n+1}`** is `H_n` on a first win in `[n + 1, L]`. The real world takes
 step `n + 1` from an independent seed `s` instead of `w_n`. `G_auth^{n+1}` reveals no seed below
-`n + 1`, so both chains give the history the same distribution (`map_authRun_eq_of_chain`), and
+`n + 1`, so both chains give the history the same distribution (`authRun_map_normSt`), and
 `w_n` is uniform like `s` (`hybGen_prgReal_evalDistEq`). -/
 theorem prgReal_prgRed [SampleableType W] [SampleableType Kae]
     (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (prg : PRGScheme W (W × Kae)) (len : M → ℕ)
@@ -318,7 +293,10 @@ theorem prgReal_prgRed [SampleableType W] [SampleableType Kae]
       let b ← $ᵗ Bool
       (fun z => winIn (n + 1) L z.2.2) <$> authRun ae G len b (n + 1) adversary k)
     fun G₁ G₂ k₁ k₂ hk hs => by
-      simp only [map_authRun_eq_of_chain ae G₁ G₂ k₁ k₂ len _ (n + 1) hk hs adversary]
+      congr 1
+      funext b
+      rw [← authRun_map_normSt ae G₁ G₂ k₁ k₂ len b (n + 1) hk hs adversary, Functor.map_map]
+      rfl
 
 end FromAEADPRG
 

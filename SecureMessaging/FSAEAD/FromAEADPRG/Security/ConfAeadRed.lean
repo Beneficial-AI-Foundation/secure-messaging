@@ -381,8 +381,8 @@ theorem confAeadIdeal [SampleableType W] [SampleableType Kae] (prg : PRGScheme W
   simp only [confAeadRed_run_eq_coinOut, aeadMode, ↓reduceIte, update_randUpTo]
   exact EvalDistEq.bind_const (spec := unifSpec) _ _
 
-/-- **The AEAD step.** The gap between `G'_{n+1}` and `G_{n+1}` on runs where no corruption revealed
-a position below `n + 1` is the advantage of `E'_{n+1}`. -/
+/-- **The AEAD step.** The gap between `G'_{n+1}` and `G_{n+1}` on runs without `LowExpo (n + 1)`
+is the advantage of `E'_{n+1}`. -/
 theorem confGap_confHybKey_sub_eq [SampleableType W] [SampleableType Kae]
     (hkg : ae.keygen =ᵈ ($ᵗ Kae : ProbComp Kae)) (prg : PRGScheme W (W × Kae))
     (adversary : FSAEADAdversary (SendState W) (RecvState W Kae) AD M (ℕ × Cae)) (n : ℕ) :

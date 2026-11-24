@@ -314,20 +314,13 @@ theorem fsaeadImplWith_stop_stepOK (fs : FSAEADScheme K StS StR AD M C) (len : M
     ∀ z ∈ support ((fsaeadImplWith fs len b deliver (oracleInjectBStop fs) t).run st),
       StepOK st z.2 := by
   intro z hz
-  rcases t with ((((((n | q) | q) | u) | u) | q) | q)
-  · change z ∈ support ((oracleUnif _ _ _ _ _ n).run st) at hz
-    rw [oracleUnif, ToVCVio.support_unifLiftStateT_run] at hz
-    obtain ⟨x, rfl⟩ := hz
-    exact .of_eq rfl
-  · exact oracleTransmitA_stepOK fs q st z hz
-  · exact oracleChallA_stepOK fs len b q st z hz
-  · change z ∈ support ((oracleCorrA StS StR AD M C u).run st) at hz
-    rw [← oracleCorrALow_zero] at hz
-    exact oracleCorrALow_stepOK 0 st z hz
+  rcases t with ((t | u) | q) | q
+  · exact authImplWith_stepOK fs len b 0 hd (.inl (.inl (.inl t))) st z (by
+      simpa only [fsaeadImplWith, authImplWith, oracleCorrALow_zero, QueryImpl.add_apply_inl]
+        using hz)
   · exact oracleCorrB_stepOK st z hz
-  · obtain ⟨hw, he⟩ := hd q st z hz
-    exact .of_flags hw fun h => he.trans h
-  · exact oracleInjectBStop_stepOK fs q st z hz
+  · exact authImplWith_stepOK fs len b 0 hd (.inl (.inr q)) st z hz
+  · exact authImplWith_stepOK fs len b 0 hd (.inr q) st z hz
 
 /-- Let `deliver` keep `win` and `end`. Then from a state with `win → end`, the game with
 `O-Inject-B^stop` and `G_auth^0` set `win` with the same probability: `O-Corr-B` sets `end`, so no
