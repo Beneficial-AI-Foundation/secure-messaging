@@ -79,7 +79,8 @@ def confRedImpl (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (G : ℕ → W 
 /-- **The AEAD reduction `E'_{n+1}`.** It samples the chain steps `1, …, n + 1`, the key `k` and
 the bit `b`, and plays `G_conf^{n+1}` with uniform challenge ciphertexts at the positions
 `1, …, n`, with the challenge at `n + 1` from the encryption oracle. It outputs `b = b'` if no
-corruption revealed a position below `n + 1`, and a fair coin otherwise. -/
+corruption call came at a position below `n + 1`, and a fair coin otherwise. Such a call is
+blocked, but recorded. -/
 def confAeadRed [SampleableType W] [SampleableType Kae]
     (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (prg : PRGScheme W (W × Kae)) (len : M → ℕ)
     (clen : ℕ → ℕ) (adversary : FSAEADAdversary (SendState W) (RecvState W Kae) AD M (ℕ × Cae))

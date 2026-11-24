@@ -330,11 +330,9 @@ theorem prEvent_confCorrA_and_not_lowExpo_eq (ae : AEADScheme ProbComp M (ℕ ×
       StateT.run_pure]
   have hbad (y : Option (SendState W) × (CState W Kae AD M Cae × ConfHist))
       (hy : LowExpo s y.2.2) :
-      Pr{let z ← (pure y : ProbComp _)}[q z ∧ ¬LowExpo s z.2.2] = 0 :=
-    prEvent_eq_zero_of_forall_mem_support _ _ fun z hz hq => by
-      simp only [support_pure, Set.mem_singleton_iff] at hz
-      subst hz
-      exact hq.2 hy
+      Pr{let z ← (pure y : ProbComp _)}[q z ∧ ¬LowExpo s z.2.2] = 0 := by
+    classical
+    simp only [prEvent_pure, hy, not_true_eq_false, and_false, ↓reduceIte]
   by_cases hlt : st.iA < s
   · simp only [oracleCorrALow, StateT.run_bind, StateT.run_get, pure_bind, hend, hlt,
       Bool.false_eq_true, ↓reduceIte, Nat.not_lt_zero, StateT.run_set, StateT.run_pure]
@@ -366,11 +364,9 @@ theorem prEvent_confCorrB_and_not_lowExpo_eq (ae : AEADScheme ProbComp M (ℕ ×
     simp only [hend.1, hend.2, ne_eq, not_true_eq_false, decide_false, Bool.or_self]
   have hbad (y : Option (SendState W × RecvState W Kae) × (CState W Kae AD M Cae × ConfHist))
       (hy : LowExpo s y.2.2) :
-      Pr{let z ← (pure y : ProbComp _)}[q z ∧ ¬LowExpo s z.2.2] = 0 :=
-    prEvent_eq_zero_of_forall_mem_support _ _ fun z hz hq => by
-      simp only [support_pure, Set.mem_singleton_iff] at hz
-      subst hz
-      exact hq.2 hy
+      Pr{let z ← (pure y : ProbComp _)}[q z ∧ ¬LowExpo s z.2.2] = 0 := by
+    classical
+    simp only [prEvent_pure, hy, not_true_eq_false, and_false, ↓reduceIte]
   by_cases hlt : min st.iA st.vB.iB < s
   · simp only [oracleCorrBLow, StateT.run_bind, StateT.run_get, pure_bind, hg, hlt,
       Bool.false_eq_true, ↓reduceIte, Nat.not_lt_zero, StateT.run_set, StateT.run_pure]

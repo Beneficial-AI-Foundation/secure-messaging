@@ -123,6 +123,17 @@ theorem consumed_of_rcvKey_some {G : ℕ → W → W × Kae} {k : W} {st st' : R
     exact hj.1
 
 omit [DecidableEq AD] [DecidableEq Cae] in
+/-- Let B's state `vB` be on the chain, and let a lookup delivery of index `i` move it to `vB'`.
+Then `vB'` is on the chain, has used `i`, and has used every index that `vB` has used. -/
+theorem consumed_rcvKey_getD {G : ℕ → W → W × Kae} {k : W} {vB : RecvState W Kae}
+    (hon : OnChain G k vB) (i : ℕ) :
+    let vB' := ((rcvKey G vB i).map Prod.fst).getD vB
+    OnChain G k vB' ∧ Consumed vB' i ∧ ∀ q, Consumed vB q → Consumed vB' q := by
+  rcases hr : rcvKey G vB i with _ | ⟨vB', K⟩
+  · exact ⟨hon, (rcvKey_eq_none_iff G vB i).1 hr, fun _ h => h⟩
+  · exact ⟨(rcvKey_some G hon hr).2.2.1, consumed_of_rcvKey_some hon hr⟩
+
+omit [DecidableEq AD] [DecidableEq Cae] in
 /-- The invariant of `G_auth^j` for the authenticity bound.
 - B is on the chain from `k`.
 - After a successful `O-Corr-A`, `minCorrA` is the smallest counter `t` of A at such a call, and
@@ -255,12 +266,7 @@ theorem authInv_step (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (G : ℕ �
       Set.mem_singleton_iff] at hy
     subst hy
     -- B's new state has used `i` and every index that it used before
-    obtain ⟨vB', hvB, hon, hci, hold⟩ : ∃ vB', ((rcvKey G st.vB i).map Prod.fst).getD st.vB = vB' ∧
-        OnChain G k vB' ∧ Consumed vB' i ∧ ∀ q, Consumed st.vB q → Consumed vB' q := by
-      rcases hr : rcvKey G st.vB i with _ | ⟨vB', K⟩
-      · exact ⟨st.vB, rfl, hI.vB, (rcvKey_eq_none_iff G st.vB i).1 hr, fun _ h => h⟩
-      · exact ⟨vB', rfl, (rcvKey_some G hI.vB hr).2.2.1, consumed_of_rcvKey_some hI.vB hr⟩
-    rw [hvB]
+    obtain ⟨hon, hci, hold⟩ := consumed_rcvKey_getD hI.vB i
     refine ⟨hon, hI.corrA, hI.minCorrA, fun t ht q hq hcq => ?_, hI.firstWin⟩
     simp only [GameState.delete, Bool.and_eq_false_iff, bne_eq_false_iff_eq] at hcq
     by_cases hqi : q = i
@@ -373,11 +379,9 @@ theorem prEvent_corrA_and_not_lowBad_eq (ae : AEADScheme ProbComp M (ℕ × AD) 
       StateT.run_pure]
   have hbad (x : Option (SendState W) × (CState W Kae AD M Cae × AuthHist))
       (hx : LowBad j x.2.2) :
-      Pr{let z ← (pure x : ProbComp _)}[q z ∧ ¬LowBad j z.2.2] = 0 :=
-    prEvent_eq_zero_of_forall_mem_support _ _ fun z hz hq => by
-      simp only [support_pure, Set.mem_singleton_iff] at hz
-      subst hz
-      exact hq.2 hx
+      Pr{let z ← (pure x : ProbComp _)}[q z ∧ ¬LowBad j z.2.2] = 0 := by
+    classical
+    simp only [prEvent_pure, hx, not_true_eq_false, and_false, ↓reduceIte]
   by_cases hlt : st.iA < j
   · simp only [oracleCorrALow, StateT.run_bind, StateT.run_get, pure_bind, hend, hlt,
       Bool.false_eq_true, ↓reduceIte, Nat.not_lt_zero, StateT.run_set, StateT.run_pure]

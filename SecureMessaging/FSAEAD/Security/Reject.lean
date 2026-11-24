@@ -398,10 +398,9 @@ theorem prEvent_oracleInjectB_and_not_win_eq {fs : FSAEADScheme K StS StR AD M C
     split_ifs
     · rfl
     · have h0 (x : Option (ℕ × M) × GameState StS StR AD M C) (hx : x.2.win = true) :
-          Pr{let z ← (pure x : ProbComp _)}[p z ∧ ¬z.2.win = true] = 0 :=
-        by
-          classical
-          simp only [prEvent_pure, hx, not_true_eq_false, and_false, ↓reduceIte]
+          Pr{let z ← (pure x : ProbComp _)}[p z ∧ ¬z.2.win = true] = 0 := by
+        classical
+        simp only [prEvent_pure, hx, not_true_eq_false, and_false, ↓reduceIte]
       simp only [StateT.run_bind, StateT.run_set, StateT.run_pure, pure_bind]
       rw [h0 _ rfl, h0 _ rfl]
   · simp only [oracleInjectB, oracleInjectBRej, StateT.run_bind, StateT.run_get, pure_bind, hr,

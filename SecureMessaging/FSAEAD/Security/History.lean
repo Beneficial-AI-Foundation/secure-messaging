@@ -382,11 +382,9 @@ theorem prEvent_win_eq_authImplWith (fs : FSAEADScheme K StS StR AD M C) (len : 
           · rfl
           · exact absurd (hs hw) (by simp only [hend, Bool.false_eq_true, not_false_eq_true])
         have h0 (x : Option (StS × StR) × GameState StS StR AD M C) (hx : bad x.2) :
-            Pr{let z ← (pure x : ProbComp _)}[q z ∧ ¬bad z.2] = 0 :=
-          prEvent_eq_zero_of_forall_mem_support _ _ fun z hz h => by
-            simp only [support_pure, Set.mem_singleton_iff] at hz
-            subst hz
-            exact h.2 hx
+            Pr{let z ← (pure x : ProbComp _)}[q z ∧ ¬bad z.2] = 0 := by
+          classical
+          simp only [prEvent_pure, hx, not_true_eq_false, and_false, ↓reduceIte]
         simp only [StateT.run_bind, StateT.run_set, StateT.run_pure, pure_bind]
         rw [h0 _ ⟨rfl, by simp only [hwin, Bool.false_eq_true, not_false_eq_true]⟩,
           h0 _ ⟨rfl, by simp only [hwin, Bool.false_eq_true, not_false_eq_true]⟩]
@@ -452,8 +450,7 @@ theorem authImpl_histInv (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) 
     · simp only [StateT.run_bind, StateT.run_set, StateT.run_pure, pure_bind, support_pure,
         Set.mem_singleton_iff] at hy
       subst hy
-      exact hI.of_flags (GameState.record_win _ _ _ _ _)
-        (by unfold GameState.record; split_ifs <;> rfl)
+      exact hI.of_flags (GameState.record_win _ _ _ _ _) (GameState.record_end_ _ _ _ _ _)
   · change y ∈ support ((oracleChallA fs len b (a, m₀, m₁)).run st) at hy
     simp only [oracleChallA, StateT.run_bind, StateT.run_get, pure_bind] at hy
     split_ifs at hy
@@ -464,8 +461,7 @@ theorem authImpl_histInv (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) 
       simp only [StateT.run_bind, StateT.run_set, StateT.run_pure, pure_bind, support_pure,
         Set.mem_singleton_iff] at hy
       subst hy
-      exact hI.of_flags (GameState.record_win _ _ _ _ _)
-        (by unfold GameState.record; split_ifs <;> rfl)
+      exact hI.of_flags (GameState.record_win _ _ _ _ _) (GameState.record_end_ _ _ _ _ _)
   · change y ∈ support ((oracleCorrALow _ _ _ _ _ j ()).run st) at hy
     cases hend : st.end_
     · have hwin : st.win = false := hI.win_false hend
@@ -645,10 +641,9 @@ theorem prEvent_oracleInjectB_and_not_win_eq_stop (fs : FSAEADScheme K StS StR A
   · rfl
   cases hc : st.comp i'
   · have h0 (x : Option (ℕ × M) × GameState StS StR AD M C) (hx : x.2.win = true) :
-        Pr{let z ← (pure x : ProbComp _)}[p z ∧ ¬z.2.win = true] = 0 :=
-      by
-        classical
-        simp only [prEvent_pure, hx, not_true_eq_false, and_false, ↓reduceIte]
+        Pr{let z ← (pure x : ProbComp _)}[p z ∧ ¬z.2.win = true] = 0 := by
+      classical
+      simp only [prEvent_pure, hx, not_true_eq_false, and_false, ↓reduceIte]
     simp only [StateT.run_bind, StateT.run_set, StateT.run_pure, pure_bind]
     rw [h0 _ (by simp only [GameState.delete, hc, Bool.not_false, Bool.or_true]),
       h0 _ (by simp only [GameState.delete, hc, Bool.not_false, Bool.or_true])]

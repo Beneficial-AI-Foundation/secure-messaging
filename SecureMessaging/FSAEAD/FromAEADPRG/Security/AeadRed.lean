@@ -382,15 +382,10 @@ theorem chal_deliver {G : ℕ → W → W × Kae} {k : W} {p : ℕ} {st : CState
     st.iA ≤ st'.iA ∧ (∀ r ∈ st.trans, r.1 = p → r ∈ st'.trans ∨ Consumed st'.vB p) ∧
       (Consumed st.vB p → Consumed st'.vB p) ∧ OnChain G k st'.vB := by
   intro st'
-  obtain ⟨vB', hvB, hon', hci, hold⟩ : ∃ vB', ((rcvKey G st.vB i).map Prod.fst).getD st.vB = vB' ∧
-      OnChain G k vB' ∧ Consumed vB' i ∧ ∀ q, Consumed st.vB q → Consumed vB' q := by
-    rcases hr : rcvKey G st.vB i with _ | ⟨vB', K⟩
-    · exact ⟨st.vB, rfl, hon, (rcvKey_eq_none_iff G st.vB i).1 hr, fun _ h => h⟩
-    · exact ⟨vB', rfl, (rcvKey_some G hon hr).2.2.1, consumed_of_rcvKey_some hon hr⟩
-  have hst' : st'.vB = vB' := hvB
-  refine ⟨le_rfl, fun r hr hrp => ?_, fun h => hst' ▸ hold p h, hst' ▸ hon'⟩
+  obtain ⟨hon', hci, hold⟩ := consumed_rcvKey_getD hon i
+  refine ⟨le_rfl, fun r hr hrp => ?_, hold p, hon'⟩
   by_cases hi : i = p
-  · exact .inr (hst' ▸ hi ▸ hci)
+  · exact .inr (hi ▸ hci)
   · exact .inl (List.mem_filter.mpr ⟨hr, by simp only [hrp, ne_eq, decide_eq_true_eq]; omega⟩)
 
 omit [DecidableEq AD] [DecidableEq Cae] [LenSampleable Cae] in

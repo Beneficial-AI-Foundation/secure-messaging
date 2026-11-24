@@ -125,9 +125,9 @@ theorem confGap_confHyb_eq_low [SampleableType W] [SampleableType Kae]
 
 /-- **The PRG reduction `P'_{n+1}`.** On input `y`, it samples the steps `1, …, n`, takes `y` as
 step `n + 1`, and plays `G_conf^{n+1}` with uniform challenge ciphertexts at the positions
-`1, …, n`. It outputs `b = b'` if no corruption revealed a position below `n + 1`, and a fair coin
-otherwise. It never needs the seed `w_n`: `O-Corr-A^{n+1}` and `O-Corr-B^{n+1}` reveal no seed
-below `n + 1`. -/
+`1, …, n`. It outputs `b = b'` if no corruption call came at a position below `n + 1`, and a fair
+coin otherwise. Such a call is blocked, but recorded. It never needs the seed `w_n`:
+`O-Corr-A^{n+1}` and `O-Corr-B^{n+1}` reveal no seed below `n + 1`. -/
 def confPrgRed [SampleableType W] [SampleableType Kae]
     (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (prg : PRGScheme W (W × Kae)) (len : M → ℕ)
     (clen : ℕ → ℕ) (adversary : FSAEADAdversary (SendState W) (RecvState W Kae) AD M (ℕ × Cae))
