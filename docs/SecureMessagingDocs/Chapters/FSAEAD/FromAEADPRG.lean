@@ -8,6 +8,7 @@ import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessagingDocs.Visuals.FSAEADKeyChain
 import SecureMessaging.FSAEAD.FromAEADPRG.Construction
 import SecureMessaging.FSAEAD.FromAEADPRG.Correctness
+import SecureMessaging.FSAEAD.FromAEADPRG.Security
 
 /-! # Blueprint chapter: FS-AEAD from AEAD and PRG -/
 
@@ -278,9 +279,49 @@ theorem fromAEADPRG_correct {W Kae Cae AD M : Type} [SampleableType W] [Decidabl
 :::defTitle "fs_aead_from_aead_prg_security" "FS-AEAD from AEAD and PRG security"
 :::
 
-::::theorem "fs_aead_from_aead_prg_security" (parent := "fs_aead_fs_aead_from_aead_prg") (tags := "gh-32") (uses := "fs_aead_from_aead_prg_spec, fs_aead_scheme, fs_aead_security, aead_security_exp, prg")
-$`\todo`
+::::theorem "fs_aead_from_aead_prg_security" (parent := "fs_aead_fs_aead_from_aead_prg") (lean := "FSAEADScheme.advantage_fromAEADPRG_le, FSAEADScheme.advantage_fromAEADPRG_le_of_le") (tags := "gh-32") (uses := "fs_aead_from_aead_prg_spec, fs_aead_scheme, fs_aead_security, aead_security_exp, aead_dist_advantage, aead_correctness, prg")
+Adapted from {Informal.citet ACD19}[], Theorem 5.
 
-:::leanPill "missing"
+Let $`\mathsf{AE}` be a {bpref "aead_correctness"}[correct] {bpref "aead"}[AEAD scheme] with
+key space $`\K` and uniform keys, and let $`G : \W \to \W \times \K` be a {bpref "prg"}[PRG].
+Let $`\adv` be an adversary in the {bpref "fs_aead_security"}[FS-AEAD security game] of the
+{bpref "fs_aead_from_aead_prg_spec"}[FS-AEAD scheme] from $`\mathsf{AE}` and $`G`. Let
+$`\adv` make at most $`q` queries to $`\OTransmitA` and $`\OChallA` together, and let every
+query of $`\adv` to $`\OInjectB` carry an index at most $`N`. Let $`L = \max(q, N)`. Then
+there are PRG adversaries $`P_j, P'_j` and
+{bpref "aead_security_exp"}[one-time IND-CCA adversaries] $`E_j, E'_j`, built from $`\adv`,
+such that
+
+$$`\mathsf{Adv}^{\textsf{fs-aead}}_{\textsf{FS-AEAD}}(\adv)
+  \le \sum_{j=1}^{L} \bigl(\mathsf{Adv}^{\textsf{prg}}_{G}(P_j)
+  + \mathsf{Adv}^{\textsf{dist}}_{\mathsf{AE}}(E_j)
+  + \mathsf{Adv}^{\textsf{prg}}_{G}(P'_j)
+  + \mathsf{Adv}^{\textsf{dist}}_{\mathsf{AE}}(E'_j)\bigr).`
+
+If each PRG term is at most $`\varepsilon_{\textsf{prg}}` and each AEAD term at most
+$`\varepsilon_{\textsf{aead}}`, the bound is
+$`2L \cdot (\varepsilon_{\textsf{prg}} + \varepsilon_{\textsf{aead}})`.
+{Informal.citet ACD19}[] states
+$`q \cdot (\varepsilon_{\textsf{prg}} + \varepsilon_{\textsf{aead}})`.
+The factor 2 comes from separate authenticity and confidentiality arguments. $`L` replaces $`q`
+because an injection can reach an index above $`q`. The
+{bpref "aead_dist_advantage"}[AEAD advantage] is taken in the game whose decryption oracle
+rejects only the challenge pair.
+
+:::leanPillCaption "security theorem"
 :::
+
+```anchor advantage_fromAEADPRG_le (project := ".") (module := SecureMessaging.FSAEAD.FromAEADPRG.Security)
+theorem advantage_fromAEADPRG_le {ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae}
+    (hae : ae.Correct) (hkg : ae.keygen =ᵈ ($ᵗ Kae : ProbComp Kae)) (prg : PRGScheme W (W × Kae))
+    (len : M → ℕ) (clen : ℕ → ℕ) {q N : ℕ}
+    {adversary : FSAEADAdversary (SendState W) (RecvState W Kae) AD M (ℕ × Cae)}
+    (hq : SendQueryBound adversary q) (hN : InjectIndexBound Prod.fst adversary N) :
+    advantage (fromAEADPRG ae prg) len adversary ≤
+      ∑ n ∈ Finset.range (max q N),
+        ((prg.prgAdvantage (prgRed ae prg len (max q N) adversary n)).toReal +
+          distAdvantage ae len clen (aeadRed ae prg len adversary (n + 1)) +
+          (prg.prgAdvantage (confPrgRed ae prg len clen adversary n)).toReal +
+          distAdvantage ae len clen (confAeadRed ae prg len clen adversary n))
+```
 ::::

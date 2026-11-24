@@ -53,6 +53,7 @@ public import SecureMessaging.ErasureCode.SPQRReedSolomon.Correctness
 public import SecureMessaging.ErasureCode.Streaming
 public import SecureMessaging.FSAEAD.FromAEADPRG.Construction
 public import SecureMessaging.FSAEAD.FromAEADPRG.Correctness
+public import SecureMessaging.FSAEAD.FromAEADPRG.Security
 public import SecureMessaging.FSAEAD.FromAEADPRG.Security.AeadRed
 public import SecureMessaging.FSAEAD.FromAEADPRG.Security.AuthGame
 public import SecureMessaging.FSAEAD.FromAEADPRG.Security.Authenticity
