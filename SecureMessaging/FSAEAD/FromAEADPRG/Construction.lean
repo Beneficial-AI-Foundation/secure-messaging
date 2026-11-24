@@ -47,6 +47,9 @@ B        K₁        K₂        K₃             K₁ = D[1], K₂ = D[2]
   spaces.
 - `G` is `prg.gen : W → W × Kae`. `Enc` and `Dec` are `ae.encrypt` and `ae.decrypt`.
   The construction does not use `ae.keygen`, because `G` derives the AEAD keys.
+- The algorithms take a position-indexed generator `G : ℕ → W → W × Kae` and use `G i`
+  to derive chain position `i`. Figure 6 is the case `G i = prg.gen` for every `i`
+  (`fromAEADPRG`). The security proof replaces some `G i` by uniform values.
 - `w_A`, `i_A` and `w_B`, `i_B`, `D` are the fields of `SendState` and `RecvState`.
 
 [CORRECTIONS TO ACD19]
@@ -120,42 +123,42 @@ def initR (k : W) : RecvState W Kae := { w := k, iB := 0, D := fun _ => none }
 /-- `FS-Send(v_A, a, m)`.
 ```text
 i_A++
-(w, K) ← G(w)
+(w, K) ← G_{i_A}(w)
 h ← (i_A, a)
 e ← Enc(K, h, m)
 return (i_A, e)
 ``` -/
 -- ANCHOR: send
-def send (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (prg : PRGScheme W (W × Kae))
+def send (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (G : ℕ → W → W × Kae)
     (st : SendState W) (a : AD) (m : M) : SendState W × (ℕ × Cae) :=
   let iA := st.iA + 1
-  let (w, K) := prg.gen st.w
+  let (w, K) := G iA st.w
   ({ w, iA }, (iA, ae.encrypt K (iA, a) m))
 -- ANCHOR_END: send
 
 /-- `n` iterations of the loop body of `skip`. `[…]` marks correction 1.
 ```text
 i_B++
-(w, K) ← G(w)
+(w, K) ← G_{i_B}(w)
 [D[i_B] ← K]
 ``` -/
 -- ANCHOR: skipSteps
-def skipSteps (prg : PRGScheme W (W × Kae)) : ℕ → RecvState W Kae → RecvState W Kae
+def skipSteps (G : ℕ → W → W × Kae) : ℕ → RecvState W Kae → RecvState W Kae
   | 0, st => st
   | n + 1, st =>
     let iB := st.iB + 1
-    let (w, K) := prg.gen st.w
-    skipSteps prg n { w, iB, D := Function.update st.D iB (some K) }
+    let (w, K) := G iB st.w
+    skipSteps G n { w, iB, D := Function.update st.D iB (some K) }
 -- ANCHOR_END: skipSteps
 
 /-- `skip(u)`. `[…]` marks correction 1. The loop runs `u - 1 - i_B` times.
 ```text
 while i_B < u − 1:
-  i_B++; (w, K) ← G(w); [D[i_B] ← K]
+  i_B++; (w, K) ← G_{i_B}(w); [D[i_B] ← K]
 ``` -/
 -- ANCHOR: skip
-def skip (prg : PRGScheme W (W × Kae)) (u : ℕ) (st : RecvState W Kae) : RecvState W Kae :=
-  skipSteps prg (u - 1 - st.iB) st
+def skip (G : ℕ → W → W × Kae) (u : ℕ) (st : RecvState W Kae) : RecvState W Kae :=
+  skipSteps G (u - 1 - st.iB) st
 -- ANCHOR_END: skip
 
 /-- `try-skipped(i)`: returns `D[i]` and sets `D[i] ← ⊥`. -/
@@ -164,14 +167,38 @@ def trySkipped (st : RecvState W Kae) (i : ℕ) : Option Kae × RecvState W Kae 
   (st.D i, { st with D := Function.update st.D i none })
 -- ANCHOR_END: trySkipped
 
-/-- `FS-Rcv(v_B, a, c)`, with `none` for `error`. `[…]` marks correction 2.
+/-- The part of `FS-Rcv` before decryption: B finds the key `K` of index `i` and moves its
+state. It returns `none` for `error`. `[…]` marks correction 2.
+```text
+K ← try-skipped(i)
+if K = ⊥:
+  [if i ≤ i_B: error]
+  skip(i)
+  (w, K) ← G_i(w)
+  i_B ← i
+``` -/
+-- ANCHOR: rcvKey
+def rcvKey (G : ℕ → W → W × Kae) (st : RecvState W Kae) (i : ℕ) :
+    Option (RecvState W Kae × Kae) :=
+  let (K?, st) := trySkipped st i
+  match K? with
+  | some K => some (st, K)
+  | none => do
+    if i ≤ st.iB then none
+    let st := skip G i st
+    let (w, K) := G i st.w
+    some ({ st with w, iB := i }, K)
+-- ANCHOR_END: rcvKey
+
+/-- `FS-Rcv(v_B, a, c)`, with `none` for `error`. `[…]` marks correction 2. Lines 2
+to 7 are `rcvKey`.
 ```text
 (i, e) ← c
 K ← try-skipped(i)
 if K = ⊥:
   [if i ≤ i_B: error]
   skip(i)
-  (w, K) ← G(w)
+  (w, K) ← G_i(w)
   i_B ← i
 h ← (i, a)
 m ← Dec(K, h, e)
@@ -181,17 +208,10 @@ return (i, m)
 `try-skipped` runs before the test `i ≤ i_B`, so B accepts a delayed message at a skipped
 index. On `error` the caller keeps `v_B`, which undoes the `D[i] ← ⊥` of `try-skipped`. -/
 -- ANCHOR: rcv
-def rcv (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (prg : PRGScheme W (W × Kae))
+def rcv (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (G : ℕ → W → W × Kae)
     (st : RecvState W Kae) (a : AD) (c : ℕ × Cae) : Option (RecvState W Kae × ℕ × M) := do
   let (i, e) := c
-  let (K?, st) := trySkipped st i
-  let (st, K) ← match K? with
-    | some K => some (st, K)
-    | none => do
-      if i ≤ st.iB then none
-      let st := skip prg i st
-      let (w, K) := prg.gen st.w
-      some ({ st with w, iB := i }, K)
+  let (st, K) ← rcvKey G st i
   let m ← ae.decrypt K (i, a) e
   return (st, i, m)
 -- ANCHOR_END: rcv
@@ -200,16 +220,27 @@ end FromAEADPRG
 
 open FromAEADPRG
 
-/-- Let `ae` be an AEAD scheme with associated data `(i, a)` and `prg` a PRG
-`G : W → W × Kae`. Then `fromAEADPRG ae prg` is the FS-AEAD scheme of [ACD19, Figure 6] with
-key space `W`, with the corrections of the module header. -/
--- ANCHOR: fromAEADPRG
-def fromAEADPRG (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (prg : PRGScheme W (W × Kae)) :
+/-- Let `ae` be an AEAD scheme with associated data `(i, a)` and `G : ℕ → W → W × Kae` a
+position-indexed generator. Then `fromAEADChain ae G` is the construction of
+[ACD19, Figure 6] with `G i` at chain position `i`, with the corrections of the module
+header. -/
+-- ANCHOR: fromAEADChain
+def fromAEADChain (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (G : ℕ → W → W × Kae) :
     FSAEADScheme W (SendState W) (RecvState W Kae) AD M (ℕ × Cae) where
   initS := FromAEADPRG.initS
   initR := FromAEADPRG.initR
-  send := FromAEADPRG.send ae prg
-  rcv := FromAEADPRG.rcv ae prg
+  send := FromAEADPRG.send ae G
+  rcv := FromAEADPRG.rcv ae G
+-- ANCHOR_END: fromAEADChain
+
+/-- Let `ae` be an AEAD scheme with associated data `(i, a)` and `prg` a PRG
+`G : W → W × Kae`. Then `fromAEADPRG ae prg` is the FS-AEAD scheme of [ACD19, Figure 6] with
+key space `W`, with the corrections of the module header. It uses `G` at every chain
+position. -/
+-- ANCHOR: fromAEADPRG
+def fromAEADPRG (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (prg : PRGScheme W (W × Kae)) :
+    FSAEADScheme W (SendState W) (RecvState W Kae) AD M (ℕ × Cae) :=
+  fromAEADChain ae fun _ => prg.gen
 -- ANCHOR_END: fromAEADPRG
 
 end FSAEADScheme
