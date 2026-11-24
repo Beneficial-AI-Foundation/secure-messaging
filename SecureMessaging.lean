@@ -53,7 +53,9 @@ public import SecureMessaging.ErasureCode.SPQRReedSolomon.Correctness
 public import SecureMessaging.ErasureCode.Streaming
 public import SecureMessaging.FSAEAD.FromAEADPRG.Construction
 public import SecureMessaging.FSAEAD.FromAEADPRG.Correctness
+public import SecureMessaging.FSAEAD.FromAEADPRG.Security.AuthGame
 public import SecureMessaging.FSAEAD.FromAEADPRG.Security.Lookup
+public import SecureMessaging.FSAEAD.FromAEADPRG.Security.Transfer
 public import SecureMessaging.FSAEAD.Security.History
 public import SecureMessaging.FSAEAD.Security.Mask
 public import SecureMessaging.FSAEAD.Security.Reject
