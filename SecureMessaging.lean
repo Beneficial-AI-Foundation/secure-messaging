@@ -56,6 +56,8 @@ public import SecureMessaging.FSAEAD.FromAEADPRG.Correctness
 public import SecureMessaging.FSAEAD.FromAEADPRG.Security.AeadRed
 public import SecureMessaging.FSAEAD.FromAEADPRG.Security.AuthGame
 public import SecureMessaging.FSAEAD.FromAEADPRG.Security.Authenticity
+public import SecureMessaging.FSAEAD.FromAEADPRG.Security.ConfAeadRed
+public import SecureMessaging.FSAEAD.FromAEADPRG.Security.ConfEnd
 public import SecureMessaging.FSAEAD.FromAEADPRG.Security.ConfGame
 public import SecureMessaging.FSAEAD.FromAEADPRG.Security.ConfHybrid
 public import SecureMessaging.FSAEAD.FromAEADPRG.Security.ConfMix
