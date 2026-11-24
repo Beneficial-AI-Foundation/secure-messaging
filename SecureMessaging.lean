@@ -62,6 +62,7 @@ public import SecureMessaging.FSAEAD.FromAEADPRG.Security.ConfGame
 public import SecureMessaging.FSAEAD.FromAEADPRG.Security.ConfHybrid
 public import SecureMessaging.FSAEAD.FromAEADPRG.Security.ConfMix
 public import SecureMessaging.FSAEAD.FromAEADPRG.Security.ConfTransfer
+public import SecureMessaging.FSAEAD.FromAEADPRG.Security.Confidentiality
 public import SecureMessaging.FSAEAD.FromAEADPRG.Security.Hybrid
 public import SecureMessaging.FSAEAD.FromAEADPRG.Security.Lookup
 public import SecureMessaging.FSAEAD.FromAEADPRG.Security.Transfer
