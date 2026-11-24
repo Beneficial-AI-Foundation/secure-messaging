@@ -56,6 +56,25 @@ structure EndInv (x : CState W Kae AD M Cae × ConfHist) : Prop where
   chal_iB : ∀ p, x.2.chal p = true → p ∈ x.1.chall ∨ p ≤ x.1.vB.iB
   comp_chal : ∀ i p, x.1.comp i = true → x.2.chal p = true → p < i
 
+/-- Let `EndInv` hold, and let B move to a state `vB'` with `i_B ≤ i_B'` and `i ≤ i_B'`. Then
+`EndInv` holds after B's update and `delete(i)`. -/
+theorem EndInv.delete_vB {st : CState W Kae AD M Cae} {h : ConfHist} (hE : EndInv (st, h))
+    {vB' : RecvState W Kae} {i : ℕ} (hiB : st.vB.iB ≤ vB'.iB) (hi : i ≤ vB'.iB) :
+    EndInv ({ st with vB := vB' }.delete i, h) := by
+  refine ⟨fun j hj => hE.chall_le j (Finset.mem_of_mem_erase hj),
+    fun r hr => hE.trans_le r (List.mem_filter.mp hr).1, fun j hj => ?_, hE.expo, hE.chal_expo,
+    fun p hp => ?_, fun j p hj hp => ?_⟩
+  · simp only [GameState.delete, Bool.and_eq_true, bne_iff_ne, ne_eq] at hj
+    exact hE.comp_corrA j hj.2
+  · simp only [GameState.delete]
+    rcases hE.chal_iB p hp with h' | h'
+    · by_cases hpi : p = i
+      · exact .inr (hpi ▸ hi)
+      · exact .inl (Finset.mem_erase.mpr ⟨hpi, h'⟩)
+    · exact .inr (h'.trans hiB)
+  · simp only [GameState.delete, Bool.and_eq_true, bne_iff_ne, ne_eq] at hj
+    exact hE.comp_chal j p hj.2 hp
+
 /-- The initial state satisfies `EndInv`. -/
 theorem endInv_init (fs : FSAEADScheme W (SendState W) (RecvState W Kae) AD M (ℕ × Cae))
     (k : W) : EndInv ((GameState.init fs k : CState W Kae AD M Cae), ConfHist.init) :=
@@ -246,30 +265,11 @@ theorem endInv_confStep (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (G : �
       Set.mem_singleton_iff] at hy
     subst hy
     change EndInv ({ st with vB := ((rcvKey G st.vB i).map Prod.fst).getD st.vB }.delete i, h)
-    have hpass : ∀ p, p ≤ st.vB.iB → p ≤ (((rcvKey G st.vB i).map Prod.fst).getD st.vB).iB ∧
-        i ≤ (((rcvKey G st.vB i).map Prod.fst).getD st.vB).iB := by
-      intro p hp
-      rcases hr : rcvKey G st.vB i with _ | ⟨vB', K⟩
-      · simp only [Option.map_none, Option.getD_none]
-        exact ⟨hp, ((rcvKey_eq_none_iff G st.vB i).1 hr).2⟩
-      · simp only [Option.map_some, Option.getD_some]
-        obtain ⟨-, -, -, hiB, -⟩ := rcvKey_some G hSB hr
-        omega
-    refine ⟨fun j hj => ?_, fun r hr => ?_, fun j hj => ?_, (fun h' => hex h'), hce,
-      fun p hp => ?_, fun j p hj hp => ?_⟩
-    · exact hcl j (Finset.mem_of_mem_erase hj)
-    · exact htl r (List.mem_filter.mp hr).1
-    · simp only [GameState.delete, Bool.and_eq_true, bne_iff_ne, ne_eq] at hj
-      exact hcc j hj.2
-    · simp only [GameState.delete]
-      rcases hci p hp with h' | h'
-      · by_cases hpi : p = i
-        · subst hpi
-          exact .inr (hpass 0 (Nat.zero_le _)).2
-        · exact .inl (Finset.mem_erase.mpr ⟨hpi, h'⟩)
-      · exact .inr (hpass p h').1
-    · simp only [GameState.delete, Bool.and_eq_true, bne_iff_ne, ne_eq] at hj
-      exact hcp j p hj.2 hp
+    rcases hr : rcvKey G st.vB i with _ | ⟨vB', K⟩
+    · exact hE.delete_vB le_rfl ((rcvKey_eq_none_iff G st.vB i).1 hr).2
+    · obtain ⟨-, -, -, hiB, -⟩ := rcvKey_some G hSB hr
+      exact hE.delete_vB (by simp only [Option.map_some, Option.getD_some]; omega)
+        (by simp only [Option.map_some, Option.getD_some]; omega)
   · change y ∈ support ((oracleInjectBRej (fromAEADChain ae G) Prod.fst false (a, e)).run st)
       at hy
     simp only [oracleInjectBRej, StateT.run_bind, StateT.run_get, pure_bind, Bool.false_and,
@@ -289,23 +289,9 @@ theorem endInv_confStep (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (G : �
     simp only [fromAEADChain, hr, StateT.run_bind, StateT.run_set, StateT.run_pure, pure_bind,
       support_pure, Set.mem_singleton_iff] at hy
     subst hy
-    simp only [Bool.not_eq_true', Bool.not_eq_false] at h₂
     obtain ⟨hii, -, -, -, hiB, -⟩ := rcv_some ae G hSB hr
     subst i'
-    change EndInv ({ st with vB := vB' }.delete i, h)
-    refine ⟨fun j hj => ?_, fun r hr => ?_, fun j hj => ?_, (fun h' => hex h'), hce,
-      fun p hp => ?_, fun j p hj hp => ?_⟩
-    · exact hcl j (Finset.mem_of_mem_erase hj)
-    · exact htl r (List.mem_filter.mp hr).1
-    · simp only [GameState.delete, Bool.and_eq_true, bne_iff_ne, ne_eq] at hj
-      exact hcc j hj.2
-    · simp only [GameState.delete]
-      rcases hci p hp with h' | h'
-      · have := hcp i p h₂ hp
-        exact .inl (Finset.mem_erase.mpr ⟨by omega, h'⟩)
-      · exact .inr (by omega)
-    · simp only [GameState.delete, Bool.and_eq_true, bne_iff_ne, ne_eq] at hj
-      exact hcp j p hj.2 hp
+    exact hE.delete_vB (by omega) (by omega)
 
 /-! ## The oracles under masking -/
 
@@ -459,7 +445,7 @@ theorem map_confRun_rand_maskSt (d : M) (ae : AEADScheme ProbComp M (ℕ × AD) 
       · push Not at ht
         rw [confImplWith_maskSt d ae G len clen _ s false t ht st hx.2.2.chall_le,
           Functor.map_map]
-        simp only [Prod.map_map, Function.id_comp, maskSt_comp_maskSt]
+        simp only [Prod.map_map, Function.comp_def, maskSt_maskSt]
         rcases t with ((((((n | q) | ⟨a, m₀, m₁⟩) | u) | u) | q) | q)
         all_goals first | rfl | exact absurd rfl (ht (a, m₀, m₁))
     · rcases t with ((((((n | q) | q) | u) | u) | q) | q) <;> rfl

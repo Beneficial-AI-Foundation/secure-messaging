@@ -146,7 +146,7 @@ theorem skip_gen (G : ℕ → W → W × Kae) {k : W} {st : RecvState W Kae} {i 
   rw [(skip_w_iB G _ st hw hlt).1, Nat.add_sub_cancel]
   rfl
 
-/-- `rcvKey` rejects index `i` exactly when `D[i] = ⊥` and `i ≤ i_B`: B has used index `i`. -/
+/-- `rcvKey` rejects index `i` exactly when `D[i] = ⊥` and `i ≤ i_B`. -/
 theorem rcvKey_eq_none_iff (G : ℕ → W → W × Kae) (st : RecvState W Kae) (i : ℕ) :
     rcvKey G st i = none ↔ st.D i = none ∧ i ≤ st.iB := by
   rcases hD : st.D i with _ | K

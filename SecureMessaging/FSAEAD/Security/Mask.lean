@@ -47,11 +47,6 @@ theorem maskRec_maskRec (c : Finset ℕ) (r : ℕ × AD × M × C) :
 theorem maskSt_maskSt (st : GameState StS StR AD M C) : maskSt d (maskSt d st) = maskSt d st := by
   simp only [maskSt, List.map_map, Function.comp_def, maskRec_maskRec]
 
-/-- Masking twice is masking once. -/
-theorem maskSt_comp_maskSt :
-    (maskSt d ∘ maskSt d : GameState StS StR AD M C → GameState StS StR AD M C) = maskSt d :=
-  funext (maskSt_maskSt d)
-
 /-- Masking keeps the index, the associated data and the ciphertext of a record. -/
 theorem findTrans_maskSt [DecidableEq AD] [DecidableEq C] (st : GameState StS StR AD M C)
     (a : AD) (e : C) :

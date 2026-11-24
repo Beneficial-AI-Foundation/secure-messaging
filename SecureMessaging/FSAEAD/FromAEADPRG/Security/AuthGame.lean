@@ -100,7 +100,8 @@ theorem prEvent_noDeliverWin_win_eq_authExp [SampleableType W]
 /-! ## No first win above a corruption of A -/
 
 omit [DecidableEq AD] [DecidableEq Cae] in
-/-- B has used index `i`: `D[i] = ⊥` and `i ≤ i_B`. `rcvKey` rejects it (`rcvKey_eq_none_iff`). -/
+/-- `D[i] = ⊥` and `i ≤ i_B`, so `rcvKey` rejects `i` (`rcvKey_eq_none_iff`). Every index that B
+has used is consumed, and so is the index `0`. -/
 def Consumed (vB : RecvState W Kae) (i : ℕ) : Prop := vB.D i = none ∧ i ≤ vB.iB
 
 omit [DecidableEq AD] [DecidableEq Cae] in
