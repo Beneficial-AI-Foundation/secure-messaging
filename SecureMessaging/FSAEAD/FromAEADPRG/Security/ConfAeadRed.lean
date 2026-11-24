@@ -19,7 +19,8 @@ of the key at `p`, including a transmission at `p` and the dictionary `D[p]` of 
 reduction's own key. `E'_p` never calls the decryption oracle: `G_conf^p` stops at every
 corruption of A below `p`, so no injection at `p` reaches `FS-Rcv`.
 
-`E'_p` outputs `b = b'` if no corruption revealed a position below `p`, and a fair coin otherwise.
+`E'_p` outputs `b = b'` if no corruption call came at a position below `p`, and a fair coin
+otherwise.
 - In the real world, the challenge at `p` is encrypted under the independent key of the AEAD game,
   so `E'_p` plays `G'_p` (`confHybKey`).
 - In the ideal world, the challenge at `p` is a uniform ciphertext of length `clen(|m|)`, so `E'_p`

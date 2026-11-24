@@ -293,22 +293,7 @@ theorem lowExpo_confAux {s : ℕ}
     (hb : LowExpo s h) : LowExpo s (confAux t st u st' h) := by
   rcases t with ((((((n | q) | q) | u) | u) | q) | q)
   any_goals exact hb
-  · simp only [confAux]
-    split_ifs
-    · exact hb
-    · exact hb
-  · simp only [confAux]
-    split_ifs
-    · exact hb
-    · exact hb
-  · simp only [confAux]
-    split_ifs
-    · exact hb
-    · exact lowExpo_reveal hb
-  · simp only [confAux]
-    split_ifs
-    · exact hb
-    · exact lowExpo_reveal hb
+  all_goals simp only [confAux]; split_ifs <;> first | exact hb | exact lowExpo_reveal hb
 
 variable [LenSampleable Cae]
 

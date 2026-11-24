@@ -621,7 +621,7 @@ theorem redGameImpl_run_map {G₁ G₂ : ℕ → W → W × Kae} {k : W} {p : �
   have hy' : Prod.map id ψ y ∈ support ((authImplC ae G₂ len b 0 t).run (ψ ((st, h), c))) := by
     rw [← hproj t _ hI, support_map]
     exact ⟨y, hy, rfl⟩
-  refine ⟨?_, authImplC_histInv ae G₂ len b 0 t _ hH _ hy',
+  refine ⟨?_, authImpl_histInv _ len b 0 (oracleDeliverBLookup_flags G₂) t _ hH _ hy',
     authInv_step ae G₂ k len b 0 t _ hH hA _ hy'⟩
   rw [redGameImpl, redImpl,
     OracleComp.flattenStateT_mapStateTBase_extendState_run, support_map] at hy

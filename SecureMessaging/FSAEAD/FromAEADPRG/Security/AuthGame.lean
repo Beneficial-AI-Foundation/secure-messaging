@@ -66,19 +66,14 @@ def authExp [SampleableType W] (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae)
   let b ← $ᵗ Bool
   authRun ae G len b j adversary k
 
-/-- Every step of `G_auth^j` for the construction keeps `HistInv j`. -/
-theorem authImplC_histInv (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (G : ℕ → W → W × Kae)
-    (len : M → ℕ) (b : Bool) (j : ℕ) (t) (s : CState W Kae AD M Cae × AuthHist)
-    (hI : HistInv j s) : ∀ z ∈ support ((authImplC ae G len b j t).run s), HistInv j z.2 :=
-  authImpl_histInv _ len b j (oracleDeliverBLookup_flags G) t s hI
-
 /-- Every final state of `G_auth^j` satisfies `HistInv j`. -/
 theorem histInv_authRun (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (G : ℕ → W → W × Kae)
     (len : M → ℕ) (b : Bool) (j : ℕ)
     (adversary : FSAEADAdversary (SendState W) (RecvState W Kae) AD M (ℕ × Cae)) (k : W) :
     ∀ z ∈ support (authRun ae G len b j adversary k), HistInv j z.2 :=
   fun z hz => simulateQ_run_preserves_inv_of_query _ (HistInv j)
-    (authImplC_histInv ae G len b j) adversary _ (histInv_init j rfl) z hz
+    (authImpl_histInv _ len b j (oracleDeliverBLookup_flags G)) adversary _ (histInv_init j rfl)
+    z hz
 
 /-- Let `ae` be correct. Then `fs-aead-nd` for `fromAEADChain ae G` sets `win` with the probability
 that `G_auth^0` records a first win. -/
@@ -329,7 +324,7 @@ theorem authInv_authRun (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (G : �
     ⟨⟨rfl, fun _ _ h => (nomatch h), fun _ _ => rfl⟩, fun h => (nomatch h),
       fun _ h => (nomatch h), fun _ h => (nomatch h), fun _ h => (nomatch h)⟩
   exact (simulateQ_run_preserves_inv_of_query _ (fun s => HistInv j s ∧ AuthInv G k s)
-    (fun t s hs y hy => ⟨authImplC_histInv ae G len b j t s hs.1 y hy,
+    (fun t s hs y hy => ⟨authImpl_histInv _ len b j (oracleDeliverBLookup_flags G) t s hs.1 y hy,
       authInv_step ae G k len b j t s hs.1 hs.2 y hy⟩) adversary _
     ⟨histInv_init j rfl, h₀⟩ z hz).2
 

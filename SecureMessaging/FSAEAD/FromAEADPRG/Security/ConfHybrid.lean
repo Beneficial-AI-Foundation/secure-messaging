@@ -21,9 +21,9 @@ For an event `E` of the history, the confidentiality gap is
 ```text
 confGap(Γ, E) = Pr_Γ[b = b' ∧ E] - Pr_Γ[E] / 2
 ```
-A reduction for step `j` outputs `b = b'` if no corruption revealed a position below `j`, and a
-fair coin otherwise (`coinOut`). It outputs `1` with probability
-`confGap(Γ, no reveal below j) + 1/2` (`prEvent_coinOut_toReal`).
+A reduction for step `j` outputs `b = b'` if no corruption call came at a position below `j`, and
+a fair coin otherwise (`coinOut`). It outputs `1` with probability
+`confGap(Γ, no corruption call below j) + 1/2` (`prEvent_coinOut_toReal`).
 
 The PRG reduction `P'_{n+1}` (`confPrgRed`) takes `y` as step `n + 1` of the chain and plays
 `G_{n+1, n}^{n+1}`. In the ideal world it plays `G_{n+1,n}`, and in the real world `G_{n,n} = G_n`
@@ -98,7 +98,7 @@ def confHyb [SampleableType W] [SampleableType Kae] (ae : AEADScheme ProbComp M 
   pure (b, z.1, z.2.2)
 
 /-- In every hybrid, `G_{v,u}^0` and `G_{v,u}^s` give the same probability to an event that implies
-that no corruption revealed a position below `s`. -/
+that no corruption call came at a position below `s`. -/
 theorem prEvent_confHyb_eq_low [SampleableType W] [SampleableType Kae]
     (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (prg : PRGScheme W (W × Kae)) (len : M → ℕ)
     (clen : ℕ → ℕ) (adversary : FSAEADAdversary (SendState W) (RecvState W Kae) AD M (ℕ × Cae))
@@ -111,7 +111,7 @@ theorem prEvent_confHyb_eq_low [SampleableType W] [SampleableType Kae]
   exact prEvent_confRun_eq_low ae _ len clen _ _ b s adversary k _ fun z hz => hX _ hz
 
 /-- In every hybrid, `G_{v,u}^0` and `G_{v,u}^s` have the same gap on runs where no corruption
-revealed a position below `s`. -/
+call came at a position below `s`. -/
 theorem confGap_confHyb_eq_low [SampleableType W] [SampleableType Kae]
     (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (prg : PRGScheme W (W × Kae)) (len : M → ℕ)
     (clen : ℕ → ℕ) (adversary : FSAEADAdversary (SendState W) (RecvState W Kae) AD M (ℕ × Cae))
