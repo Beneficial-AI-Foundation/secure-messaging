@@ -16,7 +16,7 @@ Theorem 5 of [ACD19]: the FS-AEAD scheme from a correct AEAD scheme and a PRG is
 
 Let the adversary make at most `q` calls of `O-Transmit-A` and `O-Chall-A` together
 (`SendQueryBound`), and let every injection have an index at most `N` (`InjectIndexBound`). Let
-`L = max q N`. The proof has five steps:
+`L = max q N` (DEV-FS16). The proof has five steps:
 
 - Step 0. `fs-aead` and `fs-aead-nd` (no win by `O-Deliver-B`) are the same game, because `ae` is
   correct (`fromAEADPRG_securityExp_eq_noDeliverWin`).
@@ -32,9 +32,13 @@ Let the adversary make at most `q` calls of `O-Transmit-A` and `O-Chall-A` toget
 `Adv^aead-dist` is the advantage in the one-time IND-CCA game of `SecureMessaging.AEAD.Defs`,
 whose decryption oracle rejects only the challenge pair (deviation D1). [ACD19] states the bound
 `q · (ε_aead + ε_prg)`. Here it is `2L · (ε_prg + ε_aead)`
-(`advantage_fromAEADPRG_le_of_le`): the factor 2 comes from the separate authenticity and
+(`advantage_fromAEADPRG_le_of_le`, DEV-FS17): the factor 2 comes from the separate authenticity and
 confidentiality arguments, and `L` replaces `q` because an injection can reach an index above
 `q`.
+
+Running time is not modelled (DEV-FS19). The bound names its reductions, and a reader checks
+their efficiency by reading their definitions. Each reduction samples up to `L` chain steps, so
+if `N` is far above the run time of the adversary, the reductions are slower than the adversary.
 
 - [ACD19] Alwen, Coretti, Dodis.
   *The Double Ratchet: Security Notions, Proofs, and Modularization for the
@@ -54,8 +58,9 @@ open FromAEADPRG
 variable {W Kae Cae AD M : Type} [DecidableEq AD] [DecidableEq M] [DecidableEq Cae]
   [SampleableType W] [SampleableType Kae] [LenSampleable Cae]
 
-/-- **Theorem 5 of [ACD19].** Let `ae` be a correct AEAD scheme with a uniform key, and let
-`prg : W → W × Kae` be a PRG. Let `A` be an FS-AEAD adversary that makes at most `q` calls of
+/-- **Theorem 5 of [ACD19].** Let `ae` be a correct AEAD scheme with a uniform key
+(DEV-AEAD3), and let `prg : W → W × Kae` be a PRG. Let `A` be an FS-AEAD adversary that makes
+at most `q` calls of
 `O-Transmit-A` and `O-Chall-A` together, and whose injections all have an index at most `N`. Let
 `L = max q N`. Then
 ```text
@@ -63,7 +68,7 @@ Adv^fs-aead(A) ≤ Σ_{j=1..L} (Adv^prg(P_j) + Adv^aead-dist(E_j)
                           + Adv^prg(P'_j) + Adv^aead-dist(E'_j))
 ```
 where `P_j` is `prgRed … (j - 1)`, `E_j` is `aeadRed … j`, `P'_j` is `confPrgRed … (j - 1)` and
-`E'_j` is `confAeadRed … (j - 1)`. -/
+`E'_j` is `confAeadRed … (j - 1)` (DEV-FS18). -/
 -- ANCHOR: advantage_fromAEADPRG_le
 theorem advantage_fromAEADPRG_le {ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae}
     (hae : ae.Correct) (hkg : ae.keygen =ᵈ ($ᵗ Kae : ProbComp Kae)) (prg : PRGScheme W (W × Kae))

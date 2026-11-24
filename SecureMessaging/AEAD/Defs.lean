@@ -85,8 +85,8 @@ The adversary wins if its guess `b'` satisfies `b' = b`.
 [DEVIATIONS FROM ACD19]
 Each deviation is marked `Deviation (D1)` or `Deviation (D2)` where it takes effect.
 
-- (D1) The challenge is the pair `(a*, e*)`, not the ciphertext `e*` alone. Two oracle lines
-  change:
+- (D1, DEV-AEAD1) The challenge is the pair `(a*, e*)`, not the ciphertext `e*` alone. Two
+  oracle lines change:
 
   ```
              ACD19 Figure 1                    here
@@ -118,8 +118,8 @@ Each deviation is marked `Deviation (D1)` or `Deviation (D2)` where it takes eff
   exact pair returned by encryption is refused. [Ros26] Definition 9.6.5 also keys decryption
   on the pair `(A, C)` of associated data and ciphertext.
 
-- (D2) For `b = 1`, the challenge `e*` is uniform among the ciphertexts of length `clen |m|`,
-  not uniform on all of `C`. One oracle line changes:
+- (D2, DEV-AEAD2) For `b = 1`, the challenge `e*` is uniform among the ciphertexts of length
+  `clen |m|`, not uniform on all of `C`. One oracle line changes:
 
   ```
              ACD19 Figure 1                    here
@@ -253,7 +253,7 @@ First call: if `b = false`, sets `e* ← Enc(K, a, m)`;
             `clen |m|`.
             Records `(a, e*)` and returns `some e*`.
 Subsequent calls: returns `none` (one-time oracle).
-Deviation (D2): Figure 1 samples `e* ←$ C`. -/
+Deviation (D2, DEV-AEAD2): Figure 1 samples `e* ←$ C`. -/
 -- ANCHOR: oracleEncrypt
 def oracleEncrypt [LenSampleable C] (ae : AEADScheme ProbComp M AD K C)
     (lenM : M → ℕ) (clen : ℕ → ℕ) (b : Bool) (k : K) :
@@ -272,7 +272,7 @@ def oracleEncrypt [LenSampleable C] (ae : AEADScheme ProbComp M AD K C)
 /-- Decryption oracle `decrypt(a, e)` (Figure 1 of [ACD19], right column, with the guard
 on the pair): `if (a, e) = (a*, e*) or b = 1 return ⊥; return Dec(K, a, e)`.
 Before the challenge the state is `none` and the guard is trivially false.
-Deviation (D1): Figure 1 compares `e` only. -/
+Deviation (D1, DEV-AEAD1): Figure 1 compares `e` only. -/
 -- ANCHOR: oracleDecrypt
 def oracleDecrypt [DecidableEq AD] [DecidableEq C] (ae : AEADScheme ProbComp M AD K C)
     (b : Bool) (k : K) :

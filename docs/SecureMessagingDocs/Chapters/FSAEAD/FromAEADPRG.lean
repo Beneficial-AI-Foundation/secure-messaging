@@ -230,14 +230,14 @@ def skipSteps (G : ℕ → W → W × Kae) : ℕ → RecvState W Kae → RecvSta
 :::::::gameGrid
 ::::::gameCell "\\textsf{Deviations}" (kind := "scheme-notation")
 We change {Informal.citet ACD19}[], Figure 6, in three places. Boxes in pseudocode mark the
-first two:
+first two. The IDs refer to the deviation catalogue `docs/deviations.md`.
 
-1. $`\mathsf{skip}` stores each skipped key at its own index, $`D[i_\B] \gets K`. Figure 6
+1. (DEV-FS11) $`\mathsf{skip}` stores each skipped key at its own index, $`D[i_\B] \gets K`. Figure 6
    stores all of them at $`D[u]`, so each one overwrites the one before.
-2. When $`\mathsf{try\text{-}skipped}(i)` returns $`\bot`, $`\mathsf{FS\text{-}Rcv}` rejects
+2. (DEV-FS12) When $`\mathsf{try\text{-}skipped}(i)` returns $`\bot`, $`\mathsf{FS\text{-}Rcv}` rejects
    $`i \le i_\B`. Figure 6 instead decrypts $`e` under the key of index $`i_\B + 1` and sets
    $`i_\B \gets i`.
-3. $`\mathsf{Init}\text{-}\B` sets $`D[\cdot] \gets \bot`. Figure 6 writes $`\lambda` there,
+3. (DEV-FS13) $`\mathsf{Init}\text{-}\B` sets $`D[\cdot] \gets \bot`. Figure 6 writes $`\lambda` there,
    but $`\mathsf{try\text{-}skipped}` and $`\mathsf{FS\text{-}Rcv}` test for $`\bot`.
 ::::::
 :::::::
@@ -303,8 +303,8 @@ $`\varepsilon_{\textsf{aead}}`, the bound is
 $`2L \cdot (\varepsilon_{\textsf{prg}} + \varepsilon_{\textsf{aead}})`.
 {Informal.citet ACD19}[] states
 $`q \cdot (\varepsilon_{\textsf{prg}} + \varepsilon_{\textsf{aead}})`.
-The factor 2 comes from separate authenticity and confidentiality arguments. $`L` replaces $`q`
-because an injection can reach an index above $`q`. The
+The factor 2 comes from separate authenticity and confidentiality arguments (DEV-FS17). $`L`
+replaces $`q` because an injection can reach an index above $`q` (DEV-FS16). The
 {bpref "aead_dist_advantage"}[AEAD advantage] is taken in the game whose decryption oracle
 rejects only the challenge pair.
 

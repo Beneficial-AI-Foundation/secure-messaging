@@ -137,12 +137,12 @@ can then compute the ciphertext that A would send at an index $`i > i_\A^c` and 
 before A sends it, and B must accept it. In {Informal.citet ACD19}[], Figure 5, this
 counts as a forgery, because $`\mathsf{comp}` only holds indices that A has already sent,
 so every correct scheme loses. We change the game in two places for this case, marked by
-boxes in pseudocode:
+boxes in pseudocode. The IDs refer to the deviation catalogue `docs/deviations.md`.
 
-- $`\OCorrA` adds every index $`i > i_\A^c` to $`\mathsf{comp}`, so injecting at these
+- (DEV-FS2) $`\OCorrA` adds every index $`i > i_\A^c` to $`\mathsf{comp}`, so injecting at these
   indices does not count as a forgery, and $`\mathsf{record}` no longer adds to
   $`\mathsf{comp}`;
-- when A later sends at an index $`i_\A > i_\A^c`, $`\mathsf{record}` does nothing if
+- (DEV-FS3) when A later sends at an index $`i_\A > i_\A^c`, $`\mathsf{record}` does nothing if
   $`\mathsf{corrA}` holds and $`i_\A \notin \mathsf{comp}`, i.e. when an earlier injection
   already consumed $`i_\A`.
 :::::

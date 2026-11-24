@@ -47,17 +47,17 @@ B        K₁        K₂        K₃             K₁ = D[1], K₂ = D[2]
   spaces.
 - `G` is `prg.gen : W → W × Kae`. `Enc` and `Dec` are `ae.encrypt` and `ae.decrypt`.
   The construction does not use `ae.keygen`, because `G` derives the AEAD keys.
-- The algorithms take a position-indexed generator `G : ℕ → W → W × Kae` and use `G i`
+- The algorithms take a position-indexed generator `G : ℕ → W → W × Kae` (DEV-FS15) and use `G i`
   to derive chain position `i`. Figure 6 is the case `G i = prg.gen` for every `i`
   (`fromAEADPRG`). The security proof replaces some `G i` by uniform values.
 - `w_A`, `i_A` and `w_B`, `i_B`, `D` are the fields of `SendState` and `RecvState`.
 
 [CORRECTIONS TO ACD19]
-1. `skip` stores `D[i_B] ← K`, not `D[u] ← K`. As printed, every skipped key goes to the
+1. (DEV-FS11) `skip` stores `D[i_B] ← K`, not `D[u] ← K`. As printed, every skipped key goes to the
    entry `u` of the target index and overwrites the one before. No skipped key is stored
    at its own index, so B cannot find it when the skipped message arrives later, and
    out-of-order delivery fails correctness.
-2. `FS-Rcv` rejects a ciphertext `(i, e)` with `D[i] = ⊥` and `i ≤ i_B`. As printed, such
+2. (DEV-FS12) `FS-Rcv` rejects a ciphertext `(i, e)` with `D[i] = ⊥` and `i ≤ i_B`. As printed, such
    a miss calls `skip(i)`, which does nothing, and then derives `K_{i_B + 1}` under the
    name `i` and sets `i_B ← i`. Attack: A sends one message and B receives it, so both
    are at `w₁`. `O-Corr-A` reveals `w₁`. The adversary computes `(w₂, K₂) ← G(w₁)` and
@@ -69,9 +69,9 @@ B        K₁        K₂        K₃             K₁ = D[1], K₂ = D[2]
 - Figure 6 initialises `D[·] ← λ`, but `try-skipped` and `FS-Rcv` use `⊥` for an empty
   entry. We write `⊥` for both: `D` is a function `ℕ → Option Kae`, and `none` is `⊥`.
   `D` is a logical dictionary. It does not model the physical erasure of keys or a bound
-  on the storage.
+  on the storage (DEV-FS13).
 
-[ENCODING OF FIGURE 6]
+[ENCODING OF FIGURE 6] (DEV-FS14)
 - `error` is `none`, the rejection of `FSAEADScheme.rcv`. The prose before Figure 6
   says that `error` rolls the state back to where it was before the call to `FS-Rcv`.
   Returning `none` gives no new state, so the caller keeps the old one. This also undoes

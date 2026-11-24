@@ -56,7 +56,7 @@ to a receiver B, keyed by a pre-shared key.
   `none` if it rejects `e`.
 
 [CORRECTIONS TO ACD19]
-- Rejection in `FS-Rcv`: Definition 14 leaves the output of `FS-Rcv` on rejection
+- Rejection in `FS-Rcv` (DEV-FS1): Definition 14 leaves the output of `FS-Rcv` on rejection
   unspecified. In our formalization, `rcv` returns `none` (no new state and no index),
   matching the state rollback of Figure 6 (§4.2.2). A rejected injection then gives
   `O-Inject-B` no index, so the oracle stops at `req r ≠ ⊥` and deletes nothing. If a
@@ -70,28 +70,28 @@ to a receiver B, keyed by a pre-shared key.
   Figure 5 this counts as a forgery, because `comp` only holds indices that A has
   already sent, so every correct scheme loses [Kli21, Appendix A.1]. Two changes,
   marked `[…]` in the pseudocode:
-  1. `O-Corr-A` adds every index `i > i_A^c` to `comp`, so injecting at these indices
+  1. (DEV-FS2) `O-Corr-A` adds every index `i > i_A^c` to `comp`, so injecting at these indices
      does not count as a forgery, and `record` no longer adds to `comp`;
-  2. when A later sends at an index `i_A > i_A^c`, `record` does nothing if `corrA`
+  2. (DEV-FS3) when A later sends at an index `i_A > i_A^c`, `record` does nothing if `corrA`
      holds and `i_A ∉ comp`, i.e. when an earlier injection already consumed `i_A`.
 
 [CONVENTIONS]
-- Rejection in `O-Deliver-B`. Figure 5 sets `win` if B's output `(i', m')` differs from
+- Rejection in `O-Deliver-B` (DEV-FS4). Figure 5 sets `win` if B's output `(i', m')` differs from
   the recorded `(i, m)`. If B rejects the honest ciphertext, there is no output to
   compare. Our formalization treats the rejection as a wrong output, so it also sets
   `win`.
-- Advantage. §2.1 defines the advantage of an indistinguishability game as
+- Advantage (DEV-FS5). §2.1 defines the advantage of an indistinguishability game as
   `2 · |Pr[A wins] - 1/2|`. In our formalization, the advantage is `|Pr[A wins] - 1/2|`,
   half of that, as in the guess advantages of this project (`AEADScheme.guessAdvantage`,
   CKA, SCKA).
 
 [AMBIGUITIES RESOLVED]
 - `O-Deliver-B` requires `(i, a, m, e) ∈ trans` "for some `i, m`". If several in-transit
-  records have the same `(a, e)`, the one with the smallest index is used.
+  records have the same `(a, e)`, the one with the smallest index is used (DEV-FS6).
 - `delete(i)` for an index that A has already sent but that has no record changes
-  nothing.
+  nothing (DEV-FS7).
 
-[ENCODING OF FIGURE 5]
+[ENCODING OF FIGURE 5] (DEV-FS8)
 - `win` and `end` are the §2.1 keywords, here Boolean flags of the game state. The code
   writes `end` as `end_`, because `end` is a Lean keyword.
 - The adversary wins if it reaches a winning condition or if its final guess `b'` equals
@@ -110,7 +110,9 @@ open ToVCVio OracleSpec OracleComp ENNReal
 `StR`, associated-data space `AD`, message space `M` and ciphertext space `C`.
 All algorithms are deterministic.
 
-Definition 14 of [ACD19], with `rcv` returning `none` on rejection. -/
+Definition 14 of [ACD19], with `rcv` returning `none` on rejection (DEV-FS1). Definition 14
+also has `FS-Stop` and `FS-Max`, which erase old skipped keys. This structure omits them
+(DEV-FS10). -/
 -- ANCHOR: FSAEADScheme
 structure FSAEADScheme (K StS StR AD M C : Type) where
   /-- `FS-Init-S`: the sender's initial state. -/
@@ -205,7 +207,7 @@ def delete (st : GameState StS StR AD M C) (i : ℕ) : GameState StS StR AD M C 
 
 /-- The in-transit record `(i, a, m, e)` with the smallest index `i`. `trans` is ordered by
 index, so this is its first match. Figure 5's `O-Deliver-B` takes such a record "for some
-`i, m`" and does not say which one if there are several. -/
+`i, m`" and does not say which one if there are several (DEV-FS6). -/
 def findTrans [DecidableEq AD] [DecidableEq C] (st : GameState StS StR AD M C)
     (a : AD) (e : C) : Option (ℕ × AD × M × C) :=
   st.trans.find? fun r => r.2.1 = a ∧ r.2.2.2 = e
@@ -547,7 +549,8 @@ abbrev FSAEADCorrectnessAdversary (StS StR AD M C : Type) :=
   OracleComp (fsaeadCorrectnessSpec StS StR AD M C) Bool
 -- ANCHOR_END: FSAEADCorrectnessAdversary
 
-/-- **FS-AEAD correctness experiment**, following the correctness game of [ACD19, §3.3].
+/-- **FS-AEAD correctness experiment**, following the correctness game of [ACD19, §3.3]
+(DEV-FS9).
 Only `O-Deliver-B` sets `win`, so the adversary wins if B rejects a ciphertext that A sent
 or outputs a wrong index or message for it.
 

@@ -90,14 +90,15 @@ $`\C(\ell) = \C.`
 :::::
 
 :::::gameCell "\\textsf{Deviations}" (kind := "scheme-notation")
-We change {Informal.citet ACD19}[], Figure 1, in two places, marked by boxes in pseudocode:
+We change {Informal.citet ACD19}[], Figure 1, in two places, marked by boxes in pseudocode.
+The IDs refer to the deviation catalogue `docs/deviations.md`.
 
-1. $`\Odec` refuses only the challenge pair $`(a^*, e^*)`,
+1. (DEV-AEAD1) $`\Odec` refuses only the challenge pair $`(a^*, e^*)`,
    not every $`(a, e^*)`. Thus $`\Oenc` also stores $`a^*`. In Figure 1, a scheme that ignores
    associated data is secure, and the FS-AEAD scheme of their Figure 6 built on it is
    insecure, which contradicts their Theorem 5. {Informal.citet Ros26}[], Definition 9.6.5,
    also keys decryption on the pair of associated data and ciphertext.
-2. With $`b = 1`, $`\Oenc` samples $`e^*` uniformly from $`\C(|m|)`, not from all
+2. (DEV-AEAD2) With $`b = 1`, $`\Oenc` samples $`e^*` uniformly from $`\C(|m|)`, not from all
    of $`\C`, as in {Informal.citet Ros26}[], Definition 9.6.5. The random branch
    reads only the message length $`|m|`. In Ros26, $`\C(\ell)` is the set of possible
    ciphertexts for messages of length $`\ell`. In our formalization, it is the set of all ciphertexts of length
