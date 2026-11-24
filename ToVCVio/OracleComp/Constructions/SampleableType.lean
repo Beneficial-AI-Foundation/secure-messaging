@@ -18,6 +18,8 @@ probability is equal in distribution to the uniform sample. `prEvent_true_bitGue
 says that guessing a uniform bit succeeds with probability exactly `1 / 2` when the bit does
 not affect the distribution of the guesser's input. `bind_uniformSample_evalDistEq_of_bijective`
 reindexes a uniform draw by a bijection before a continuation.
+`uniformSample_prod_replace_fst` and `uniformSample_prod_replace_snd` replace one component of a
+uniform pair by an independent uniform value.
 -/
 
 @[expose] public section
@@ -71,5 +73,24 @@ theorem bind_uniformSample_evalDistEq_of_bijective {α β γ : Type} [Sampleable
     (do let x ← ($ᵗ α : ProbComp α); k (f x)) =ᵈ (do let y ← ($ᵗ β : ProbComp β); k y) := by
   have h := (SampleableType.map_uniformSample_evalDistEq_of_bijective hf).bind_left k
   simpa only [map_eq_bind_pure_comp, bind_assoc, pure_bind, Function.comp_apply] using h
+
+/-- Replacing the first component of a uniform pair by an independent uniform value keeps the
+distribution. -/
+theorem uniformSample_prod_replace_fst {α β γ : Type} [SampleableType α] [SampleableType β]
+    (f : α × β → ProbComp γ) :
+    (do let a ← $ᵗ α; let u ← $ᵗ (α × β); f (a, u.2)) =ᵈ ($ᵗ (α × β) >>= f) := by
+  simp only [SampleableType.uniformSample_prod_eq_bind, bind_assoc, pure_bind]
+  refine (EvalDistEq.bind_bind_swap (spec := unifSpec) _ _ _).trans ?_
+  exact EvalDistEq.bind_const (spec := unifSpec) _ _
+
+/-- Replacing the second component of a uniform pair by an independent uniform value keeps the
+distribution. -/
+theorem uniformSample_prod_replace_snd {α β γ : Type} [SampleableType α] [SampleableType β]
+    (f : α × β → ProbComp γ) :
+    (do let b ← $ᵗ β; let u ← $ᵗ (α × β); f (u.1, b)) =ᵈ ($ᵗ (α × β) >>= f) := by
+  simp only [SampleableType.uniformSample_prod_eq_bind, bind_assoc, pure_bind]
+  refine (EvalDistEq.bind_bind_swap (spec := unifSpec) _ _ _).trans
+    (EvalDistEq.bind_right _ fun _ => ?_)
+  exact EvalDistEq.bind_right _ fun _ => EvalDistEq.bind_const (spec := unifSpec) _ _
 
 end ToVCVio

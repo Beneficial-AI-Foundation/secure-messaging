@@ -7,6 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import VCVio.OracleComp.SimSemantics.StateT.Basic
+public import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 
 /-!
 # Base-state invariant preservation through `mapStateTBase` / `flattenStateT`
@@ -66,5 +67,21 @@ theorem flattenStateT_mapStateTBase_run_preserves_inv
   rw [QueryImpl.flattenStateT_mapStateTBase_apply_run, support_map] at hy
   obtain ⟨z, hz, rfl⟩ := hy
   exact mapStateTBase_run_preserves_inv outer inner inv hinv t s hs q z hz
+
+/-- An extended inner implementation under `mapStateTBase`, flattened: one step runs the inner
+step inside the outer implementation, then applies the update `aux` of `QueryImpl.extendState`. -/
+theorem flattenStateT_mapStateTBase_extendState_run {Q : Type}
+    (outer : QueryImpl spec₁ (StateT τ ProbComp))
+    (inner : QueryImpl spec₀ (StateT σ (OracleComp spec₁)))
+    (aux : (t : spec₀.Domain) → σ → spec₀.Range t → σ → Q → Q)
+    (t : spec₀.Domain) (s : σ) (h : Q) (q : τ) :
+    ((outer.mapStateTBase (inner.extendState aux)).flattenStateT t).run ((s, h), q) =
+      (fun y => (y.1.1, ((y.1.2, aux t s y.1.1 y.1.2 h), y.2))) <$>
+        (simulateQ outer ((inner t).run s)).run q := by
+  rw [QueryImpl.flattenStateT_mapStateTBase_apply_run, QueryImpl.extendState_apply,
+    simulateQ_bind]
+  simp only [simulateQ_pure, StateT.run_bind, StateT.run_pure, map_bind, map_pure]
+  rw [map_eq_bind_pure_comp]
+  rfl
 
 end OracleComp
