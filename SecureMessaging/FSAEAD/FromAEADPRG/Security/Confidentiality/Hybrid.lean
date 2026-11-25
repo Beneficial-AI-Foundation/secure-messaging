@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.FSAEAD.FromAEADPRG.Security.ConfTransfer
+public import SecureMessaging.FSAEAD.FromAEADPRG.Security.Confidentiality.Transfer
 public import ToVCVio.EvalDist.BoolDist
 public import ToVCVio.EvalDist.Monad.Basic
 

@@ -6,8 +6,9 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.FSAEAD.FromAEADPRG.Security.AeadRed
-public import SecureMessaging.FSAEAD.FromAEADPRG.Security.ConfMix
+public import SecureMessaging.FSAEAD.FromAEADPRG.Security.Chain.AeadRed
+public import SecureMessaging.FSAEAD.FromAEADPRG.Security.Confidentiality.Mix
+public import ToVCVio.OracleComp.SimSemantics.StateT.MapStateTBase
 
 /-!
 # FS-AEAD from AEAD and PRG — the AEAD reductions of the confidentiality step

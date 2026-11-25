@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.FSAEAD.FromAEADPRG.Security.ConfMix
+public import SecureMessaging.FSAEAD.FromAEADPRG.Security.Confidentiality.Mix
 public import SecureMessaging.FSAEAD.Security.Mask
 
 /-!

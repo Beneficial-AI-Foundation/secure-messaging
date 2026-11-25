@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.FSAEAD.FromAEADPRG.Security.Hybrid
+public import SecureMessaging.FSAEAD.FromAEADPRG.Security.Chain.Hybrid
 
 /-!
 # FS-AEAD from AEAD and PRG — the confidentiality game

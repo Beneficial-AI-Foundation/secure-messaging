@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.FSAEAD.FromAEADPRG.Security.ConfHybrid
+public import SecureMessaging.FSAEAD.FromAEADPRG.Security.Confidentiality.Hybrid
 
 /-!
 # FS-AEAD from AEAD and PRG — an independent key for the challenge at `j`

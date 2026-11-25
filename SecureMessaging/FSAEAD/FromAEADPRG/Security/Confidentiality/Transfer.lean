@@ -6,14 +6,14 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.FSAEAD.FromAEADPRG.Security.ConfGame
+public import SecureMessaging.FSAEAD.FromAEADPRG.Security.Confidentiality.Game
 
 /-!
 # FS-AEAD from AEAD and PRG — moving `G_conf^s` to another chain
 
-The confidentiality analogue of `SecureMessaging.FSAEAD.FromAEADPRG.Security.Transfer`. Let two
-chains `G₁` from `k₁` and `G₂` from `k₂` have the same seeds from position `s` on, and the same
-keys outside a set of hidden positions. Let the two games encrypt every challenge the same way
+The confidentiality analogue of `SecureMessaging.FSAEAD.FromAEADPRG.Security.Authenticity.Transfer`.
+Let two chains `G₁` from `k₁` and `G₂` from `k₂` have the same seeds from position `s` on, and the
+same keys outside a set of hidden positions. Let the two games encrypt every challenge the same way
 (`ChalMode.eff`). Let every hidden position `q` satisfy `q ≤ s`, and let `O-Transmit-A` be blocked
 at `q`. Then `normSt G₂ k₂` carries the runs of `G_conf^s` for `G₁` to the runs for `G₂`
 (`confRun_map_normSt`).

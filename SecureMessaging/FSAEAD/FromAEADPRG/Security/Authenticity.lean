@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.FSAEAD.FromAEADPRG.Security.AeadRed
+public import SecureMessaging.FSAEAD.FromAEADPRG.Security.Authenticity.AeadRed
 public import ToVCVio.EvalDist.BoolDist
 public import ToVCVio.EvalDist.HybridTelescope
 

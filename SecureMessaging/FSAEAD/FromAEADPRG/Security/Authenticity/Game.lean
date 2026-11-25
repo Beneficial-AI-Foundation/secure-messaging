@@ -6,8 +6,7 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import SecureMessaging.FSAEAD.FromAEADPRG.Security.Lookup
-public import SecureMessaging.FSAEAD.Security.History
+public import SecureMessaging.FSAEAD.FromAEADPRG.Security.Chain.Transfer
 
 /-!
 # FS-AEAD from AEAD and PRG — the authenticity game
@@ -35,10 +34,6 @@ namespace FSAEADScheme
 namespace FromAEADPRG
 
 variable {W Kae Cae AD M : Type}
-
-/-- The state of the FS-AEAD game for the construction. -/
-abbrev CState (W Kae AD M Cae : Type) :=
-  GameState (SendState W) (RecvState W Kae) AD M (ℕ × Cae)
 
 variable [DecidableEq AD] [DecidableEq Cae]
 
