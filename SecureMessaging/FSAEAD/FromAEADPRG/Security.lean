@@ -16,18 +16,46 @@ Theorem 5 of [ACD19]: the FS-AEAD scheme from a correct AEAD scheme and a PRG is
 
 Let the adversary make at most `q` calls of `O-Transmit-A` and `O-Chall-A` together
 (`SendQueryBound`), and let every injection have an index at most `N` (`InjectIndexBound`). Let
-`L = max q N`. The proof has five steps:
+`L = max q N`. The proof has six steps:
 
 - Step 0. `fs-aead` and `fs-aead-nd` (no win by `O-Deliver-B`) are the same game, because `ae` is
   correct (`fromAEADPRG_securityExp_eq_noDeliverWin`).
 - Step 1. The advantage in `fs-aead-nd` is at most `Pr[win] + |Pr_{G_rej}[b = b'] - 1/2|`
   (`advantage_noDeliverWin_le`).
+- Step 2. `O-Deliver-B^lk` delivers an honest ciphertext by lookup in `trans`, without `Dec`.
+  `G_rej` with `O-Deliver-B^lk` is `G_rej` (`gameRun_rej_eq_lookup`), and `fs-aead-nd` with
+  `O-Deliver-B^lk` is identical to `fs-aead-nd` until `win` (`prEvent_gameRun_mon_win_eq_lookup`).
 - Step 3. `Pr[win] ≤ Σ_{j=1..L} (Adv^prg(P_j) + Adv^aead-dist(E_j)) + Pr_{H_0}[W_{>L}]`
   (`prEvent_winExp_le`). No first win is above `N` (`prEvent_hybExp_firstWin_above_eq_zero`).
 - Step 4. `|Pr_{G_rej}[b = b'] - 1/2| ≤ Σ_{j=1..L} (Adv^prg(P'_j) + Adv^aead-dist(E'_j))
   + Pr_{G_L}[C_{>L}] / 2` (`abs_prEvent_securityExpRej_sub_le`). No challenge is above `q`
   (`prEvent_confHyb_chalAbove_eq_zero`).
 - Step 5. This file adds the bounds.
+
+Each row below is one game hop: the games, the file (relative to
+`SecureMessaging/FSAEAD/FromAEADPRG/Security/`), the main lemma, and the term that the hop adds to
+the bound. In Steps 3 and 4, `1 ≤ j ≤ L` and `1 ≤ p ≤ L`.
+
+| Hop | File | Lemma | Term |
+|---|---|---|---|
+| `fs-aead` → `fs-aead-nd` | `../Correctness` | `fromAEADPRG_securityExp_eq_noDeliverWin` | 0 |
+| `fs-aead-nd` → `win`, `G_rej` | `../../Security/Reject` | `advantage_noDeliverWin_le` | split |
+| `O-Deliver-B` → `O-Deliver-B^lk` | `Chain/Lookup` | `prEvent_gameRun_mon_win_eq_lookup` | 0 |
+| `fs-aead-nd` → `H_0` | `Authenticity/Game` | `prEvent_noDeliverWin_win_eq_authExp` | 0 |
+| `H_{j-1}` → `H_j` | `Authenticity/Hybrid` | `prgReal_prgRed` | `Adv^prg(P_j)` |
+| `W_p` in `H_p` | `Authenticity/AeadRed` | `distAdvantage_aeadRed` | `Adv^aead-dist(E_p)` |
+| `W_{>L}` in `H_0` | `Authenticity` | `prEvent_hybExp_firstWin_above_eq_zero` | 0 |
+| `G_rej` → `G_0` | `Confidentiality` | `prEvent_securityExpRej_eq_confHyb` | 0 |
+| `G_{j-1}` → `G_{j,j-1}` | `Confidentiality/Hybrid` | `confGap_le_prgAdvantage` | `Adv^prg(P'_j)` |
+| `G_{j,j-1}` → `G'_j` | `Confidentiality/Mix` | `prEvent_confHybKey_eq` | 0 |
+| `G'_j` → `G_j` | `Confidentiality/AeadRed` | `confGap_confHybKey_sub_eq` | `Adv^aead-dist(E'_j)` |
+| `m = v` in `G_v`, `v < L` | `Confidentiality/End` | `confGap_confHyb_expo_eq_zero` | 0 |
+| `m = L` in `G_L` | `Confidentiality/End` | `abs_confGap_confHyb_expo_le` | `Pr_{G_L}[C_{>L}]/2` |
+| `C_{>L}` in `G_L` | `Confidentiality/End` | `prEvent_confHyb_chalAbove_eq_zero` | 0 |
+
+The second row splits the advantage into the authenticity term `Pr[win]` (Step 3) and the
+confidentiality term of `G_rej` (Step 4). `Chain/` holds what both steps use: delivery by lookup,
+the game states on a chain, the hybrid chains, and the monad of the AEAD reductions.
 
 `Adv^aead-dist` is the advantage in the one-time IND-CCA game of `SecureMessaging.AEAD.Defs`,
 whose decryption oracle rejects only the challenge pair (deviation D1). [ACD19] states the bound
