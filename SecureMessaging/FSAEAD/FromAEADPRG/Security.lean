@@ -63,7 +63,10 @@ Adv^fs-aead(A) ≤ Σ_{j=1..L} (Adv^prg(P_j) + Adv^aead-dist(E_j)
                           + Adv^prg(P'_j) + Adv^aead-dist(E'_j))
 ```
 where `P_j` is `prgRed … (j - 1)`, `E_j` is `aeadRed … j`, `P'_j` is `confPrgRed … (j - 1)` and
-`E'_j` is `confAeadRed … (j - 1)`. -/
+`E'_j` is `confAeadRed … (j - 1)`.
+
+The bound grows with `N`, the largest injected index, and the reductions sample up to `L` chain
+steps. The theorem is therefore useful only when `N` is polynomial in the run time of `A`. -/
 -- ANCHOR: advantage_fromAEADPRG_le
 theorem advantage_fromAEADPRG_le {ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae}
     (hae : ae.Correct) (hkg : ae.keygen =ᵈ ($ᵗ Kae : ProbComp Kae)) (prg : PRGScheme W (W × Kae))
