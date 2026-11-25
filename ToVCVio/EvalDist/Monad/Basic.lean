@@ -136,6 +136,36 @@ lemma prEvent_uniformBool_branch_toReal_sub_half (real rand : ProbComp Bool) :
     one_div]
   ring
 
+/-- A run that outputs `f a` when `p a` holds and a fair coin otherwise outputs `true` with
+probability `Pr[p ∧ f] + Pr[¬p] / 2`. -/
+lemma prEvent_ite_uniformBool_toReal {α : Type} (mx : ProbComp α) (p : α → Prop)
+    [DecidablePred p] (f : α → Bool) :
+    (Pr{let x ← (do
+      let a ← mx
+      let c ← ($ᵗ Bool : ProbComp Bool)
+      pure (if p a then f a else c))}[x = true]).toReal =
+    (Pr{let a ← mx}[p a ∧ f a = true]).toReal + (Pr{let a ← mx}[¬p a]).toReal / 2 := by
+  rw [(OracleComp.EvalDistEq.bind_bind_swap (spec := unifSpec) _ _ _).prEvent_eq,
+    prEvent_bind_eq_lintegral_of_discrete, MeasureTheory.lintegral_fintype, Fintype.sum_bool]
+  simp only [SampleableType.evalDist_uniformSample_singleton, Fintype.card_bool, bind_pure_comp,
+    prEvent_map]
+  have h₁ : Pr{let a ← mx}[(if p a then f a else true) = true] =
+      Pr{let a ← mx}[p a ∧ f a = true] + Pr{let a ← mx}[¬p a] := by
+    rw [prEvent_eq_prEvent_and_add_prEvent_and_not mx _ p]
+    congr 1 <;> refine prEvent_congr mx _ _ fun a => ?_
+    · by_cases h : p a <;> simp only [h, ↓reduceIte, true_and, and_true, and_false, false_and]
+    · by_cases h : p a <;> simp only [h, ↓reduceIte, not_true_eq_false, and_false,
+        not_false_eq_true, and_self]
+  have h₂ : Pr{let a ← mx}[(if p a then f a else false) = true] =
+      Pr{let a ← mx}[p a ∧ f a = true] :=
+    prEvent_congr mx _ _ fun a => by
+      by_cases h : p a <;> simp only [h, ↓reduceIte, true_and, Bool.false_eq_true, false_and]
+  simp only [h₁, h₂]
+  rw [ENNReal.toReal_add (by finiteness) (by finiteness), ENNReal.toReal_mul, ENNReal.toReal_mul,
+    ENNReal.toReal_add (prEvent_ne_top _) (prEvent_ne_top _)]
+  simp only [Nat.cast_ofNat, ENNReal.toReal_inv, ENNReal.toReal_ofNat]
+  ring
+
 /-- The point masses of the outputs of `mx` satisfying `p` sum to at most the probability of
 `p`. -/
 lemma tsum_ite_prEvent_eq_le_prEvent [EvalDistSemantics m] [LawfulEvalDistSemantics m]

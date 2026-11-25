@@ -8,6 +8,7 @@ import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessagingDocs.Visuals.FSAEADKeyChain
 import SecureMessaging.FSAEAD.FromAEADPRG.Construction
 import SecureMessaging.FSAEAD.FromAEADPRG.Correctness
+import SecureMessaging.FSAEAD.FromAEADPRG.Security
 
 /-! # Blueprint chapter: FS-AEAD from AEAD and PRG -/
 
@@ -40,7 +41,7 @@ FS-AEAD from AEAD and PRG.
 :::defTitle "fs_aead_from_aead_prg_spec" "FS-AEAD from AEAD and PRG construction"
 :::
 
-::::::::definition "fs_aead_from_aead_prg_spec" (parent := "fs_aead_fs_aead_from_aead_prg") (lean := "FSAEADScheme.fromAEADPRG, FSAEADScheme.FromAEADPRG.SendState, FSAEADScheme.FromAEADPRG.RecvState, FSAEADScheme.FromAEADPRG.initS, FSAEADScheme.FromAEADPRG.initR, FSAEADScheme.FromAEADPRG.send, FSAEADScheme.FromAEADPRG.rcv, FSAEADScheme.FromAEADPRG.trySkipped, FSAEADScheme.FromAEADPRG.skip, FSAEADScheme.FromAEADPRG.skipSteps") (tags := "gh-31") (uses := "fs_aead_scheme, aead, prg")
+::::::::definition "fs_aead_from_aead_prg_spec" (parent := "fs_aead_fs_aead_from_aead_prg") (lean := "FSAEADScheme.fromAEADPRG, FSAEADScheme.fromAEADChain, FSAEADScheme.FromAEADPRG.SendState, FSAEADScheme.FromAEADPRG.RecvState, FSAEADScheme.FromAEADPRG.initS, FSAEADScheme.FromAEADPRG.initR, FSAEADScheme.FromAEADPRG.send, FSAEADScheme.FromAEADPRG.rcv, FSAEADScheme.FromAEADPRG.rcvKey, FSAEADScheme.FromAEADPRG.trySkipped, FSAEADScheme.FromAEADPRG.skip, FSAEADScheme.FromAEADPRG.skipSteps") (tags := "gh-31") (uses := "fs_aead_scheme, aead, prg")
 Adapted from {Informal.citet ACD19}[], §4.2.2, Figure 6.
 
 Let $`\mathsf{AE} = (\mathsf{KeyGen}, \Enc, \Dec)` be an {bpref "aead"}[AEAD] scheme with key space
@@ -51,6 +52,10 @@ $`\W`. The construction does not call $`\mathsf{KeyGen}`, because $`G` derives t
 keys. The state of each party consists of the variables set by its initialisation. When
 $`\mathsf{FS\text{-}Rcv}` raises $`\mathsf{error}`, B's state goes back to what it was before
 the call.
+
+The Lean algorithms take a generator $`G_i` for each chain position $`i` and use it to
+derive position $`i`. The construction is the case $`G_i = G` for every $`i`. The
+security proof replaces some $`G_i` by uniform values.
 
 :::::::gameGrid
 ::::::gameCell "\\mathsf{Init}\\text{-}\\A(k)" (kind := "compact")
@@ -113,13 +118,19 @@ def initR (k : W) : RecvState W Kae := { w := k, iB := 0, D := fun _ => none }
 :::leanPillCaption "The FS-AEAD scheme"
 :::
 
-```anchor fromAEADPRG (project := ".") (module := SecureMessaging.FSAEAD.FromAEADPRG.Construction)
-def fromAEADPRG (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (prg : PRGScheme W (W × Kae)) :
+```anchor fromAEADChain (project := ".") (module := SecureMessaging.FSAEAD.FromAEADPRG.Construction)
+def fromAEADChain (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (G : ℕ → W → W × Kae) :
     FSAEADScheme W (SendState W) (RecvState W Kae) AD M (ℕ × Cae) where
   initS := FromAEADPRG.initS
   initR := FromAEADPRG.initR
-  send := FromAEADPRG.send ae prg
-  rcv := FromAEADPRG.rcv ae prg
+  send := FromAEADPRG.send ae G
+  rcv := FromAEADPRG.rcv ae G
+```
+
+```anchor fromAEADPRG (project := ".") (module := SecureMessaging.FSAEAD.FromAEADPRG.Construction)
+def fromAEADPRG (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (prg : PRGScheme W (W × Kae)) :
+    FSAEADScheme W (SendState W) (RecvState W Kae) AD M (ℕ × Cae) :=
+  fromAEADChain ae fun _ => prg.gen
 ```
 
 :::::::gameGrid
@@ -133,10 +144,10 @@ e \gets \Enc(K, h, m); \\
 \end{array}`
 
 ```anchor send (project := ".") (module := SecureMessaging.FSAEAD.FromAEADPRG.Construction)
-def send (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (prg : PRGScheme W (W × Kae))
+def send (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (G : ℕ → W → W × Kae)
     (st : SendState W) (a : AD) (m : M) : SendState W × (ℕ × Cae) :=
   let iA := st.iA + 1
-  let (w, K) := prg.gen st.w
+  let (w, K) := G iA st.w
   ({ w, iA }, (iA, ae.encrypt K (iA, a) m))
 ```
 ::::::
@@ -157,19 +168,25 @@ m \gets \Dec(K, h, e); \\
 \end{array}`
 
 ```anchor rcv (project := ".") (module := SecureMessaging.FSAEAD.FromAEADPRG.Construction)
-def rcv (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (prg : PRGScheme W (W × Kae))
+def rcv (ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae) (G : ℕ → W → W × Kae)
     (st : RecvState W Kae) (a : AD) (c : ℕ × Cae) : Option (RecvState W Kae × ℕ × M) := do
   let (i, e) := c
-  let (K?, st) := trySkipped st i
-  let (st, K) ← match K? with
-    | some K => some (st, K)
-    | none => do
-      if i ≤ st.iB then none
-      let st := skip prg i st
-      let (w, K) := prg.gen st.w
-      some ({ st with w, iB := i }, K)
+  let (st, K) ← rcvKey G st i
   let m ← ae.decrypt K (i, a) e
   return (st, i, m)
+```
+
+```anchor rcvKey (project := ".") (module := SecureMessaging.FSAEAD.FromAEADPRG.Construction)
+def rcvKey (G : ℕ → W → W × Kae) (st : RecvState W Kae) (i : ℕ) :
+    Option (RecvState W Kae × Kae) :=
+  let (K?, st) := trySkipped st i
+  match K? with
+  | some K => some (st, K)
+  | none => do
+    if i ≤ st.iB then none
+    let st := skip G i st
+    let (w, K) := G i st.w
+    some ({ st with w, iB := i }, K)
 ```
 ::::::
 
@@ -195,17 +212,17 @@ $`\begin{array}{l}
 \end{array}`
 
 ```anchor skip (project := ".") (module := SecureMessaging.FSAEAD.FromAEADPRG.Construction)
-def skip (prg : PRGScheme W (W × Kae)) (u : ℕ) (st : RecvState W Kae) : RecvState W Kae :=
-  skipSteps prg (u - 1 - st.iB) st
+def skip (G : ℕ → W → W × Kae) (u : ℕ) (st : RecvState W Kae) : RecvState W Kae :=
+  skipSteps G (u - 1 - st.iB) st
 ```
 
 ```anchor skipSteps (project := ".") (module := SecureMessaging.FSAEAD.FromAEADPRG.Construction)
-def skipSteps (prg : PRGScheme W (W × Kae)) : ℕ → RecvState W Kae → RecvState W Kae
+def skipSteps (G : ℕ → W → W × Kae) : ℕ → RecvState W Kae → RecvState W Kae
   | 0, st => st
   | n + 1, st =>
     let iB := st.iB + 1
-    let (w, K) := prg.gen st.w
-    skipSteps prg n { w, iB, D := Function.update st.D iB (some K) }
+    let (w, K) := G iB st.w
+    skipSteps G n { w, iB, D := Function.update st.D iB (some K) }
 ```
 ::::::
 :::::::
@@ -262,9 +279,49 @@ theorem fromAEADPRG_correct {W Kae Cae AD M : Type} [SampleableType W] [Decidabl
 :::defTitle "fs_aead_from_aead_prg_security" "FS-AEAD from AEAD and PRG security"
 :::
 
-::::theorem "fs_aead_from_aead_prg_security" (parent := "fs_aead_fs_aead_from_aead_prg") (tags := "gh-32") (uses := "fs_aead_from_aead_prg_spec, fs_aead_scheme, fs_aead_security, aead_security_exp, prg")
-$`\todo`
+::::theorem "fs_aead_from_aead_prg_security" (parent := "fs_aead_fs_aead_from_aead_prg") (lean := "FSAEADScheme.advantage_fromAEADPRG_le, FSAEADScheme.advantage_fromAEADPRG_le_of_le") (tags := "gh-32") (uses := "fs_aead_from_aead_prg_spec, fs_aead_scheme, fs_aead_security, aead_security_exp, aead_dist_advantage, aead_correctness, prg")
+Adapted from {Informal.citet ACD19}[], Theorem 5.
 
-:::leanPill "missing"
+Let $`\mathsf{AE}` be a {bpref "aead_correctness"}[correct] {bpref "aead"}[AEAD scheme] with
+key space $`\K` and uniform keys, and let $`G : \W \to \W \times \K` be a {bpref "prg"}[PRG].
+Let $`\adv` be an adversary in the {bpref "fs_aead_security"}[FS-AEAD security game] of the
+{bpref "fs_aead_from_aead_prg_spec"}[FS-AEAD scheme] from $`\mathsf{AE}` and $`G`. Let
+$`\adv` make at most $`q` queries to $`\OTransmitA` and $`\OChallA` together, and let every
+query of $`\adv` to $`\OInjectB` carry an index at most $`N`. Let $`L = \max(q, N)`. Then
+there are PRG adversaries $`P_j, P'_j` and
+{bpref "aead_security_exp"}[one-time IND-CCA adversaries] $`E_j, E'_j`, built from $`\adv`,
+such that
+
+$$`\mathsf{Adv}^{\textsf{fs-aead}}_{\textsf{FS-AEAD}}(\adv)
+  \le \sum_{j=1}^{L} \bigl(\mathsf{Adv}^{\textsf{prg}}_{G}(P_j)
+  + \mathsf{Adv}^{\textsf{dist}}_{\mathsf{AE}}(E_j)
+  + \mathsf{Adv}^{\textsf{prg}}_{G}(P'_j)
+  + \mathsf{Adv}^{\textsf{dist}}_{\mathsf{AE}}(E'_j)\bigr).`
+
+If each PRG term is at most $`\varepsilon_{\textsf{prg}}` and each AEAD term at most
+$`\varepsilon_{\textsf{aead}}`, the bound is
+$`2L \cdot (\varepsilon_{\textsf{prg}} + \varepsilon_{\textsf{aead}})`.
+{Informal.citet ACD19}[] states
+$`q \cdot (\varepsilon_{\textsf{prg}} + \varepsilon_{\textsf{aead}})`.
+The factor 2 comes from separate authenticity and confidentiality arguments. $`L` replaces $`q`
+because an injection can reach an index above $`q`. The
+{bpref "aead_dist_advantage"}[AEAD advantage] is taken in the game whose decryption oracle
+rejects only the challenge pair.
+
+:::leanPillCaption "security theorem"
 :::
+
+```anchor advantage_fromAEADPRG_le (project := ".") (module := SecureMessaging.FSAEAD.FromAEADPRG.Security)
+theorem advantage_fromAEADPRG_le {ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae}
+    (hae : ae.Correct) (hkg : ae.keygen =ᵈ ($ᵗ Kae : ProbComp Kae)) (prg : PRGScheme W (W × Kae))
+    (len : M → ℕ) (clen : ℕ → ℕ) {q N : ℕ}
+    {adversary : FSAEADAdversary (SendState W) (RecvState W Kae) AD M (ℕ × Cae)}
+    (hq : SendQueryBound adversary q) (hN : InjectIndexBound Prod.fst adversary N) :
+    advantage (fromAEADPRG ae prg) len adversary ≤
+      ∑ n ∈ Finset.range (max q N),
+        ((prg.prgAdvantage (prgRed ae prg len (max q N) adversary n)).toReal +
+          distAdvantage ae len clen (aeadRed ae prg len adversary (n + 1)) +
+          (prg.prgAdvantage (confPrgRed ae prg len clen adversary n)).toReal +
+          distAdvantage ae len clen (confAeadRed ae prg len clen adversary n))
+```
 ::::

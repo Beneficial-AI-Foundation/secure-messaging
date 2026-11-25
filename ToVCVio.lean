@@ -15,6 +15,7 @@ public import ToVCVio.CryptoFoundations.WegmanCarter.Defs
 public import ToVCVio.CryptoFoundations.WegmanCarter.LogRefinement
 public import ToVCVio.CryptoFoundations.WegmanCarter.Security
 public import ToVCVio.EvalDist.BoolDist
+public import ToVCVio.EvalDist.HybridTelescope
 public import ToVCVio.EvalDist.Monad.Basic
 public import ToVCVio.EvalDist.TVDist
 public import ToVCVio.EvalDist.UniformInjection
@@ -38,6 +39,7 @@ public import ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate
 public import ToVCVio.OracleComp.QueryTracking.RandomOracle.EagerTable
 public import ToVCVio.OracleComp.QueryTracking.RandomOracle.FreshQueries
 public import ToVCVio.OracleComp.SimSemantics.StateT.BadFlag
+public import ToVCVio.OracleComp.SimSemantics.StateT.ExtendState
 public import ToVCVio.OracleComp.SimSemantics.StateT.WPBound
 public import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
 public import ToVCVio.OracleComp.SimSemantics.StateT.LazyKey
