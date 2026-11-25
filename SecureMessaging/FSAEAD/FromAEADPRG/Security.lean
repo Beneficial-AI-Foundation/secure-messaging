@@ -66,7 +66,11 @@ where `P_j` is `prgRed … (j - 1)`, `E_j` is `aeadRed … j`, `P'_j` is `confPr
 `E'_j` is `confAeadRed … (j - 1)`.
 
 The bound grows with `N`, the largest injected index, and the reductions sample up to `L` chain
-steps. The theorem is therefore useful only when `N` is polynomial in the run time of `A`. -/
+steps. The theorem is therefore useful only when `N` is polynomial in the run time of `A`.
+
+The statement holds for every `clen`, but it is meaningful only when `clen` is the ciphertext
+length of `ae`: otherwise the length of the challenge ciphertext separates the real and random
+worlds, and `Adv^aead-dist(E_j)` and `Adv^aead-dist(E'_j)` can be close to 1. -/
 -- ANCHOR: advantage_fromAEADPRG_le
 theorem advantage_fromAEADPRG_le {ae : AEADScheme ProbComp M (ℕ × AD) Kae Cae}
     (hae : ae.Correct) (hkg : ae.keygen =ᵈ ($ᵗ Kae : ProbComp Kae)) (prg : PRGScheme W (W × Kae))
