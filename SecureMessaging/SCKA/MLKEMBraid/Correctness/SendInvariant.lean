@@ -11,10 +11,13 @@ public import SecureMessaging.SCKA.MLKEMBraid.Correctness.SendPayload
 /-!
 # Sends preserve the correctness invariant
 
-A send samples a key pair, encapsulates against a received header, sends the next chunk of a
-recorded stream, or emits an empty `none` message. The transcript, extended when a new sample is
-drawn, is consistent with the successor state. Thus the send oracles preserve `CorrectnessInv`.
-The lemmas for one send hold for `TranscriptInv` with any condition `D` on decapsulation.
+A send edge samples a key pair, encapsulates against a received header, sends the next chunk of a
+recorded stream, or emits an empty message. From a state satisfying `TranscriptInv D`, the
+successor satisfies `TranscriptInv D` for the transcript extended by the new sample, if any,
+whenever it satisfies the control and pair invariants (`send_keysUnsampled_transcript`,
+`send_headerReceived_transcript`, `send_existing_transcript`). Thus every send edge preserves
+`CorrectnessInv`, and so does every send oracle (`oracleSend_preserves_correctnessInv`). A send
+edge from such a state keeps the correctness flag true (`sendUpdate_correct_of_transcriptInv`).
 -/
 
 @[expose] public section
@@ -45,8 +48,9 @@ private theorem messagePayloads_update {ik : InitKey} {T : ℕ → EpochTranscri
   cases h
   exact hNew
 
-/-- A send from `keysUnsampled` records its sampled key pair and leaves the successor consistent
-with the extended transcript. -/
+/-- A send from `keysUnsampled` records its sampled key pair: its successor satisfies
+`TranscriptInv D` for the transcript extended by that key pair, provided it satisfies the control
+and pair invariants. -/
 theorem send_keysUnsampled_transcript {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptInv auth D ik T s)
     (party : Bool) {e : ℕ} {a : AuthState} (hst : (s.stateAt party) = .keysUnsampled e a)
@@ -199,7 +203,8 @@ theorem send_keysUnsampled_transcript {ik : InitKey} {T : ℕ → EpochTranscrip
     exact hKeys who e'
 
 /-- A send from `headerReceived` records its first-stage encapsulation and outputs the derived epoch
-key; the successor is consistent with the extended transcript. -/
+key: its successor satisfies `TranscriptInv D` for the transcript extended by that encapsulation,
+provided it satisfies the control and pair invariants. -/
 theorem send_headerReceived_transcript {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptInv auth D ik T s)
     (party : Bool) {e : ℕ} {a : AuthState} {hdr : P.inc.PKheader}
@@ -397,18 +402,18 @@ theorem send_headerReceived_transcript {ik : InitKey} {T : ℕ → EpochTranscri
         simp [show ¬ (0 < e ∧ e ≤ e - 1) by omega]
       · rw [hTc e' he]
 
-/-- A send that samples nothing keeps the game state consistent with the same transcript, provided
-its successor satisfies the control and pair invariants. -/
+/-- A send edge that samples nothing keeps `TranscriptInv D` for the same transcript, provided its
+successor satisfies the control and pair invariants. -/
 theorem send_existing_transcript {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptInv auth D ik T s)
     (party : Bool) {r : SendResult P AuthState}
-    (hr : r ∈ support (send P auth (s.stateAt party)))
+    (hedge : SendEdge auth (s.stateAt party) r)
     (hsteady : (s.stateAt party).SendsNoSample) :
     let s' := sendSuccessor s party r
     (ControlInv s' ∧ StatePairInv s') → TranscriptInv auth D ik T s' := by
   dsimp only
   obtain ⟨hnone, hep, hcomp, hLocalNew, hMsgNew⟩ :=
-    send_steady_step auth ((mem_support_send_iff auth).mp hr) hsteady (hT.local auth party)
+    send_steady_step auth hedge hsteady (hT.local auth party)
   rintro ⟨hC', hP'⟩
   refine hT.of_party auth (by simpa only [correct_sendSuccessor] using hT.correct)
     hC' hP' ?_ ?_ ?_ ?_ ?_
@@ -428,44 +433,92 @@ theorem send_existing_transcript {ik : InitKey} {T : ℕ → EpochTranscript P}
   · intro who
     simp [keysAt_sendSuccessor, hnone]
 
-/-- A supported send leaves the game consistent with a transcript whenever its successor
-satisfies the control and pair invariants. -/
-private theorem send_preserves_transcript {ik : InitKey} {T : ℕ → EpochTranscript P}
-    {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
+/-- A send edge from a state satisfying `TranscriptInv D` leaves the successor satisfying
+`TranscriptInv D` for some transcript, whenever the successor satisfies the control and pair
+invariants. -/
+theorem send_preserves_transcript {ik : InitKey} {T : ℕ → EpochTranscript P}
+    {s : GameState P AuthState} (hT : TranscriptInv auth D ik T s)
     (party : Bool) {r : SendResult P AuthState}
-    (hr : r ∈ support (send P auth (s.stateAt party))) :
+    (hedge : SendEdge auth (s.stateAt party) r) :
     (ControlInv (sendSuccessor s party r) ∧ StatePairInv (sendSuccessor s party r)) →
-      ∃ T', TranscriptConsistent auth ik T' (sendSuccessor s party r) := by
+      ∃ T', TranscriptInv auth D ik T' (sendSuccessor s party r) := by
   cases hst : (s.stateAt party) with
   | keysUnsampled e a =>
-      rw [hst] at hr
-      rcases (mem_support_send_iff auth).mp hr with ⟨_, _, pk, sk, -⟩
+      rw [hst] at hedge
+      rcases hedge with ⟨_, _, pk, sk, -⟩
       exact fun hCP => ⟨_, send_keysUnsampled_transcript auth hT party hst pk sk hCP⟩
   | headerReceived e a hdr dec =>
-      rw [hst] at hr
-      cases (mem_support_send_iff auth).mp hr
+      rw [hst] at hedge
+      cases hedge
       rename_i es ct1 k _
       exact fun hCP => ⟨_, send_headerReceived_transcript auth hT party hst es ct1 k hCP⟩
   | _ =>
       intro hCP
-      exact ⟨T, send_existing_transcript auth hT party hr
+      exact ⟨T, send_existing_transcript auth hT party hedge
         (by simp only [hst, State.SendsNoSample]) hCP⟩
 
 variable [DecidableEq P.EpochKey]
-  (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey)
 
-/-- The send oracle of either party preserves `ControlInv ∧ StatePairInv`. -/
-theorem oracleSend_preserves_controlInv_statePairInv (party : Bool) :
-    QueryImpl.PreservesInv
-      (oracleSend auth irl sampleInitKey party)
-      (fun s => ControlInv s ∧ StatePairInv s) := by
-  intro t s hs z hz
-  cases t
-  cases party
-  · exact correctnessImpl_preserves_controlInv_statePairInv auth irl sampleInitKey
-      (OSendB (Rho := Message P.Sym)) s hs z hz
-  · exact correctnessImpl_preserves_controlInv_statePairInv auth irl sampleInitKey
-      (OSendA (Rho := Message P.Sym)) s hs z hz
+/-- In a state satisfying `TranscriptInv D`, a send edge of `party` keeps the correctness flag
+true. -/
+theorem sendUpdate_correct_of_transcriptInv
+    {ik : InitKey} {T : ℕ → EpochTranscript P} {s : GameState P AuthState}
+    (hT : TranscriptInv auth D ik T s) (party : Bool) {r : SendResult P AuthState}
+    (hedge : SendEdge auth (s.stateAt party) r) :
+    (sendUpdate s party r).correct = true := by
+  obtain ⟨htcur, hkeys⟩ := hT.control.send_prefix party
+  rw [sendUpdate_correct, hedge.sendingEpoch_eq]
+  rcases hkey : r.outputKey with _ | ⟨e, key⟩
+  · simp only [Bool.and_eq_true, decide_eq_true_eq]
+    exact ⟨⟨hT.correct, htcur⟩, SCKAScheme.knownPrefix_eq_true hkeys⟩
+  · -- Only the first-stage encapsulation send outputs a key; the generator is in `keysSampled`
+    -- and neither party has a key for the epoch.
+    by_cases hst : ∃ e' a hdr dec, s.stateAt party = .headerReceived e' a hdr dec
+    · obtain ⟨e', a, hdr, dec, hst⟩ := hst
+      obtain ⟨pk, sk, b, enc, -, hpeer, -⟩ := peer_keysSampled_of_headerReceived auth hT party hst
+      have hpos := hT.control.epochKnowledge.keyPrefix.pos party
+      rw [hst] at hpos
+      simp only [State.epoch] at hpos
+      have hnone : ∀ who, s.keysAt who e' = none := by
+        intro who
+        have hprefix := hT.control.epochKnowledge.keyPrefix.keys who e'
+        by_contra hne
+        obtain ⟨-, hbound⟩ := hprefix.1 hne
+        rcases Bool.eq_or_eq_not who party with rfl | rfl
+        · rw [hst] at hbound
+          simp only [State.completedEpoch, State.epoch] at hbound
+          omega
+        · rw [hpeer] at hbound
+          simp only [State.completedEpoch, State.epoch] at hbound
+          omega
+      rw [hst] at hedge htcur hkeys ⊢
+      simp only [State.epoch] at htcur hkeys ⊢
+      cases hedge
+      simp only [Option.some.injEq, Prod.mk.injEq] at hkey
+      obtain ⟨rfl, rfl⟩ := hkey
+      simp only [Bool.and_eq_true]
+      exact ⟨⟨⟨⟨hT.correct, decide_eq_true htcur⟩, by simp [hnone]⟩, by simp [hnone]⟩,
+        SCKAScheme.knownPrefix_update_some (SCKAScheme.knownPrefix_eq_true hkeys) e' _⟩
+    · have := hedge.outputKey_eq_none fun e' a hdr dec h => hst ⟨e', a, hdr, dec, h⟩
+      rw [hkey] at this
+      cases this
+
+/-- A send edge from the state of `party` preserves `CorrectnessInv`. -/
+private theorem correctnessInv_sendUpdate (ik : InitKey)
+    {s : GameState P AuthState} (hs : CorrectnessInv auth ik s) (party : Bool)
+    {r : SendResult P AuthState} (hedge : SendEdge auth (s.stateAt party) r) :
+    CorrectnessInv auth ik (sendUpdate s party r) := by
+  cases hzc : (sendUpdate s party r).correct
+  · exact Or.inl hzc
+  rcases hs with hsf | ⟨T, hT⟩
+  · rw [sendUpdate_correct] at hzc
+    rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;> simp [hkey, hsf] at hzc
+  have hCPz := controlInv_statePairInv_sendUpdate auth ⟨hT.control, hT.statePair⟩ party hedge
+  have heq := sendUpdate_eq_successor_of_correct s party r hT.correct hzc
+  rw [heq] at hCPz ⊢
+  exact Or.inr (send_preserves_transcript auth hT party hedge hCPz)
+
+variable (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey)
 
 /-- The send oracle of `party` preserves `CorrectnessInv`. -/
 theorem oracleSend_preserves_correctnessInv (ik : InitKey) (party : Bool) :
@@ -474,18 +527,7 @@ theorem oracleSend_preserves_correctnessInv (ik : InitKey) (party : Bool) :
       (CorrectnessInv auth ik) := by
   intro t s hs z hz
   cases t
-  cases hzc : z.2.correct
-  · exact Or.inl hzc
-  have hCP : ∀ T, TranscriptConsistent auth ik T s → ControlInv z.2 ∧ StatePairInv z.2 :=
-    fun T hT => oracleSend_preserves_controlInv_statePairInv auth irl sampleInitKey party
-      () s ⟨hT.control, hT.statePair⟩ z hz
   obtain ⟨r, hr, rfl⟩ := (mem_support_oracleSend_run_iff auth irl sampleInitKey s party z).mp hz
-  rcases hs with hsf | ⟨T, hT⟩
-  · rw [sendUpdate_correct] at hzc
-    rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;> simp [hkey, hsf] at hzc
-  have hCPz := hCP T hT
-  have heq := sendUpdate_eq_successor_of_correct s party r hT.correct hzc
-  rw [heq] at hCPz ⊢
-  exact Or.inr (send_preserves_transcript auth hT party hr hCPz)
+  exact correctnessInv_sendUpdate auth ik hs party ((mem_support_send_iff auth).mp hr)
 
 end Braid

@@ -9,6 +9,7 @@ module
 public import ToVCVio.OracleComp.SimSemantics.StateT.WPBound
 public import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 public import VCVio.ProgramLogic.NotationCore
+import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
 
 /-!
 # Stateful simulation with a sticky bad flag
@@ -39,7 +40,13 @@ when the flag is set, or `Inv s` holds and `s` is not bad.
   satisfies `p` and not at all otherwise, then after a computation making at most `q` queries
   satisfying `p` the flag is set with probability at most `score (s₀, false) + q · ε`;
 - `prEvent_not_good_le_tracked_bad`: if `Inv` forces `good s = true`, then the run of `impl`
-  ends in a state with `good s = false` with probability at most that of the flag being set.
+  ends in a state with `good s = false` with probability at most that of the flag being set;
+- `prEvent_simulateQ_run'_bounds_of_tracked`: identical until bad with the flag. For oracles
+  `left` and `right` of the type of `impl` that answer every query by the same computation from
+  every state that satisfies `Inv` and is not bad, if the tracked `left` preserves
+  `trackedInv Inv bad`, then from such a state `s` the probabilities of every event under the
+  runs of a computation against `left` and against `right` differ by at most the probability
+  that the tracked run of `left` from `(s, false)` ends with its flag set.
 
 With the flag, `Inv` only has to be preserved from states that are not bad, so nothing has to be
 proved about the states that follow the first bad one.
@@ -161,5 +168,42 @@ theorem prEvent_not_good_le_tracked_bad (impl : QueryImpl spec (StateT σ ProbCo
       (s₀, false) hinit z hz with hflag | ⟨hinv, -⟩
   · exact hflag
   · simp [hgood _ hinv] at hnotgood
+
+/-- Identical until bad with a tracked flag. Assume that the tracked `left` preserves
+`trackedInv Inv bad`, that `(left t).run u = (right t).run u` for every query `t` and state `u`
+with `Inv u` and `bad u = false`, and that `trackedInv Inv bad (s, false)`. Then the runs of `oa`
+from `s` against `left` and `right` give the event `event` probabilities within `pBad` of each
+other, where `pBad` is the probability that the tracked run of `left` from `(s, false)` ends with
+its flag set. -/
+theorem prEvent_simulateQ_run'_bounds_of_tracked (left right : QueryImpl spec (StateT σ ProbComp))
+    (bad : σ → Bool) (Inv : σ → Prop)
+    (hpres : QueryImpl.PreservesInv (trackedImpl left bad) (trackedInv Inv bad))
+    (hagree : ∀ t u, Inv u → bad u = false → (left t).run u = (right t).run u)
+    {α : Type} (oa : OracleComp spec α) (event : α → Prop) (s : σ)
+    (hs : trackedInv Inv bad (s, false)) :
+    Pr{let x ← (simulateQ left oa).run' s}[event x] ≤
+        Pr{let x ← (simulateQ right oa).run' s}[event x] +
+          Pr{let z ← (simulateQ (trackedImpl left bad) oa).run (s, false)}[z.2.2 = true] ∧
+      Pr{let x ← (simulateQ right oa).run' s}[event x] ≤
+        Pr{let x ← (simulateQ left oa).run' s}[event x] +
+          Pr{let z ← (simulateQ (trackedImpl left bad) oa).run (s, false)}[z.2.2 = true] := by
+  have hproj : ∀ impl : QueryImpl spec (StateT σ ProbComp),
+      Pr{let x ← (simulateQ impl oa).run' s}[event x] =
+        Pr{let z ← (simulateQ (trackedImpl impl bad) oa).run (s, false)}[event z.1] := by
+    intro impl
+    rw [StateT.run'_eq, prEvent_map,
+      ← extendState_run_proj_eq impl (fun _ _ _ next flag => flag || bad next) oa s false,
+      prEvent_map]
+    rfl
+  have hagree' : ∀ t p, trackedInv Inv bad p → ¬ p.2 = true →
+      (trackedImpl left bad t).run p = (trackedImpl right bad t).run p := by
+    intro t p hp hgood
+    rcases hp with hbad | ⟨hinv, hflag⟩
+    · exact absurd hbad hgood
+    · rw [QueryImpl.extendState_apply, QueryImpl.extendState_apply, hagree t p.1 hinv hflag]
+  rw [hproj left, hproj right]
+  exact prEvent_simulateQ_run_bounds_of_inv (trackedImpl left bad) (trackedImpl right bad)
+    (trackedInv Inv bad) (fun p => p.2 = true) hpres (trackedImpl_preserves_flag left bad) hagree'
+    oa event (s, false) hs
 
 end OracleComp

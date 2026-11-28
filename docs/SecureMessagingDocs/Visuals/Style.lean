@@ -359,25 +359,30 @@ def smDocsCss : String := r#"
    the narrow layout so the longest pseudocode rows fit the column. */
 @container spqr-protocol (min-width: 48rem) {
   .game-grid:has(> #spqr-send),
+  .game-grid:has(> #spqr-send-rleak),
   .game-grid:has(> #spqr-receive) {
     grid-template-columns: minmax(0, 5fr) minmax(0, 3fr);
   }
   /* The helper panel sizes to its content; a trailing flexible row takes the height the
      transition has beyond it, so the panel stays at the top. */
   .game-grid:has(> #spqr-send),
+  .game-grid:has(> #spqr-send-rleak),
   .game-grid:has(> #spqr-receive) {
     grid-template-rows: max-content 1fr;
   }
   #spqr-send,
+  #spqr-send-rleak,
   #spqr-receive {
     grid-column: 1;
     grid-row: 1 / span 2;
   }
   #spqr-send ~ .game-cell,
+  #spqr-send-rleak ~ .game-cell,
   #spqr-receive ~ .game-cell {
     grid-column: 2;
   }
   .game-grid:has(> #spqr-send) .katex,
+  .game-grid:has(> #spqr-send-rleak) .katex,
   .game-grid:has(> #spqr-receive) .katex {
     font-size: 1em;
   }

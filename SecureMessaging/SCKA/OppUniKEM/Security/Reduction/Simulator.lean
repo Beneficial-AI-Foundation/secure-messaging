@@ -7,6 +7,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import SecureMessaging.SCKA.OppUniKEM.Security.Basic
+public import SecureMessaging.SCKA.Security.Hybrids
 public import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
 public import ToVCVio.OracleComp.Constructions.EpochChoice
 
@@ -237,34 +238,12 @@ theorem revealAfter_run {σ α β : Type} (reveal : α → Option β)
   funext res
   rcases res with ⟨_ | a, s'⟩ <;> rfl
 
-/-- Challenge oracle on game states with key-table entries `κ`, read as keys via `toKey : κ → K`:
-- rejects (`none`) if `t` is exposed, already challenged, or absent from both `s.keyA` and `s.keyB`
-  (`s.keyA` is consulted first);
-- otherwise inserts `t` into `s.challenged` and returns a uniform key if `0 < t < e`, `kStar` if
-  `t = e`, and `toKey honest` otherwise. -/
-def challengeWith [SampleableType K] {σA σB κ ρ : Type} (toKey : κ → K) (e : ℕ) (kStar : K) :
-    QueryImpl (ℕ →ₒ Option K) (StateT (SCKAScheme.GameState σA σB κ ρ) ProbComp) :=
-  fun t => do
-    let s ← get
-    if t ∈ s.exposed ∨ t ∈ s.challenged then pure none
-    else
-      let key := match s.keyA t with
-        | some k => some k
-        | none => s.keyB t
-      match key with
-      | none => pure none
-      | some honest =>
-        let k ← if 0 < t ∧ t < e then liftM ($ᵗ K : ProbComp K)
-          else pure (if t = e then kStar else toKey honest)
-        set { s with challenged := insert t s.challenged }
-        pure (some k)
-
 variable {kem} in
-/-- Simulator challenge oracle on `SimState`: instantiates `challengeWith` with a hidden recorded
-key (`none`) read as `kStar`. -/
+/-- Simulator challenge oracle on `SimState`: instantiates `SCKAScheme.pinnedChallengeWith` with
+a hidden recorded key (`none`) read as `kStar`. -/
 def challenge [SampleableType K]
     (e : ℕ) (kStar : K) : QueryImpl (ℕ →ₒ Option K) (StateT (SimState onoff Sym) ProbComp) :=
-  challengeWith (fun key : Option K => key.getD kStar) e kStar
+  SCKAScheme.pinnedChallengeWith (fun key : Option K => key.getD kStar) e kStar
 
 /-- Simulated security oracles for challenge epoch `e` and IND-CPA challenge
 `(pkStar, ctStar, kStar)`. A query from state `s` runs Opp-UniKEM over the simulated KEM `simKem`,

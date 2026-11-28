@@ -8,6 +8,7 @@ import SecureMessaging.SCKA.MLKEMBraid.Authenticator
 import SecureMessaging.SCKA.MLKEMBraid.Basic
 import SecureMessaging.SCKA.MLKEMBraid.Construction
 import SecureMessaging.SCKA.MLKEMBraid.Correctness
+import SecureMessaging.SCKA.MLKEMBraid.Security.KeyHiding
 import SecureMessaging.SCKA.MLKEMBraid.Security
 
 /-! # Blueprint chapter: ML-KEM Braid -/
@@ -97,6 +98,99 @@ structure RatchetedAuthenticator
       verifyCiphertext s ep c (macCiphertext s ep c) = true
 ```
 ::::
+
+:::defTitle "mlkem_braid_auth_key_hiding" "Key hiding of a ratcheted authenticator"
+:::
+
+:::::::definition "mlkem_braid_auth_key_hiding" (parent := "cka_protocols_mlkem_braid") (lean := "Braid.HiddenAuth, Braid.hiddenAuth, Braid.AuthHideAdversary, Braid.authHideExp, Braid.authHideAdvantage") (uses := "mlkem_braid_ratcheted_authenticator")
+Let $`\mathsf{Auth}` be a {bpref "mlkem_braid_ratcheted_authenticator"}[ratcheted authenticator]
+with initial-key space $`\mathcal I_{\mathsf{CKA}}`, epoch-key space $`E`, and state space
+$`\mathcal S_{\mathsf{Auth}}`, and let
+$`\Init\text{-}\KeyGen\to I_{\mathsf{CKA}}\in\mathcal I_{\mathsf{CKA}}` be a generator of its
+initial keys. For an initial key $`I_{\mathsf{CKA}}` and epoch keys $`k_1,k_2,\ldots\in E`, we
+define the authenticator states $`a_1,a_2,\ldots\in\mathcal S_{\mathsf{Auth}}` by
+
+$$`a_1=\mathsf{Init}(I_{\mathsf{CKA}},1),\qquad a_{e+1}=\mathsf{Update}(a_e,e,k_e).`
+
+The oracle $`\O_{\mathsf{Auth}}` has the state $`(e,I_{\mathsf{CKA}},\kappa,u)`, with $`\kappa` and
+$`u` in place of $`k_{e-1}` and $`k_e`. Given an authenticator state $`a` in place of $`a_{e-1}`,
+it returns the tags and verifications under $`a_e` and the next state $`a_{e+1}`.
+
+::::::gameGrid
+:::::gameCell "\\O_{\\mathsf{Auth}}(a)" (kind := "oracle") (state := "\\textsf{state:}\\ (e,I_{\\mathsf{CKA}},\\kappa,u)")
+$`\begin{array}{l}
+\pcommentline{a\text{ in place of }a_{e-1}} \\
+\pif\ e=1\ \pthen\ a_e\gets\mathsf{Init}(I_{\mathsf{CKA}},1)\ \pelse\ a_e\gets\mathsf{Update}(a,e-1,\kappa); \\
+\pcommentline{\text{Ciphertext tags at }e-1\text{, as in ML-KEM Braid}} \\
+\Return\bigl(\mathsf{Mac}_H(a_e,e,\cdot),\ \mathsf{Verify}_H(a_e,e,\cdot,\cdot),\ \mathsf{Mac}_C(a_e,e-1,\cdot),\ \mathsf{Verify}_C(a_e,e-1,\cdot,\cdot), \\
+\qquad\mathsf{Update}(a_e,e,u)\bigr)\pcomment{a_{e+1}}
+\end{array}`
+
+:::leanPillCaption "$`\\O_{\\mathsf{Auth}}(a)`"
+:::
+
+```anchor hiddenAuth (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security.KeyHiding)
+def hiddenAuth (e : ℕ) (ik : InitKey) (κ u : EpochKey) :
+    HiddenAuth AuthState Header Ciphertext Mac :=
+  let aₑ := fun a => if e = 1 then auth.init ik 1 else auth.update a (e - 1) κ
+  { macHeader := fun a => auth.macHeader (aₑ a) e
+    verifyHeader := fun a => auth.verifyHeader (aₑ a) e
+    macCiphertext := fun a => auth.macCiphertext (aₑ a) (e - 1)
+    verifyCiphertext := fun a => auth.verifyCiphertext (aₑ a) (e - 1)
+    next := fun a => auth.update (aₑ a) e u
+    verifyHeader_correct := fun a => auth.verifyHeader_correct (aₑ a) e
+    verifyCiphertext_correct := fun a => auth.verifyCiphertext_correct (aₑ a) (e - 1) }
+```
+:::::
+::::::
+
+A *key-hiding adversary* $`\mathcal B` against $`\mathsf{Auth}` consists of two algorithms:
+
+- $`\mathcal B.\mathsf{context}()\to(e,\sigma)`: chooses an epoch $`e` and information
+  $`\sigma` that it keeps for guessing;
+- $`\mathcal B.\mathsf{guess}^{\O_{\mathsf{Auth}}}(\sigma,k)\to b'`: from $`\sigma` and an epoch key
+  $`k`, with oracle access to $`\O_{\mathsf{Auth}}` for its epoch $`e`, outputs a bit $`b'`, its
+  guess whether $`k` is the epoch key $`k_e` or an independent epoch key.
+
+For $`b\in\{\mathsf{real},\mathsf{ideal}\}`, the experiment
+$`\mathsf{Hide}^b_{\mathsf{Auth}}(\mathcal B)` is defined below. The *key-hiding advantage* of
+$`\mathcal B` is
+
+$$`\Adv{\mathsf{hide}}{\mathsf{Auth}}(\mathcal B)
+=\left|\Pr[\mathsf{Hide}^{\mathsf{real}}_{\mathsf{Auth}}(\mathcal B)=1]
+-\Pr[\mathsf{Hide}^{\mathsf{ideal}}_{\mathsf{Auth}}(\mathcal B)=1]\right|.`
+
+::::::gameGrid
+:::::gameCell "\\mathsf{Hide}^b_{\\mathsf{Auth}}(\\mathcal B)" (kind := "game")
+$`\begin{array}{l}
+\pcommentline{\mathcal B\text{ chooses the challenge epoch }e} \\
+(e,\sigma)\sample\mathcal B.\mathsf{context}(); \\
+\pcommentline{\text{Hidden from }\mathcal B\text{: }I_{\mathsf{CKA}},\ \kappa=k_{e-1},\ u=k_e} \\
+I_{\mathsf{CKA}}\sample\Init\text{-}\KeyGen();\quad u,u',\kappa\sample E; \\
+\pcommentline{\text{Real: the key }u\text{ that }\O_{\mathsf{Auth}}\text{ uses; ideal: }u'\text{, independent of }\O_{\mathsf{Auth}}} \\
+\pif\ b=\mathsf{real}\ \pthen\ k\gets u\ \pelse\ k\gets u'; \\
+\pcommentline{\mathcal B\text{ gets }a_{e+1}\text{ and tags under }a_e\text{ from }\O_{\mathsf{Auth}}\text{, but not }a_e} \\
+b'\sample\mathcal B.\mathsf{guess}^{\O_{\mathsf{Auth}}}(\sigma,k); \\
+\Return b'
+\end{array}`
+
+:::leanPillCaption "$`\\mathsf{Hide}^b_{\\mathsf{Auth}}(\\mathcal B)`"
+:::
+
+```anchor authHideExp (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security.KeyHiding)
+def authHideExp [SampleableType EpochKey] (sampleInitKey : ProbComp InitKey)
+    (adv : AuthHideAdversary EpochKey AuthState Header Ciphertext Mac) (real : Bool) :
+    ProbComp Bool := do
+  let (e, st) ← adv.context
+  let ik ← sampleInitKey
+  let u ← ($ᵗ EpochKey : ProbComp EpochKey)
+  let u' ← ($ᵗ EpochKey : ProbComp EpochKey)
+  let κ ← ($ᵗ EpochKey : ProbComp EpochKey)
+  adv.guess st (if real then u else u') (hiddenAuth auth e ik κ u)
+```
+:::::
+::::::
+:::::::
 
 :::group "mlkem_braid_protocol"
 ML-KEM Braid.
@@ -305,13 +399,18 @@ def initB (P : Parameters m)
 :::
 
 ::::definition "mlkem_braid_spec" (parent := "cka_protocols_mlkem_braid") (lean := "Braid.scheme") (tags := "gh-271") (uses := "scka_scheme, mlkem_braid_protocol_parameters, mlkem_braid_ratcheted_authenticator, mlkem_braid_protocol_transitions, mlkem_braid_protocol_init")
-Let $`P` be a set of {bpref "mlkem_braid_protocol_parameters"}[protocol parameters], let
-$`\mathsf{Auth}` be a {bpref "mlkem_braid_ratcheted_authenticator"}[ratcheted authenticator] for
-the epoch keys, headers, ciphertexts in $`C_1\times C_2` and tags of $`P`, and let
-$`\mathsf{InitKeyGen}` be an algorithm that samples the initial key of $`\mathsf{Auth}`. ML-KEM
-Braid $`\mathsf{Braid}(P,\mathsf{Auth},\mathsf{InitKeyGen})` is the
-{bpref "scka_scheme"}[SCKA scheme] whose parties run the
-{bpref "mlkem_braid_protocol_transitions"}[send and receive algorithms], starting from the
+Let
+
+- $`P` be a set of {bpref "mlkem_braid_protocol_parameters"}[protocol parameters];
+- $`\mathsf{Auth}` be a {bpref "mlkem_braid_ratcheted_authenticator"}[ratcheted authenticator]
+  for the epoch keys, headers, ciphertexts in $`C_1\times C_2`, and tags of $`P`, with initial-key
+  space $`\mathcal I_{\mathsf{CKA}}`;
+- $`\Init\text{-}\KeyGen\to I_{\mathsf{CKA}}\in\mathcal I_{\mathsf{CKA}}` be a generator of its
+  initial keys.
+
+ML-KEM Braid $`\mathsf{Braid}(P,\mathsf{Auth},\Init\text{-}\KeyGen)` is the
+{bpref "scka_scheme"}[SCKA scheme] with initial-key generator $`\Init\text{-}\KeyGen` whose parties
+run the {bpref "mlkem_braid_protocol_transitions"}[send and receive algorithms], starting from the
 {bpref "mlkem_braid_protocol_init"}[initial states]. Headers and ciphertexts carry tags that
 $`\mathsf{Auth}` computes and verifies. $`\mathsf{Auth}` updates its state with each derived epoch
 key.
@@ -384,8 +483,8 @@ Let $`P` contain an incremental KEM, key derivation and payload streams as in
 tag to every header and ciphertext, and accepts every tag:
 $`\mathsf{Verify}_H=\mathsf{Verify}_C=\mathsf{true}`.
 *Braid without authentication* is the protocol
-$`\mathsf{Braid}_{\mathsf{NoAuth}}(P)=\mathsf{Braid}(P,\mathsf{Auth}_\top,\mathsf{InitKeyGen}_\top)` of
-{bpref "mlkem_braid_spec"}[], where $`\mathsf{InitKeyGen}_\top` returns the unit initial key.
+$`\mathsf{Braid}_{\mathsf{NoAuth}}(P)=\mathsf{Braid}(P,\mathsf{Auth}_\top,\Init\text{-}\KeyGen_\top)` of
+{bpref "mlkem_braid_spec"}[], where $`\Init\text{-}\KeyGen_\top` returns the unit initial key.
 
 :::leanPillCaption "trivial authenticator"
 :::
@@ -424,7 +523,7 @@ following exposure functions for both parties. Let $`\mathsf{st}` be a local sta
 the randomness of a send. Then
 
 $$`\mathsf{vuln}^{\mathsf{corr}}(\mathsf{st})=\begin{cases}
-\emptyset & \mathsf{st}\text{ is }\mathsf{keysUnsampled},\ \mathsf{noHeaderReceived},\ \mathsf{headerReceived}\text{ or }\mathsf{ct2Sampled},\\
+\emptyset & \mathsf{st}\text{ is }\mathsf{KeysUnsampled},\ \mathsf{NoHeaderReceived},\ \mathsf{HeaderReceived}\text{ or }\mathsf{Ct2Sampled},\\
 \{\mathsf{ep}(\mathsf{st})\} & \text{otherwise},\end{cases}`
 
 $$`\mathsf{vuln}^{\mathsf{rleak}}(\mathsf{st},r)=\begin{cases}

@@ -11,9 +11,10 @@ public import SecureMessaging.SCKA.MLKEMBraid.Correctness.EpochSafety.Control
 /-!
 # Preservation of the role and state-pair invariants
 
-`StatePairInv` lists the pairs of states the two parties can be in. Every oracle of the
-correctness game preserves `ControlInv s ∧ StatePairInv s`
-(`correctnessImpl_preserves_controlInv_statePairInv`).
+`StatePairInv` lists the pairs of states the two parties can be in. Every send edge preserves
+`ControlInv s ∧ StatePairInv s`, and so does every receive edge on a message recorded by the peer
+after which the receiver's epoch is at least the message epoch; hence so does every oracle of the
+correctness game (`correctnessImpl_preserves_controlInv_statePairInv`).
 -/
 
 @[expose] public section
@@ -91,10 +92,6 @@ theorem PairInv.receive {st peer : State P AuthState} {msg : Message P.Sym}
       imp_false, and_self, implies_true, not_true_eq_false, not_false_eq_true] at * <;>
     omega
 
-variable [DecidableEq P.EpochKey]
-  (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey)
-
-omit [DecidableEq P.EpochKey] in
 /-- At equal epochs the two parties have opposite roles. -/
 theorem roles_opposite {s : GameState P AuthState} (hs : ControlInv s)
     (heq : s.stA.epoch = s.stB.epoch) :
@@ -105,43 +102,36 @@ theorem roles_opposite {s : GameState P AuthState} (hs : ControlInv s)
   rw [hA, hB, heq]
   rcases Nat.mod_two_eq_zero_or_one s.stB.epoch with h | h <;> simp [h]
 
-/-- Every oracle of the correctness game preserves `ControlInv` together with `StatePairInv`. -/
-theorem correctnessImpl_preserves_controlInv_statePairInv :
-    QueryImpl.PreservesInv (SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey))
-      (fun s => ControlInv s ∧ StatePairInv s) := by
-  refine SCKAScheme.sckaCorrectnessImpl_preservesInv _ ?_ ?_ ?_ ?_
-  · intro t s hs z hz
-    cases t
-    refine ⟨oracleSend_preserves_controlInv auth irl sampleInitKey true () s hs.1 z hz, ?_⟩
-    obtain ⟨r, hr, rfl⟩ := (mem_support_oracleSendA_run_iff auth irl sampleInitKey s z).mp hz
-    have hpair := PairInv.send auth ((mem_support_send_iff auth).mp hr) hs.2.1 hs.2.2
-    rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;> exact hpair
-  · intro t s hs z hz
-    cases t
-    refine ⟨oracleSend_preserves_controlInv auth irl sampleInitKey false () s hs.1 z hz, ?_⟩
-    obtain ⟨r, hr, rfl⟩ := (mem_support_oracleSendB_run_iff auth irl sampleInitKey s z).mp hz
-    have hpair := PairInv.send auth ((mem_support_send_iff auth).mp hr) hs.2.2 hs.2.1
+variable [DecidableEq P.EpochKey]
+
+/-- A send edge from the state of `party` preserves `ControlInv ∧ StatePairInv`. -/
+theorem controlInv_statePairInv_sendUpdate {s : GameState P AuthState}
+    (hs : ControlInv s ∧ StatePairInv s) (party : Bool) {r : SendResult P AuthState}
+    (hedge : SendEdge auth (s.stateAt party) r) :
+    ControlInv (sendUpdate s party r) ∧ StatePairInv (sendUpdate s party r) := by
+  refine ⟨controlInv_sendUpdate auth hs.1 party hedge, ?_⟩
+  cases party
+  · simp only [GameState.stateAt, Bool.false_eq_true, ↓reduceIte] at hedge
+    have hpair := PairInv.send auth hedge hs.2.2 hs.2.1
+    simp only [sendUpdate, Bool.false_eq_true, ↓reduceIte]
     rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;> exact ⟨hpair.2, hpair.1⟩
-  · intro n s hs z hz
-    refine ⟨oracleRecv_preserves_controlInv auth irl sampleInitKey true n s hs.1 z hz, ?_⟩
-    rcases oracleRecvA_run_cases auth irl sampleInitKey hz with
-      ⟨-, rfl⟩ | ⟨msg, tsnd, err, -, -, rfl⟩ | ⟨msg, tsnd, r, hentry, hraw, rfl⟩
-    · exact hs.2
-    · exact hs.2
-    have hB := hs.1.roles false
-    simp only [PartyControl, Bool.false_eq_true, ↓reduceIte] at hB
-    obtain ⟨-, hle, hstep, -⟩ := hB.2.2 n msg tsnd hentry
-    have hpair := PairInv.receive auth (ReceiveEdge.of_eq_ok auth hraw)
-      hs.1.epochKnowledge.keyPrefix.posA hs.1.epochKnowledge.keyPrefix.posB
-      hs.1.epochKnowledge.epochA_le hs.1.epochKnowledge.epochB_le (roles_opposite hs.1) hle hstep
-      hs.2.1 hs.2.2
+  · simp only [GameState.stateAt, ↓reduceIte] at hedge
+    have hpair := PairInv.send auth hedge hs.2.1 hs.2.2
+    simp only [sendUpdate, ↓reduceIte]
     rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;> exact hpair
-  · intro n s hs z hz
-    refine ⟨oracleRecv_preserves_controlInv auth irl sampleInitKey false n s hs.1 z hz, ?_⟩
-    rcases oracleRecvB_run_cases auth irl sampleInitKey hz with
-      ⟨-, rfl⟩ | ⟨msg, tsnd, err, -, -, rfl⟩ | ⟨msg, tsnd, r, hentry, hraw, rfl⟩
-    · exact hs.2
-    · exact hs.2
+
+/-- A receive edge from the state of `party`, on the message recorded by the peer at index `n` and
+with `msg.epoch ≤ r.state.epoch`, preserves `ControlInv ∧ StatePairInv`. -/
+theorem controlInv_statePairInv_recvUpdate {s : GameState P AuthState}
+    (hs : ControlInv s ∧ StatePairInv s) (party : Bool) {n : ℕ} {msg : Message P.Sym} {tsnd : ℕ}
+    {r : RecvResult P AuthState} (hentry : s.messagesAt (!party) n = some (msg, tsnd))
+    (hedge : ReceiveEdge auth (s.stateAt party) msg r) (hmsgEpoch : msg.epoch ≤ r.state.epoch) :
+    ControlInv (recvUpdate s party tsnd r (msg.epoch - 1)) ∧
+      StatePairInv (recvUpdate s party tsnd r (msg.epoch - 1)) := by
+  refine ⟨controlInv_recvUpdate auth hs.1 party hentry hedge hmsgEpoch, ?_⟩
+  cases party
+  · simp only [GameState.stateAt, GameState.messagesAt, Bool.not_false, Bool.false_eq_true,
+      ↓reduceIte] at hedge hentry
     have hA := hs.1.roles true
     simp only [PartyControl, ↓reduceIte] at hA
     obtain ⟨-, hle, hstep, -⟩ := hA.2.2 n msg tsnd hentry
@@ -149,10 +139,52 @@ theorem correctnessImpl_preserves_controlInv_statePairInv :
         s.stB.controlPosition.isGenerator = (!s.stA.controlPosition.isGenerator) := by
       intro heq
       rw [roles_opposite hs.1 heq.symm, Bool.not_not]
-    have hpair := PairInv.receive auth (ReceiveEdge.of_eq_ok auth hraw)
+    have hpair := PairInv.receive auth hedge
       hs.1.epochKnowledge.keyPrefix.posB hs.1.epochKnowledge.keyPrefix.posA
       hs.1.epochKnowledge.epochB_le hs.1.epochKnowledge.epochA_le hroles hle hstep
       hs.2.2 hs.2.1
+    simp only [recvUpdate, Bool.false_eq_true, ↓reduceIte]
     rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;> exact ⟨hpair.2, hpair.1⟩
+  · simp only [GameState.stateAt, GameState.messagesAt, Bool.not_true, Bool.false_eq_true,
+      ↓reduceIte] at hedge hentry
+    have hB := hs.1.roles false
+    simp only [PartyControl, Bool.false_eq_true, ↓reduceIte] at hB
+    obtain ⟨-, hle, hstep, -⟩ := hB.2.2 n msg tsnd hentry
+    have hpair := PairInv.receive auth hedge
+      hs.1.epochKnowledge.keyPrefix.posA hs.1.epochKnowledge.keyPrefix.posB
+      hs.1.epochKnowledge.epochA_le hs.1.epochKnowledge.epochB_le (roles_opposite hs.1) hle hstep
+      hs.2.1 hs.2.2
+    simp only [recvUpdate, ↓reduceIte]
+    rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;> exact hpair
+
+variable (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey)
+
+/-- Every oracle of the correctness game preserves `ControlInv` together with `StatePairInv`. -/
+theorem correctnessImpl_preserves_controlInv_statePairInv :
+    QueryImpl.PreservesInv (SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey))
+      (fun s => ControlInv s ∧ StatePairInv s) := by
+  refine SCKAScheme.sckaCorrectnessImpl_preservesInv _ ?_ ?_ ?_ ?_
+  · intro t s hs z hz
+    cases t
+    obtain ⟨r, hr, rfl⟩ := (mem_support_oracleSendA_run_iff auth irl sampleInitKey s z).mp hz
+    exact controlInv_statePairInv_sendUpdate auth hs true ((mem_support_send_iff auth).mp hr)
+  · intro t s hs z hz
+    cases t
+    obtain ⟨r, hr, rfl⟩ := (mem_support_oracleSendB_run_iff auth irl sampleInitKey s z).mp hz
+    exact controlInv_statePairInv_sendUpdate auth hs false ((mem_support_send_iff auth).mp hr)
+  · intro n s hs z hz
+    rcases oracleRecvA_run_cases auth irl sampleInitKey hz with
+      ⟨-, rfl⟩ | ⟨msg, tsnd, err, -, -, rfl⟩ | ⟨msg, tsnd, r, hentry, hraw, rfl⟩
+    · exact hs
+    · exact ⟨hs.1.setFlags false s.exposed s.challenged, hs.2⟩
+    · exact controlInv_statePairInv_recvUpdate auth hs true hentry (ReceiveEdge.of_eq_ok auth hraw)
+        (receive_msg_epoch_le auth hs.1 true hentry hraw)
+  · intro n s hs z hz
+    rcases oracleRecvB_run_cases auth irl sampleInitKey hz with
+      ⟨-, rfl⟩ | ⟨msg, tsnd, err, -, -, rfl⟩ | ⟨msg, tsnd, r, hentry, hraw, rfl⟩
+    · exact hs
+    · exact ⟨hs.1.setFlags false s.exposed s.challenged, hs.2⟩
+    · exact controlInv_statePairInv_recvUpdate auth hs false hentry
+        (ReceiveEdge.of_eq_ok auth hraw) (receive_msg_epoch_le auth hs.1 false hentry hraw)
 
 end Braid

@@ -24,11 +24,11 @@ private def spqrStatesSvg : String := r##"
   <title id="spqr-states-title">SPQR party states and transitions</title>
   <desc id="spqr-states-desc">
     A ring of eleven numbered states. As the encapsulation-key sender of an epoch, a party moves
-    from 1 keysUnsampled through 2 keysSampled, 3 headerSent, and 4 ct1Received to
-    5 ekSentCt1Received; decapsulating ct2 makes it the ciphertext sender of the next epoch at
-    6 noHeaderReceived, from which it moves through 7 headerReceived and 8 ct1Sampled to
-    10 ct2Sampled, directly when an EkCt1Ack chunk completes ek, or else through 9a
-    ct1Acknowledged or 9b ekReceivedCt1Sampled; a message of the
+    from 1 KeysUnsampled through 2 KeysSampled, 3 HeaderSent, and 4 Ct1Received to
+    5 EkSentCt1Received; decapsulating ct2 makes it the ciphertext sender of the next epoch at
+    6 NoHeaderReceived, from which it moves through 7 HeaderReceived and 8 Ct1Sampled to
+    10 Ct2Sampled, directly when an EkCt1Ack chunk completes ek, or else through 9a
+    Ct1Acknowledged or 9b EkReceivedCt1Sampled; a message of the
     next epoch returns it to 1. Two transitions are sends that draw coins; the others are
     receives, labelled Rec(payload) by the payload that triggers them.
   </desc>
@@ -62,57 +62,57 @@ private def spqrStatesSvg : String := r##"
 
   <!-- States: number, constructor with the values shown, and what the party is doing. -->
   <rect class="ss-ek" x="34" y="24" width="290" height="62" rx="6"/>
-  <text x="179" y="50" text-anchor="middle"><tspan class="ss-state">keysUnsampled</tspan></text>
+  <text x="179" y="50" text-anchor="middle"><tspan class="ss-state">KeysUnsampled</tspan></text>
   <text class="ss-meaning" x="179" y="70" text-anchor="middle">epoch opened, no key pair yet</text>
   <circle class="ss-badge-ek" cx="34" cy="24" r="12"/>
   <text class="ss-num" x="34" y="27.5" text-anchor="middle">1</text>
   <rect class="ss-ek" x="396" y="24" width="290" height="62" rx="6"/>
-  <text x="541" y="50" text-anchor="middle"><tspan class="ss-state">keysSampled</tspan><tspan class="ss-vars" dx="5">(pk, sk, encoder)</tspan></text>
+  <text x="541" y="50" text-anchor="middle"><tspan class="ss-state">KeysSampled</tspan><tspan class="ss-vars" dx="5">(pk, sk, encoder)</tspan></text>
   <text class="ss-meaning" x="541" y="70" text-anchor="middle">streaming the tagged header of pk</text>
   <circle class="ss-badge-ek" cx="396" cy="24" r="12"/>
   <text class="ss-num" x="396" y="27.5" text-anchor="middle">2</text>
   <rect class="ss-ek" x="758" y="24" width="290" height="62" rx="6"/>
-  <text x="903" y="50" text-anchor="middle"><tspan class="ss-state">headerSent</tspan><tspan class="ss-vars" dx="5">(sk, encoder, decoder)</tspan></text>
+  <text x="903" y="50" text-anchor="middle"><tspan class="ss-state">HeaderSent</tspan><tspan class="ss-vars" dx="5">(sk, encoder, decoder)</tspan></text>
   <text class="ss-meaning" x="903" y="70" text-anchor="middle">streaming ek, receiving ct1</text>
   <circle class="ss-badge-ek" cx="758" cy="24" r="12"/>
   <text class="ss-num" x="758" y="27.5" text-anchor="middle">3</text>
   <rect class="ss-ek" x="758" y="150" width="290" height="62" rx="6"/>
-  <text x="903" y="176" text-anchor="middle"><tspan class="ss-state">ct1Received</tspan><tspan class="ss-vars" dx="5">(sk, ct1, encoder)</tspan></text>
+  <text x="903" y="176" text-anchor="middle"><tspan class="ss-state">Ct1Received</tspan><tspan class="ss-vars" dx="5">(sk, ct1, encoder)</tspan></text>
   <text class="ss-meaning" x="903" y="196" text-anchor="middle">streaming ek, acknowledging ct1</text>
   <circle class="ss-badge-ek" cx="758" cy="150" r="12"/>
   <text class="ss-num" x="758" y="153.5" text-anchor="middle">4</text>
   <rect class="ss-ek" x="758" y="276" width="290" height="62" rx="6"/>
-  <text x="903" y="302" text-anchor="middle"><tspan class="ss-state">ekSentCt1Received</tspan><tspan class="ss-vars" dx="5">(sk, ct1, decoder)</tspan></text>
+  <text x="903" y="302" text-anchor="middle"><tspan class="ss-state">EkSentCt1Received</tspan><tspan class="ss-vars" dx="5">(sk, ct1, decoder)</tspan></text>
   <text class="ss-meaning" x="903" y="322" text-anchor="middle">receiving ct2, acknowledging ct1</text>
   <circle class="ss-badge-ek" cx="758" cy="276" r="12"/>
   <text class="ss-num" x="758" y="279.5" text-anchor="middle">5</text>
   <rect class="ss-ct" x="758" y="402" width="290" height="62" rx="6"/>
-  <text x="903" y="428" text-anchor="middle"><tspan class="ss-state">noHeaderReceived</tspan><tspan class="ss-vars" dx="5">(decoder)</tspan></text>
+  <text x="903" y="428" text-anchor="middle"><tspan class="ss-state">NoHeaderReceived</tspan><tspan class="ss-vars" dx="5">(decoder)</tspan></text>
   <text class="ss-meaning" x="903" y="448" text-anchor="middle">receiving the tagged header of pk</text>
   <circle class="ss-badge-ct" cx="758" cy="402" r="12"/>
   <text class="ss-num" x="758" y="405.5" text-anchor="middle">6</text>
   <rect class="ss-ct" x="396" y="402" width="290" height="62" rx="6"/>
-  <text x="541" y="428" text-anchor="middle"><tspan class="ss-state">headerReceived</tspan><tspan class="ss-vars" dx="5">(hdr, decoder)</tspan></text>
+  <text x="541" y="428" text-anchor="middle"><tspan class="ss-state">HeaderReceived</tspan><tspan class="ss-vars" dx="5">(hdr, decoder)</tspan></text>
   <text class="ss-meaning" x="541" y="448" text-anchor="middle">header verified, next send encapsulates</text>
   <circle class="ss-badge-ct" cx="396" cy="402" r="12"/>
   <text class="ss-num" x="396" y="405.5" text-anchor="middle">7</text>
   <rect class="ss-ct" x="34" y="402" width="290" height="62" rx="6"/>
-  <text x="179" y="428" text-anchor="middle"><tspan class="ss-state">ct1Sampled</tspan><tspan class="ss-vars" dx="5">(ct1, encoder, decoder)</tspan></text>
+  <text x="179" y="428" text-anchor="middle"><tspan class="ss-state">Ct1Sampled</tspan><tspan class="ss-vars" dx="5">(ct1, encoder, decoder)</tspan></text>
   <text class="ss-meaning" x="179" y="448" text-anchor="middle">streaming ct1, receiving ek</text>
   <circle class="ss-badge-ct" cx="34" cy="402" r="12"/>
   <text class="ss-num" x="34" y="405.5" text-anchor="middle">8</text>
   <rect class="ss-ct" x="34" y="276" width="290" height="62" rx="6"/>
-  <text x="179" y="302" text-anchor="middle"><tspan class="ss-state">ekReceivedCt1Sampled</tspan><tspan class="ss-vars" dx="5">(ct1, ek, encoder)</tspan></text>
+  <text x="179" y="302" text-anchor="middle"><tspan class="ss-state">EkReceivedCt1Sampled</tspan><tspan class="ss-vars" dx="5">(ct1, ek, encoder)</tspan></text>
   <text class="ss-meaning" x="179" y="322" text-anchor="middle">ek validated, ct1 not yet acknowledged</text>
   <circle class="ss-badge-ct" cx="34" cy="276" r="12"/>
   <text class="ss-num" x="34" y="279.5" text-anchor="middle">9b</text>
   <rect class="ss-ct" x="396" y="276" width="290" height="62" rx="6"/>
-  <text x="541" y="302" text-anchor="middle"><tspan class="ss-state">ct1Acknowledged</tspan><tspan class="ss-vars" dx="5">(ct1, decoder)</tspan></text>
+  <text x="541" y="302" text-anchor="middle"><tspan class="ss-state">Ct1Acknowledged</tspan><tspan class="ss-vars" dx="5">(ct1, decoder)</tspan></text>
   <text class="ss-meaning" x="541" y="322" text-anchor="middle">ct1 acknowledged, receiving ek</text>
   <circle class="ss-badge-ct" cx="396" cy="276" r="12"/>
   <text class="ss-num" x="396" y="279.5" text-anchor="middle">9a</text>
   <rect class="ss-ct" x="396" y="150" width="290" height="62" rx="6"/>
-  <text x="541" y="176" text-anchor="middle"><tspan class="ss-state">ct2Sampled</tspan><tspan class="ss-vars" dx="5">(encoder)</tspan></text>
+  <text x="541" y="176" text-anchor="middle"><tspan class="ss-state">Ct2Sampled</tspan><tspan class="ss-vars" dx="5">(encoder)</tspan></text>
   <text class="ss-meaning" x="541" y="196" text-anchor="middle">streaming the tagged ct2</text>
   <circle class="ss-badge-ct" cx="396" cy="150" r="12"/>
   <text class="ss-num" x="396" y="153.5" text-anchor="middle">10</text>

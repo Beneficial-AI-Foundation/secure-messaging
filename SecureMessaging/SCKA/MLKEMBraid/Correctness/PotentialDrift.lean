@@ -53,7 +53,7 @@ private theorem derivedKeyFailure_le
     split_ifs <;> simp
 
 /-- The failure potential is at most `1`. -/
-private theorem failurePotential_le_one (s : GameState P AuthState) :
+theorem failurePotential_le_one (s : GameState P AuthState) :
     failurePotential s ≤ 1 := by
   have hrisk : ∀ hdr vec sk, P.inc.decapsFailureProb hdr vec sk ≤ 1 :=
     fun hdr vec sk => prEvent_le_one _
@@ -72,9 +72,10 @@ private theorem failurePotential_le_one (s : GameState P AuthState) :
         | exact hrisk _ _ _
         | (split <;> first | exact zero_le_one | exact hderived _ _ _ _ _))
 
-/-- When `currentEpochFailure s ≠ 1`, the recorded samples at either party's epoch decapsulate to
-the recorded derived key. -/
-private theorem decaps_eq_of_currentEpochFailure_ne_one
+/-- For a state `s` consistent with a transcript `T` (`TranscriptConsistent`), if
+`currentEpochFailure s ≠ 1`, then decapsulation of the samples recorded in `T` at either party's
+epoch derives the transcript key of that epoch. -/
+theorem decaps_eq_of_currentEpochFailure_ne_one
     {ik : InitKey} {T : ℕ → EpochTranscript P} {s : GameState P AuthState}
     (hT : TranscriptConsistent auth ik T s)
     (hpot : currentEpochFailure s ≠ 1) (party : Bool) :
@@ -300,13 +301,10 @@ private theorem wp_failurePotential_send_headerReceived_le
 private theorem send_correct_and_currentEpochFailure_eq
     {ik : InitKey} {T : ℕ → EpochTranscript P} {s : GameState P AuthState}
     (hT : TranscriptConsistent auth ik T s) (party : Bool)
-    (hsteady : (s.stateAt party).SendsNoSample)
-    (z : Option (ℕ × Option ℕ × Message P.Sym) × GameState P AuthState)
-    (hz : z ∈ support
-      ((oracleSend auth irl sampleInitKey party ()).run s)) :
-    z.2.correct = true ∧ currentEpochFailure z.2 = currentEpochFailure s := by
-  obtain ⟨r, hr, rfl⟩ := (mem_support_oracleSend_run_iff auth irl sampleInitKey s party z).mp hz
-  have hedge := (mem_support_send_iff auth).mp hr
+    {r : SendResult P AuthState} (hedge : SendEdge auth (s.stateAt party) r)
+    (hsteady : (s.stateAt party).SendsNoSample) :
+    (sendUpdate s party r).correct = true ∧
+      currentEpochFailure (sendUpdate s party r) = currentEpochFailure s := by
   obtain ⟨htcur, hkeys⟩ := hT.control.send_prefix party
   have hkey : r.outputKey = none := hedge.outputKey_eq_none fun e a hdr dec hst => by
     rw [hst] at hsteady
@@ -316,12 +314,10 @@ private theorem send_correct_and_currentEpochFailure_eq
     simp only [Bool.and_eq_true, decide_eq_true_eq]
     exact ⟨⟨hT.correct, htcur⟩, SCKAScheme.knownPrefix_eq_true hkeys⟩
   refine ⟨hzc, ?_⟩
-  have hCP := oracleSend_preserves_controlInv_statePairInv auth irl sampleInitKey party
-    () s ⟨hT.control, hT.statePair⟩ _
-    ((mem_support_oracleSend_run_iff auth irl sampleInitKey s party _).2 ⟨r, hr, rfl⟩)
+  have hCP := controlInv_statePairInv_sendUpdate auth ⟨hT.control, hT.statePair⟩ party hedge
   have hup := sendUpdate_eq_successor_of_correct s party r hT.correct hzc
   rw [hup] at hCP ⊢
-  have hTz := send_existing_transcript auth hT party hr hsteady hCP
+  have hTz := send_existing_transcript auth hT party hedge hsteady hCP
   rw [currentEpochFailure_eq_transcript auth hTz, currentEpochFailure_eq_transcript auth hT]
   have hEpoch := fun who => epoch_stateAt_sendSuccessor s party who r hedge.epoch_eq.1
   rw [show (sendSuccessor s party r).stA.epoch = s.stA.epoch from hEpoch true,
@@ -428,8 +424,9 @@ private theorem wp_failurePotential_send_le
   | _ =>
       refine le_trans ?_ le_self_add
       refine wp_le_const_of_support _ fun z hz => ?_
-      obtain ⟨hzc, hpot⟩ := send_correct_and_currentEpochFailure_eq auth irl sampleInitKey hT
-        party (by rw [hst]; trivial) z hz
+      obtain ⟨r, hr, rfl⟩ := (mem_support_oracleSend_run_iff auth irl sampleInitKey s party z).mp hz
+      obtain ⟨hzc, hpot⟩ := send_correct_and_currentEpochFailure_eq auth hT party
+        ((mem_support_send_iff auth).mp hr) (by rw [hst]; trivial)
       simp [failurePotential, hzc, hpot, hT.correct]
 
 /-- With sound stream decoders, either party's receive does not raise expected `failurePotential`.

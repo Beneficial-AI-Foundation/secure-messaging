@@ -27,6 +27,7 @@ namespace Braid
 variable {P : Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
     P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
+  {D : ℕ → P.PK → P.SK → P.inc.St → P.inc.C₁ → P.K → Prop}
 
 /-- Receiving a recorded message in `keysSampled` succeeds without key output and preserves
 `LocalPayloadInv`. -/
@@ -287,7 +288,7 @@ theorem receive_ekSentCt1Received_payload
 /-- The peer of a generator holds the derived transcript key whenever the current epoch has a
 recorded encapsulation. -/
 theorem generator_peer_key {ik : InitKey} {T : ℕ → EpochTranscript P}
-    {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
+    {s : GameState P AuthState} (hT : TranscriptInv auth D ik T s)
     (party : Bool)
     (hgenerator : (s.stateAt party).controlPosition.isGenerator = true) :
     let st := s.stateAt party
@@ -316,7 +317,7 @@ derived epoch key of the encapsulation. -/
 theorem receive_recorded_output
     (hCt2Sound : P.decCt2.Sound P.ecpCt2)
     {ik : InitKey} {T : ℕ → EpochTranscript P}
-    {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
+    {s : GameState P AuthState} (hT : TranscriptInv auth D ik T s)
     (party : Bool) (n : ℕ) (msg : Message P.Sym) (tsnd : ℕ)
     (hmsg : s.messagesAt (!party) n = some (msg, tsnd))
     (r : RecvResult P AuthState)

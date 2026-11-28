@@ -399,11 +399,12 @@ theorem simOracle_hide [SampleableType K]
   · cases u
     exact oracleSendBrleak_hide kem onoff ecEk ecCt0 ecCt1 leak kemMat e s he hs
   · apply evalDistEq_lift_stopOnState_map
-      (pinnedChallenge onoff e kStar) (challenge onoff e kStar)
+      (SCKAScheme.pinnedChallenge e kStar) (challenge onoff e kStar)
       (hideState e) (fun u => decide (e ∈ u.exposed)) t s
       (ToVCVio.evalDistEq_of_eq (challenge_hide onoff e kStar t s))
     intro res hres
-    simp [((pinnedChallenge_recordsChallenges onoff e kStar).exposed_nA_eq t s res hres).1, he]
+    simp [((SCKAScheme.pinnedChallenge_recordsChallenges e kStar).exposed_nA_eq t s res hres).1,
+      he]
   · cases u
     exact ToVCVio.evalDistEq_of_eq (corruptA_hide kem onoff e s he)
   · cases u
@@ -443,7 +444,7 @@ private theorem optionRun_hide_eq
       exists_of_mem_support_stopOnState _ _ t s res hres hcont
     rw [hstate]
     exact ⟨honestScheme_preserves_reachableInv_consistentMat kem onoff hDet ecEk hEk ecCt0 hCt0
-      ecCt1 hCt1 leak kemMat hm e _ (pinnedChallenge_recordsChallenges onoff e kStar)
+      ecCt1 hCt1 leak kemMat hm e _ (SCKAScheme.pinnedChallenge_recordsChallenges e kStar)
       t s hs.1 out hout, of_decide_eq_false hstop⟩
   · intro t s hs
     exact simOracle_hide kem onoff ecEk ecCt0 ecCt1 leak kemMat e kStar t s hs.1.1 hs.2

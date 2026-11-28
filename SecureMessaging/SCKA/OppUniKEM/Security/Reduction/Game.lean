@@ -21,12 +21,13 @@ Throughout this module, we consider:
 
 The protocol instances and security oracles are defined as follows:
 
-- The *honest instance* `honestScheme kemMat e` runs Opp-UniKEM with the sampling outputs and
-  coins of epoch `e` fixed to `kemMat`. Other epochs sample honestly, and A's receive replaces
-  decapsulation by the lookup of B's recorded key for A's current epoch.
-- The *honest intermediate oracle* `honestOracle kemMat e kStar` supplies the SCKA security
-  oracles for this instance. An eligible challenge at epoch `t` returns a uniform key if
-  `0 < t < e`, `kStar` if `t = e`, and the recorded key otherwise.
+- At a game state `s`, the *honest instance* `honestScheme kemMat e s` runs Opp-UniKEM with the
+  sampling outputs and coins of epoch `e` fixed to `kemMat`. Other epochs sample honestly, and A's
+  receive replaces decapsulation by the lookup of B's recorded key in `s` for A's current epoch.
+- The *honest intermediate oracle* `honestOracle kemMat e kStar` supplies the state-dependent
+  security oracles for the assignment `honestScheme kemMat e` of these instances. An eligible
+  challenge at epoch `t` returns a uniform key if `0 < t < e`, `kStar` if `t = e`, and the
+  recorded key otherwise.
 - The *stopped honest oracle* `honestStopped kemMat e kStar` stops at the first query whose
   successor state records `e` as exposed. Running an adversary against it from the initial state
   is the *honest game* `Q_e(kemMat, kStar)`, which returns `false` on stopping and the
@@ -181,106 +182,16 @@ abbrev simScheme [DecidableEq Sym]
     (simDet kem onoff sa sb kemMat.pk kemMat.ciphertext key) ecEk ecCt0 ecCt1
     (simLeak kem onoff leak sa sb kemMat.pk kemMat.ciphertext key)
 
-/-- Opp-UniKEM's SCKA security oracles, where each query runs the protocol instance chosen from
-the current game state and challenges are answered by `chall`. -/
-def securityImplAt [DecidableEq K]
-    (schemeOf : GameState onoff Sym →
-      SCKAScheme ProbComp Unit (StA onoff Sym) (StB onoff Sym) K (Message Sym)
-        (SendRand leak.KeygenRand leak.OffRand leak.OnRand))
-    (chall : QueryImpl (ℕ →ₒ Option K) (StateT (GameState onoff Sym) ProbComp)) :
-    QueryImpl (securitySpec leak Sym) (StateT (GameState onoff Sym) ProbComp) :=
-  fun t => do
-    let s ← get
-    SCKAScheme.securityImplOf (SCKAScheme.sckaCorrectnessImpl (schemeOf s)) chall
-      (exposureA kem onoff leak) (exposureB kem onoff leak) (schemeOf s) t
-
-/-- Unfolding of `securityImplAt`: from a game state `s`, each query runs the security oracles
-`securityImplOf` over the instance chosen from `s`, kept fixed for the whole query. -/
-theorem securityImplAt_run [DecidableEq K]
-    (schemeOf : GameState onoff Sym →
-      SCKAScheme ProbComp Unit (StA onoff Sym) (StB onoff Sym) K (Message Sym)
-        (SendRand leak.KeygenRand leak.OffRand leak.OnRand))
-    (chall : QueryImpl (ℕ →ₒ Option K)
-      (StateT (GameState onoff Sym) ProbComp))
-    (t : (securitySpec leak Sym).Domain)
-    (s : GameState onoff Sym) :
-    (securityImplAt kem onoff leak schemeOf chall t).run s =
-      (SCKAScheme.securityImplOf (SCKAScheme.sckaCorrectnessImpl (schemeOf s)) chall
-        (exposureA kem onoff leak) (exposureB kem onoff leak) (schemeOf s) t).run s :=
-  rfl
-
-/-- Assume `Inv` ignores `exposed` and `challenged`, ordinary sends forget the leaking-send
-coins, and `chall` only adds the queried epoch to `challenged` when unexposed. If correctness
-queries of `schemeOf s` preserve `Inv` from `s` satisfying `Inv`, then so does every query of
-`securityImplAt schemeOf chall`. -/
-theorem securityImplAt_preserves_at [DecidableEq K]
-    (schemeOf : GameState onoff Sym →
-      SCKAScheme ProbComp Unit (StA onoff Sym) (StB onoff Sym) K (Message Sym)
-        (SendRand leak.KeygenRand leak.OffRand leak.OnRand))
-    (chall : QueryImpl (ℕ →ₒ Option K)
-      (StateT (GameState onoff Sym) ProbComp))
-    (Inv : GameState onoff Sym → Prop)
-    (hbook : ∀ s exposed challenged, Inv s →
-      Inv { s with exposed := exposed, challenged := challenged })
-    (hmA : ∀ s st, (do
-      let out ← (schemeOf s).sendArleak st
-      pure (out.map fun (key, msg, epoch, state, _) => (key, msg, epoch, state))) =
-        (schemeOf s).sendA st)
-    (hmB : ∀ s st, (do
-      let out ← (schemeOf s).sendBrleak st
-      pure (out.map fun (key, msg, epoch, state, _) => (key, msg, epoch, state))) =
-        (schemeOf s).sendB st)
-    (hchall : SCKAScheme.RecordsChallenges chall)
-    (s : GameState onoff Sym) (hs : Inv s)
-    (hbase : ∀ t res, res ∈ support ((SCKAScheme.sckaCorrectnessImpl (schemeOf s) t).run s) →
-      Inv res.2)
-    (t : (securitySpec leak Sym).Domain)
-    (res : (securitySpec leak Sym).Range t × GameState onoff Sym)
-    (hres : res ∈ support ((securityImplAt kem onoff leak schemeOf chall t).run s)) :
-    Inv res.2 := by
-  rw [securityImplAt_run] at hres
-  exact SCKAScheme.securityImplOf_preserves_at_of_book _ _ _ _ _ Inv hbook (hmA s) (hmB s)
-    s hs hbase
-    (fun t => hchall.preservesInv Inv (fun s C h => by simpa using hbook s s.exposed C h) t s hs)
-    (hbase SCKAScheme.sckaCorrectnessSpec.OSendA)
-    (hbase SCKAScheme.sckaCorrectnessSpec.OSendB) t res hres
-
-/-- Under the same assumptions on `Inv`, the sends, and `chall` as `securityImplAt_preserves_at`:
-if, for every `s` satisfying `Inv`, the correctness queries of `schemeOf s` preserve `Inv` from
-`s`, then `securityImplAt schemeOf chall` preserves `Inv`. -/
-theorem securityImplAt_preservesInv [DecidableEq K]
-    (schemeOf : GameState onoff Sym →
-      SCKAScheme ProbComp Unit (StA onoff Sym) (StB onoff Sym) K (Message Sym)
-        (SendRand leak.KeygenRand leak.OffRand leak.OnRand))
-    (chall : QueryImpl (ℕ →ₒ Option K)
-      (StateT (GameState onoff Sym) ProbComp))
-    (Inv : GameState onoff Sym → Prop)
-    (hbook : ∀ s exposed challenged, Inv s →
-      Inv { s with exposed := exposed, challenged := challenged })
-    (hmA : ∀ s st, (do
-      let out ← (schemeOf s).sendArleak st
-      pure (out.map fun (key, msg, epoch, state, _) => (key, msg, epoch, state))) =
-        (schemeOf s).sendA st)
-    (hmB : ∀ s st, (do
-      let out ← (schemeOf s).sendBrleak st
-      pure (out.map fun (key, msg, epoch, state, _) => (key, msg, epoch, state))) =
-        (schemeOf s).sendB st)
-    (hchall : SCKAScheme.RecordsChallenges chall)
-    (hbase : ∀ s, Inv s → ∀ t res,
-      res ∈ support ((SCKAScheme.sckaCorrectnessImpl (schemeOf s) t).run s) → Inv res.2) :
-    QueryImpl.PreservesInv (securityImplAt kem onoff leak schemeOf chall) Inv :=
-  fun t s hs res hres => securityImplAt_preserves_at kem onoff leak schemeOf chall Inv hbook hmA
-    hmB
-    hchall s hs (hbase s hs) t res hres
-
-/-- The oracle for the honest intermediate game:
-`securityImplAt (honestScheme kemMat e) (pinnedChallenge e kStar)`. -/
+/-- The oracles of the honest intermediate game: the state-dependent security oracles
+`SCKAScheme.securityImplAt` for the assignment `honestScheme kemMat e` of honest instances, the
+challenge oracle `SCKAScheme.pinnedChallenge e kStar`, and the exposure policies `exposureA` and
+`exposureB`. -/
 def honestOracle [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (kemMat : KEMMaterial leak) (e : ℕ) (kStar : K) :
     QueryImpl (securitySpec leak Sym)
       (StateT (GameState onoff Sym) ProbComp) :=
-  securityImplAt kem onoff leak (honestScheme ecEk ecCt0 ecCt1 kemMat e)
-    (pinnedChallenge onoff e kStar)
+  SCKAScheme.securityImplAt (honestScheme ecEk ecCt0 ecCt1 kemMat e)
+    (SCKAScheme.pinnedChallenge e kStar) (exposureA kem onoff leak) (exposureB kem onoff leak)
 
 /-- `honestOracle kemMat e kStar` stopped at the exposure of `e` (an outer `none`); a rejection by
 the game stays an inner `none`. -/
@@ -288,112 +199,6 @@ def honestStopped [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (kemMat : KEMMaterial leak) (e : ℕ) (kStar : K) :=
   stopOnState (honestOracle kem onoff ecEk ecCt0 ecCt1 leak kemMat e kStar)
     (fun s => decide (e ∈ s.exposed))
-
-open SCKAScheme.sckaSecuritySpec SCKAScheme.sckaCorrectnessSpec in
-/-- Congruence for Opp-UniKEM's security oracles at a fixed query `t` and state `s`. -/
-theorem securityImplAt_congr [DecidableEq K]
-    {R : {α : Type} → ProbComp α → ProbComp α → Prop}
-    (hrefl : ∀ {α} (p : ProbComp α), R p p)
-    (schemeOf target : GameState onoff Sym →
-      SCKAScheme ProbComp Unit (StA onoff Sym) (StB onoff Sym) K (Message Sym)
-        (SendRand leak.KeygenRand leak.OffRand leak.OnRand))
-    (chall : QueryImpl (ℕ →ₒ Option K) (StateT (GameState onoff Sym) ProbComp))
-    (s : GameState onoff Sym) (t : (securitySpec leak Sym).Domain)
-    (hsendA : t = OCorrectness OSendA → (schemeOf s).sendA s.stA = (target s).sendA s.stA)
-    (hsendB : t = OCorrectness OSendB → (schemeOf s).sendB s.stB = (target s).sendB s.stB)
-    (hrecvA : ∀ n, t = OCorrectness (ORecvA n) → ∀ ρ,
-      (schemeOf s).recvA s.stA ρ = (target s).recvA s.stA ρ)
-    (hrecvB : ∀ n, t = OCorrectness (ORecvB n) → ∀ ρ,
-      (schemeOf s).recvB s.stB ρ = (target s).recvB s.stB ρ)
-    (hleakA : t = OSendArleak →
-      R ((SCKAScheme.oracleSendArleak vulnRleakA (schemeOf s) ()).run s)
-        ((SCKAScheme.oracleSendArleak vulnRleakA (target s) ()).run s))
-    (hleakB : t = OSendBrleak →
-      R ((SCKAScheme.oracleSendBrleak vulnRleakB (schemeOf s) ()).run s)
-        ((SCKAScheme.oracleSendBrleak vulnRleakB (target s) ()).run s)) :
-    R ((securityImplAt kem onoff leak schemeOf chall t).run s)
-      ((securityImplAt kem onoff leak target chall t).run s) := by
-  rcases t with (((((t | u) | u) | n) | u) | u) <;>
-    try rcases t with ((((n | u) | u) | n) | n)
-  all_goals try cases u
-  all_goals simp only [securityImplAt, SCKAScheme.securityImplOf,
-    QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get,
-    pure_bind, SCKAScheme.sckaCorrectnessImpl]
-  · exact hrefl _
-  · rw [SCKAScheme.oracleSendA_run_congr _ _ s (hsendA rfl)]
-    exact hrefl _
-  · rw [SCKAScheme.oracleSendB_run_congr _ _ s (hsendB rfl)]
-    exact hrefl _
-  · rw [SCKAScheme.oracleRecvA_run_congr _ _ s (hrecvA n rfl) n]
-    exact hrefl _
-  · rw [SCKAScheme.oracleRecvB_run_congr _ _ s (hrecvB n rfl) n]
-    exact hrefl _
-  · exact hleakA rfl
-  · exact hleakB rfl
-  · exact hrefl _
-  · exact hrefl _
-  · exact hrefl _
-
-/-- Assume that, averaged over `a ← sample`, the four sends of `schemeOf a s` have the
-distributions of those of `target s`, and that the receives of `schemeOf a s` and `target s`
-agree for every `a ∈ support sample`. Then averaging
-`securityImplAt (schemeOf a) chall t` from `s` over `a ← sample` gives the joint response/state
-distribution of `securityImplAt target chall t` from `s`. -/
-theorem securityImplAt_sample_eq [DecidableEq K] {τ : Type} (sample : ProbComp τ)
-    (schemeOf : τ → GameState onoff Sym →
-      SCKAScheme ProbComp Unit (StA onoff Sym) (StB onoff Sym) K (Message Sym)
-        (SendRand leak.KeygenRand leak.OffRand leak.OnRand))
-    (target : GameState onoff Sym →
-      SCKAScheme ProbComp Unit (StA onoff Sym) (StB onoff Sym) K (Message Sym)
-        (SendRand leak.KeygenRand leak.OffRand leak.OnRand))
-    (chall : QueryImpl (ℕ →ₒ Option K)
-      (StateT (GameState onoff Sym) ProbComp))
-    (s : GameState onoff Sym)
-    (hsendA : (do let a ← sample; (schemeOf a s).sendA s.stA) =ᵈ (target s).sendA s.stA)
-    (hsendB : (do let a ← sample; (schemeOf a s).sendB s.stB) =ᵈ (target s).sendB s.stB)
-    (hsendArleak : (do let a ← sample; (schemeOf a s).sendArleak s.stA) =ᵈ
-      (target s).sendArleak s.stA)
-    (hsendBrleak : (do let a ← sample; (schemeOf a s).sendBrleak s.stB) =ᵈ
-      (target s).sendBrleak s.stB)
-    (hrecvA : ∀ a ∈ support sample, ∀ ρ,
-      (schemeOf a s).recvA s.stA ρ = (target s).recvA s.stA ρ)
-    (hrecvB : ∀ a ∈ support sample, ∀ ρ,
-      (schemeOf a s).recvB s.stB ρ = (target s).recvB s.stB ρ)
-    (t : (securitySpec leak Sym).Domain) :
-    (do let a ← sample; (securityImplAt kem onoff leak (schemeOf a) chall t).run s) =ᵈ
-      (securityImplAt kem onoff leak target chall t).run s := by
-  rcases t with (((((t | u) | u) | t) | u) | u)
-  · rcases t with ((((n | u) | u) | n) | n)
-    · exact OracleComp.EvalDistEq.bind_const_of_support sample fun _ _ => rfl
-    · cases u
-      simp only [securityImplAt, SCKAScheme.securityImplOf, QueryImpl.add_apply_inl,
-        QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get, pure_bind,
-        SCKAScheme.sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
-      exact SCKAScheme.oracleSendA_sample_eq _ _ _ s hsendA
-    · cases u
-      simp only [securityImplAt, SCKAScheme.securityImplOf, QueryImpl.add_apply_inl,
-        QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get, pure_bind,
-        SCKAScheme.sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
-      exact SCKAScheme.oracleSendB_sample_eq _ _ _ s hsendB
-    · simp only [securityImplAt, SCKAScheme.securityImplOf, QueryImpl.add_apply_inl,
-      QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get, pure_bind,
-        SCKAScheme.sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
-      exact OracleComp.EvalDistEq.bind_const_of_support sample fun a ha =>
-        SCKAScheme.oracleRecvA_run_congr _ _ s (hrecvA a ha) n
-    · simp only [securityImplAt, SCKAScheme.securityImplOf, QueryImpl.add_apply_inl,
-      QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get, pure_bind,
-        SCKAScheme.sckaCorrectnessImpl, QueryImpl.add_apply_inr]
-      exact OracleComp.EvalDistEq.bind_const_of_support sample fun a ha =>
-        SCKAScheme.oracleRecvB_run_congr _ _ s (hrecvB a ha) n
-  · cases u
-    simp only [securityImplAt, SCKAScheme.securityImplOf, QueryImpl.add_apply_inl,
-      QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get, pure_bind]
-    exact SCKAScheme.oracleSendArleak_sample_eq _ _ _ _ s hsendArleak
-  · cases u
-    simp only [securityImplAt, SCKAScheme.securityImplOf, QueryImpl.add_apply_inl,
-      QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get, pure_bind]
-    exact SCKAScheme.oracleSendBrleak_sample_eq _ _ _ _ s hsendBrleak
-  all_goals exact OracleComp.EvalDistEq.bind_const_of_support sample fun _ _ => rfl
 
 /-! ## Material consistency -/
 
@@ -721,8 +526,8 @@ private theorem honestCorrectness_preserves_keyB_eq [DecidableEq K] [DecidableEq
     exact absurd (recvB_key_none kem onoff ecEk s.stB msg _ t next hr) (Option.some_ne_none _)
 
 /-- If the challenge oracle `chall` only records challenges (`RecordsChallenges chall`), then
-`securityImplAt (honestScheme kemMat e) chall` preserves the property that every key B records at
-`e` is `kemMat.key`. -/
+`SCKAScheme.securityImplAt (honestScheme kemMat e) chall` preserves the property that every key B
+records at `e` is `kemMat.key`. -/
 theorem honestScheme_preserves_keyB_eq
     [DecidableEq K] [DecidableEq Sym]
     (kemMat : KEMMaterial leak) (e : ℕ)
@@ -730,9 +535,10 @@ theorem honestScheme_preserves_keyB_eq
       (StateT (GameState onoff Sym) ProbComp))
     (hchall : SCKAScheme.RecordsChallenges chall) :
     QueryImpl.PreservesInv
-      (securityImplAt kem onoff leak (honestScheme ecEk ecCt0 ecCt1 kemMat e) chall)
+      (SCKAScheme.securityImplAt (honestScheme ecEk ecCt0 ecCt1 kemMat e) chall
+        (exposureA kem onoff leak) (exposureB kem onoff leak))
       (fun s => ∀ k, s.keyB e = some k → k = kemMat.key) :=
-  securityImplAt_preservesInv kem onoff leak _ chall _ (fun _ _ _ h => h)
+  SCKAScheme.securityImplAt_preservesInv _ chall _ _ _ (fun _ _ _ h => h)
     (fun _ => sendArleak_forget (onoff := Pinned.onOff kemMat _ _ _ _) _ _ _)
     (fun _ => sendBrleak_forget (onoff := Pinned.onOff kemMat _ _ _ _) _ _ _ _) hchall
     (fun s hs t => honestCorrectness_preserves_keyB_eq ecEk ecCt0 ecCt1 kemMat e t s hs)
@@ -810,7 +616,7 @@ private theorem honestCorrectness_preserves_reachableInv
 
 include hDet hEk hCt0 hCt1 in
 /-- For possible `kemMat` and a challenge oracle `chall` that only records challenges
-(`RecordsChallenges chall`), `securityImplAt (honestScheme kemMat e) chall` preserves
+(`RecordsChallenges chall`), `SCKAScheme.securityImplAt (honestScheme kemMat e) chall` preserves
 `reachableInv ∧ consistentMat kemMat e`. -/
 theorem honestScheme_preserves_reachableInv_consistentMat
     (kemMat : KEMMaterial leak) (hm : kemMat ∈ support (sampleMaterial leak)) (e : ℕ)
@@ -818,9 +624,10 @@ theorem honestScheme_preserves_reachableInv_consistentMat
       (StateT (GameState onoff Sym) ProbComp))
     (hchall : SCKAScheme.RecordsChallenges chall) :
     QueryImpl.PreservesInv
-      (securityImplAt kem onoff leak (honestScheme ecEk ecCt0 ecCt1 kemMat e) chall)
+      (SCKAScheme.securityImplAt (honestScheme ecEk ecCt0 ecCt1 kemMat e) chall
+        (exposureA kem onoff leak) (exposureB kem onoff leak))
       (fun s => reachableInv kem onoff ecEk ecCt0 ecCt1 s ∧ consistentMat kemMat e s) :=
-  securityImplAt_preservesInv kem onoff leak _ chall _
+  SCKAScheme.securityImplAt_preservesInv _ chall _ _ _
     (fun _ E C h => ⟨reachableInv_with_security_bookkeeping h.1 E C, h.2⟩)
     (fun _ => sendArleak_forget (onoff := Pinned.onOff kemMat _ _ _ _) _ _ _)
     (fun _ => sendBrleak_forget (onoff := Pinned.onOff kemMat _ _ _ _) _ _ _ _) hchall
