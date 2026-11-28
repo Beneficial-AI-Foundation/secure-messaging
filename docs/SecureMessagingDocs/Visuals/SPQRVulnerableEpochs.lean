@@ -7,9 +7,8 @@ import VersoManual.Diagrams
 
 /-! # SPQR vulnerable epochs illustration
 The epochs a corruption or a leaking send exposes: the key material of an epoch gives its key and,
-through the authenticator update, the authenticator state entering the next epoch; an
-authenticator state exposes the epoch it enters. The colours follow the Opp-UniKEM
-vulnerable-epoch figures. -/
+through the authenticator update, the authenticator state of the next epoch; an authenticator state
+exposes its epoch. The colours follow the Opp-UniKEM vulnerable-epoch figures. -/
 
 open Verso Genre Manual Doc Elab
 open Lean
@@ -21,7 +20,7 @@ exposes `ep + 1`. -/
 private def spqrVulnerableEpochsSvg : String := r##"
 <svg xmlns="http://www.w3.org/2000/svg" class="ve-text" viewBox="0 0 1000 430" width="1000" height="430" style="display:block;width:100%;max-width:1000px;height:auto;margin:0 auto" role="img" aria-labelledby="spqr-vuln-title spqr-vuln-desc">
   <title id="spqr-vuln-title">Epochs exposed by a corruption or a leaking send in SPQR</title>
-  <desc id="spqr-vuln-desc">A corruption or a leaking send exposes every epoch whose key the revealed values may give away. The key material of epoch ep, sk of states 2 to 5, encapsSt of states 8 to 9b, and the coins r_K and r_1 of the leaking sends from states 1 and 7, gives the epoch key k_ep and exposes ep, and also ep+1 since the authenticator state a_ep+1 is derived from k_ep. The authenticator state auth is a_ep in states 1 to 7 and exposes ep, and a_ep+1 in states 8 to 10 and exposes ep+1, since key hiding protects the key of an epoch only while the state entering it is hidden.</desc>
+  <desc id="spqr-vuln-desc">A corruption or a leaking send exposes every epoch whose key the revealed values may give away. The key material of epoch ep, sk of states 2 to 5, encapsSt of states 8 to 9b, and the coins r_K and r_1 of the leaking sends from states 1 and 7, gives the epoch key k_ep and exposes ep, and also ep+1 since the authenticator state a_ep+1 is derived from k_ep. The authenticator state auth is a_ep in states 1 to 7 and exposes ep, and a_ep+1 in states 8 to 10 and exposes ep+1, since key hiding protects the key of an epoch only while its authenticator state is hidden.</desc>
   <defs>
     <marker id="spqr-vuln-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#252525" stroke-width="1.2"/></marker>
     <style>

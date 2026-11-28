@@ -41,7 +41,8 @@ public import ToVCVio.EvalDist.BoolDist
   (`Braid.kdfContextExp`);
 - `AdvAuth(auth, 𝓑) := Braid.authHideAdvantage auth sampleInitKey 𝓑` be the advantage of `𝓑` in
   telling the key of a hidden authenticator update from an independent uniform key, given the
-  operations of `auth` on the hidden state entering an epoch of its choice (`Braid.authHideExp`);
+  operations of `auth` on the hidden authenticator state of an epoch of its choice
+  (`Braid.authHideExp`);
 - `ε := P.det.toKEM.correctnessError` be the probability that an honest encapsulation does not
   decapsulate to its key.
 
@@ -94,7 +95,7 @@ Paths are relative to `SPQR/Security/`. Every game draws `ik ← sampleInitKey`,
    the stopped hybrids `S_e^real` and `S_e^random` (`hybridImpl_signed_gap_stop_eq`), which steps 2
    and 3 write as a signed sum of games of the chain (`idealExp_gap_eq`).
 5. *Authenticator transport* (`Reduction/AuthMap`, `Reduction/Reductions`): given the operations
-   `h` on the hidden state entering `e`, `𝓑_Auth` runs the simulated game of `e` over
+   `h` on the hidden authenticator state of `e`, `𝓑_Auth` runs the simulated game of `e` over
    `withHidden auth h e`, which runs `h` on a representative kept in place of that state. Its
    real-key and random-key experiments (bits `true` and `false`) accept as often as `randEpochKey`
    and `splitKeys`, respectively, averaged over the challenge epoch, the initial key and the

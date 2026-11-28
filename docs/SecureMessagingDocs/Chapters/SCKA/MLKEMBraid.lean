@@ -108,31 +108,25 @@ with initial-key space $`\mathcal I_{\mathsf{CKA}}`, epoch-key space $`E`, and s
 $`\mathcal S_{\mathsf{Auth}}`, and let
 $`\Init\text{-}\KeyGen\to I_{\mathsf{CKA}}\in\mathcal I_{\mathsf{CKA}}` be a generator of its
 initial keys. For an initial key $`I_{\mathsf{CKA}}` and epoch keys $`k_1,k_2,\ldots\in E`, we
-define the state $`a_e` of $`\mathsf{Auth}` *entering* epoch $`e`, the state after the updates of
-epochs $`1,\ldots,e-1`, by
+define the authenticator states $`a_1,a_2,\ldots\in\mathcal S_{\mathsf{Auth}}` by
 
 $$`a_1=\mathsf{Init}(I_{\mathsf{CKA}},1),\qquad a_{e+1}=\mathsf{Update}(a_e,e,k_e).`
 
-For an epoch $`e`, an initial key $`I_{\mathsf{CKA}}`, and epoch keys $`\kappa` and $`u`, the
-oracle $`\O` runs this chain through epoch $`e` with $`k_{e-1}=\kappa` and $`k_e=u`, from a state
-$`a` of the caller's choice as $`a_{e-1}`: it computes $`a_e`, which is
-$`\mathsf{Init}(I_{\mathsf{CKA}},1)` for $`e=1` and $`\mathsf{Update}(a,e-1,\kappa)` otherwise, and
-returns the tags and verifications under $`a_e` and the next state
-$`a_{e+1}=\mathsf{Update}(a_e,e,u)`, where $`e-1` is truncated at $`0`.
+The oracle $`\O_{\mathsf{Auth}}` has the state $`(e,I_{\mathsf{CKA}},\kappa,u)`, with $`\kappa` and
+$`u` in place of $`k_{e-1}` and $`k_e`. Given an authenticator state $`a` in place of $`a_{e-1}`,
+it returns the tags and verifications under $`a_e` and the next state $`a_{e+1}`.
 
 ::::::gameGrid
-:::::gameCell "\\O(a)" (kind := "oracle") (state := "e,\\ I_{\\mathsf{CKA}},\\ \\kappa,\\ u")
+:::::gameCell "\\O_{\\mathsf{Auth}}(a)" (kind := "oracle") (state := "\\textsf{state:}\\ (e,I_{\\mathsf{CKA}},\\kappa,u)")
 $`\begin{array}{l}
-\pcommentline{a\text{ plays }a_{e-1}} \\
-\pif\ e=1\ \pthen\ a_e\gets\mathsf{Init}(I_{\mathsf{CKA}},1) \\
-\pelse\ a_e\gets\mathsf{Update}(a,e-1,\kappa); \\
+\pcommentline{a\text{ in place of }a_{e-1}} \\
+\pif\ e=1\ \pthen\ a_e\gets\mathsf{Init}(I_{\mathsf{CKA}},1)\ \pelse\ a_e\gets\mathsf{Update}(a,e-1,\kappa); \\
 \pcommentline{\text{Ciphertext tags at }e-1\text{, as in ML-KEM Braid}} \\
-\Return\bigl(\mathsf{Mac}_H(a_e,e,\cdot),\ \mathsf{Verify}_H(a_e,e,\cdot,\cdot), \\
-\qquad\mathsf{Mac}_C(a_e,e-1,\cdot),\ \mathsf{Verify}_C(a_e,e-1,\cdot,\cdot), \\
+\Return\bigl(\mathsf{Mac}_H(a_e,e,\cdot),\ \mathsf{Verify}_H(a_e,e,\cdot,\cdot),\ \mathsf{Mac}_C(a_e,e-1,\cdot),\ \mathsf{Verify}_C(a_e,e-1,\cdot,\cdot), \\
 \qquad\mathsf{Update}(a_e,e,u)\bigr)\pcomment{a_{e+1}}
 \end{array}`
 
-:::leanPillCaption "$`\\O(a)`"
+:::leanPillCaption "$`\\O_{\\mathsf{Auth}}(a)`"
 :::
 
 ```anchor hiddenAuth (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Security.KeyHiding)
@@ -154,9 +148,9 @@ A *key-hiding adversary* $`\mathcal B` against $`\mathsf{Auth}` consists of two 
 
 - $`\mathcal B.\mathsf{context}()\to(e,\sigma)`: chooses an epoch $`e` and information
   $`\sigma` that it keeps for guessing;
-- $`\mathcal B.\mathsf{guess}^{\O}(\sigma,k)\to b'`: from $`\sigma` and an epoch key $`k`, with
-  oracle access to $`\O` for its epoch $`e`, outputs a bit $`b'`, its guess whether $`k` is the
-  epoch key $`k_e` or an independent epoch key.
+- $`\mathcal B.\mathsf{guess}^{\O_{\mathsf{Auth}}}(\sigma,k)\to b'`: from $`\sigma` and an epoch key
+  $`k`, with oracle access to $`\O_{\mathsf{Auth}}` for its epoch $`e`, outputs a bit $`b'`, its
+  guess whether $`k` is the epoch key $`k_e` or an independent epoch key.
 
 For $`b\in\{\mathsf{real},\mathsf{ideal}\}`, the experiment
 $`\mathsf{Hide}^b_{\mathsf{Auth}}(\mathcal B)` is defined below. The *key-hiding advantage* of
@@ -173,10 +167,10 @@ $`\begin{array}{l}
 (e,\sigma)\sample\mathcal B.\mathsf{context}(); \\
 \pcommentline{\text{Hidden from }\mathcal B\text{: }I_{\mathsf{CKA}},\ \kappa=k_{e-1},\ u=k_e} \\
 I_{\mathsf{CKA}}\sample\Init\text{-}\KeyGen();\quad u,u',\kappa\sample E; \\
-\pcommentline{\text{Real: the key }k_e\text{; ideal: an independent key}} \\
+\pcommentline{\text{Real: the key }u\text{ that }\O_{\mathsf{Auth}}\text{ uses; ideal: }u'\text{, independent of }\O_{\mathsf{Auth}}} \\
 \pif\ b=\mathsf{real}\ \pthen\ k\gets u\ \pelse\ k\gets u'; \\
-\pcommentline{\mathcal B\text{ gets }a_{e+1}\text{ and tags under }a_e\text{ from }\O\text{, but not }a_e} \\
-b'\sample\mathcal B.\mathsf{guess}^{\O}(\sigma,k); \\
+\pcommentline{\mathcal B\text{ gets }a_{e+1}\text{ and tags under }a_e\text{ from }\O_{\mathsf{Auth}}\text{, but not }a_e} \\
+b'\sample\mathcal B.\mathsf{guess}^{\O_{\mathsf{Auth}}}(\sigma,k); \\
 \Return b'
 \end{array}`
 

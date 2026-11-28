@@ -1314,8 +1314,8 @@ and parametrise the security game of {bpref "scka_oracles"}[], as follows.
 :::spqrVulnerableEpochs
 :::
 
-Here $`a_e` is the authenticator state entering epoch $`e` and $`k_e` the epoch key of $`e`, as
-in the {bpref "mlkem_braid_auth_key_hiding"}[key-hiding game].
+Here $`a_e` and $`k_e` are the authenticator state and the epoch key of epoch $`e`, as in the
+{bpref "mlkem_braid_auth_key_hiding"}[key-hiding game].
 :::::
 
 :::::gameCell "\\mathsf{vuln}^{\\mathsf{corr}}" (kind := "game")

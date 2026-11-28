@@ -13,14 +13,15 @@ public import VCVio.CryptoFoundations.PRG
 # Key hiding of a ratcheted authenticator
 
 Let `auth` be a ratcheted authenticator and `sampleInitKey` a sampler of its initial keys. For an
-epoch `e`, an initial key `ik` and epoch keys `κ` and `u`, the *hidden operations* `hiddenAuth` take
-a state `a` and compute the authenticator state `aₑ` *entering* `e`, `auth.init ik 1` if `e = 1`
-and `auth.update a (e - 1) κ` otherwise; they are the header tag and its verification at `e`, the
+epoch `e`, an initial key `ik` and epoch keys `κ` and `u`, the oracle `hiddenAuth auth e ik κ u` of
+the key-hiding game, with state `(e, ik, κ, u)`, takes an authenticator state `a` in place of that
+of epoch `e - 1` and computes the authenticator state `aₑ` of `e`, `auth.init ik 1` if `e = 1` and
+`auth.update a (e - 1) κ` otherwise. It gives the header tag and its verification at `e`, the
 ciphertext tag and its verification at `e - 1`, and the update of `aₑ` at `e` with `u`.
 
-A key-hiding adversary `adv` chooses an epoch `e` and keeps a state. It then receives an epoch key
-and the hidden operations, for `ik ← sampleInitKey` and uniform `κ` and `u`, and outputs a bit. The
-experiment `authHideExp auth sampleInitKey adv real` hands it `u` if `real` and an independent
+A key-hiding adversary `adv` chooses an epoch `e` and information that it keeps. It then receives
+an epoch key and the oracle, for `ik ← sampleInitKey` and uniform `κ` and `u`, and outputs a bit.
+The experiment `authHideExp auth sampleInitKey adv real` hands it `u` if `real` and an independent
 uniform key otherwise. The advantage `authHideAdvantage auth sampleInitKey adv` is the difference
 in acceptance probability between the two experiments,
 `|Pr[authHideExp … adv true = true] - Pr[authHideExp … adv false = true]|`.
@@ -58,16 +59,17 @@ structure AuthHideAdversary (EpochKey AuthState Header Ciphertext Mac : Type) wh
   State : Type
   /-- Choose the epoch and the kept information. -/
   context : ProbComp (ℕ × State)
-  /-- Guess from the kept information, the epoch key and the hidden operations. -/
+  /-- Guess from the kept information, the epoch key and the oracle. -/
   guess : State → EpochKey → HiddenAuth AuthState Header Ciphertext Mac → ProbComp Bool
 
 variable {InitKey EpochKey AuthState Header Ciphertext Mac : Type}
   (auth : RatchetedAuthenticator InitKey EpochKey AuthState Header Ciphertext Mac)
 
-/-- The hidden operations: for a state `a` entering `e - 1`, the operations of `auth` on the state
-`aₑ` entering `e`, the initial state of `ik` if `e = 1` and the update of `a` with `κ` otherwise;
-header tags and verifications at `e`, ciphertext tags and verifications at `e - 1`, and the update
-of `aₑ` at `e` keyed by `u`. -/
+/-- The oracle of the key-hiding game, with state `(e, ik, κ, u)`: for an authenticator state `a` in
+place of that of epoch `e - 1`, the operations of `auth` on the authenticator state `aₑ` of `e`, the
+initial state of `ik` if `e = 1` and the update of `a` with `κ` otherwise; header tags and
+verifications at `e`, ciphertext tags and verifications at `e - 1`, and the update of `aₑ` at `e`
+keyed by `u`. -/
 -- ANCHOR: hiddenAuth
 def hiddenAuth (e : ℕ) (ik : InitKey) (κ u : EpochKey) :
     HiddenAuth AuthState Header Ciphertext Mac :=
@@ -82,7 +84,7 @@ def hiddenAuth (e : ℕ) (ik : InitKey) (κ u : EpochKey) :
 -- ANCHOR_END: hiddenAuth
 
 /-- The key-hiding experiment: `(e, st) ← adv.context`, `ik ← sampleInitKey` and
-`u, u', κ ←$ EpochKey`, then `adv.guess st (if real then u else u') h` for the hidden operations
+`u, u', κ ←$ EpochKey`, then `adv.guess st (if real then u else u') h` for the oracle
 `h := hiddenAuth auth e ik κ u`, whose update uses `u`. -/
 -- ANCHOR: authHideExp
 def authHideExp [SampleableType EpochKey] (sampleInitKey : ProbComp InitKey)

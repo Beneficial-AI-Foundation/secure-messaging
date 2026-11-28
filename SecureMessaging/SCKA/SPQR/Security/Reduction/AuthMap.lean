@@ -38,7 +38,7 @@ the update of `A₂` on the mapped state.
 
 **The authenticator of the hidden state.** Let `h` be operations on hidden states
 (`Braid.HiddenAuth`, `MLKEMBraid.Security.KeyHiding`) and `0 < e`. The authenticator
-`withHidden auth h e` keeps a representative `a` in place of the authenticator state entering `e`:
+`withHidden auth h e` keeps a representative `a` in place of the authenticator state of `e`:
 its update of `e - 1` keeps `a`, its header operations at `e` and its ciphertext operations at
 `e - 1` are those of `h` on `a`, and its update of `e` is `h.next`. For
 `H := hiddenState auth e ik κ`, the map `hiddenMap e H`, which applies `H` to the
@@ -953,15 +953,15 @@ section Hidden
 variable (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
     P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)
 
-/-- The authenticator state entering epoch `e` as a function of a state `a`: the initial state
-`auth.init ik 1` of the initial key `ik` if `e = 1`, and the update `auth.update a (e - 1) κ` of
-`a` at epoch `e - 1` with the epoch key `κ` otherwise; `Braid.hiddenAuth auth e ik κ u` operates on
-it. -/
+/-- The authenticator state of epoch `e` as a function of an authenticator state `a` in place of
+that of `e - 1`: the initial state `auth.init ik 1` of the initial key `ik` if `e = 1`, and the
+update `auth.update a (e - 1) κ` of `a` at epoch `e - 1` with the epoch key `κ` otherwise;
+`Braid.hiddenAuth auth e ik κ u` operates on it. -/
 def hiddenState (e : ℕ) (ik : InitKey) (κ : P.EpochKey) (a : AuthState) : AuthState :=
   if e = 1 then auth.init ik 1 else auth.update a (e - 1) κ
 
 /-- The authenticator that keeps a representative in place of the hidden authenticator state
-entering `e`: its update at `e - 1` keeps its argument, its header operations at `e` and its
+of `e`: its update at `e - 1` keeps its argument, its header operations at `e` and its
 ciphertext operations at `e - 1` are those of `h` on the representative, and its update at `e` is
 `h.next`; every other operation is that of `auth`. -/
 def withHidden (h : HiddenAuth AuthState P.det.PKheader (P.det.C₁ × P.det.C₂) P.Mac)

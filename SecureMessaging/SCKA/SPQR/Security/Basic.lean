@@ -24,8 +24,8 @@ initial keys, and `scheme P auth sampleInitKey` the SPQR scheme (`SPQR.Construct
   that epoch (`PartyState.authEpoch`). Corrupting a state `st` of epoch `t` exposes `st.authEpoch`,
   and also `t` and `t + 1` if `st` holds a decapsulation key or an encapsulation state
   (`PartyState.holdsSecret`). A leaking send that runs key generation or first-stage
-  encapsulation at `t` exposes `t` and `t + 1`: the key of `t` turns an authenticator state
-  entering `t` into the one entering `t + 1`.
+  encapsulation at `t` exposes `t` and `t + 1`: the key of `t` turns the authenticator state of
+  `t` into that of `t + 1`.
 - `authAt auth e upd`: `auth` with its update at epoch `e` replaced by `upd`.
 - `Ops P`: the operations that the proof games vary, namely the leaking key-generation and
   first-stage encapsulation samplers, indexed by the epoch of the sending party, the second stage,
@@ -112,7 +112,7 @@ def leakEpochs (st : PartyState P AuthState) : Finset ℕ :=
 exposes `st.authEpoch`, the epoch whose authenticator update consumes the revealed authenticator
 state, and also `t` and `t + 1` if `st` holds a secret of `t`. A leaking send that returns
 key-generation or encapsulation coins of `t` exposes `t` and `t + 1`. The second epoch is exposed
-because the key of `t` turns an authenticator state entering `t` into the one entering `t + 1`. -/
+because the key of `t` turns the authenticator state of `t` into that of `t + 1`. -/
 -- ANCHOR: SPQR_vuln
 def vuln (P : SPQR.Parameters ProbComp) (AuthState : Type) :
     SCKAScheme.VulnerableEpochs (PartyState P AuthState)
