@@ -61,6 +61,16 @@ Pr[S_e^x] - Pr[κ ←$ P.EpochKey; S_e^x[A_κ]] = Pr[prevReal x] - Pr[prevKdf x]
 
 (`stoppedHybrid_hybridAuth_real_eq_realKey`, `stoppedHybrid_hybridAuth_random_eq_realKeyChal`,
 `stoppedHybrid_sub_hybridAuth_eq`). For `e = 1`, both `prev` games are `pure false`.
+
+**Averaged result** (`idealExp_gap_eq`). Let `p_i := Pr[H_i = true]` for the ideal hybrid
+`H_i := idealExp (hybridMode i) adv`, and let a game stand for its acceptance probability averaged
+over the initial key and the dummies (`gameProb`). Stopping at the first exposure of `e` preserves
+`p_{e-1} - p_e` (`SCKAScheme.hybridImpl_signed_gap_stop_eq`), so for every `e ≥ 1`:
+
+```text
+p_{e-1} - p_e = (realKey - realKeyChal) + (prevReal real - prevKdf real)
+  - (prevReal random - prevKdf random)
+```
 -/
 
 @[expose] public section
@@ -517,5 +527,120 @@ theorem stoppedHybrid_sub_hybridAuth_eq (i : ℕ) (x : Bool) (d : Dummies P) (ik
     rw [h1, h2]
 
 end Prev
+
+/-! ### Averaging over the initial key and the dummies -/
+
+section Averaging
+
+omit [DecidableEq P.EpochKey] [SampleableType P.EpochKey]
+
+/-- The acceptance probability of a game at epoch `e`, averaged over the initial key and the
+dummies. -/
+noncomputable def gameProb (game : ℕ → Dummies P → InitKey → ProbComp Bool) (e : ℕ) : ℝ :=
+  (Pr{let x ← (do
+    let ik ← sampleInitKey
+    let d ← sampleDummies
+    game e d ik)}[x = true]).toReal
+
+/-- If two differences of games agree for every initial key and dummies, so do the differences
+of their averages. -/
+private theorem gameProb_sub_eq_of_forall (G₁ G₂ G₃ G₄ : ℕ → Dummies P → InitKey → ProbComp Bool)
+    (e : ℕ) (h : ∀ ik d, (Pr{let x ← G₁ e d ik}[x = true]).toReal -
+      (Pr{let x ← G₂ e d ik}[x = true]).toReal =
+      (Pr{let x ← G₃ e d ik}[x = true]).toReal - (Pr{let x ← G₄ e d ik}[x = true]).toReal) :
+    gameProb sampleInitKey G₁ e - gameProb sampleInitKey G₂ e =
+      gameProb sampleInitKey G₃ e - gameProb sampleInitKey G₄ e := by
+  unfold gameProb
+  exact toReal_prEvent_bind_sub_eq_of_forall sampleInitKey _ _ _ _ (· = true) fun ik _ =>
+    toReal_prEvent_bind_sub_eq_of_forall sampleDummies _ _ _ _ (· = true) fun d _ => h ik d
+
+/-- If two games accept equally often for every initial key and dummies, so do their averages. -/
+private theorem gameProb_congr (G₁ G₂ : ℕ → Dummies P → InitKey → ProbComp Bool) (e : ℕ)
+    (h : ∀ ik d, Pr{let x ← G₁ e d ik}[x = true] = Pr{let x ← G₂ e d ik}[x = true]) :
+    gameProb sampleInitKey G₁ e = gameProb sampleInitKey G₂ e := by
+  unfold gameProb
+  congr 1
+  exact OracleComp.prEvent_bind_congr_of_support' _ _ fun ik _ =>
+    OracleComp.prEvent_bind_congr_of_support' _ _ fun d _ => h ik d
+
+end Averaging
+
+include hHdrSound hEkSound hCt1Sound hCt2Sound in
+/-- Assuming sound stream decoders, for every `i`, with `e := i + 1`,
+`p_i := Pr[idealExp (hybridMode i) adv = true]`, and the versions `real` (`false`) and `random`
+(`true`) of `prevReal` and `prevKdf`,
+```text
+p_i - p_{i+1} = (gameProb (prevReal real) e - gameProb (prevKdf real) e)
+  + (gameProb realKey e - gameProb realKeyChal e)
+  - (gameProb (prevReal random) e - gameProb (prevKdf random) e).
+``` -/
+theorem idealExp_gap_eq (i : ℕ) :
+    (Pr{let x ← idealExp auth sampleInitKey (SCKAScheme.hybridMode i) adv}[x = true]).toReal -
+      (Pr{let x ← (idealExp auth sampleInitKey (SCKAScheme.hybridMode (i + 1))
+          adv)}[x = true]).toReal =
+    (gameProb sampleInitKey (prevReal auth sampleInitKey adv false) (i + 1) -
+        gameProb sampleInitKey (prevKdf auth sampleInitKey adv false) (i + 1)) +
+      (gameProb sampleInitKey (realKey auth sampleInitKey adv) (i + 1) -
+        gameProb sampleInitKey (realKeyChal auth sampleInitKey adv) (i + 1)) -
+      (gameProb sampleInitKey (prevReal auth sampleInitKey adv true) (i + 1) -
+        gameProb sampleInitKey (prevKdf auth sampleInitKey adv true) (i + 1)) := by
+  have hα : (Pr{let x ← (idealExp auth sampleInitKey (SCKAScheme.hybridMode i)
+        adv)}[x = true]).toReal -
+      (Pr{let x ← (idealExp auth sampleInitKey (SCKAScheme.hybridMode (i + 1))
+        adv)}[x = true]).toReal =
+      gameProb sampleInitKey
+          (fun e (_ : Dummies P) ik => stoppedHybridExp auth sampleInitKey adv i e ik) (i + 1) -
+        gameProb sampleInitKey
+          (fun e (_ : Dummies P) ik => stoppedHybridExp auth sampleInitKey adv (i + 1) e ik)
+          (i + 1) := by
+    unfold idealExp gameProb
+    refine toReal_prEvent_bind_sub_eq_of_forall sampleInitKey _ _ _ _ (· = true) fun ik _ => ?_
+    rw [(OracleComp.EvalDistEq.bind_const sampleDummies
+        (stoppedHybridExp auth sampleInitKey adv i (i + 1) ik)).prEvent_eq,
+      (OracleComp.EvalDistEq.bind_const sampleDummies
+        (stoppedHybridExp auth sampleInitKey adv (i + 1) (i + 1) ik)).prEvent_eq]
+    have hgap : (Pr{let x ← ((simulateQ (idealImpl auth sampleInitKey
+          (SCKAScheme.hybridMode (i + 1))) adv).run' (initState auth ik))}[x = true]).toReal -
+        (Pr{let x ← ((simulateQ (idealImpl auth sampleInitKey (SCKAScheme.hybridMode i))
+          adv).run' (initState auth ik))}[x = true]).toReal =
+        (Pr{let x ← (stoppedHybridExp auth sampleInitKey adv (i + 1) (i + 1)
+          ik)}[x = true]).toReal -
+        (Pr{let x ← stoppedHybridExp auth sampleInitKey adv i (i + 1) ik}[x = true]).toReal :=
+      SCKAScheme.hybridImpl_signed_gap_stop_eq (idealSchemeOf auth sampleInitKey)
+        (vuln P AuthState) (vuln P AuthState) i adv (initState auth ik)
+        (by simp [initState, SCKAScheme.initGameState])
+    linarith
+  have hβf := gameProb_sub_eq_of_forall sampleInitKey
+    (fun e (_ : Dummies P) ik => stoppedHybridExp auth sampleInitKey adv i e ik)
+    (fun e (_ : Dummies P) ik => do
+      let κ ← ($ᵗ P.EpochKey : ProbComp P.EpochKey)
+      stoppedHybridExp (hybridAuth auth e ik κ) sampleInitKey adv i e ik)
+    (prevReal auth sampleInitKey adv false) (prevKdf auth sampleInitKey adv false) (i + 1)
+    fun ik d => stoppedHybrid_sub_hybridAuth_eq auth sampleInitKey hHdrSound hEkSound
+      hCt1Sound hCt2Sound adv i false d ik
+  have hβt := gameProb_sub_eq_of_forall sampleInitKey
+    (fun e (_ : Dummies P) ik => stoppedHybridExp auth sampleInitKey adv (i + 1) e ik)
+    (fun e (_ : Dummies P) ik => do
+      let κ ← ($ᵗ P.EpochKey : ProbComp P.EpochKey)
+      stoppedHybridExp (hybridAuth auth e ik κ) sampleInitKey adv (i + 1) e ik)
+    (prevReal auth sampleInitKey adv true) (prevKdf auth sampleInitKey adv true) (i + 1)
+    fun ik d => stoppedHybrid_sub_hybridAuth_eq auth sampleInitKey hHdrSound hEkSound
+      hCt1Sound hCt2Sound adv i true d ik
+  have hγr := gameProb_congr sampleInitKey
+    (fun e (_ : Dummies P) ik => do
+      let κ ← ($ᵗ P.EpochKey : ProbComp P.EpochKey)
+      stoppedHybridExp (hybridAuth auth e ik κ) sampleInitKey adv i e ik)
+    (realKey auth sampleInitKey adv) (i + 1) fun ik d => by
+      have h := stoppedHybrid_hybridAuth_real_eq_realKey auth sampleInitKey hHdrSound
+        hEkSound hCt1Sound hCt2Sound adv (i + 1) d ik
+      rwa [Nat.add_sub_cancel] at h
+  have hγc := gameProb_congr sampleInitKey
+    (fun e (_ : Dummies P) ik => do
+      let κ ← ($ᵗ P.EpochKey : ProbComp P.EpochKey)
+      stoppedHybridExp (hybridAuth auth e ik κ) sampleInitKey adv (i + 1) e ik)
+    (realKeyChal auth sampleInitKey adv) (i + 1) fun ik d =>
+      stoppedHybrid_hybridAuth_random_eq_realKeyChal auth sampleInitKey hHdrSound hEkSound
+        hCt1Sound hCt2Sound adv (i + 1) d ik (Nat.succ_pos i)
+  linarith
 
 end SPQR

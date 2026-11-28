@@ -71,6 +71,12 @@ The key-hiding game hands `𝓑_Auth` the operations of `auth` on the hidden sta
 `hiddenMap e (hiddenState auth e ik' κ)` (`Reduction.AuthMap`) relates the simulated game
 over `withHidden` to the one over `hybridAuth auth e ik₀ κ`, for `ik₀ := ik'` if `e = 1` and the
 initial key of the context otherwise (`prEvent_simRun_withHidden`).
+
+**Main result** (`hybrid_gap_eq_reductions`). Let
+`p_i := Pr[idealExp (hybridMode i) adv = true]`. For `q > 0`, if every gap `p_{e-1} - p_e`
+satisfies the identity of `idealExp_gap_eq` (`Reduction.HybridGame`), then averaging it over the
+challenge epoch gives `p_0 - p_q = q · (4 Δ_KEM + 4 Δ_KDF + Δ_Auth)`, where each `Δ` is the
+difference between the experiments above of a reduction with bit `true` and with bit `false`.
 -/
 
 @[expose] public section
@@ -109,6 +115,18 @@ noncomputable def contextProb (q : ℕ) (game : ℕ → Dummies P → InitKey �
   (Pr{let y ← (do
     let ctx ← sampleContext sampleInitKey q
     game ctx.e ctx.d ctx.ik)}[y = true]).toReal
+
+/-- For `q ≠ 0`, `∑_{i < q} gameProb game (i + 1) = q · contextProb q game`. -/
+private theorem sum_gameProb_eq (q : ℕ) (hq : q ≠ 0)
+    (game : ℕ → Dummies P → InitKey → ProbComp Bool) :
+    ∑ i ∈ Finset.range q, gameProb sampleInitKey game (i + 1) =
+      (q : ℝ) * contextProb sampleInitKey q game := by
+  have h : contextProb sampleInitKey q game =
+      (q : ℝ)⁻¹ * ∑ i : Fin q, gameProb sampleInitKey game (i.val + 1) := by
+    simp only [contextProb, sampleContext, bind_assoc, pure_bind]
+    exact ToVCVio.toReal_prEvent_epochChoice_bind q hq _ (· = true)
+  rw [h, ← Fin.sum_univ_eq_sum_range (fun i => gameProb sampleInitKey game (i + 1)) q,
+    ← mul_assoc, mul_inv_cancel₀ (by exact_mod_cast hq), one_mul]
 
 /-- Negating the output: `Pr[!y | y ← g] = 1 - Pr[y | y ← g]`. -/
 private theorem toReal_prEvent_not_map (g : ProbComp Bool) :
@@ -623,5 +641,54 @@ theorem authReduction_prEvent_toReal (real : Bool) :
     apply OracleComp.prEvent_bind_congr_of_support'; rintro ⟨c, k⟩ -
     apply OracleComp.prEvent_bind_congr_of_support'; rintro u -
     exact (OracleComp.EvalDistEq.bind_const _ _).prEvent_eq _
+
+/-! ### Averaging over the challenge epoch -/
+
+section Averaging
+
+variable [SampleableType P.K]
+
+/-- Averaging over the challenge epoch: for `q ≠ 0`, if every `p_i - p_{i+1}` is given by
+`idealExp_gap_eq`, then `p_0 - p_q = q · (4 Δ_KEM + 4 Δ_KDF + Δ_Auth)`, where
+`p_i := Pr[idealExp (hybridMode i) adv = true]` and each `Δ` is the difference of the acceptance
+probabilities of the experiment of a reduction with bit `true` and with bit `false`: the IND-CPA
+experiment of `kemReduction`, `Braid.kdfContextExp P.kdfOK` of `kdfReduction`, and
+`Braid.authHideExp auth sampleInitKey` of `authReduction`. -/
+theorem hybrid_gap_eq_reductions (hq : q ≠ 0)
+    (hgap : ∀ i, (Pr{let x ← (idealExp auth sampleInitKey (SCKAScheme.hybridMode i)
+        adv)}[x = true]).toReal -
+      (Pr{let x ← (idealExp auth sampleInitKey (SCKAScheme.hybridMode (i + 1))
+          adv)}[x = true]).toReal =
+      (gameProb sampleInitKey (prevReal auth sampleInitKey adv false) (i + 1) -
+          gameProb sampleInitKey (prevKdf auth sampleInitKey adv false) (i + 1)) +
+        (gameProb sampleInitKey (realKey auth sampleInitKey adv) (i + 1) -
+          gameProb sampleInitKey (realKeyChal auth sampleInitKey adv) (i + 1)) -
+        (gameProb sampleInitKey (prevReal auth sampleInitKey adv true) (i + 1) -
+          gameProb sampleInitKey (prevKdf auth sampleInitKey adv true) (i + 1))) :
+    (Pr{let x ← idealExp auth sampleInitKey (SCKAScheme.hybridMode 0) adv}[x = true]).toReal -
+      (Pr{let x ← idealExp auth sampleInitKey (SCKAScheme.hybridMode q) adv}[x = true]).toReal =
+    (q : ℝ) * (
+      4 * ((Pr{let x ← (P.det.toKEM.IND_CPA_Experiment ProbCompRuntime.probComp
+          (kemReduction auth sampleInitKey adv q) true)}[x = true]).toReal -
+        (Pr{let x ← (P.det.toKEM.IND_CPA_Experiment ProbCompRuntime.probComp
+          (kemReduction auth sampleInitKey adv q) false)}[x = true]).toReal) +
+      4 * ((Pr{let x ← (Braid.kdfContextExp P.kdfOK (kdfReduction auth sampleInitKey adv q)
+          true)}[x = true]).toReal -
+        (Pr{let x ← (Braid.kdfContextExp P.kdfOK (kdfReduction auth sampleInitKey adv q)
+          false)}[x = true]).toReal) +
+      ((Pr{let x ← (Braid.authHideExp auth sampleInitKey (authReduction auth sampleInitKey adv q)
+          true)}[x = true]).toReal -
+        (Pr{let x ← (Braid.authHideExp auth sampleInitKey (authReduction auth sampleInitKey adv q)
+          false)}[x = true]).toReal)) := by
+  rw [← Finset.sum_range_sub' (fun i =>
+    (Pr{let x ← idealExp auth sampleInitKey (SCKAScheme.hybridMode i) adv}[x = true]).toReal) q]
+  simp only [hgap, Finset.sum_sub_distrib, Finset.sum_add_distrib,
+    sum_gameProb_eq sampleInitKey q hq]
+  rw [kemReduction_prEvent_toReal, kemReduction_prEvent_toReal, kdfReduction_prEvent_toReal,
+    kdfReduction_prEvent_toReal, authReduction_prEvent_toReal, authReduction_prEvent_toReal]
+  simp only [Fintype.sum_bool, ↓reduceIte, Bool.false_eq_true, realGame, randGame, unifGame]
+  ring
+
+end Averaging
 
 end SPQR
